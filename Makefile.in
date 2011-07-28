@@ -1,0 +1,24 @@
+TOPSRCDIR = @top_srcdir@
+TOPOBJDIR = ../..
+SRCDIR    = @srcdir@
+VPATH     = @srcdir@
+MODULE    = dsound.dll
+IMPORTLIB = dsound
+IMPORTS   = dxguid uuid winmm ole32 advapi32 kernel32 ntdll
+EXTRALIBS = @FRAMEWORK_OPENAL@ -lOpenAL32
+
+C_SRCS = \
+	buffer.c \
+	capture.c \
+	dsound8.c \
+	dsound_main.c \
+	duplex.c \
+	primary.c \
+	propset.c \
+	regsvr.c
+
+RC_SRCS = version.rc
+
+@MAKE_DLL_RULES@
+
+@DEPENDENCIES@  # everything below this line is overwritten by make depend
