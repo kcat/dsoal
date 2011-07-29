@@ -48,7 +48,7 @@ WINE_DEFAULT_DEBUG_CHANNEL(dsound);
 
 #else
 
-#define WINVER 0x6100
+#define WINVER 0x0600
 #define INITGUID
 #include <windows.h>
 #include <dsound.h>
