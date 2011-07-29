@@ -228,13 +228,10 @@ BOOL local_contexts;
 
 static void load_libopenal(void)
 {
-#ifdef WINELESS
+#ifndef __WINESRC__
     const char *str = getenv("DSOAL_LOGLEVEL");
     if(str && *str)
         LogLevel = atoi(str);
-
-    if(0) {
-    }
 #elif defined(SONAME_LIBOPENAL)
     BOOL failed = FALSE;
     char error[128];
