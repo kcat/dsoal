@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 2.6)
 
 SET(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 
+include(CheckCCompilerFlag)
+
 project(DSOAL C)
 
 set(LIBNAME dsound)
@@ -26,6 +28,17 @@ include_directories("${DSOAL_BINARY_DIR}" ${OPENAL_INCLUDE_DIR})
 
 if(WIN32)
     add_definitions(-D_WIN32 -DDEBUG_INFO)
+    if(NOT MSVC)
+        add_definitions(-Winline -Wall)
+        check_c_compiler_flag(-Wextra HAVE_W_EXTRA)
+        if(HAVE_W_EXTRA)
+            add_definitions(-Wextra)
+        endif()
+        check_c_compiler_flag(-Wformat=0 HAVE_W_FORMAT_ZERO)
+        if(HAVE_W_FORMAT_ZERO)
+            add_definitions(-Wformat=0)
+        endif()
+    endif()
 
     set(DSOAL_OBJS ${DSOAL_OBJS} debug.c)
 
