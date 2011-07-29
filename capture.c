@@ -147,8 +147,12 @@ static void CALLBACK DSCBuffer_timer(UINT timerID, UINT msg, DWORD_PTR dwUser,
                                      DWORD_PTR dw1, DWORD_PTR dw2)
 {
     DSCImpl *This = (DSCImpl*)dwUser;
+    ALCint avail = 0;
     DSCBuffer *buf;
-    ALint avail = 0;
+    (void)timerID;
+    (void)msg;
+    (void)dw1;
+    (void)dw2;
 
     EnterCriticalSection(&This->crst);
     buf = This->buf;
@@ -176,7 +180,7 @@ static void CALLBACK DSCBuffer_timer(UINT timerID, UINT msg, DWORD_PTR dwUser,
                 avail = 0;
                 alcGetIntegerv(buf->dev, ALC_CAPTURE_SAMPLES, 1, &avail);
                 avail *= buf->format->nBlockAlign;
-                if (avail >= buf->buf_size)
+                if ((ALCuint)avail >= buf->buf_size)
                 {
                     ERR("TOO MUCH AVAIL: %u/%u\n", avail, buf->buf_size);
                     avail = buf->buf_size;
@@ -293,6 +297,7 @@ static HRESULT WINAPI DSCBuffer_GetCurrentPosition(IDirectSoundCaptureBuffer8 *i
 {
     DSCBuffer *This = (DSCBuffer*)iface;
     DWORD pos1, pos2;
+
     EnterCriticalSection(&This->parent->crst);
     pos1 = This->pos;
     if (This->playing)
@@ -300,15 +305,18 @@ static HRESULT WINAPI DSCBuffer_GetCurrentPosition(IDirectSoundCaptureBuffer8 *i
         pos2 = This->format->nSamplesPerSec / 100;
         pos2 *= This->format->nBlockAlign;
         pos2 += pos1;
-        if (!This->looping && pos2 > This->buf_size)
+        if (!This->looping && pos2 >= This->buf_size)
             pos2 = 0;
         else
             pos2 %= This->buf_size;
     }
     else
         pos2 = pos1;
-    pos2 %= This->buf_size;
     LeaveCriticalSection(&This->parent->crst);
+
+    if(cappos) *cappos = pos1;
+    if(readpos) *readpos = pos2;
+
     return S_OK;
 }
 
@@ -550,7 +558,7 @@ static HRESULT WINAPI DSCBuffer_Stop(IDirectSoundCaptureBuffer8 *iface)
 static HRESULT WINAPI DSCBuffer_Unlock(IDirectSoundCaptureBuffer8 *iface, void *ptr1, DWORD len1, void *ptr2, DWORD len2)
 {
     DSCBuffer *This = (DSCBuffer*)iface;
-    TRACE("(%p)->(%p,%u,%p,%u)\n", This, ptr1, len2, ptr2, len2);
+    TRACE("(%p)->(%p,%u,%p,%u)\n", This, ptr1, len1, ptr2, len2);
 
     if (!ptr1)
         return DSERR_INVALIDPARAM;

@@ -141,6 +141,10 @@ static void CALLBACK DS8Buffer_timer(UINT timerID, UINT msg, DWORD_PTR dwUser,
 {
     DS8Primary *prim = (DS8Primary*)dwUser;
     DWORD i;
+    (void)timerID;
+    (void)msg;
+    (void)dw1;
+    (void)dw2;
 
     EnterCriticalSection(&prim->crst);
     setALContext(prim->ctx);
@@ -1466,6 +1470,7 @@ static HRESULT WINAPI DS8Buffer_Play(IDirectSoundBuffer8 *iface, DWORD res1, DWO
     DS8Buffer *This = impl_from_IDirectSoundBuffer8(iface);
     ALint type, state = AL_STOPPED;
     HRESULT hr;
+    (void)res1;
 
     TRACE("%p\n", This);
 
