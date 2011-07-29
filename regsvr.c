@@ -465,39 +465,39 @@ static struct regsvr_coclass const coclass_list[] = {
 	"DirectSound Object",
 	NULL,
 	"dsound.dll",
-	"Both"
+	"Both", NULL, NULL, NULL
     },
     {   &CLSID_DirectSound8,
 	"DirectSound 8.0 Object",
 	NULL,
 	"dsound.dll",
-	"Both"
+	"Both", NULL, NULL, NULL
     },
     {   &CLSID_DirectSoundBufferConfig,
 	"DirectSoundBufferConfig Object",
 	NULL,
 	"dsound.dll",
-	"Both"
+	"Both", NULL, NULL, NULL
     },
     {   &CLSID_DirectSoundCapture,
 	"DirectSoundCapture Object",
 	NULL,
 	"dsound.dll",
-	"Both"
+	"Both", NULL, NULL, NULL
     },
     {   &CLSID_DirectSoundCapture8,
 	"DirectSoundCapture 8.0 Object",
 	NULL,
 	"dsound.dll",
-	"Both"
+	"Both", NULL, NULL, NULL
     },
     {   &CLSID_DirectSoundFullDuplex,
 	"DirectSoundFullDuplex Object",
 	NULL,
 	"dsound.dll",
-	"Both"
+	"Both", NULL, NULL, NULL
     },
-    { NULL }			/* list terminator */
+    { NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL }	/* list terminator */
 };
 
 /***********************************************************************
@@ -505,7 +505,7 @@ static struct regsvr_coclass const coclass_list[] = {
  */
 
 static struct regsvr_interface const interface_list[] = {
-    { NULL }			/* list terminator */
+    { NULL, NULL, NULL, 0, NULL, NULL }	/* list terminator */
 };
 
 /***********************************************************************
@@ -518,8 +518,8 @@ HRESULT WINAPI DllRegisterServer(void)
     TRACE("\n");
 
     hr = register_coclasses(coclass_list);
-    if (SUCCEEDED(hr))
-	hr = register_interfaces(interface_list);
+    if(SUCCEEDED(hr))
+        hr = register_interfaces(interface_list);
     return hr;
 }
 
@@ -539,7 +539,7 @@ HRESULT WINAPI DllUnregisterServer(void)
     TRACE("\n");
 
     hr = unregister_coclasses(coclass_list);
-    if (SUCCEEDED(hr))
-	hr = unregister_interfaces(interface_list);
+    if(SUCCEEDED(hr))
+        hr = unregister_interfaces(interface_list);
     return hr;
 }
