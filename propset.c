@@ -50,35 +50,30 @@ WINE_DEFAULT_DEBUG_CHANNEL(dsound);
 
 #include "dsound_private.h"
 
-typedef enum
-{
+typedef enum {
         DIRECTSOUNDDEVICE_DATAFLOW_RENDER,
         DIRECTSOUNDDEVICE_DATAFLOW_CAPTURE
 } DIRECTSOUNDDEVICE_DATAFLOW;
 
-typedef struct _DSPROPERTY_DIRECTSOUNDDEVICE_WAVEDEVICEMAPPING_A_DATA
-{
+typedef struct _DSPROPERTY_DIRECTSOUNDDEVICE_WAVEDEVICEMAPPING_A_DATA {
         LPSTR                           DeviceName;
         DIRECTSOUNDDEVICE_DATAFLOW      DataFlow;
         GUID                            DeviceId;
 } DSPROPERTY_DIRECTSOUNDDEVICE_WAVEDEVICEMAPPING_A_DATA, *PDSPROPERTY_DIRECTSOUNDDEVICE_WAVEDEVICEMAPPING_A_DATA;
 
-typedef struct _DSPROPERTY_DIRECTSOUNDDEVICE_WAVEDEVICEMAPPING_W_DATA
-{
+typedef struct _DSPROPERTY_DIRECTSOUNDDEVICE_WAVEDEVICEMAPPING_W_DATA {
         LPWSTR                          DeviceName;
         DIRECTSOUNDDEVICE_DATAFLOW      DataFlow;
         GUID                            DeviceId;
 } DSPROPERTY_DIRECTSOUNDDEVICE_WAVEDEVICEMAPPING_W_DATA, *PDSPROPERTY_DIRECTSOUNDDEVICE_WAVEDEVICEMAPPING_W_DATA;
 
-typedef enum
-{
+typedef enum {
         DIRECTSOUNDDEVICE_TYPE_EMULATED,
         DIRECTSOUNDDEVICE_TYPE_VXD,
         DIRECTSOUNDDEVICE_TYPE_WDM
 } DIRECTSOUNDDEVICE_TYPE;
 
-typedef struct _DSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_1_DATA
-{
+typedef struct _DSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_1_DATA {
         GUID                            DeviceId;
         CHAR                            DescriptionA[0x100];
         WCHAR                           DescriptionW[0x100];
@@ -90,8 +85,7 @@ typedef struct _DSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_1_DATA
         ULONG                           Devnode;
 } DSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_1_DATA, *PDSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_1_DATA;
 
-typedef struct _DSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_A_DATA
-{
+typedef struct _DSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_A_DATA {
         DIRECTSOUNDDEVICE_TYPE          Type;
         DIRECTSOUNDDEVICE_DATAFLOW      DataFlow;
         GUID                            DeviceId;
@@ -101,8 +95,7 @@ typedef struct _DSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_A_DATA
         ULONG                           WaveDeviceId;
 } DSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_A_DATA, *PDSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_A_DATA;
 
-typedef struct _DSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_W_DATA
-{
+typedef struct _DSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_W_DATA {
         DIRECTSOUNDDEVICE_TYPE          Type;
         DIRECTSOUNDDEVICE_DATAFLOW      DataFlow;
         GUID                            DeviceId;
@@ -112,8 +105,7 @@ typedef struct _DSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_W_DATA
         ULONG                           WaveDeviceId;
 } DSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_W_DATA, *PDSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_W_DATA;
 
-typedef struct _DSDRIVERDESC
-{
+typedef struct _DSDRIVERDESC {
     DWORD       dwFlags;
     CHAR        szDesc[256];
     CHAR        szDrvname[256];
@@ -142,28 +134,24 @@ typedef BOOL (CALLBACK *LPFNDIRECTSOUNDDEVICEENUMERATECALLBACK1)(PDSPROPERTY_DIR
 typedef BOOL (CALLBACK *LPFNDIRECTSOUNDDEVICEENUMERATECALLBACKA)(PDSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_A_DATA, LPVOID);
 typedef BOOL (CALLBACK *LPFNDIRECTSOUNDDEVICEENUMERATECALLBACKW)(PDSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_W_DATA, LPVOID);
 
-typedef struct _DSPROPERTY_DIRECTSOUNDDEVICE_ENUMERATE_1_DATA
-{
+typedef struct _DSPROPERTY_DIRECTSOUNDDEVICE_ENUMERATE_1_DATA {
         LPFNDIRECTSOUNDDEVICEENUMERATECALLBACK1 Callback;
         LPVOID                                  Context;
 } DSPROPERTY_DIRECTSOUNDDEVICE_ENUMERATE_1_DATA, *PDSPROPERTY_DIRECTSOUNDDEVICE_ENUMERATE_1_DATA;
 
-typedef struct _DSPROPERTY_DIRECTSOUNDDEVICE_ENUMERATE_A_DATA
-{
+typedef struct _DSPROPERTY_DIRECTSOUNDDEVICE_ENUMERATE_A_DATA {
         LPFNDIRECTSOUNDDEVICEENUMERATECALLBACKA Callback;
         LPVOID                                  Context;
 } DSPROPERTY_DIRECTSOUNDDEVICE_ENUMERATE_A_DATA, *PDSPROPERTY_DIRECTSOUNDDEVICE_ENUMERATE_A_DATA;
 
-typedef struct _DSPROPERTY_DIRECTSOUNDDEVICE_ENUMERATE_W_DATA
-{
+typedef struct _DSPROPERTY_DIRECTSOUNDDEVICE_ENUMERATE_W_DATA {
         LPFNDIRECTSOUNDDEVICEENUMERATECALLBACKW Callback;
         LPVOID                                  Context;
 } DSPROPERTY_DIRECTSOUNDDEVICE_ENUMERATE_W_DATA, *PDSPROPERTY_DIRECTSOUNDDEVICE_ENUMERATE_W_DATA;
 
 DEFINE_GUID(DSPROPSETID_DirectSoundDevice,0x84624f82,0x25ec,0x11d1,0xa4,0xd8,0x00,0xc0,0x4f,0xc2,0x8a,0xca);
 
-typedef enum
-{
+typedef enum {
         DSPROPERTY_DIRECTSOUNDDEVICE_WAVEDEVICEMAPPING_A = 1,
         DSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_1       = 2,
         DSPROPERTY_DIRECTSOUNDDEVICE_ENUMERATE_1         = 3,
@@ -192,13 +180,18 @@ typedef struct IKsPrivatePropertySetImpl {
  *              IKsPrivatePropertySet
  */
 
+static inline IKsPrivatePropertySetImpl *impl_from_IKsPropertySet(IKsPropertySet *iface)
+{
+	return CONTAINING_RECORD(iface, IKsPrivatePropertySetImpl, IKsPropertySet_iface);
+}
+
 /* IUnknown methods */
 static HRESULT WINAPI IKsPrivatePropertySetImpl_QueryInterface(
-    LPKSPROPERTYSET iface,
+    IKsPropertySet *iface,
     REFIID riid,
     LPVOID *ppobj )
 {
-    IKsPrivatePropertySetImpl *This = (IKsPrivatePropertySetImpl *)iface;
+    IKsPrivatePropertySetImpl *This = impl_from_IKsPropertySet(iface);
     TRACE("(%p,%s,%p)\n",This,debugstr_guid(riid),ppobj);
 
     if (IsEqualIID(riid, &IID_IUnknown) ||
@@ -211,19 +204,19 @@ static HRESULT WINAPI IKsPrivatePropertySetImpl_QueryInterface(
     return E_NOINTERFACE;
 }
 
-static ULONG WINAPI IKsPrivatePropertySetImpl_AddRef(LPKSPROPERTYSET iface)
+static ULONG WINAPI IKsPrivatePropertySetImpl_AddRef(IKsPropertySet *iface)
 {
-    IKsPrivatePropertySetImpl *This = (IKsPrivatePropertySetImpl *)iface;
+    IKsPrivatePropertySetImpl *This = impl_from_IKsPropertySet(iface);
     ULONG ref = InterlockedIncrement(&(This->ref));
-    TRACE("(%p) ref was %u\n", This, (UINT)ref - 1);
+    TRACE("(%p) ref was %u\n", This, ref - 1);
     return ref;
 }
 
-static ULONG WINAPI IKsPrivatePropertySetImpl_Release(LPKSPROPERTYSET iface)
+static ULONG WINAPI IKsPrivatePropertySetImpl_Release(IKsPropertySet *iface)
 {
-    IKsPrivatePropertySetImpl *This = (IKsPrivatePropertySetImpl *)iface;
+    IKsPrivatePropertySetImpl *This = impl_from_IKsPropertySet(iface);
     ULONG ref = InterlockedDecrement(&(This->ref));
-    TRACE("(%p) ref was %u\n", This, (UINT)ref + 1);
+    TRACE("(%p) ref was %u\n", This, ref + 1);
 
     if (!ref) {
         HeapFree(GetProcessHeap(), 0, This);
@@ -240,10 +233,9 @@ static HRESULT DSPROPERTY_WaveDeviceMappingW(
     HRESULT hr = DSERR_INVALIDPARAM;
     PDSPROPERTY_DIRECTSOUNDDEVICE_WAVEDEVICEMAPPING_W_DATA ppd;
     TRACE("(pPropData=%p,cbPropData=%u,pcbReturned=%p)\n",
-	  pPropData,(UINT)cbPropData,pcbReturned);
+          pPropData,cbPropData,pcbReturned);
 
     ppd = pPropData;
-
     if (!ppd) {
         WARN("invalid parameter: pPropData\n");
         return DSERR_INVALIDPARAM;
@@ -302,13 +294,13 @@ static HRESULT DSPROPERTY_WaveDeviceMappingA(
     ULONG cbPropData,
     PULONG pcbReturned )
 {
-    DSPROPERTY_DIRECTSOUNDDEVICE_WAVEDEVICEMAPPING_A_DATA *ppd = pPropData;
     DSPROPERTY_DIRECTSOUNDDEVICE_WAVEDEVICEMAPPING_W_DATA data;
+    DSPROPERTY_DIRECTSOUNDDEVICE_WAVEDEVICEMAPPING_A_DATA *ppd = pPropData;
     DWORD len;
     HRESULT hr;
 
     TRACE("(pPropData=%p,cbPropData=%u,pcbReturned=%p)\n",
-      pPropData,(UINT)cbPropData,pcbReturned);
+      pPropData,cbPropData,pcbReturned);
 
     if (!ppd || !ppd->DeviceName) {
         WARN("invalid parameter: ppd=%p\n", ppd);
@@ -344,7 +336,7 @@ static HRESULT DSPROPERTY_DescriptionW(
     DSDRIVERDESC desc;
 
     TRACE("pPropData=%p,cbPropData=%u,pcbReturned=%p)\n",
-          pPropData,(UINT)cbPropData,pcbReturned);
+          pPropData,cbPropData,pcbReturned);
 
     TRACE("DeviceId=%s\n",debugstr_guid(&ppd->DeviceId));
     if ( IsEqualGUID( &ppd->DeviceId , &GUID_NULL) ) {
@@ -422,7 +414,7 @@ static HRESULT DSPROPERTY_DescriptionW(
 
     if (pcbReturned) {
         *pcbReturned = sizeof(*ppd);
-        TRACE("*pcbReturned=%u\n", (UINT)*pcbReturned);
+        TRACE("*pcbReturned=%u\n", *pcbReturned);
     }
 
     return S_OK;
@@ -438,7 +430,7 @@ static HRESULT DSPROPERTY_EnumerateW(
     BOOL ret;
     int widn, wodn, i;
     TRACE("(pPropData=%p,cbPropData=%u,pcbReturned=%p)\n",
-          pPropData,(UINT)cbPropData,pcbReturned);
+          pPropData,cbPropData,pcbReturned);
 
     if (pcbReturned)
         *pcbReturned = 0;
@@ -542,8 +534,11 @@ static HRESULT DSPROPERTY_EnumerateA(
     ULONG cbPropData,
     PULONG pcbReturned)
 {
-    DSPROPERTY_DIRECTSOUNDDEVICE_ENUMERATE_A_DATA *ppd = pPropData;
     DSPROPERTY_DIRECTSOUNDDEVICE_ENUMERATE_W_DATA data;
+    DSPROPERTY_DIRECTSOUNDDEVICE_ENUMERATE_A_DATA *ppd = pPropData;
+
+    if(cbPropData < sizeof(*ppd))
+        return DSERR_INVALIDPARAM;
 
     if (!ppd || !ppd->Callback)
     {
@@ -573,8 +568,11 @@ static HRESULT DSPROPERTY_Enumerate1(
     ULONG cbPropData,
     PULONG pcbReturned)
 {
-    DSPROPERTY_DIRECTSOUNDDEVICE_ENUMERATE_1_DATA *ppd = pPropData;
     DSPROPERTY_DIRECTSOUNDDEVICE_ENUMERATE_W_DATA data;
+    DSPROPERTY_DIRECTSOUNDDEVICE_ENUMERATE_1_DATA *ppd = pPropData;
+
+    if(cbPropData < sizeof(*ppd))
+        return DSERR_INVALIDPARAM;
 
     if (!ppd || !ppd->Callback)
     {
@@ -596,6 +594,9 @@ static HRESULT DSPROPERTY_DescriptionA(
     DSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_W_DATA data;
     DSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_A_DATA *ppd = pPropData;
     HRESULT hr;
+
+    if(cbPropData < sizeof(*ppd))
+        return DSERR_INVALIDPARAM;
 
     if (pcbReturned)
         *pcbReturned = sizeof(*ppd);
@@ -622,6 +623,9 @@ static HRESULT DSPROPERTY_Description1(
     DSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_1_DATA *ppd = pPropData;
     HRESULT hr;
 
+    if(cbPropData < sizeof(*ppd))
+        return DSERR_INVALIDPARAM;
+
     if (pcbReturned)
         *pcbReturned = sizeof(*ppd);
     if (!pPropData)
@@ -639,7 +643,7 @@ static HRESULT DSPROPERTY_Description1(
 }
 
 static HRESULT WINAPI IKsPrivatePropertySetImpl_Get(
-    LPKSPROPERTYSET iface,
+    IKsPropertySet *iface,
     REFGUID guidPropSet,
     ULONG dwPropID,
     LPVOID pInstanceData,
@@ -648,11 +652,11 @@ static HRESULT WINAPI IKsPrivatePropertySetImpl_Get(
     ULONG cbPropData,
     PULONG pcbReturned )
 {
-    IKsPrivatePropertySetImpl *This = (IKsPrivatePropertySetImpl *)iface;
+    IKsPrivatePropertySetImpl *This = impl_from_IKsPropertySet(iface);
     TRACE("(iface=%p,guidPropSet=%s,dwPropID=%u,pInstanceData=%p,cbInstanceData=%u,pPropData=%p,cbPropData=%u,pcbReturned=%p)\n",
-          This,debugstr_guid(guidPropSet),(UINT)dwPropID,
-          pInstanceData,(UINT)cbInstanceData,
-          pPropData,(UINT)cbPropData,pcbReturned);
+          This,debugstr_guid(guidPropSet),dwPropID,
+          pInstanceData,cbInstanceData,
+          pPropData,cbPropData,pcbReturned);
 
     if ( IsEqualGUID( &DSPROPSETID_DirectSoundDevice, guidPropSet) ) {
         switch (dwPropID) {
@@ -673,7 +677,7 @@ static HRESULT WINAPI IKsPrivatePropertySetImpl_Get(
         case DSPROPERTY_DIRECTSOUNDDEVICE_ENUMERATE_W:
             return DSPROPERTY_EnumerateW(pPropData,cbPropData,pcbReturned);
         default:
-            FIXME("unsupported ID: %u\n",(UINT)dwPropID);
+            FIXME("unsupported ID: %u\n",dwPropID);
             break;
         }
     } else {
@@ -682,14 +686,14 @@ static HRESULT WINAPI IKsPrivatePropertySetImpl_Get(
 
     if (pcbReturned) {
         *pcbReturned = 0;
-        FIXME("*pcbReturned=%u\n", (UINT)*pcbReturned);
+        FIXME("*pcbReturned=%u\n", *pcbReturned);
     }
 
     return E_PROP_ID_UNSUPPORTED;
 }
 
 static HRESULT WINAPI IKsPrivatePropertySetImpl_Set(
-    LPKSPROPERTYSET iface,
+    IKsPropertySet *iface,
     REFGUID guidPropSet,
     ULONG dwPropID,
     LPVOID pInstanceData,
@@ -697,22 +701,22 @@ static HRESULT WINAPI IKsPrivatePropertySetImpl_Set(
     LPVOID pPropData,
     ULONG cbPropData )
 {
-    IKsPrivatePropertySetImpl *This = (IKsPrivatePropertySetImpl *)iface;
+    IKsPrivatePropertySetImpl *This = impl_from_IKsPropertySet(iface);
 
     FIXME("(%p)->(%s,%u,%p,%u,%p,%u), stub!\n",This,
-          debugstr_guid(guidPropSet),(UINT)dwPropID,
-          pInstanceData,(UINT)cbInstanceData,pPropData,(UINT)cbPropData);
+          debugstr_guid(guidPropSet),dwPropID,
+          pInstanceData,cbInstanceData,pPropData,cbPropData);
     return E_PROP_ID_UNSUPPORTED;
 }
 
 static HRESULT WINAPI IKsPrivatePropertySetImpl_QuerySupport(
-    LPKSPROPERTYSET iface,
+    IKsPropertySet *iface,
     REFGUID guidPropSet,
     ULONG dwPropID,
     PULONG pTypeSupport )
 {
-    IKsPrivatePropertySetImpl *This = (IKsPrivatePropertySetImpl *)iface;
-    TRACE("(%p,%s,%u,%p)\n",This,debugstr_guid(guidPropSet),(UINT)dwPropID,pTypeSupport);
+    IKsPrivatePropertySetImpl *This = impl_from_IKsPropertySet(iface);
+    TRACE("(%p,%s,%u,%p)\n",This,debugstr_guid(guidPropSet),dwPropID,pTypeSupport);
 
     if ( IsEqualGUID( &DSPROPSETID_DirectSoundDevice, guidPropSet) ) {
 	switch (dwPropID) {
@@ -741,7 +745,7 @@ static HRESULT WINAPI IKsPrivatePropertySetImpl_QuerySupport(
 	    *pTypeSupport = KSPROPERTY_SUPPORT_GET;
 	    return S_OK;
 	default:
-            FIXME("unsupported ID: %u\n",(UINT)dwPropID);
+            FIXME("unsupported ID: %u\n",dwPropID);
 	    break;
 	}
     } else {
