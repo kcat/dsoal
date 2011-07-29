@@ -45,22 +45,22 @@
 
 extern int LogLevel;
 
-#if DEBUG_INFO
-#define TRACE(fmt,args...) do {                                         \
-    if(LogLevel >= 3)                                                   \
-        fprintf(stderr, "trace:dsound:%s " fmt, __FUNCTION__, ##args);  \
+#ifndef DEBUG_INFO
+#define TRACE(fmt,args...) do {                                                                      \
+    if(LogLevel >= 3)                                                                                \
+        fprintf(stderr, "%04x:trace:dsound:%s " fmt, GetCurrentThreadId(), __FUNCTION__, ##args);  \
 } while(0)
-#define WARN(fmt,args...) do {                                          \
-    if(LogLevel >= 2)                                                   \
-        fprintf(stderr, "warn:dsound:%s " fmt, __FUNCTION__, ##args);   \
+#define WARN(fmt,args...) do {                                                                       \
+    if(LogLevel >= 2)                                                                                \
+        fprintf(stderr, "%04x:warn:dsound:%s " fmt, GetCurrentThreadId(), __FUNCTION__, ##args);   \
 } while(0)
-#define FIXME(fmt,args...) do {                                         \
-    if(LogLevel >= 1)                                                   \
-        fprintf(stderr, "fixme:dsound:%s " fmt, __FUNCTION__, ##args);  \
+#define FIXME(fmt,args...) do {                                                                      \
+    if(LogLevel >= 1)                                                                                \
+        fprintf(stderr, "%04x:fixme:dsound:%s " fmt, GetCurrentThreadId(), __FUNCTION__, ##args);  \
 } while(0)
-#define ERR(fmt,args...) do {                                           \
-    if(LogLevel >= 0)                                                   \
-        fprintf(stderr, "err:dsound:%s " fmt, __FUNCTION__, ##args);    \
+#define ERR(fmt,args...) do {                                                                        \
+    if(LogLevel >= 0)                                                                                \
+        fprintf(stderr, "%04x:err:dsound:%s " fmt, GetCurrentThreadId(), __FUNCTION__, ##args);    \
 } while(0)
 #else
 #define TRACE(args...)
