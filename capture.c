@@ -64,11 +64,11 @@ HRESULT DSOUND_CaptureCreate(REFIID riid, IDirectSoundCapture **cap)
     return DSOUND_CaptureCreate8(riid, cap);
 }
 
+typedef struct DSCImpl DSCImpl;
 typedef struct DSCBuffer DSCBuffer;
 
-typedef struct DSCImpl
-{
-    const IDirectSoundCaptureVtbl *lpVtbl;
+struct DSCImpl {
+    IDirectSoundCapture IDirectSoundCapture_iface;
     LONG ref;
 
     ALCchar *device;
@@ -76,13 +76,13 @@ typedef struct DSCImpl
     UINT timer_id;
     DWORD timer_res;
     CRITICAL_SECTION crst;
-} DSCImpl;
+};
 
-struct DSCBuffer
-{
-    const IDirectSoundCaptureBuffer8Vtbl *lpVtbl;
-    const IDirectSoundNotifyVtbl *lpNotVtbl;
+struct DSCBuffer {
+    IDirectSoundCaptureBuffer8 IDirectSoundCaptureBuffer8_iface;
+    IDirectSoundNotify IDirectSoundNotify_iface;
     LONG ref, not_ref;
+
     DSCImpl *parent;
     ALCdevice *dev;
     DWORD buf_size;
@@ -104,11 +104,12 @@ static void DSCImpl_Destroy(DSCImpl *This);
 static HRESULT DSCBuffer_Create(DSCBuffer **buf)
 {
     DSCBuffer *This = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(*This));
-    if (!This)
-        return E_OUTOFMEMORY;
-    This->lpVtbl = &DSCBuffer_Vtbl;
-    This->lpNotVtbl = &DSCNot_Vtbl;
+    if (!This) return E_OUTOFMEMORY;
+
+    This->IDirectSoundCaptureBuffer8_iface.lpVtbl = &DSCBuffer_Vtbl;
+    This->IDirectSoundNotify_iface.lpVtbl = &DSCNot_Vtbl;
     This->ref = 1;
+
     *buf = This;
     return S_OK;
 }
@@ -116,8 +117,10 @@ static HRESULT DSCBuffer_Create(DSCBuffer **buf)
 static void trigger_notifies(DSCBuffer *buf, DWORD lastpos, DWORD curpos)
 {
     DWORD i;
+
     if (lastpos == curpos)
         return;
+
     for (i = 0; i < buf->nnotify; ++i)
     {
         DSBPOSITIONNOTIFY *not = &buf->notify[i];
@@ -130,15 +133,13 @@ static void trigger_notifies(DSCBuffer *buf, DWORD lastpos, DWORD curpos)
         /* Wraparound case */
         if (curpos < lastpos)
         {
-            if (ofs < curpos
-                || ofs >= lastpos)
+            if (ofs < curpos || ofs >= lastpos)
                 SetEvent(event);
             continue;
         }
 
         /* Normal case */
-        if (ofs >= lastpos
-            && ofs < curpos)
+        if (ofs >= lastpos && ofs < curpos)
             SetEvent(event);
     }
 }
@@ -239,19 +240,28 @@ static void DSCBuffer_Destroy(DSCBuffer *This)
     HeapFree(GetProcessHeap(), 0, This);
 }
 
+static inline DSCBuffer *impl_from_IDirectSoundCaptureBuffer8(IDirectSoundCaptureBuffer8 *iface)
+{
+    return CONTAINING_RECORD(iface, DSCBuffer, IDirectSoundCaptureBuffer8_iface);
+}
+
 static HRESULT WINAPI DSCBuffer_QueryInterface(IDirectSoundCaptureBuffer8 *iface, REFIID riid, void **ppv)
 {
-    DSCBuffer *This = (DSCBuffer*)iface;
-    if (!ppv)
-        return E_POINTER;
+    DSCBuffer *This = impl_from_IDirectSoundCaptureBuffer8(iface);
+
     TRACE("(%p)->(%s,%p)\n", This, debugstr_guid(riid), ppv);
+
+    if(!ppv)
+        return E_POINTER;
     *ppv = NULL;
+
     if (IsEqualIID(riid, &IID_IDirectSoundNotify))
-        *ppv = &This->lpNotVtbl;
-    else if (IsEqualIID(riid, &IID_IUnknown)
-             || IsEqualIID(riid, &IID_IDirectSoundCaptureBuffer)
-             || IsEqualIID(riid, &IID_IDirectSoundCaptureBuffer8))
-        *ppv = This;
+        *ppv = &This->IDirectSoundNotify_iface;
+    else if (IsEqualIID(riid, &IID_IUnknown) ||
+             IsEqualIID(riid, &IID_IDirectSoundCaptureBuffer) ||
+             IsEqualIID(riid, &IID_IDirectSoundCaptureBuffer8))
+        *ppv = &This->IDirectSoundCaptureBuffer8_iface;
+
     if (!*ppv)
         return E_NOINTERFACE;
     IUnknown_AddRef((IUnknown*)*ppv);
@@ -260,30 +270,34 @@ static HRESULT WINAPI DSCBuffer_QueryInterface(IDirectSoundCaptureBuffer8 *iface
 
 static ULONG WINAPI DSCBuffer_AddRef(IDirectSoundCaptureBuffer8 *iface)
 {
-    DSCBuffer *This = (DSCBuffer*)iface;
+    DSCBuffer *This = impl_from_IDirectSoundCaptureBuffer8(iface);
     LONG ref;
+
     ref = InterlockedIncrement(&This->ref);
     TRACE("Reference count incremented to %i\n", ref);
+
     return ref;
 }
 
 static ULONG WINAPI DSCBuffer_Release(IDirectSoundCaptureBuffer8 *iface)
 {
-    DSCBuffer *This = (DSCBuffer*)iface;
+    DSCBuffer *This = impl_from_IDirectSoundCaptureBuffer8(iface);
     CRITICAL_SECTION *crst = &This->parent->crst;
     LONG ref;
+
     EnterCriticalSection(crst);
     ref = InterlockedDecrement(&This->ref);
     TRACE("Reference count decremented to %i\n", ref);
     if (!ref && !This->not_ref)
         DSCBuffer_Destroy(This);
     LeaveCriticalSection(crst);
+
     return ref;
 }
 
 static HRESULT WINAPI DSCBuffer_GetCaps(IDirectSoundCaptureBuffer8 *iface, DSCBCAPS *caps)
 {
-    DSCBuffer *This = (DSCBuffer*)iface;
+    DSCBuffer *This = impl_from_IDirectSoundCaptureBuffer8(iface);
 
     if (!caps || caps->dwSize < sizeof(*caps))
         return DSERR_INVALIDPARAM;
@@ -295,7 +309,7 @@ static HRESULT WINAPI DSCBuffer_GetCaps(IDirectSoundCaptureBuffer8 *iface, DSCBC
 
 static HRESULT WINAPI DSCBuffer_GetCurrentPosition(IDirectSoundCaptureBuffer8 *iface, DWORD *cappos, DWORD *readpos)
 {
-    DSCBuffer *This = (DSCBuffer*)iface;
+    DSCBuffer *This = impl_from_IDirectSoundCaptureBuffer8(iface);
     DWORD pos1, pos2;
 
     EnterCriticalSection(&This->parent->crst);
@@ -322,7 +336,7 @@ static HRESULT WINAPI DSCBuffer_GetCurrentPosition(IDirectSoundCaptureBuffer8 *i
 
 static HRESULT WINAPI DSCBuffer_GetFormat(IDirectSoundCaptureBuffer8 *iface, WAVEFORMATEX *wfx, DWORD size, DWORD *written)
 {
-    DSCBuffer *This = (DSCBuffer*)iface;
+    DSCBuffer *This = impl_from_IDirectSoundCaptureBuffer8(iface);
     TRACE("(%p,%p,%u,%p)\n", This, wfx, size, written);
 
     if (size > sizeof(WAVEFORMATEX) + This->format->cbSize)
@@ -333,7 +347,8 @@ static HRESULT WINAPI DSCBuffer_GetFormat(IDirectSoundCaptureBuffer8 *iface, WAV
         CopyMemory(wfx, This->format, size);
         if (written)
             *written = size;
-    } else if (written)
+    }
+    else if (written)
         *written = sizeof(WAVEFORMATEX) + This->format->cbSize;
     else
         return DSERR_INVALIDPARAM;
@@ -343,7 +358,7 @@ static HRESULT WINAPI DSCBuffer_GetFormat(IDirectSoundCaptureBuffer8 *iface, WAV
 
 static HRESULT WINAPI DSCBuffer_GetStatus(IDirectSoundCaptureBuffer8 *iface, DWORD *status)
 {
-    DSCBuffer *This = (DSCBuffer*)iface;
+    DSCBuffer *This = impl_from_IDirectSoundCaptureBuffer8(iface);
     TRACE("(%p)->(%p)\n", This, status);
 
     if (!status)
@@ -363,13 +378,14 @@ static HRESULT WINAPI DSCBuffer_GetStatus(IDirectSoundCaptureBuffer8 *iface, DWO
 
 static HRESULT WINAPI DSCBuffer_Initialize(IDirectSoundCaptureBuffer8 *iface, IDirectSoundCapture *parent, const DSCBUFFERDESC *desc)
 {
-    DSCBuffer *This = (DSCBuffer*)iface;
+    DSCBuffer *This = impl_from_IDirectSoundCaptureBuffer8(iface);
     WAVEFORMATEX *format;
     ALenum buf_format = -1;
 
     if (This->parent)
         return DSERR_ALREADYINITIALIZED;
     This->parent = (DSCImpl*)parent;
+
     if (!desc->lpwfxFormat)
         return DSERR_INVALIDPARAM;
 
@@ -385,8 +401,8 @@ static HRESULT WINAPI DSCBuffer_Initialize(IDirectSoundCaptureBuffer8 *iface, ID
     if (!This->format)
         return DSERR_OUTOFMEMORY;
 
-    if (format->wFormatTag == WAVE_FORMAT_PCM
-        || format->wFormatTag == WAVE_FORMAT_EXTENSIBLE)
+    if (format->wFormatTag == WAVE_FORMAT_PCM ||
+        format->wFormatTag == WAVE_FORMAT_EXTENSIBLE)
     {
         if (format->wFormatTag == WAVE_FORMAT_EXTENSIBLE)
         {
@@ -439,12 +455,14 @@ static HRESULT WINAPI DSCBuffer_Initialize(IDirectSoundCaptureBuffer8 *iface, ID
         WARN("Could not get OpenAL format\n");
         return DSERR_INVALIDPARAM;
     }
+
     This->dev = alcCaptureOpenDevice(This->parent->device, This->format->nSamplesPerSec, buf_format, This->buf_size / This->format->nBlockAlign);
     if (!This->dev)
     {
         ERR("couldn't open device %s %x@%u, reason: %04x\n", This->parent->device, buf_format, This->format->nSamplesPerSec, alcGetError(NULL));
         return DSERR_INVALIDPARAM;
     }
+
     This->buf = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, This->buf_size);
     if (!This->buf)
     {
@@ -458,21 +476,19 @@ static HRESULT WINAPI DSCBuffer_Initialize(IDirectSoundCaptureBuffer8 *iface, ID
 
 static HRESULT WINAPI DSCBuffer_Lock(IDirectSoundCaptureBuffer8 *iface, DWORD ofs, DWORD bytes, void **ptr1, DWORD *len1, void **ptr2, DWORD *len2, DWORD flags)
 {
-    DSCBuffer *This = (DSCBuffer*)iface;
+    DSCBuffer *This = impl_from_IDirectSoundCaptureBuffer8(iface);
     HRESULT hr;
     DWORD remain;
     TRACE("(%p)->(%u, %u, %p, %p, %p, %p, %#x)\n", This, ofs, bytes, ptr1, len1, ptr2, len2, flags);
 
     EnterCriticalSection(&This->parent->crst);
     hr = DSERR_INVALIDPARAM;
-    if (ptr1)
-        *ptr1 = NULL;
-    if (len1)
-        *len1 = 0;
-    if (ptr2)
-        *ptr2 = NULL;
-    if (len2)
-        *len2 = 0;
+
+    if(ptr1) *ptr1 = NULL;
+    if(len1) *len1 = 0;
+    if(ptr2) *ptr2 = NULL;
+    if(len2) *len2 = 0;
+
     if (ofs >= This->buf_size)
     {
         WARN("Invalid ofs %u\n", ofs);
@@ -483,9 +499,9 @@ static HRESULT WINAPI DSCBuffer_Lock(IDirectSoundCaptureBuffer8 *iface, DWORD of
         WARN("Invalid pointer/len %p %p\n", ptr1, len1);
         goto out;
     }
-    if (flags & DSCBLOCK_ENTIREBUFFER)
+    if((flags&DSCBLOCK_ENTIREBUFFER))
         bytes = This->buf_size;
-    if (bytes > This->buf_size)
+    else if(bytes > This->buf_size)
     {
         WARN("Invalid size %u\n", bytes);
         goto out;
@@ -517,7 +533,7 @@ out:
 
 static HRESULT WINAPI DSCBuffer_Start(IDirectSoundCaptureBuffer8 *iface, DWORD flags)
 {
-    DSCBuffer *This = (DSCBuffer*)iface;
+    DSCBuffer *This = impl_from_IDirectSoundCaptureBuffer8(iface);
     TRACE("(%p)->(%08x)\n", This, flags);
 
     EnterCriticalSection(&This->parent->crst);
@@ -534,7 +550,7 @@ static HRESULT WINAPI DSCBuffer_Start(IDirectSoundCaptureBuffer8 *iface, DWORD f
 
 static HRESULT WINAPI DSCBuffer_Stop(IDirectSoundCaptureBuffer8 *iface)
 {
-    DSCBuffer *This = (DSCBuffer*)iface;
+    DSCBuffer *This = impl_from_IDirectSoundCaptureBuffer8(iface);
     TRACE("(%p)\n", This);
 
     EnterCriticalSection(&This->parent->crst);
@@ -557,7 +573,7 @@ static HRESULT WINAPI DSCBuffer_Stop(IDirectSoundCaptureBuffer8 *iface)
 
 static HRESULT WINAPI DSCBuffer_Unlock(IDirectSoundCaptureBuffer8 *iface, void *ptr1, DWORD len1, void *ptr2, DWORD len2)
 {
-    DSCBuffer *This = (DSCBuffer*)iface;
+    DSCBuffer *This = impl_from_IDirectSoundCaptureBuffer8(iface);
     TRACE("(%p)->(%p,%u,%p,%u)\n", This, ptr1, len1, ptr2, len2);
 
     if (!ptr1)
@@ -567,14 +583,14 @@ static HRESULT WINAPI DSCBuffer_Unlock(IDirectSoundCaptureBuffer8 *iface, void *
 
 static HRESULT WINAPI DSCBuffer_GetObjectInPath(IDirectSoundCaptureBuffer8 *iface, REFGUID guid, DWORD num, REFGUID riid, void **ppv)
 {
-    DSCBuffer *This = (DSCBuffer*)iface;
+    DSCBuffer *This = impl_from_IDirectSoundCaptureBuffer8(iface);
     FIXME("(%p)->(%s %u %s %p) stub\n", This, debugstr_guid(guid), num, debugstr_guid(riid), ppv);
     return E_NOTIMPL;
 }
 
 static HRESULT WINAPI DSCBuffer_GetFXStatus(IDirectSoundCaptureBuffer8 *iface, DWORD count, DWORD *status)
 {
-    DSCBuffer *This = (DSCBuffer*)iface;
+    DSCBuffer *This = impl_from_IDirectSoundCaptureBuffer8(iface);
     FIXME("(%p)->(%u %p) stub\n", This, count, status);
     return E_NOTIMPL;
 }
@@ -597,20 +613,20 @@ static const IDirectSoundCaptureBuffer8Vtbl DSCBuffer_Vtbl =
     DSCBuffer_GetFXStatus
 };
 
-static DSCBuffer *get_this_from_not(IDirectSoundNotify *iface)
+static inline DSCBuffer *impl_from_IDirectSoundNotify(IDirectSoundNotify *iface)
 {
-    return (DSCBuffer*)((char*)iface - offsetof(DSCBuffer,lpNotVtbl));
+    return CONTAINING_RECORD(iface, DSCBuffer, IDirectSoundNotify_iface);
 }
 
 static HRESULT WINAPI DSCBufferNot_QueryInterface(IDirectSoundNotify *iface, REFIID riid, void **ppv)
 {
-    DSCBuffer *This = get_this_from_not(iface);
+    DSCBuffer *This = impl_from_IDirectSoundNotify(iface);
     return IDirectSoundCaptureBuffer_QueryInterface((IDirectSoundCaptureBuffer*)This, riid, ppv);
 }
 
 static ULONG WINAPI DSCBufferNot_AddRef(IDirectSoundNotify *iface)
 {
-    DSCBuffer *This = get_this_from_not(iface);
+    DSCBuffer *This = impl_from_IDirectSoundNotify(iface);
     LONG ret;
 
     ret = InterlockedIncrement(&This->not_ref);
@@ -620,7 +636,7 @@ static ULONG WINAPI DSCBufferNot_AddRef(IDirectSoundNotify *iface)
 
 static ULONG WINAPI DSCBufferNot_Release(IDirectSoundNotify *iface)
 {
-    DSCBuffer *This = get_this_from_not(iface);
+    DSCBuffer *This = impl_from_IDirectSoundNotify(iface);
     CRITICAL_SECTION *crst = &This->parent->crst;
     LONG ret;
 
@@ -630,12 +646,13 @@ static ULONG WINAPI DSCBufferNot_Release(IDirectSoundNotify *iface)
     if (!ret && !This->ref)
         DSCBuffer_Destroy(This);
     LeaveCriticalSection(crst);
+
     return ret;
 }
 
 static HRESULT WINAPI DSCBufferNot_SetNotificationPositions(IDirectSoundNotify *iface, DWORD count, const DSBPOSITIONNOTIFY *notifications)
 {
-    DSCBuffer *This = get_this_from_not(iface);
+    DSCBuffer *This = impl_from_IDirectSoundNotify(iface);
     DSBPOSITIONNOTIFY *nots;
     HRESULT hr;
     DWORD state;
@@ -645,7 +662,7 @@ static HRESULT WINAPI DSCBufferNot_SetNotificationPositions(IDirectSoundNotify *
     if (count && !notifications)
         goto out;
 
-    hr = DSCBuffer_GetStatus((IDirectSoundCaptureBuffer8*)This, &state);
+    hr = DSCBuffer_GetStatus(&This->IDirectSoundCaptureBuffer8_iface, &state);
     if (FAILED(hr))
         goto out;
 
@@ -695,15 +712,19 @@ static const IDirectSoundNotifyVtbl DSCNot_Vtbl =
 
 HRESULT DSOUND_CaptureCreate8(REFIID riid, IDirectSoundCapture8 **cap)
 {
-    DSCImpl *This = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(*This));
+    DSCImpl *This;
+
     *cap = NULL;
-    if (!This)
-        return DSERR_OUTOFMEMORY;
-    This->lpVtbl = &DSC_Vtbl;
+
+    This = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(*This));
+    if(!This) return DSERR_OUTOFMEMORY;
+
+    This->IDirectSoundCapture_iface.lpVtbl = &DSC_Vtbl;
 
     InitializeCriticalSection(&This->crst);
     This->crst.DebugInfo->Spare[0] = (DWORD_PTR)(__FILE__ ": DSCImpl.crst");
-    if (FAILED(IUnknown_QueryInterface((IUnknown*)This, riid, (void**)cap)))
+
+    if(FAILED(IDirectSoundCapture_QueryInterface(&This->IDirectSoundCapture_iface, riid, (void**)cap)))
     {
         DSCImpl_Destroy(This);
         return E_NOINTERFACE;
@@ -718,25 +739,28 @@ static void DSCImpl_Destroy(DSCImpl *This)
         timeKillEvent(This->timer_id);
         timeEndPeriod(This->timer_res);
     }
+
     EnterCriticalSection(&This->crst);
     if (This->buf)
         DSCBuffer_Destroy(This->buf);
     LeaveCriticalSection(&This->crst);
+
     HeapFree(GetProcessHeap(), 0, This->device);
+
     This->crst.DebugInfo->Spare[0] = 0;
     DeleteCriticalSection(&This->crst);
+
     HeapFree(GetProcessHeap(), 0, This);
 }
 
 static HRESULT WINAPI DSCImpl_QueryInterface(IDirectSoundCapture *iface, REFIID riid, void **ppv)
 {
     *ppv = NULL;
-    if (IsEqualIID(riid, &IID_IUnknown)
-        || IsEqualIID(riid, &IID_IDirectSoundCapture))
-    {
+    if(IsEqualIID(riid, &IID_IUnknown) ||
+       IsEqualIID(riid, &IID_IDirectSoundCapture))
         *ppv = iface;
-    }
-    if (!*ppv)
+
+    if(!*ppv)
         return E_NOINTERFACE;
     IUnknown_AddRef((IUnknown*)*ppv);
     return S_OK;
@@ -746,8 +770,10 @@ static ULONG WINAPI DSCImpl_AddRef(IDirectSoundCapture8 *iface)
 {
     DSCImpl *This = (DSCImpl*)iface;
     LONG ref;
+
     ref = InterlockedIncrement(&This->ref);
     TRACE("Reference count incremented to %i\n", ref);
+
     return ref;
 }
 
@@ -755,10 +781,12 @@ static ULONG WINAPI DSCImpl_Release(IDirectSoundCapture8 *iface)
 {
     DSCImpl *This = (DSCImpl*)iface;
     LONG ref;
+
     ref = InterlockedDecrement(&This->ref);
     TRACE("Reference count decremented to %i\n", ref);
-    if (!ref)
+    if(!ref)
         DSCImpl_Destroy(This);
+
     return ref;
 }
 
@@ -878,14 +906,14 @@ static HRESULT WINAPI DSCImpl_Initialize(IDirectSoundCapture8 *iface, const GUID
     n = guid.Data4[7];
 
     hr = DSERR_NODRIVER;
-    if (memcmp(devguid, &DSOUND_capture_guid, sizeof(GUID)-1)
-        || !devs || !*devs)
+    if(memcmp(devguid, &DSOUND_capture_guid, sizeof(GUID)-1) ||
+       !devs || !*devs)
     {
         WARN("No driver found\n");
         goto out;
     }
 
-    if (n)
+    if(n)
     {
         const ALCchar *str = devs;
         while (n--)
