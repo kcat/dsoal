@@ -45,7 +45,7 @@
 
 extern int LogLevel;
 
-#ifndef DEBUG_INFO
+#ifdef DEBUG_INFO
 #define TRACE(fmt,args...) do {                                                                      \
     if(LogLevel >= 3)                                                                                \
         fprintf(stderr, "%04x:trace:dsound:%s " fmt, GetCurrentThreadId(), __FUNCTION__, ##args);  \
