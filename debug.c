@@ -27,6 +27,8 @@ static char *get_temp_buffer( size_t size )
 static void release_temp_buffer( char *buffer, size_t size )
 {
     /* don't bother doing anything */
+    (void)buffer;
+    (void)size;
 }
 
 /* printf with temp buffer allocation */
