@@ -700,8 +700,8 @@ static HRESULT WINAPI IKsPrivatePropertySetImpl_Set(
     IKsPrivatePropertySetImpl *This = (IKsPrivatePropertySetImpl *)iface;
 
     FIXME("(%p)->(%s,%u,%p,%u,%p,%u), stub!\n",This,
-          debugstr_guid(guidPropSet),(unsigned int)dwPropID,
-          pInstanceData,(unsigned int)cbInstanceData,pPropData,(unsigned int)cbPropData);
+          debugstr_guid(guidPropSet),(UINT)dwPropID,
+          pInstanceData,(UINT)cbInstanceData,pPropData,(UINT)cbPropData);
     return E_PROP_ID_UNSUPPORTED;
 }
 
@@ -712,7 +712,7 @@ static HRESULT WINAPI IKsPrivatePropertySetImpl_QuerySupport(
     PULONG pTypeSupport )
 {
     IKsPrivatePropertySetImpl *This = (IKsPrivatePropertySetImpl *)iface;
-    TRACE("(%p,%s,%u,%p)\n",This,debugstr_guid(guidPropSet),(unsigned int)dwPropID,pTypeSupport);
+    TRACE("(%p,%s,%u,%p)\n",This,debugstr_guid(guidPropSet),(UINT)dwPropID,pTypeSupport);
 
     if ( IsEqualGUID( &DSPROPSETID_DirectSoundDevice, guidPropSet) ) {
 	switch (dwPropID) {
@@ -741,7 +741,7 @@ static HRESULT WINAPI IKsPrivatePropertySetImpl_QuerySupport(
 	    *pTypeSupport = KSPROPERTY_SUPPORT_GET;
 	    return S_OK;
 	default:
-            FIXME("unsupported ID: %u\n",(unsigned int)dwPropID);
+            FIXME("unsupported ID: %u\n",(UINT)dwPropID);
 	    break;
 	}
     } else {
