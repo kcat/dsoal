@@ -68,7 +68,7 @@ typedef struct DSCImpl DSCImpl;
 typedef struct DSCBuffer DSCBuffer;
 
 struct DSCImpl {
-    IDirectSoundCapture IDirectSoundCapture_iface;
+    IDirectSoundCapture8 IDirectSoundCapture8_iface;
     LONG ref;
 
     ALCchar *device;
@@ -82,6 +82,7 @@ struct DSCBuffer {
     IDirectSoundCaptureBuffer8 IDirectSoundCaptureBuffer8_iface;
     IDirectSoundNotify IDirectSoundNotify_iface;
     LONG ref, not_ref;
+    LONG all_ref;
 
     DSCImpl *parent;
     ALCdevice *dev;
@@ -108,7 +109,7 @@ static HRESULT DSCBuffer_Create(DSCBuffer **buf)
 
     This->IDirectSoundCaptureBuffer8_iface.lpVtbl = &DSCBuffer_Vtbl;
     This->IDirectSoundNotify_iface.lpVtbl = &DSCNot_Vtbl;
-    This->ref = 1;
+    This->all_ref = This->ref = 1;
 
     *buf = This;
     return S_OK;
@@ -226,13 +227,13 @@ static void DSCBuffer_starttimer(DSCImpl *prim)
 
 static void DSCBuffer_Destroy(DSCBuffer *This)
 {
-    if (This->dev)
+    if(This->dev)
     {
-        if (This->playing)
+        if(This->playing)
             alcCaptureStop(This->dev);
         alcCaptureCloseDevice(This->dev);
     }
-    if (This->parent)
+    if(This->parent)
         This->parent->buf = NULL;
     HeapFree(GetProcessHeap(), 0, This->notify);
     HeapFree(GetProcessHeap(), 0, This->format);
@@ -273,6 +274,7 @@ static ULONG WINAPI DSCBuffer_AddRef(IDirectSoundCaptureBuffer8 *iface)
     DSCBuffer *This = impl_from_IDirectSoundCaptureBuffer8(iface);
     LONG ref;
 
+    InterlockedIncrement(&This->all_ref);
     ref = InterlockedIncrement(&This->ref);
     TRACE("Reference count incremented to %i\n", ref);
 
@@ -282,15 +284,12 @@ static ULONG WINAPI DSCBuffer_AddRef(IDirectSoundCaptureBuffer8 *iface)
 static ULONG WINAPI DSCBuffer_Release(IDirectSoundCaptureBuffer8 *iface)
 {
     DSCBuffer *This = impl_from_IDirectSoundCaptureBuffer8(iface);
-    CRITICAL_SECTION *crst = &This->parent->crst;
     LONG ref;
 
-    EnterCriticalSection(crst);
     ref = InterlockedDecrement(&This->ref);
     TRACE("Reference count decremented to %i\n", ref);
-    if (!ref && !This->not_ref)
+    if(InterlockedDecrement(&This->all_ref) == 0)
         DSCBuffer_Destroy(This);
-    LeaveCriticalSection(crst);
 
     return ref;
 }
@@ -629,6 +628,7 @@ static ULONG WINAPI DSCBufferNot_AddRef(IDirectSoundNotify *iface)
     DSCBuffer *This = impl_from_IDirectSoundNotify(iface);
     LONG ret;
 
+    InterlockedIncrement(&This->all_ref);
     ret = InterlockedIncrement(&This->not_ref);
     TRACE("new refcount %d\n", ret);
     return ret;
@@ -637,15 +637,12 @@ static ULONG WINAPI DSCBufferNot_AddRef(IDirectSoundNotify *iface)
 static ULONG WINAPI DSCBufferNot_Release(IDirectSoundNotify *iface)
 {
     DSCBuffer *This = impl_from_IDirectSoundNotify(iface);
-    CRITICAL_SECTION *crst = &This->parent->crst;
     LONG ret;
 
-    EnterCriticalSection(crst);
     ret = InterlockedDecrement(&This->not_ref);
     TRACE("new refcount %d\n", ret);
-    if (!ret && !This->ref)
+    if(InterlockedDecrement(&This->all_ref) == 0)
         DSCBuffer_Destroy(This);
-    LeaveCriticalSection(crst);
 
     return ret;
 }
@@ -719,12 +716,12 @@ HRESULT DSOUND_CaptureCreate8(REFIID riid, IDirectSoundCapture8 **cap)
     This = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(*This));
     if(!This) return DSERR_OUTOFMEMORY;
 
-    This->IDirectSoundCapture_iface.lpVtbl = &DSC_Vtbl;
+    This->IDirectSoundCapture8_iface.lpVtbl = &DSC_Vtbl;
 
     InitializeCriticalSection(&This->crst);
     This->crst.DebugInfo->Spare[0] = (DWORD_PTR)(__FILE__ ": DSCImpl.crst");
 
-    if(FAILED(IDirectSoundCapture_QueryInterface(&This->IDirectSoundCapture_iface, riid, (void**)cap)))
+    if(FAILED(IDirectSoundCapture_QueryInterface(&This->IDirectSoundCapture8_iface, riid, (void**)cap)))
     {
         DSCImpl_Destroy(This);
         return E_NOINTERFACE;
