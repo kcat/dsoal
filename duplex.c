@@ -491,10 +491,11 @@ HRESULT DSOUND_FullDuplexCreate(
         return DSERR_OUTOFMEMORY;
     }
 
-    This->IDirectSoundFullDuplex_iface.lpVtbl = &dsfdvt;
-    This->IUnknown_iface.lpVtbl = &DirectSoundFullDuplex_Unknown_Vtbl;
-    This->IDirectSound8_iface.lpVtbl = &DirectSoundFullDuplex_DirectSound8_Vtbl;
-    This->IDirectSoundCapture_iface.lpVtbl = &DirectSoundFullDuplex_DirectSoundCapture_Vtbl;
+    This->IDirectSoundFullDuplex_iface.lpVtbl = (IDirectSoundFullDuplexVtbl*)&dsfdvt;
+    This->IUnknown_iface.lpVtbl = (IUnknownVtbl*)&DirectSoundFullDuplex_Unknown_Vtbl;
+    This->IDirectSound8_iface.lpVtbl = (IDirectSound8Vtbl*)&DirectSoundFullDuplex_DirectSound8_Vtbl;
+    This->IDirectSoundCapture_iface.lpVtbl = (IDirectSoundCaptureVtbl*)&DirectSoundFullDuplex_DirectSoundCapture_Vtbl;
+
     This->all_ref = This->ref = 1;
     This->unkref = 0;
     This->ds8ref = 0;

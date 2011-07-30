@@ -974,12 +974,12 @@ static const IClassFactoryVtbl DSCF_Vtbl = {
 };
 
 static IClassFactoryImpl DSOUND_CF[] = {
-    { {&DSCF_Vtbl}, 1, &CLSID_DirectSound, DSOUND_Create },
-    { {&DSCF_Vtbl}, 1, &CLSID_DirectSound8, DSOUND_Create8 },
-    { {&DSCF_Vtbl}, 1, &CLSID_DirectSoundCapture, DSOUND_CaptureCreate },
-    { {&DSCF_Vtbl}, 1, &CLSID_DirectSoundCapture8, DSOUND_CaptureCreate8 },
-    { {&DSCF_Vtbl}, 1, &CLSID_DirectSoundFullDuplex, DSOUND_FullDuplexCreate },
-    { {&DSCF_Vtbl}, 1, &CLSID_DirectSoundPrivate, IKsPrivatePropertySetImpl_Create },
+    { {(IClassFactoryVtbl*)&DSCF_Vtbl}, 1, &CLSID_DirectSound, DSOUND_Create },
+    { {(IClassFactoryVtbl*)&DSCF_Vtbl}, 1, &CLSID_DirectSound8, DSOUND_Create8 },
+    { {(IClassFactoryVtbl*)&DSCF_Vtbl}, 1, &CLSID_DirectSoundCapture, DSOUND_CaptureCreate },
+    { {(IClassFactoryVtbl*)&DSCF_Vtbl}, 1, &CLSID_DirectSoundCapture8, DSOUND_CaptureCreate8 },
+    { {(IClassFactoryVtbl*)&DSCF_Vtbl}, 1, &CLSID_DirectSoundFullDuplex, DSOUND_FullDuplexCreate },
+    { {(IClassFactoryVtbl*)&DSCF_Vtbl}, 1, &CLSID_DirectSoundPrivate, IKsPrivatePropertySetImpl_Create },
     { {NULL}, 0, NULL, NULL }
 };
 

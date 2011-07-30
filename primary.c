@@ -86,6 +86,10 @@ HRESULT DS8Primary_Create(DS8Primary **ppv, DS8Impl *parent)
     This = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(*This));
     if(!This) return hr;
 
+    This->IDirectSoundBuffer_iface.lpVtbl = (IDirectSoundBufferVtbl*)&DS8Primary_Vtbl;
+    This->IDirectSound3DListener_iface.lpVtbl = (IDirectSound3DListenerVtbl*)&DS8Primary3D_Vtbl;
+    This->IKsPropertySet_iface.lpVtbl = (IKsPropertySetVtbl*)&DS8PrimaryProp_Vtbl;
+
     InitializeCriticalSection(&This->crst);
     This->crst.DebugInfo->Spare[0] = (DWORD_PTR)(__FILE__ ": DS8Primary.crst");
 
@@ -175,9 +179,6 @@ HRESULT DS8Primary_Create(DS8Primary **ppv, DS8Impl *parent)
     wfx->nAvgBytesPerSec = wfx->nSamplesPerSec * wfx->nBlockAlign;
     wfx->cbSize = 0;
 
-    This->IDirectSoundBuffer_iface.lpVtbl = &DS8Primary_Vtbl;
-    This->IDirectSound3DListener_iface.lpVtbl = &DS8Primary3D_Vtbl;
-    This->IKsPropertySet_iface.lpVtbl = &DS8PrimaryProp_Vtbl;
     This->stopped = TRUE;
     This->parent = parent;
     /* Apparently primary buffer size is always 32k,

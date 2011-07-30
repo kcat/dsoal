@@ -779,7 +779,7 @@ HRESULT IKsPrivatePropertySetImpl_Create(
 
     iks = HeapAlloc(GetProcessHeap(),0,sizeof(*iks));
     iks->ref = 1;
-    iks->IKsPropertySet_iface.lpVtbl = &ikspvt;
+    iks->IKsPropertySet_iface.lpVtbl = (IKsPropertySetVtbl*)&ikspvt;
 
     *piks = iks;
     return S_OK;

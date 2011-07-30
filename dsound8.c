@@ -98,8 +98,9 @@ HRESULT DSOUND_Create8(REFIID riid, LPVOID *ds)
     This = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(*This));
     if(!This)
         return E_OUTOFMEMORY;
+    This->IDirectSound8_iface.lpVtbl = (IDirectSound8Vtbl*)&DS8_Vtbl;
+
     This->is_8 = TRUE;
-    This->IDirectSound8_iface.lpVtbl = &DS8_Vtbl;
     This->speaker_config = DSSPEAKER_COMBINED(DSSPEAKER_5POINT1, DSSPEAKER_GEOMETRY_WIDE);
 
     if(RegOpenKeyExW(HKEY_LOCAL_MACHINE, speakerconfigkey, 0, KEY_READ, &regkey) == ERROR_SUCCESS)

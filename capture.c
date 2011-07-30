@@ -68,7 +68,7 @@ typedef struct DSCImpl DSCImpl;
 typedef struct DSCBuffer DSCBuffer;
 
 struct DSCImpl {
-    IDirectSoundCapture8 IDirectSoundCapture8_iface;
+    IDirectSoundCapture IDirectSoundCapture_iface;
     LONG ref;
 
     ALCchar *device;
@@ -107,8 +107,9 @@ static HRESULT DSCBuffer_Create(DSCBuffer **buf)
     DSCBuffer *This = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(*This));
     if (!This) return E_OUTOFMEMORY;
 
-    This->IDirectSoundCaptureBuffer8_iface.lpVtbl = &DSCBuffer_Vtbl;
-    This->IDirectSoundNotify_iface.lpVtbl = &DSCNot_Vtbl;
+    This->IDirectSoundCaptureBuffer8_iface.lpVtbl = (IDirectSoundCaptureBuffer8Vtbl*)&DSCBuffer_Vtbl;
+    This->IDirectSoundNotify_iface.lpVtbl = (IDirectSoundNotifyVtbl*)&DSCNot_Vtbl;
+
     This->all_ref = This->ref = 1;
 
     *buf = This;
@@ -716,12 +717,12 @@ HRESULT DSOUND_CaptureCreate8(REFIID riid, void **cap)
     This = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(*This));
     if(!This) return DSERR_OUTOFMEMORY;
 
-    This->IDirectSoundCapture8_iface.lpVtbl = &DSC_Vtbl;
+    This->IDirectSoundCapture_iface.lpVtbl = (IDirectSoundCaptureVtbl*)&DSC_Vtbl;
 
     InitializeCriticalSection(&This->crst);
     This->crst.DebugInfo->Spare[0] = (DWORD_PTR)(__FILE__ ": DSCImpl.crst");
 
-    if(FAILED(IDirectSoundCapture_QueryInterface(&This->IDirectSoundCapture8_iface, riid, cap)))
+    if(FAILED(IDirectSoundCapture_QueryInterface(&This->IDirectSoundCapture_iface, riid, cap)))
     {
         DSCImpl_Destroy(This);
         return E_NOINTERFACE;

@@ -820,11 +820,12 @@ HRESULT DS8Buffer_Create(DS8Buffer **ppv, DS8Primary *parent, DS8Buffer *orig)
     This = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(*This));
     if(!This) return hr;
 
+    This->IDirectSoundBuffer8_iface.lpVtbl = (IDirectSoundBuffer8Vtbl*)&DS8Buffer_Vtbl;
+    This->IDirectSound3DBuffer_iface.lpVtbl = (IDirectSound3DBufferVtbl*)&DS8Buffer3d_Vtbl;
+    This->IDirectSoundNotify_iface.lpVtbl = (IDirectSoundNotifyVtbl*)&DS8BufferNot_Vtbl;
+    This->IKsPropertySet_iface.lpVtbl = (IKsPropertySetVtbl*)&DS8BufferProp_Vtbl;
+
     This->primary = parent;
-    This->IDirectSoundBuffer8_iface.lpVtbl = &DS8Buffer_Vtbl;
-    This->IDirectSound3DBuffer_iface.lpVtbl = &DS8Buffer3d_Vtbl;
-    This->IDirectSoundNotify_iface.lpVtbl = &DS8BufferNot_Vtbl;
-    This->IKsPropertySet_iface.lpVtbl = &DS8BufferProp_Vtbl;
     This->ctx = parent->ctx;
     This->ExtAL = &parent->ExtAL;
     This->crst = &parent->crst;
