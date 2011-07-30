@@ -61,10 +61,8 @@ typedef struct IDirectSoundFullDuplexImpl
     IUnknown               IUnknown_iface;
     IDirectSound8          IDirectSound8_iface;
     IDirectSoundCapture    IDirectSoundCapture_iface;
-    LONG ref;
-    LONG unkref;
-    LONG ds8ref;
-    LONG dscref;
+    LONG ref, unkref, ds8ref, dscref;
+    LONG all_ref;
 
     /* IDirectSoundFullDuplexImpl fields */
     IDirectSound8       *renderer_device;
@@ -101,8 +99,12 @@ static HRESULT WINAPI IDirectSoundFullDuplex_IUnknown_QueryInterface(
 static ULONG WINAPI IDirectSoundFullDuplex_IUnknown_AddRef(IUnknown *iface)
 {
     IDirectSoundFullDuplexImpl *This = impl_from_IUnknown(iface);
-    ULONG ref = InterlockedIncrement(&(This->unkref));
+    ULONG ref;
+
+    InterlockedIncrement(&(This->all_ref));
+    ref = InterlockedIncrement(&(This->unkref));
     TRACE("(%p) ref was %d\n", This, ref - 1);
+
     return ref;
 }
 
@@ -111,7 +113,7 @@ static ULONG WINAPI IDirectSoundFullDuplex_IUnknown_Release(IUnknown *iface)
     IDirectSoundFullDuplexImpl *This = impl_from_IUnknown(iface);
     ULONG ref = InterlockedDecrement(&(This->unkref));
     TRACE("(%p) ref was %d\n", This, ref + 1);
-    if (!This->ref && !This->unkref && !This->ds8ref && !This->dscref)
+    if(InterlockedDecrement(&(This->all_ref)) == 0)
         DSOUND_FullDuplexDestroy(This);
     return ref;
 }
@@ -141,8 +143,12 @@ static HRESULT WINAPI IDirectSoundFullDuplex_IDirectSound8_QueryInterface(
 static ULONG WINAPI IDirectSoundFullDuplex_IDirectSound8_AddRef(IDirectSound8 *iface)
 {
     IDirectSoundFullDuplexImpl *This = impl_from_IDirectSound8(iface);
-    ULONG ref = InterlockedIncrement(&(This->ds8ref));
+    ULONG ref;
+
+    InterlockedIncrement(&(This->all_ref));
+    ref = InterlockedIncrement(&(This->ds8ref));
     TRACE("(%p) ref was %d\n", This, ref - 1);
+
     return ref;
 }
 
@@ -151,7 +157,7 @@ static ULONG WINAPI IDirectSoundFullDuplex_IDirectSound8_Release(IDirectSound8 *
     IDirectSoundFullDuplexImpl *This = impl_from_IDirectSound8(iface);
     ULONG ref = InterlockedDecrement(&(This->ds8ref));
     TRACE("(%p) ref was %d\n", This, ref + 1);
-    if (!This->ref && !This->unkref && !This->ds8ref && !This->dscref)
+    if(InterlockedDecrement(&(This->all_ref)) == 0)
         DSOUND_FullDuplexDestroy(This);
     return ref;
 }
@@ -262,8 +268,12 @@ static HRESULT WINAPI IDirectSoundFullDuplex_IDirectSoundCapture_QueryInterface(
 static ULONG WINAPI IDirectSoundFullDuplex_IDirectSoundCapture_AddRef(IDirectSoundCapture *iface)
 {
     IDirectSoundFullDuplexImpl *This = impl_from_IDirectSoundCapture(iface);
-    ULONG ref = InterlockedIncrement(&(This->dscref));
+    ULONG ref;
+
+    InterlockedIncrement(&(This->all_ref));
+    ref = InterlockedIncrement(&(This->dscref));
     TRACE("(%p) ref was %d\n", This, ref - 1);
+
     return ref;
 }
 
@@ -272,7 +282,7 @@ static ULONG WINAPI IDirectSoundFullDuplex_IDirectSoundCapture_Release(IDirectSo
     IDirectSoundFullDuplexImpl *This = impl_from_IDirectSoundCapture(iface);
     ULONG ref = InterlockedDecrement(&(This->dscref));
     TRACE("(%p) ref was %d\n", This, ref + 1);
-    if(!This->ref && !This->unkref && !This->ds8ref && !This->dscref)
+    if(InterlockedDecrement(&(This->all_ref)) == 0)
         DSOUND_FullDuplexDestroy(This);
     return ref;
 }
@@ -357,8 +367,12 @@ static HRESULT WINAPI IDirectSoundFullDuplexImpl_QueryInterface(
 static ULONG WINAPI IDirectSoundFullDuplexImpl_AddRef(IDirectSoundFullDuplex *iface)
 {
     IDirectSoundFullDuplexImpl *This = impl_from_IDirectSoundFullDuplex(iface);
-    ULONG ref = InterlockedIncrement(&(This->ref));
+    ULONG ref;
+
+    InterlockedIncrement(&(This->all_ref));
+    ref = InterlockedIncrement(&(This->ref));
     TRACE("(%p) ref was %d\n", This, ref - 1);
+
     return ref;
 }
 
@@ -367,7 +381,7 @@ static ULONG WINAPI IDirectSoundFullDuplexImpl_Release(IDirectSoundFullDuplex *i
     IDirectSoundFullDuplexImpl *This = impl_from_IDirectSoundFullDuplex(iface);
     ULONG ref = InterlockedDecrement(&(This->ref));
     TRACE("(%p) ref was %d\n", This, ref - 1);
-    if (!This->ref && !This->unkref && !This->ds8ref && !This->dscref)
+    if(InterlockedDecrement(&(This->all_ref)) == 0)
         DSOUND_FullDuplexDestroy(This);
     return ref;
 }
@@ -443,8 +457,7 @@ static HRESULT WINAPI IDirectSoundFullDuplexImpl_Initialize(
     return hr;
 }
 
-static const IDirectSoundFullDuplexVtbl dsfdvt =
-{
+static const IDirectSoundFullDuplexVtbl dsfdvt = {
     /* IUnknown methods */
     IDirectSoundFullDuplexImpl_QueryInterface,
     IDirectSoundFullDuplexImpl_AddRef,
@@ -482,7 +495,7 @@ HRESULT DSOUND_FullDuplexCreate(
     This->IUnknown_iface.lpVtbl = &DirectSoundFullDuplex_Unknown_Vtbl;
     This->IDirectSound8_iface.lpVtbl = &DirectSoundFullDuplex_DirectSound8_Vtbl;
     This->IDirectSoundCapture_iface.lpVtbl = &DirectSoundFullDuplex_DirectSoundCapture_Vtbl;
-    This->ref = 1;
+    This->all_ref = This->ref = 1;
     This->unkref = 0;
     This->ds8ref = 0;
     This->dscref = 0;
