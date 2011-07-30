@@ -790,34 +790,38 @@ HRESULT WINAPI DirectSoundCreate8(
  */
 HRESULT WINAPI DirectSoundCaptureCreate(
     LPCGUID lpcGUID,
-    LPDIRECTSOUNDCAPTURE *ppDSC,
-    LPUNKNOWN pUnkOuter)
+    IDirectSoundCapture **ppDSC,
+    IUnknown *pUnkOuter)
 {
+    void *pDSC;
     HRESULT hr;
-    LPDIRECTSOUNDCAPTURE pDSC;
-    TRACE("(%s,%p,%p)\n", debugstr_guid(lpcGUID), ppDSC, pUnkOuter);
 
-    if (ppDSC == NULL) {
+    TRACE("(%s, %p, %p)\n", debugstr_guid(lpcGUID), ppDSC, pUnkOuter);
+
+    if(ppDSC == NULL)
+    {
         WARN("invalid parameter: ppDSC == NULL\n");
         return DSERR_INVALIDPARAM;
     }
+    *ppDSC = NULL;
 
-    if (pUnkOuter) {
+    if(pUnkOuter)
+    {
         WARN("invalid parameter: pUnkOuter != NULL\n");
-        *ppDSC = NULL;
         return DSERR_NOAGGREGATION;
     }
 
     hr = DSOUND_CaptureCreate(&IID_IDirectSoundCapture, &pDSC);
-    if (hr == DS_OK) {
-        hr = IDirectSoundCapture_Initialize(pDSC, lpcGUID);
-        if (hr != DS_OK) {
-            IDirectSoundCapture_Release(pDSC);
-            pDSC = 0;
+    if(hr == DS_OK)
+    {
+        *ppDSC = pDSC;
+        hr = IDirectSoundCapture_Initialize(*ppDSC, lpcGUID);
+        if(hr != DS_OK)
+        {
+            IDirectSoundCapture_Release(*ppDSC);
+            *ppDSC = 0;
         }
     }
-
-    *ppDSC = pDSC;
 
     return hr;
 }
@@ -846,34 +850,38 @@ HRESULT WINAPI DirectSoundCaptureCreate(
  */
 HRESULT WINAPI DirectSoundCaptureCreate8(
     LPCGUID lpcGUID,
-    LPDIRECTSOUNDCAPTURE8 *ppDSC8,
-    LPUNKNOWN pUnkOuter)
+    IDirectSoundCapture8 **ppDSC8,
+    IUnknown *pUnkOuter)
 {
+    void *pDSC8;
     HRESULT hr;
-    LPDIRECTSOUNDCAPTURE8 pDSC8;
-    TRACE("(%s,%p,%p)\n", debugstr_guid(lpcGUID), ppDSC8, pUnkOuter);
 
-    if (ppDSC8 == NULL) {
+    TRACE("(%s, %p, %p)\n", debugstr_guid(lpcGUID), ppDSC8, pUnkOuter);
+
+    if(ppDSC8 == NULL)
+    {
         WARN("invalid parameter: ppDSC8 == NULL\n");
         return DSERR_INVALIDPARAM;
     }
+    *ppDSC8 = NULL;
 
-    if (pUnkOuter) {
+    if(pUnkOuter)
+    {
         WARN("invalid parameter: pUnkOuter != NULL\n");
-        *ppDSC8 = NULL;
         return DSERR_NOAGGREGATION;
     }
 
     hr = DSOUND_CaptureCreate8(&IID_IDirectSoundCapture8, &pDSC8);
-    if (hr == DS_OK) {
-        hr = IDirectSoundCapture_Initialize(pDSC8, lpcGUID);
-        if (hr != DS_OK) {
-            IDirectSoundCapture_Release(pDSC8);
-            pDSC8 = 0;
+    if(hr == DS_OK)
+    {
+        *ppDSC8 = pDSC8;
+        hr = IDirectSoundCapture_Initialize(*ppDSC8, lpcGUID);
+        if(hr != DS_OK)
+        {
+            IDirectSoundCapture_Release(*ppDSC8);
+            *ppDSC8 = NULL;
         }
     }
-
-    *ppDSC8 = pDSC8;
 
     return hr;
 }
@@ -968,9 +976,9 @@ static const IClassFactoryVtbl DSCF_Vtbl = {
 static IClassFactoryImpl DSOUND_CF[] = {
     { {&DSCF_Vtbl}, 1, &CLSID_DirectSound, DSOUND_Create },
     { {&DSCF_Vtbl}, 1, &CLSID_DirectSound8, DSOUND_Create8 },
-    { {&DSCF_Vtbl}, 1, &CLSID_DirectSoundCapture, (FnCreateInstance)DSOUND_CaptureCreate },
-    { {&DSCF_Vtbl}, 1, &CLSID_DirectSoundCapture8, (FnCreateInstance)DSOUND_CaptureCreate8 },
-    { {&DSCF_Vtbl}, 1, &CLSID_DirectSoundFullDuplex, (FnCreateInstance)DSOUND_FullDuplexCreate },
+    { {&DSCF_Vtbl}, 1, &CLSID_DirectSoundCapture, DSOUND_CaptureCreate },
+    { {&DSCF_Vtbl}, 1, &CLSID_DirectSoundCapture8, DSOUND_CaptureCreate8 },
+    { {&DSCF_Vtbl}, 1, &CLSID_DirectSoundFullDuplex, DSOUND_FullDuplexCreate },
     { {&DSCF_Vtbl}, 1, &CLSID_DirectSoundPrivate, IKsPrivatePropertySetImpl_Create },
     { {NULL}, 0, NULL, NULL }
 };

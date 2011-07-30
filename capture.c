@@ -59,7 +59,7 @@ DEFINE_GUID(KSDATAFORMAT_SUBTYPE_PCM, 0x00000001, 0x0000, 0x0010, 0x80, 0x00, 0x
 #endif
 
 /* IDirectSoundCapture and IDirectSoundCapture8 are aliases */
-HRESULT DSOUND_CaptureCreate(REFIID riid, IDirectSoundCapture **cap)
+HRESULT DSOUND_CaptureCreate(REFIID riid, void **cap)
 {
     return DSOUND_CaptureCreate8(riid, cap);
 }
@@ -707,7 +707,7 @@ static const IDirectSoundNotifyVtbl DSCNot_Vtbl =
     DSCBufferNot_SetNotificationPositions
 };
 
-HRESULT DSOUND_CaptureCreate8(REFIID riid, IDirectSoundCapture8 **cap)
+HRESULT DSOUND_CaptureCreate8(REFIID riid, void **cap)
 {
     DSCImpl *This;
 
@@ -721,7 +721,7 @@ HRESULT DSOUND_CaptureCreate8(REFIID riid, IDirectSoundCapture8 **cap)
     InitializeCriticalSection(&This->crst);
     This->crst.DebugInfo->Spare[0] = (DWORD_PTR)(__FILE__ ": DSCImpl.crst");
 
-    if(FAILED(IDirectSoundCapture_QueryInterface(&This->IDirectSoundCapture8_iface, riid, (void**)cap)))
+    if(FAILED(IDirectSoundCapture_QueryInterface(&This->IDirectSoundCapture8_iface, riid, cap)))
     {
         DSCImpl_Destroy(This);
         return E_NOINTERFACE;
