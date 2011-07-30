@@ -26,19 +26,22 @@ set(DSOAL_OBJS buffer.c
 find_package(OpenAL)
 include_directories("${DSOAL_BINARY_DIR}" ${OPENAL_INCLUDE_DIR})
 
-if(WIN32)
-    add_definitions(-D_WIN32 -DDEBUG_INFO)
-    if(NOT MSVC)
-        add_definitions(-Winline -Wall)
-        check_c_compiler_flag(-Wextra HAVE_W_EXTRA)
-        if(HAVE_W_EXTRA)
-            add_definitions(-Wextra)
-        endif()
+if(NOT MSVC)
+    add_definitions(-Winline -Wall)
+    check_c_compiler_flag(-Wextra HAVE_W_EXTRA)
+    if(HAVE_W_EXTRA)
+        add_definitions(-Wextra)
+    endif()
+    if(WIN32)
         check_c_compiler_flag(-Wformat=0 HAVE_W_FORMAT_ZERO)
         if(HAVE_W_FORMAT_ZERO)
             add_definitions(-Wformat=0)
         endif()
     endif()
+endif()
+
+if(WIN32)
+    add_definitions(-D_WIN32 -DDEBUG_INFO)
 
     set(DSOAL_OBJS ${DSOAL_OBJS} debug.c)
 
@@ -52,34 +55,31 @@ else()
               /usr/include/wine
               /usr/local/include/wine)
     if(NOT WINE_INCLUDE_DIR)
-        message(FATAL_ERROR "Could not find Wine header files" )
+        message(FATAL_ERROR "Could not find Wine header files")
     endif()
-    message(STATUS "Found Wine header files - ${WINE_INCLUDE_DIR}" )
-
-    set(DSOAL_CPP_FLAGS -D__WINESRC__ "-I${DSOAL_BINARY_DIR}" "-I${OPENAL_INCLUDE_DIR}")
-    set(DSOAL_C_FLAGS -g -O2 -Wall -pipe -fno-strict-aliasing -Wdeclaration-after-statement -Wstrict-prototypes -Wwrite-strings -Wtype-limits -Wpointer-arith)
+    message(STATUS "Found Wine header files - ${WINE_INCLUDE_DIR}")
+    add_definitions(-D__WINESRC__ "-I${WINE_INCLUDE_DIR}" "-I${WINE_INCLUDE_DIR}/windows")
 
     add_custom_command(OUTPUT version.res
-                       COMMAND wrc --nostdinc ${DSOAL_CPP_FLAGS} "-I${WINE_INCLUDE_DIR}" "-I${WINE_INCLUDE_DIR}/windows" -foversion.res ${DSOAL_SOURCE_DIR}/version.rc
+                       COMMAND wrc --nostdinc -D__WINESRC__ "-I${DSOAL_BINARY_DIR}" "-I${WINE_INCLUDE_DIR}" "-I${WINE_INCLUDE_DIR}/windows" -foversion.res ${DSOAL_SOURCE_DIR}/version.rc
                        DEPENDS "${DSOAL_SOURCE_DIR}/version.rc"
-                       WORKING_DIRECTORY "${DSOAL_BINARY_DIR}/CMakeFiles/dsound.dir"
+                       WORKING_DIRECTORY "${DSOAL_BINARY_DIR}/CMakeFiles/dsoal.dir"
                        COMMENT "Generating version.res..." VERBATIM)
+
+    add_library(dsoal STATIC ${DSOAL_OBJS})
+    set_target_properties(dsoal PROPERTIES PREFIX "lib" SUFFIX ".a"
+                                COMPILE_FLAGS -fPIC)
 
     set(OBJECT_FILES)
     foreach(SRC ${DSOAL_OBJS})
         string(REGEX REPLACE ".c" ".o" OBJ "${SRC}")
-        add_custom_command(OUTPUT "${OBJ}"
-                           COMMAND winegcc ${DSOAL_CPP_FLAGS} ${DSOAL_C_FLAGS} -o "${OBJ}" -c "${DSOAL_SOURCE_DIR}/${SRC}"
-                           DEPENDS "${DSOAL_SOURCE_DIR}/${SRC}"
-                           WORKING_DIRECTORY "${DSOAL_BINARY_DIR}/CMakeFiles/dsound.dir"
-                           COMMENT "Building C object CMakeFiles/dsound.dir/${OBJ}" VERBATIM)
         set(OBJECT_FILES "${OBJECT_FILES}" "${OBJ}")
     endforeach()
 
     add_custom_command(OUTPUT "${DSOAL_BINARY_DIR}/dsound.dll.so"
-                       COMMAND winegcc -shared "${DSOAL_SOURCE_DIR}/dsound.spec" ${OBJECT_FILES} version.res -o "${DSOAL_BINARY_DIR}/dsound.dll.so" -lopenal -ldxguid -luuid -lwinmm -lole32 -ldxerr8
-                       DEPENDS ${OBJECT_FILES} version.res
-                       WORKING_DIRECTORY "${DSOAL_BINARY_DIR}/CMakeFiles/dsound.dir"
+                       COMMAND winegcc -shared "${DSOAL_SOURCE_DIR}/dsound.spec" version.res -o "${DSOAL_BINARY_DIR}/dsound.dll.so" "${DSOAL_BINARY_DIR}/libdsoal.a" -lopenal -ldxguid -luuid -lwinmm -lole32 -ldxerr8
+                       DEPENDS version.res "${DSOAL_SOURCE_DIR}/dsound.spec" "${DSOAL_BINARY_DIR}/libdsoal.a"
+                       WORKING_DIRECTORY "${DSOAL_BINARY_DIR}/CMakeFiles/dsoal.dir"
                        COMMENT "Linking C shared library dsound.dll.so" VERBATIM)
 
     add_custom_target(dsound ALL DEPENDS "${DSOAL_BINARY_DIR}/dsound.dll.so")
