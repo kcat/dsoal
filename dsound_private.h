@@ -510,18 +510,14 @@ static inline FLOAT clampF(FLOAT val, FLOAT minval, FLOAT maxval)
 do { \
     ALenum err = alGetError(); \
     if(err != AL_NO_ERROR) \
-    { \
         ERR(">>>>>>>>>>>> Received AL error %#x on context %p, %s:%u\n", err, get_context(), __FUNCTION__, __LINE__); \
-    } \
 } while (0)
 
 #define getALCError(dev) \
 do { \
     ALenum err = alcGetError(dev); \
     if(err != ALC_NO_ERROR) \
-    { \
         ERR(">>>>>>>>>>>> Received ALC error %#x on device %p, %s:%u\n", err, dev, __FUNCTION__, __LINE__); \
-    } \
 } while(0)
 
 #if ALLOW_CONCURRENT_AL
