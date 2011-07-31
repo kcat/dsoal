@@ -702,6 +702,7 @@ void DS8Buffer_Destroy(DS8Buffer *This)
 
     TRACE("Destroying %p\n", This);
 
+    EnterCriticalSection(&prim->crst);
     /* Remove from list, if in list */
     for(idx = 0;idx < prim->nnotifies;++idx)
     {
@@ -743,12 +744,16 @@ void DS8Buffer_Destroy(DS8Buffer *This)
             sources[prim->nsources++] = This->source;
             prim->sources = sources;
         }
+        This->source = 0;
     }
-    HeapFree(GetProcessHeap(), 0, This->notify);
-    This->source = 0;
+    LeaveCriticalSection(&prim->crst);
+
     if(This->buffer)
         DS8Data_Release(This->buffer);
+
     popALContext();
+
+    HeapFree(GetProcessHeap(), 0, This->notify);
     HeapFree(GetProcessHeap(), 0, This);
 }
 
