@@ -93,8 +93,8 @@ else()
                        COMMENT "Creating dsound.dll.fake" VERBATIM)
 
     install(FILES "${DSOAL_BINARY_DIR}/dsound.dll.so"
-            DESTINATION "${WINE_DIR}/lib/wine")
+            DESTINATION "${WINE_DIR}/lib${LIB_SUFFIX}/wine")
     install(FILES "${DSOAL_BINARY_DIR}/dsound.dll.fake"
-            DESTINATION "${WINE_DIR}/lib/wine/fakedlls"
+            DESTINATION "${WINE_DIR}/lib${LIB_SUFFIX}/wine/fakedlls"
             RENAME dsound.dll)
 endif()
