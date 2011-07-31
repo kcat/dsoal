@@ -55,16 +55,14 @@ if(WIN32)
     set_target_properties(${LIBNAME} PROPERTIES PREFIX ""
                                                 LINK_FLAGS "${DSOAL_SOURCE_DIR}/dsound-mingw.def")
 else()
-    find_path(WINE_INCLUDE_DIR library.h
-              PATHS
-              /usr/include/wine
-              /usr/local/include/wine)
-    if(NOT WINE_INCLUDE_DIR)
-        message(FATAL_ERROR "Could not find Wine header files")
+    find_path(WINE_DIR include/wine/library.h
+              PATHS /usr /usr/local)
+    if(NOT WINE_DIR)
+        message(FATAL_ERROR "Could not find Wine installation directory")
     endif()
-    message(STATUS "Found Wine header files - ${WINE_INCLUDE_DIR}")
-    add_definitions(-D__WINESRC__ "-I${WINE_INCLUDE_DIR}" "-I${WINE_INCLUDE_DIR}/windows")
-    set(CMAKE_REQUIRED_INCLUDES "${CMAKE_REQUIRED_INCLUDES}" "${WINE_INCLUDE_DIR}" "${WINE_INCLUDE_DIR}/windows")
+    message(STATUS "Found Wine installation directory - ${WINE_DIR}")
+    add_definitions(-D__WINESRC__ "-I${WINE_DIR}/include/wine" "-I${WINE_DIR}/include/wine/windows")
+    set(CMAKE_REQUIRED_INCLUDES "${CMAKE_REQUIRED_INCLUDES}" "${WINE_DIR}/include/wine" "${WINE_DIR}/include/wine/windows")
 
     check_include_file(dsound.h HAVE_DSOUND_H)
     if(NOT HAVE_DSOUND_H)
@@ -82,7 +80,7 @@ else()
     endforeach()
 
     add_custom_command(TARGET dsoal POST_BUILD
-                       COMMAND wrc --nostdinc -D__WINESRC__ "-I${DSOAL_BINARY_DIR}" "-I${WINE_INCLUDE_DIR}" "-I${WINE_INCLUDE_DIR}/windows" -foversion.res ${DSOAL_SOURCE_DIR}/version.rc
+                       COMMAND wrc --nostdinc -D__WINESRC__ "-I${DSOAL_BINARY_DIR}" "-I${WINE_DIR}/include/wine" "-I${WINE_DIR}/include/wine/windows" -foversion.res ${DSOAL_SOURCE_DIR}/version.rc
                        WORKING_DIRECTORY "${DSOAL_BINARY_DIR}/CMakeFiles/dsoal.dir"
                        COMMENT "Generating version.res..." VERBATIM)
     add_custom_command(TARGET dsoal POST_BUILD
