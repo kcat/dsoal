@@ -84,16 +84,16 @@ else()
     set_target_properties(${LIBNAME} PROPERTIES PREFIX "lib" SUFFIX ".a"
                                      COMPILE_FLAGS -fPIC)
 
-    add_custom_command(TARGET ${LIBNAME} POST_BUILD
-                       COMMAND wrc --nostdinc -D__WINESRC__ "-I${DSOAL_BINARY_DIR}" "-I${WINE_DIR}/include/wine" "-I${WINE_DIR}/include/wine/windows" -foversion.res ${DSOAL_SOURCE_DIR}/version.rc
+    add_custom_command(TARGET ${LIBNAME} PRE_BUILD
+                       COMMAND wrc --nostdinc -D__WINESRC__ "-I${WINE_DIR}/include/wine" "-I${WINE_DIR}/include/wine/windows" -foversion.res "${DSOAL_SOURCE_DIR}/version.rc"
                        WORKING_DIRECTORY "${DSOAL_BINARY_DIR}"
                        COMMENT "Generating version.res" VERBATIM)
-    add_custom_command(TARGET ${LIBNAME} POST_BUILD
-                       COMMAND widl -D__WINESRC__ "-I${DSOAL_BINARY_DIR}" "-I${WINE_DIR}/include/wine" "-I${WINE_DIR}/include/wine/windows" -r -o "${LIBNAME}_classes_r.res" "${DSOAL_SOURCE_DIR}/${LIBNAME}_classes.idl"
+    add_custom_command(TARGET ${LIBNAME} PRE_BUILD
+                       COMMAND widl -D__WINESRC__ "-I${WINE_DIR}/include/wine" "-I${WINE_DIR}/include/wine/windows" -r -o "${LIBNAME}_classes_r.res" "${DSOAL_SOURCE_DIR}/${LIBNAME}_classes.idl"
                        WORKING_DIRECTORY "${DSOAL_BINARY_DIR}"
                        COMMENT "Generating ${LIBNAME}_classes_r.res" VERBATIM)
-    add_custom_command(TARGET ${LIBNAME} POST_BUILD
-                       COMMAND winebuild -w --def -o lib${LIBNAME}.def --export ${DSOAL_SOURCE_DIR}/${LIBNAME}.spec
+    add_custom_command(TARGET ${LIBNAME} PRE_LINK
+                       COMMAND winebuild -w --def -o "lib${LIBNAME}.def" --export "${DSOAL_SOURCE_DIR}/${LIBNAME}.spec"
                        WORKING_DIRECTORY "${DSOAL_BINARY_DIR}"
                        COMMENT "Generating lib${LIBNAME}.def" VERBATIM)
     add_custom_command(TARGET ${LIBNAME} POST_BUILD
