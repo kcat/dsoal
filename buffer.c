@@ -172,7 +172,50 @@ static void DS8Buffer_addnotify(DS8Buffer *buf)
 }
 
 
-static const char *get_fmtstr_PCM(const DS8Primary *prim, const WAVEFORMATEX *format, WAVEFORMATEXTENSIBLE *out, ALenum *in_chans, ALenum *in_type)
+static const char *get_fmtstr_PCM(const DS8Primary *prim, const WAVEFORMATEX *format, WAVEFORMATEXTENSIBLE *out)
+{
+    out->Format = *format;
+    out->Format.cbSize = 0;
+
+    if(out->Format.nChannels != 1 && out->Format.nChannels != 2 &&
+       !prim->SupportedExt[EXT_MCFORMATS])
+    {
+        WARN("Multi-channel not available\n");
+        return NULL;
+    }
+
+    if(format->wBitsPerSample == 8)
+    {
+        switch(format->nChannels)
+        {
+        case 1: return "AL_FORMAT_MONO8";
+        case 2: return "AL_FORMAT_STEREO8";
+        case 4: return "AL_FORMAT_QUAD8";
+        case 6: return "AL_FORMAT_51CHN8";
+        case 7: return "AL_FORMAT_61CHN8";
+        case 8: return "AL_FORMAT_71CHN8";
+        default: break;
+        }
+    }
+    else if(format->wBitsPerSample == 16)
+    {
+        switch(format->nChannels)
+        {
+        case 1: return "AL_FORMAT_MONO16";
+        case 2: return "AL_FORMAT_STEREO16";
+        case 4: return "AL_FORMAT_QUAD16";
+        case 6: return "AL_FORMAT_51CHN16";
+        case 7: return "AL_FORMAT_61CHN16";
+        case 8: return "AL_FORMAT_71CHN16";
+        default: break;
+        }
+    }
+
+    FIXME("Could not get OpenAL format (%d-bit, %d channels)\n",
+          format->wBitsPerSample, format->nChannels);
+    return NULL;
+}
+static ALenum get_fmt_PCM(const WAVEFORMATEX *format, WAVEFORMATEXTENSIBLE *out, ALenum *in_chans, ALenum *in_type)
 {
     out->Format = *format;
     out->Format.cbSize = 0;
@@ -183,17 +226,17 @@ static const char *get_fmtstr_PCM(const DS8Primary *prim, const WAVEFORMATEX *fo
         switch(format->nChannels)
         {
         case 1: *in_chans = AL_MONO;
-                return "AL_FORMAT_MONO8";
+                return AL_MONO8;
         case 2: *in_chans = AL_STEREO;
-                return "AL_FORMAT_STEREO8";
+                return AL_STEREO8;
         case 4: *in_chans = AL_QUAD;
-                return "AL_FORMAT_QUAD8";
+                return AL_QUAD8;
         case 6: *in_chans = AL_5POINT1;
-                return "AL_FORMAT_51CHN8";
+                return AL_5POINT1_8;
         case 7: *in_chans = AL_6POINT1;
-                return "AL_FORMAT_61CHN8";
+                return AL_6POINT1_8;
         case 8: *in_chans = AL_7POINT1;
-                return "AL_FORMAT_71CHN8";
+                return AL_7POINT1_8;
         default: break;
         }
     }
@@ -203,59 +246,90 @@ static const char *get_fmtstr_PCM(const DS8Primary *prim, const WAVEFORMATEX *fo
         switch(format->nChannels)
         {
         case 1: *in_chans = AL_MONO;
-                return "AL_FORMAT_MONO16";
+                return AL_MONO16;
         case 2: *in_chans = AL_STEREO;
-                return "AL_FORMAT_STEREO16";
+                return AL_STEREO16;
         case 4: *in_chans = AL_QUAD;
-                return "AL_FORMAT_QUAD16";
+                return AL_QUAD16;
         case 6: *in_chans = AL_5POINT1;
-                return "AL_FORMAT_51CHN16";
+                return AL_5POINT1_16;
         case 7: *in_chans = AL_6POINT1;
-                return "AL_FORMAT_61CHN16";
+                return AL_6POINT1_16;
         case 8: *in_chans = AL_7POINT1;
-                return "AL_FORMAT_71CHN16";
+                return AL_7POINT1_16;
         default: break;
         }
     }
 #if 0 /* Will cause incorrect byte offsets */
-    else if(format->wBitsPerSample == 24 && prim->SupportedExt[SOFT_BUFFER_SAMPLES])
+    else if(format->wBitsPerSample == 24)
     {
         *in_type = AL_BYTE3;
         switch(format->nChannels)
         {
         case 1: *in_chans = AL_MONO;
-                return "AL_MONO32F";
+                return AL_MONO32F;
         case 2: *in_chans = AL_STEREO;
-                return "AL_STEREO32F";
+                return AL_STEREO32F;
         case 4: *in_chans = AL_QUAD;
-                return "AL_QUAD32F";
+                return AL_QUAD32F;
         case 6: *in_chans = AL_5POINT1;
-                return "AL_5POINT1_32F";
+                return AL_5POINT1_32F;
         case 7: *in_chans = AL_6POINT1;
-                return "AL_6POINT1_32F";
+                return AL_6POINT1_32F;
         case 8: *in_chans = AL_7POINT1;
-                return "AL_7POINT1_32F";
+                return AL_7POINT1_32F;
         default: break;
         }
     }
 #endif
-    else if(format->wBitsPerSample == 32 && prim->SupportedExt[SOFT_BUFFER_SAMPLES])
+    else if(format->wBitsPerSample == 32)
     {
         *in_type = AL_INT;
         switch(format->nChannels)
         {
         case 1: *in_chans = AL_MONO;
-                return "AL_MONO32F";
+                return AL_MONO32F;
         case 2: *in_chans = AL_STEREO;
-                return "AL_STEREO32F";
+                return AL_STEREO32F;
         case 4: *in_chans = AL_QUAD;
-                return "AL_QUAD32F";
+                return AL_QUAD32F;
         case 6: *in_chans = AL_5POINT1;
-                return "AL_5POINT1_32F";
+                return AL_5POINT1_32F;
         case 7: *in_chans = AL_6POINT1;
-                return "AL_6POINT1_32F";
+                return AL_6POINT1_32F;
         case 8: *in_chans = AL_7POINT1;
-                return "AL_7POINT1_32F";
+                return AL_7POINT1_32F;
+        default: break;
+        }
+    }
+
+    FIXME("Could not get OpenAL format (%d-bit, %d channels)\n",
+          format->wBitsPerSample, format->nChannels);
+    return AL_NONE;
+}
+
+static const char *get_fmtstr_FLOAT(const DS8Primary *prim, const WAVEFORMATEX *format, WAVEFORMATEXTENSIBLE *out)
+{
+    out->Format = *format;
+    out->Format.cbSize = 0;
+
+    if(out->Format.nChannels != 1 && out->Format.nChannels != 2 &&
+       !prim->SupportedExt[EXT_MCFORMATS])
+    {
+        WARN("Multi-channel not available\n");
+        return NULL;
+    }
+
+    if(format->wBitsPerSample == 32 && prim->SupportedExt[EXT_FLOAT32])
+    {
+        switch(format->nChannels)
+        {
+        case 1: return "AL_FORMAT_MONO_FLOAT32";
+        case 2: return "AL_FORMAT_STEREO_FLOAT32";
+        case 4: return "AL_FORMAT_QUAD32";
+        case 6: return "AL_FORMAT_51CHN32";
+        case 7: return "AL_FORMAT_61CHN32";
+        case 8: return "AL_FORMAT_71CHN32";
         default: break;
         }
     }
@@ -264,51 +338,49 @@ static const char *get_fmtstr_PCM(const DS8Primary *prim, const WAVEFORMATEX *fo
           format->wBitsPerSample, format->nChannels);
     return NULL;
 }
-
-static const char *get_fmtstr_FLOAT(const DS8Primary *prim, const WAVEFORMATEX *format, WAVEFORMATEXTENSIBLE *out, ALenum *in_chans, ALenum *in_type)
+static ALenum get_fmt_FLOAT(const WAVEFORMATEX *format, WAVEFORMATEXTENSIBLE *out, ALenum *in_chans, ALenum *in_type)
 {
     out->Format = *format;
     out->Format.cbSize = 0;
 
-    if(format->wBitsPerSample == 32 &&
-       (prim->SupportedExt[EXT_FLOAT32] || prim->SupportedExt[SOFT_BUFFER_SAMPLES]))
+    if(format->wBitsPerSample == 32)
     {
         *in_type = AL_FLOAT;
         switch(format->nChannels)
         {
         case 1: *in_chans = AL_MONO;
-                return "AL_FORMAT_MONO_FLOAT32";
+                return AL_MONO32F;
         case 2: *in_chans = AL_STEREO;
-                return "AL_FORMAT_STEREO_FLOAT32";
+                return AL_STEREO32F;
         case 4: *in_chans = AL_QUAD;
-                return "AL_FORMAT_QUAD32";
+                return AL_QUAD32F;
         case 6: *in_chans = AL_5POINT1;
-                return "AL_FORMAT_51CHN32";
+                return AL_5POINT1_32F;
         case 7: *in_chans = AL_6POINT1;
-                return "AL_FORMAT_61CHN32";
+                return AL_6POINT1_32F;
         case 8: *in_chans = AL_7POINT1;
-                return "AL_FORMAT_71CHN32";
+                return AL_7POINT1_32F;
         default: break;
         }
     }
 #if 0 /* Will cause incorrect byte offsets */
-    else if(format->wBitsPerSample == 64 && prim->SupportedExt[SOFT_BUFFER_SAMPLES])
+    else if(format->wBitsPerSample == 64)
     {
         *in_type = AL_DOUBLE;
         switch(format->nChannels)
         {
         case 1: *in_chans = AL_MONO;
-                return "AL_MONO32F";
+                return AL_MONO32F;
         case 2: *in_chans = AL_STEREO;
-                return "AL_STEREO32F";
+                return AL_STEREO32F;
         case 4: *in_chans = AL_QUAD;
-                return "AL_QUAD32F";
+                return AL_QUAD32F;
         case 6: *in_chans = AL_5POINT1;
-                return "AL_5POINT1_32F";
+                return AL_5POINT1_32F;
         case 7: *in_chans = AL_6POINT1;
-                return "AL_6POINT1_32F";
+                return AL_6POINT1_32F;
         case 8: *in_chans = AL_7POINT1;
-                return "AL_7POINT1_32F";
+                return AL_7POINT1_32F;
         default: break;
         }
     }
@@ -316,7 +388,7 @@ static const char *get_fmtstr_FLOAT(const DS8Primary *prim, const WAVEFORMATEX *
 
     FIXME("Could not get OpenAL format (%d-bit, %d channels)\n",
           format->wBitsPerSample, format->nChannels);
-    return NULL;
+    return AL_NONE;
 }
 
 /* Speaker configs */
@@ -328,9 +400,9 @@ static const char *get_fmtstr_FLOAT(const DS8Primary *prim, const WAVEFORMATEX *
 #define X6DOT1 (SPEAKER_FRONT_LEFT|SPEAKER_FRONT_RIGHT|SPEAKER_FRONT_CENTER|SPEAKER_LOW_FREQUENCY|SPEAKER_BACK_CENTER|SPEAKER_SIDE_LEFT|SPEAKER_SIDE_RIGHT)
 #define X7DOT1 (SPEAKER_FRONT_LEFT|SPEAKER_FRONT_RIGHT|SPEAKER_FRONT_CENTER|SPEAKER_LOW_FREQUENCY|SPEAKER_BACK_LEFT|SPEAKER_BACK_RIGHT|SPEAKER_SIDE_LEFT|SPEAKER_SIDE_RIGHT)
 
-static const char *get_fmtstr_EXT(const DS8Primary *prim, const WAVEFORMATEX *format, WAVEFORMATEXTENSIBLE *out, ALenum *in_chans, ALenum *in_type)
+static const char *get_fmtstr_EXT(const DS8Primary *prim, const WAVEFORMATEX *format, WAVEFORMATEXTENSIBLE *out)
 {
-    *out = *(const WAVEFORMATEXTENSIBLE*)format;
+    *out = *CONTAINING_RECORD(format, const WAVEFORMATEXTENSIBLE, Format);
     out->Format.cbSize = sizeof(*out) - sizeof(out->Format);
 
     if(!out->Samples.wValidBitsPerSample)
@@ -342,7 +414,7 @@ static const char *get_fmtstr_EXT(const DS8Primary *prim, const WAVEFORMATEX *fo
     }
 
     if(out->dwChannelMask != MONO && out->dwChannelMask != STEREO &&
-       !prim->SupportedExt[EXT_MCFORMATS] && !prim->SupportedExt[SOFT_BUFFER_SAMPLES])
+       !prim->SupportedExt[EXT_MCFORMATS])
     {
         WARN("Multi-channel not available\n");
         return NULL;
@@ -352,93 +424,29 @@ static const char *get_fmtstr_EXT(const DS8Primary *prim, const WAVEFORMATEX *fo
     {
         if(out->Samples.wValidBitsPerSample == 8)
         {
-            *in_type = AL_UNSIGNED_BYTE;
             switch(out->dwChannelMask)
             {
-            case   MONO: *in_chans = AL_MONO;
-                         return "AL_FORMAT_MONO8";
-            case STEREO: *in_chans = AL_STEREO;
-                         return "AL_FORMAT_STEREO8";
-            case   REAR: *in_chans = AL_REAR;
-                         return "AL_FORMAT_REAR8";
-            case   QUAD: *in_chans = AL_QUAD;
-                         return "AL_FORMAT_QUAD8";
-            case X5DOT1: *in_chans = AL_5POINT1;
-                         return "AL_FORMAT_51CHN8";
-            case X6DOT1: *in_chans = AL_6POINT1;
-                         return "AL_FORMAT_61CHN8";
-            case X7DOT1: *in_chans = AL_7POINT1;
-                         return "AL_FORMAT_71CHN8";
+            case   MONO: return "AL_FORMAT_MONO8";
+            case STEREO: return "AL_FORMAT_STEREO8";
+            case   REAR: return "AL_FORMAT_REAR8";
+            case   QUAD: return "AL_FORMAT_QUAD8";
+            case X5DOT1: return "AL_FORMAT_51CHN8";
+            case X6DOT1: return "AL_FORMAT_61CHN8";
+            case X7DOT1: return "AL_FORMAT_71CHN8";
             default: break;
             }
         }
         else if(out->Samples.wValidBitsPerSample == 16)
         {
-            *in_type = AL_SHORT;
             switch(out->dwChannelMask)
             {
-            case   MONO: *in_chans = AL_MONO;
-                         return "AL_FORMAT_MONO16";
-            case STEREO: *in_chans = AL_STEREO;
-                         return "AL_FORMAT_STEREO16";
-            case   REAR: *in_chans = AL_REAR;
-                         return "AL_FORMAT_REAR16";
-            case   QUAD: *in_chans = AL_QUAD;
-                         return "AL_FORMAT_QUAD16";
-            case X5DOT1: *in_chans = AL_5POINT1;
-                         return "AL_FORMAT_51CHN16";
-            case X6DOT1: *in_chans = AL_6POINT1;
-                         return "AL_FORMAT_61CHN16";
-            case X7DOT1: *in_chans = AL_7POINT1;
-                         return "AL_FORMAT_71CHN16";
-            default: break;
-            }
-        }
-#if 0
-        else if(out->Samples.wValidBitsPerSample == 24 &&
-                prim->SupportedExt[SOFT_BUFFER_SAMPLES])
-        {
-            *in_type = AL_BYTE3;
-            switch(out->dwChannelMask)
-            {
-            case   MONO: *in_chans = AL_MONO;
-                         return "AL_MONO32F";
-            case STEREO: *in_chans = AL_STEREO;
-                         return "AL_STEREO32F";
-            case   REAR: *in_chans = AL_REAR;
-                         return "AL_REAR32F";
-            case   QUAD: *in_chans = AL_QUAD;
-                         return "AL_QUAD32F";
-            case X5DOT1: *in_chans = AL_5POINT1;
-                         return "AL_5POINT1_32F";
-            case X6DOT1: *in_chans = AL_6POINT1;
-                         return "AL_6POINT1_32F";
-            case X7DOT1: *in_chans = AL_7POINT1;
-                         return "AL_7POINT1_32F";
-            default: break;
-            }
-        }
-#endif
-        else if(out->Samples.wValidBitsPerSample == 32 &&
-                prim->SupportedExt[SOFT_BUFFER_SAMPLES])
-        {
-            *in_type = AL_INT;
-            switch(out->dwChannelMask)
-            {
-            case   MONO: *in_chans = AL_MONO;
-                         return "AL_MONO32F";
-            case STEREO: *in_chans = AL_STEREO;
-                         return "AL_STEREO32F";
-            case   REAR: *in_chans = AL_REAR;
-                         return "AL_REAR32F";
-            case   QUAD: *in_chans = AL_QUAD;
-                         return "AL_QUAD32F";
-            case X5DOT1: *in_chans = AL_5POINT1;
-                         return "AL_5POINT1_32F";
-            case X6DOT1: *in_chans = AL_6POINT1;
-                         return "AL_6POINT1_32F";
-            case X7DOT1: *in_chans = AL_7POINT1;
-                         return "AL_7POINT1_32F";
+            case   MONO: return "AL_FORMAT_MONO16";
+            case STEREO: return "AL_FORMAT_STEREO16";
+            case   REAR: return "AL_FORMAT_REAR16";
+            case   QUAD: return "AL_FORMAT_QUAD16";
+            case X5DOT1: return "AL_FORMAT_51CHN16";
+            case X6DOT1: return "AL_FORMAT_61CHN16";
+            case X7DOT1: return "AL_FORMAT_71CHN16";
             default: break;
             }
         }
@@ -448,55 +456,22 @@ static const char *get_fmtstr_EXT(const DS8Primary *prim, const WAVEFORMATEX *fo
         return NULL;
     }
     else if(IsEqualGUID(&out->SubFormat, &KSDATAFORMAT_SUBTYPE_IEEE_FLOAT) &&
-            (prim->SupportedExt[EXT_FLOAT32] || prim->SupportedExt[SOFT_BUFFER_SAMPLES]))
+            prim->SupportedExt[EXT_FLOAT32])
     {
         if(out->Samples.wValidBitsPerSample == 32)
         {
-            *in_type = AL_FLOAT;
             switch(out->dwChannelMask)
             {
-            case   MONO: *in_chans = AL_MONO;
-                         return "AL_FORMAT_MONO_FLOAT32";
-            case STEREO: *in_chans = AL_STEREO;
-                         return "AL_FORMAT_STEREO_FLOAT32";
-            case   REAR: *in_chans = AL_REAR;
-                         return "AL_FORMAT_REAR32";
-            case   QUAD: *in_chans = AL_QUAD;
-                         return "AL_FORMAT_QUAD32";
-            case X5DOT1: *in_chans = AL_5POINT1;
-                         return "AL_FORMAT_51CHN32";
-            case X6DOT1: *in_chans = AL_6POINT1;
-                         return "AL_FORMAT_61CHN32";
-            case X7DOT1: *in_chans = AL_7POINT1;
-                         return "AL_FORMAT_71CHN32";
+            case   MONO: return "AL_FORMAT_MONO_FLOAT32";
+            case STEREO: return "AL_FORMAT_STEREO_FLOAT32";
+            case   REAR: return "AL_FORMAT_REAR32";
+            case   QUAD: return "AL_FORMAT_QUAD32";
+            case X5DOT1: return "AL_FORMAT_51CHN32";
+            case X6DOT1: return "AL_FORMAT_61CHN32";
+            case X7DOT1: return "AL_FORMAT_71CHN32";
             default: break;
             }
         }
-#if 0
-        else if(out->Samples.wValidBitsPerSample == 64 &&
-                prim->SupportedExt[SOFT_BUFFER_SAMPLES])
-        {
-            *in_type = AL_DOUBLE;
-            switch(out->dwChannelMask)
-            {
-            case   MONO: *in_chans = AL_MONO;
-                         return "AL_MONO32F";
-            case STEREO: *in_chans = AL_STEREO;
-                         return "AL_STEREO32F";
-            case   REAR: *in_chans = AL_REAR;
-                         return "AL_REAR32F";
-            case   QUAD: *in_chans = AL_QUAD;
-                         return "AL_QUAD32F";
-            case X5DOT1: *in_chans = AL_5POINT1;
-                         return "AL_5POINT1_32F";
-            case X6DOT1: *in_chans = AL_6POINT1;
-                         return "AL_6POINT1_32F";
-            case X7DOT1: *in_chans = AL_7POINT1;
-                         return "AL_7POINT1_32F";
-            default: break;
-            }
-        }
-#endif
         else
         {
             WARN("Invalid float bits: %u\n", out->Samples.wValidBitsPerSample);
@@ -511,13 +486,184 @@ static const char *get_fmtstr_EXT(const DS8Primary *prim, const WAVEFORMATEX *fo
         ERR("Unhandled extensible format: %s\n", debugstr_guid(&out->SubFormat));
     return NULL;
 }
+static ALenum get_fmt_EXT(const WAVEFORMATEX *format, WAVEFORMATEXTENSIBLE *out, ALenum *in_chans, ALenum *in_type)
+{
+    *out = *CONTAINING_RECORD(format, const WAVEFORMATEXTENSIBLE, Format);
+    out->Format.cbSize = sizeof(*out) - sizeof(out->Format);
+
+    if(!out->Samples.wValidBitsPerSample)
+        out->Samples.wValidBitsPerSample = out->Format.wBitsPerSample;
+    else if(out->Samples.wValidBitsPerSample != out->Format.wBitsPerSample)
+    {
+        FIXME("Padded samples not supported (%u of %u)\n", out->Samples.wValidBitsPerSample, out->Format.wBitsPerSample);
+        return AL_NONE;
+    }
+
+    if(IsEqualGUID(&out->SubFormat, &KSDATAFORMAT_SUBTYPE_PCM))
+    {
+        if(out->Samples.wValidBitsPerSample == 8)
+        {
+            *in_type = AL_UNSIGNED_BYTE;
+            switch(out->dwChannelMask)
+            {
+            case   MONO: *in_chans = AL_MONO;
+                         return AL_MONO8;
+            case STEREO: *in_chans = AL_STEREO;
+                         return AL_STEREO8;
+            case   REAR: *in_chans = AL_REAR;
+                         return AL_REAR8;
+            case   QUAD: *in_chans = AL_QUAD;
+                         return AL_QUAD8;
+            case X5DOT1: *in_chans = AL_5POINT1;
+                         return AL_5POINT1_8;
+            case X6DOT1: *in_chans = AL_6POINT1;
+                         return AL_6POINT1_8;
+            case X7DOT1: *in_chans = AL_7POINT1;
+                         return AL_7POINT1_8;
+            default: break;
+            }
+        }
+        else if(out->Samples.wValidBitsPerSample == 16)
+        {
+            *in_type = AL_SHORT;
+            switch(out->dwChannelMask)
+            {
+            case   MONO: *in_chans = AL_MONO;
+                         return AL_MONO16;
+            case STEREO: *in_chans = AL_STEREO;
+                         return AL_STEREO16;
+            case   REAR: *in_chans = AL_REAR;
+                         return AL_REAR16;
+            case   QUAD: *in_chans = AL_QUAD;
+                         return AL_QUAD16;
+            case X5DOT1: *in_chans = AL_5POINT1;
+                         return AL_5POINT1_16;
+            case X6DOT1: *in_chans = AL_6POINT1;
+                         return AL_6POINT1_16;
+            case X7DOT1: *in_chans = AL_7POINT1;
+                         return AL_7POINT1_16;
+            default: break;
+            }
+        }
+#if 0
+        else if(out->Samples.wValidBitsPerSample == 24)
+        {
+            *in_type = AL_BYTE3;
+            switch(out->dwChannelMask)
+            {
+            case   MONO: *in_chans = AL_MONO;
+                         return AL_MONO32F;
+            case STEREO: *in_chans = AL_STEREO;
+                         return AL_STEREO32F;
+            case   REAR: *in_chans = AL_REAR;
+                         return AL_REAR32F;
+            case   QUAD: *in_chans = AL_QUAD;
+                         return AL_QUAD32F;
+            case X5DOT1: *in_chans = AL_5POINT1;
+                         return AL_5POINT1_32F;
+            case X6DOT1: *in_chans = AL_6POINT1;
+                         return AL_6POINT1_32F;
+            case X7DOT1: *in_chans = AL_7POINT1;
+                         return AL_7POINT1_32F;
+            default: break;
+            }
+        }
+#endif
+        else if(out->Samples.wValidBitsPerSample == 32)
+        {
+            *in_type = AL_INT;
+            switch(out->dwChannelMask)
+            {
+            case   MONO: *in_chans = AL_MONO;
+                         return AL_MONO32F;
+            case STEREO: *in_chans = AL_STEREO;
+                         return AL_STEREO32F;
+            case   REAR: *in_chans = AL_REAR;
+                         return AL_REAR32F;
+            case   QUAD: *in_chans = AL_QUAD;
+                         return AL_QUAD32F;
+            case X5DOT1: *in_chans = AL_5POINT1;
+                         return AL_5POINT1_32F;
+            case X6DOT1: *in_chans = AL_6POINT1;
+                         return AL_6POINT1_32F;
+            case X7DOT1: *in_chans = AL_7POINT1;
+                         return AL_7POINT1_32F;
+            default: break;
+            }
+        }
+
+        FIXME("Could not get OpenAL PCM format (%d-bit, channelmask %#x)\n",
+              out->Samples.wValidBitsPerSample, out->dwChannelMask);
+        return AL_NONE;
+    }
+    else if(IsEqualGUID(&out->SubFormat, &KSDATAFORMAT_SUBTYPE_IEEE_FLOAT))
+    {
+        if(out->Samples.wValidBitsPerSample == 32)
+        {
+            *in_type = AL_FLOAT;
+            switch(out->dwChannelMask)
+            {
+            case   MONO: *in_chans = AL_MONO;
+                         return AL_MONO32F;
+            case STEREO: *in_chans = AL_STEREO;
+                         return AL_STEREO32F;
+            case   REAR: *in_chans = AL_REAR;
+                         return AL_REAR32F;
+            case   QUAD: *in_chans = AL_QUAD;
+                         return AL_QUAD32F;
+            case X5DOT1: *in_chans = AL_5POINT1;
+                         return AL_5POINT1_32F;
+            case X6DOT1: *in_chans = AL_6POINT1;
+                         return AL_6POINT1_32F;
+            case X7DOT1: *in_chans = AL_7POINT1;
+                         return AL_7POINT1_32F;
+            default: break;
+            }
+        }
+#if 0
+        else if(out->Samples.wValidBitsPerSample == 64)
+        {
+            *in_type = AL_DOUBLE;
+            switch(out->dwChannelMask)
+            {
+            case   MONO: *in_chans = AL_MONO;
+                         return AL_MONO32F;
+            case STEREO: *in_chans = AL_STEREO;
+                         return AL_STEREO32F;
+            case   REAR: *in_chans = AL_REAR;
+                         return AL_REAR32F;
+            case   QUAD: *in_chans = AL_QUAD;
+                         return AL_QUAD32F;
+            case X5DOT1: *in_chans = AL_5POINT1;
+                         return AL_5POINT1_32F;
+            case X6DOT1: *in_chans = AL_6POINT1;
+                         return AL_6POINT1_32F;
+            case X7DOT1: *in_chans = AL_7POINT1;
+                         return AL_7POINT1_32F;
+            default: break;
+            }
+        }
+#endif
+        else
+        {
+            WARN("Invalid float bits: %u\n", out->Samples.wValidBitsPerSample);
+            return AL_NONE;
+        }
+
+        FIXME("Could not get OpenAL float format (%d-bit, channelmask %#x)\n",
+              out->Samples.wValidBitsPerSample, out->dwChannelMask);
+        return AL_NONE;
+    }
+    else if(!IsEqualGUID(&out->SubFormat, &GUID_NULL))
+        ERR("Unhandled extensible format: %s\n", debugstr_guid(&out->SubFormat));
+    return AL_NONE;
+}
 
 static void DS8Data_Release(DS8Data *This);
 static HRESULT DS8Data_Create(DS8Data **ppv, const DSBUFFERDESC *desc, DS8Primary *prim)
 {
     HRESULT hr = DSERR_INVALIDPARAM;
     const WAVEFORMATEX *format;
-    const char *fmt_str = NULL;
     DS8Data *pBuffer;
 
     format = desc->lpwfxFormat;
@@ -570,68 +716,108 @@ static HRESULT DS8Data_Create(DS8Data **ppv, const DSBUFFERDESC *desc, DS8Primar
     pBuffer->segsize = pBuffer->buf_size;
     pBuffer->lastsegsize = pBuffer->buf_size;
 
-    if(!(pBuffer->dsbflags&DSBCAPS_STATIC) && !prim->ExtAL.BufferSubData &&
-       !prim->ExtAL.BufferSamplesSOFT && !prim->ExtAL.BufferDataStatic)
+    if(!prim->SupportedExt[SOFT_BUFFER_SAMPLES])
     {
-        ALCint refresh = FAKE_REFRESH_COUNT;
-        ALuint newSize;
+        const char *fmt_str;
 
-        alcGetIntegerv(prim->parent->device, ALC_REFRESH, 1, &refresh);
-        getALCError(prim->parent->device);
-
-        newSize  = format->nAvgBytesPerSec/refresh + format->nBlockAlign - 1;
-        newSize -= newSize%format->nBlockAlign;
-
-        /* Make sure enough buffers are available */
-        if(newSize > pBuffer->buf_size/(QBUFFERS+2))
-            ERR("Buffer segments too large to stream (%u for %u)!\n",
-                newSize, pBuffer->buf_size);
-        else
+        if(!(pBuffer->dsbflags&DSBCAPS_STATIC) && !prim->ExtAL.BufferSubData &&
+           !prim->ExtAL.BufferDataStatic)
         {
-            pBuffer->numsegs = pBuffer->buf_size/newSize;
-            pBuffer->segsize = newSize;
-            pBuffer->lastsegsize = pBuffer->buf_size - (newSize*(pBuffer->numsegs-1));
-            TRACE("New streaming buffer (%u chunks, %u : %u sizes)\n",
-                  pBuffer->numsegs, pBuffer->segsize, pBuffer->lastsegsize);
+            ALCint refresh = FAKE_REFRESH_COUNT;
+            ALuint newSize;
+
+            alcGetIntegerv(prim->parent->device, ALC_REFRESH, 1, &refresh);
+            getALCError(prim->parent->device);
+
+            newSize  = format->nAvgBytesPerSec/refresh + format->nBlockAlign - 1;
+            newSize -= newSize%format->nBlockAlign;
+
+            /* Make sure enough buffers are available */
+            if(newSize > pBuffer->buf_size/(QBUFFERS+2))
+                ERR("Buffer segments too large to stream (%u for %u)!\n",
+                    newSize, pBuffer->buf_size);
+            else
+            {
+                pBuffer->numsegs = pBuffer->buf_size/newSize;
+                pBuffer->segsize = newSize;
+                pBuffer->lastsegsize = pBuffer->buf_size - (newSize*(pBuffer->numsegs-1));
+                TRACE("New streaming buffer (%u chunks, %u : %u sizes)\n",
+                      pBuffer->numsegs, pBuffer->segsize, pBuffer->lastsegsize);
+            }
         }
-    }
 
-    if(format->wFormatTag == WAVE_FORMAT_PCM)
-        fmt_str = get_fmtstr_PCM(prim, format, &pBuffer->format, &pBuffer->in_chans, &pBuffer->in_type);
-    else if(format->wFormatTag == WAVE_FORMAT_IEEE_FLOAT)
-        fmt_str = get_fmtstr_FLOAT(prim, format, &pBuffer->format, &pBuffer->in_chans, &pBuffer->in_type);
-    else if(format->wFormatTag == WAVE_FORMAT_EXTENSIBLE)
-    {
-        const WAVEFORMATEXTENSIBLE *wfe;
+        if(format->wFormatTag == WAVE_FORMAT_PCM)
+            fmt_str = get_fmtstr_PCM(prim, format, &pBuffer->format);
+        else if(format->wFormatTag == WAVE_FORMAT_IEEE_FLOAT)
+            fmt_str = get_fmtstr_FLOAT(prim, format, &pBuffer->format);
+        else if(format->wFormatTag == WAVE_FORMAT_EXTENSIBLE)
+        {
+            const WAVEFORMATEXTENSIBLE *wfe;
 
-        hr = DSERR_CONTROLUNAVAIL;
-        if(format->cbSize != sizeof(WAVEFORMATEXTENSIBLE)-sizeof(WAVEFORMATEX) &&
-           format->cbSize != sizeof(WAVEFORMATEXTENSIBLE))
+            hr = DSERR_CONTROLUNAVAIL;
+            if(format->cbSize != sizeof(WAVEFORMATEXTENSIBLE)-sizeof(WAVEFORMATEX) &&
+               format->cbSize != sizeof(WAVEFORMATEXTENSIBLE))
+                goto fail;
+
+            wfe = CONTAINING_RECORD(format, const WAVEFORMATEXTENSIBLE, Format);
+            TRACE("Extensible values:\n"
+                  "    Samples     = %d\n"
+                  "    ChannelMask = 0x%x\n"
+                  "    SubFormat   = %s\n",
+                  wfe->Samples.wReserved, wfe->dwChannelMask,
+                  debugstr_guid(&wfe->SubFormat));
+
+            hr = DSERR_INVALIDCALL;
+            fmt_str = get_fmtstr_EXT(prim, format, &pBuffer->format);
+        }
+        else
+            ERR("Unhandled formattag 0x%04x\n", format->wFormatTag);
+
+        if(!fmt_str)
             goto fail;
 
-        wfe = (const WAVEFORMATEXTENSIBLE*)format;
-        TRACE("Extensible values:\n"
-              "    Samples     = %d\n"
-              "    ChannelMask = %#x\n"
-              "    SubFormat   = %s\n",
-              wfe->Samples.wReserved, wfe->dwChannelMask,
-              debugstr_guid(&wfe->SubFormat));
-
-        hr = DSERR_INVALIDCALL;
-        fmt_str = get_fmtstr_EXT(prim, format, &pBuffer->format, &pBuffer->in_chans, &pBuffer->in_type);
+        pBuffer->buf_format = alGetEnumValue(fmt_str);
+        if(alGetError() != AL_NO_ERROR || pBuffer->buf_format == 0 ||
+           pBuffer->buf_format == -1)
+        {
+            WARN("Could not get OpenAL format from %s\n", fmt_str);
+            goto fail;
+        }
     }
     else
-        ERR("Unhandled formattag 0x%04x\n", format->wFormatTag);
-
-    if(!fmt_str)
-        goto fail;
-
-    pBuffer->buf_format = alGetEnumValue(fmt_str);
-    if(alGetError() != AL_NO_ERROR || pBuffer->buf_format == 0 ||
-       pBuffer->buf_format == -1)
     {
-        WARN("Could not get OpenAL format from %s\n", fmt_str);
-        goto fail;
+        if(format->wFormatTag == WAVE_FORMAT_PCM)
+            pBuffer->buf_format = get_fmt_PCM(format, &pBuffer->format, &pBuffer->in_chans, &pBuffer->in_type);
+        else if(format->wFormatTag == WAVE_FORMAT_IEEE_FLOAT)
+            pBuffer->buf_format = get_fmt_FLOAT(format, &pBuffer->format, &pBuffer->in_chans, &pBuffer->in_type);
+        else if(format->wFormatTag == WAVE_FORMAT_EXTENSIBLE)
+        {
+            const WAVEFORMATEXTENSIBLE *wfe;
+
+            hr = DSERR_CONTROLUNAVAIL;
+            if(format->cbSize != sizeof(WAVEFORMATEXTENSIBLE)-sizeof(WAVEFORMATEX) &&
+               format->cbSize != sizeof(WAVEFORMATEXTENSIBLE))
+                goto fail;
+
+            wfe = CONTAINING_RECORD(format, const WAVEFORMATEXTENSIBLE, Format);
+            TRACE("Extensible values:\n"
+                  "    Samples     = %d\n"
+                  "    ChannelMask = 0x%x\n"
+                  "    SubFormat   = %s\n",
+                  wfe->Samples.wReserved, wfe->dwChannelMask,
+                  debugstr_guid(&wfe->SubFormat));
+
+            hr = DSERR_INVALIDCALL;
+            pBuffer->buf_format = get_fmt_EXT(format, &pBuffer->format, &pBuffer->in_chans, &pBuffer->in_type);
+        }
+        else
+            ERR("Unhandled formattag 0x%04x\n", format->wFormatTag);
+
+        if(prim->ExtAL.IsBufferFormatSupportedSOFT(pBuffer->buf_format) == AL_FALSE)
+        {
+            WARN("Unsupported OpenAL format: 0x%x\n", pBuffer->buf_format);
+            goto fail;
+        }
     }
 
     hr = E_OUTOFMEMORY;
