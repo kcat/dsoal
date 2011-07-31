@@ -133,7 +133,7 @@ static void DS8Buffer_starttimer(DS8Primary *prim)
     alcGetIntegerv(prim->parent->device, ALC_REFRESH, 1, &refresh);
     getALCError(prim->parent->device);
 
-    triggertime = 1000 / refresh;
+    triggertime = 1000 / refresh / 2;
     if(triggertime < time.wPeriodMin)
         triggertime = time.wPeriodMin;
     TRACE("Calling timer every %u ms for %i refreshes per second\n", triggertime, refresh);
