@@ -74,7 +74,7 @@ static void AL_APIENTRY wrap_ProcessUpdates(void)
 { alcProcessContext(alcGetCurrentContext()); }
 
 
-static void trigger_notifies(DS8Buffer *buf, DWORD lastpos, DWORD curpos)
+static void trigger_elapsed_notifies(DS8Buffer *buf, DWORD lastpos, DWORD curpos)
 {
     DWORD i;
     for(i = 0; i < buf->nnotify; ++i)
@@ -97,6 +97,17 @@ static void trigger_notifies(DS8Buffer *buf, DWORD lastpos, DWORD curpos)
         /* Normal case */
         if(ofs >= lastpos && ofs < curpos)
             SetEvent(event);
+    }
+}
+
+static void trigger_stop_notifies(DS8Buffer *buf)
+{
+    DWORD i;
+    for(i = 0; i < buf->nnotify; ++i)
+    {
+        DSBPOSITIONNOTIFY *not = &buf->notify[i];
+        if(not->dwOffset == (DWORD)DSBPN_OFFSETSTOP)
+            SetEvent(not->hEventNotify);
     }
 }
 
@@ -178,27 +189,23 @@ static DWORD CALLBACK ThreadProc(void *dwUser)
         {
             DS8Buffer *buf = prim->notifies[i];
             IDirectSoundBuffer8 *dsb = &buf->IDirectSoundBuffer8_iface;
-            DWORD status, curpos;
-            HRESULT hr;
+            DWORD status=0, curpos=buf->lastpos;
 
-            hr = IDirectSoundBuffer8_GetStatus(dsb, &status);
-            if(SUCCEEDED(hr))
+            IDirectSoundBuffer8_GetStatus(dsb, &status);
+            IDirectSoundBuffer8_GetCurrentPosition(dsb, &curpos, NULL);
+            if(buf->lastpos != curpos)
             {
-                if(!(status&DSBSTATUS_PLAYING))
-                {
-                    /* Stop will remove this buffer from list,
-                     * and put another at the current position
-                     * don't increment i
-                     */
-                    IDirectSoundBuffer8_Stop(dsb);
-                    continue;
-                }
-                hr = IDirectSoundBuffer8_GetCurrentPosition(dsb, &curpos, NULL);
-                if(SUCCEEDED(hr) && buf->lastpos != curpos)
-                {
-                    trigger_notifies(buf, buf->lastpos, curpos);
-                    buf->lastpos = curpos;
-                }
+                trigger_elapsed_notifies(buf, buf->lastpos, curpos);
+                buf->lastpos = curpos;
+            }
+            if(!(status&DSBSTATUS_PLAYING))
+            {
+                /* Remove this buffer from list and put another at the
+                 * current position; don't increment i
+                 */
+                trigger_stop_notifies(buf);
+                prim->notifies[i] = prim->notifies[--prim->nnotifies];
+                continue;
             }
             i++;
         }

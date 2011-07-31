@@ -80,34 +80,6 @@ static const IDirectSound3DBufferVtbl DS8Buffer3d_Vtbl;
 static const IDirectSoundNotifyVtbl DS8BufferNot_Vtbl;
 static const IKsPropertySetVtbl DS8BufferProp_Vtbl;
 
-static void trigger_notifies(DS8Buffer *buf, DWORD lastpos, DWORD curpos)
-{
-    DWORD i;
-    for(i = 0;i < buf->nnotify;++i)
-    {
-        DSBPOSITIONNOTIFY *not = &buf->notify[i];
-        HANDLE event = not->hEventNotify;
-        DWORD ofs = not->dwOffset;
-
-        if(ofs == (DWORD)DSBPN_OFFSETSTOP)
-        {
-            SetEvent(event);
-            continue;
-        }
-
-        /* Wraparound case */
-        if(curpos < lastpos)
-        {
-            if(ofs < curpos || ofs >= lastpos)
-                SetEvent(event);
-            continue;
-        }
-
-        /* Normal case */
-        if(ofs >= lastpos && ofs < curpos)
-            SetEvent(event);
-    }
-}
 
 static void CALLBACK DS8Buffer_timer(UINT timerID, UINT msg, DWORD_PTR dwUser,
                                      DWORD_PTR dw1, DWORD_PTR dw2)
@@ -173,19 +145,6 @@ static void DS8Buffer_addnotify(DS8Buffer *buf)
     buf->primary->notifies = list;
 }
 
-static void DS8Buffer_removenotify(DS8Buffer *buf)
-{
-    DWORD i;
-    for(i = 0; i < buf->primary->nnotifies; ++i)
-    {
-        if(buf == buf->primary->notifies[i])
-        {
-            buf->primary->notifies[i] =
-                buf->primary->notifies[--buf->primary->nnotifies];
-            return;
-        }
-    }
-}
 
 static const char *get_fmtstr_PCM(const DS8Primary *prim, const WAVEFORMATEX *format, WAVEFORMATEXTENSIBLE *out, ALenum *in_chans, ALenum *in_type)
 {
@@ -738,21 +697,29 @@ fail:
 
 void DS8Buffer_Destroy(DS8Buffer *This)
 {
+    DS8Primary *prim = This->primary;
     DWORD idx;
+
     TRACE("Destroying %p\n", This);
 
-    DS8Buffer_removenotify(This);
-
     /* Remove from list, if in list */
-    for(idx = 0;idx < This->primary->nbuffers;++idx)
+    for(idx = 0;idx < prim->nnotifies;++idx)
     {
-        if(This->primary->buffers[idx] == This)
+        if(This == prim->notifies[idx])
         {
-            This->primary->buffers[idx] = This->primary->buffers[This->primary->nbuffers-1];
-            This->primary->nbuffers--;
+            prim->notifies[idx] = prim->notifies[--prim->nnotifies];
             break;
         }
     }
+    for(idx = 0;idx < prim->nbuffers;++idx)
+    {
+        if(prim->buffers[idx] == This)
+        {
+            prim->buffers[idx] = prim->buffers[--prim->nbuffers];
+            break;
+        }
+    }
+
     setALContext(This->ctx);
     if(This->source)
     {
@@ -762,19 +729,19 @@ void DS8Buffer_Destroy(DS8Buffer *This)
         alSourcei(This->source, AL_BUFFER, 0);
         getALError();
 
-        sources = This->primary->sources;
-        if(This->primary->nsources == This->primary->sizesources)
+        sources = prim->sources;
+        if(prim->nsources == prim->sizesources)
         {
-            sources = HeapReAlloc(GetProcessHeap(), 0, sources, sizeof(*sources)*(1+This->primary->nsources));
+            sources = HeapReAlloc(GetProcessHeap(), 0, sources, sizeof(*sources)*(prim->nsources+1));
             if(!sources)
                 alDeleteSources(1, &This->source);
             else
-                This->primary->sizesources++;
+                prim->sizesources++;
         }
         if(sources)
         {
-            sources[This->primary->nsources++] = This->source;
-            This->primary->sources = sources;
+            sources[prim->nsources++] = This->source;
+            prim->sources = sources;
         }
     }
     HeapFree(GetProcessHeap(), 0, This->notify);
@@ -1594,19 +1561,6 @@ static HRESULT WINAPI DS8Buffer_Stop(IDirectSoundBuffer8 *iface)
             break;
         Sleep(1);
     } while(1);
-
-    /* Stopped, remove from notify list */
-    if(This->nnotify)
-    {
-        HRESULT hr;
-        DWORD pos = This->lastpos;
-        hr = IDirectSoundBuffer8_GetCurrentPosition(iface, &pos, NULL);
-        if(FAILED(hr))
-            ERR("Own getcurrentposition failed!\n");
-        trigger_notifies(This, This->lastpos, pos);
-        This->lastpos = pos;
-        DS8Buffer_removenotify(This);
-    }
 
     This->isplaying = FALSE;
 
