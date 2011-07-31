@@ -69,26 +69,26 @@ else()
         message(FATAL_ERROR "Could not find dsound.h")
     endif()
 
-    add_library(dsoal STATIC ${DSOAL_OBJS})
-    set_target_properties(dsoal PROPERTIES PREFIX "lib" SUFFIX ".a"
-                                COMPILE_FLAGS -fPIC)
+    add_library(${LIBNAME} STATIC ${DSOAL_OBJS})
+    set_target_properties(${LIBNAME} PROPERTIES PREFIX "lib" SUFFIX ".a"
+                                     COMPILE_FLAGS -fPIC)
 
-    add_custom_command(TARGET dsoal POST_BUILD
+    add_custom_command(TARGET ${LIBNAME} POST_BUILD
                        COMMAND wrc --nostdinc -D__WINESRC__ "-I${DSOAL_BINARY_DIR}" "-I${WINE_DIR}/include/wine" "-I${WINE_DIR}/include/wine/windows" -foversion.res ${DSOAL_SOURCE_DIR}/version.rc
                        WORKING_DIRECTORY "${DSOAL_BINARY_DIR}"
                        COMMENT "Generating version.res..." VERBATIM)
-    add_custom_command(TARGET dsoal POST_BUILD
-                       COMMAND winegcc -shared "${DSOAL_SOURCE_DIR}/dsound.spec" version.res -o "${DSOAL_BINARY_DIR}/dsound.dll.so" libdsoal.a -lopenal -ldxguid -luuid -lwinmm -lole32 -ldxerr8
+    add_custom_command(TARGET ${LIBNAME} POST_BUILD
+                       COMMAND winegcc -shared "${DSOAL_SOURCE_DIR}/${LIBNAME}.spec" version.res -o "${DSOAL_BINARY_DIR}/${LIBNAME}.dll.so" "lib${LIBNAME}.a" -lopenal -ldxguid -luuid -lwinmm -lole32 -ldxerr8
                        WORKING_DIRECTORY "${DSOAL_BINARY_DIR}"
-                       COMMENT "Linking Wine library dsound.dll.so" VERBATIM)
-    add_custom_command(TARGET dsoal POST_BUILD
-                       COMMAND winegcc -shared "${DSOAL_SOURCE_DIR}/dsound.spec" version.res -o "${DSOAL_BINARY_DIR}/dsound.dll.fake" libdsoal.a -lopenal -ldxguid -luuid -lwinmm -lole32 -ldxerr8
+                       COMMENT "Linking Wine library ${LIBNAME}.dll.so" VERBATIM)
+    add_custom_command(TARGET ${LIBNAME} POST_BUILD
+                       COMMAND winegcc -shared "${DSOAL_SOURCE_DIR}/${LIBNAME}.spec" version.res -o "${DSOAL_BINARY_DIR}/${LIBNAME}.dll.fake" "lib${LIBNAME}.a" -lopenal -ldxguid -luuid -lwinmm -lole32 -ldxerr8
                        WORKING_DIRECTORY "${DSOAL_BINARY_DIR}"
-                       COMMENT "Creating dsound.dll.fake" VERBATIM)
+                       COMMENT "Creating ${LIBNAME}.dll.fake" VERBATIM)
 
-    install(FILES "${DSOAL_BINARY_DIR}/dsound.dll.so"
+    install(FILES "${DSOAL_BINARY_DIR}/${LIBNAME}.dll.so"
             DESTINATION "${WINE_DIR}/lib${LIB_SUFFIX}/wine")
-    install(FILES "${DSOAL_BINARY_DIR}/dsound.dll.fake"
+    install(FILES "${DSOAL_BINARY_DIR}/${LIBNAME}.dll.fake"
             DESTINATION "${WINE_DIR}/lib${LIB_SUFFIX}/wine/fakedlls"
-            RENAME dsound.dll)
+            RENAME ${LIBNAME}.dll)
 endif()
