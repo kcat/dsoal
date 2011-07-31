@@ -76,7 +76,22 @@ DEFINE_GUID(CLSID_DirectSoundPrivate,0x11ab3ec0,0x25ec,0x11d1,0xa4,0xd8,0x00,0xc
 
 int LogLevel = 1;
 
+/* From dlls/winecrt0/register.c */
+static HRESULT __wine_register_resources(HMODULE module, const CLSID *clsid)
+{
+    (void)module;
+    (void)clsid;
+    return E_FAIL;
+}
+static HRESULT __wine_unregister_resources(HMODULE module, const CLSID *clsid)
+{
+    (void)module;
+    (void)clsid;
+    return E_FAIL;
+}
 #endif
+
+static HINSTANCE instance;
 
 const GUID DSOUND_renderer_guid = { 0xbd6dd71a, 0x3deb, 0x11d1, { 0xb1, 0x71, 0x00, 0xc0, 0x4f, 0xc2, 0x00, 0x00 } };
 const GUID DSOUND_capture_guid = { 0xbd6dd71b, 0x3deb, 0x11d1, { 0xb1, 0x71, 0x00, 0xc0, 0x4f, 0xc2, 0x00, 0x00 } };
@@ -1054,9 +1069,11 @@ BOOL WINAPI DllMain(HINSTANCE hInstDLL, DWORD fdwReason, LPVOID lpvReserved)
 {
     TRACE("(%p, %d, %p)\n", hInstDLL, fdwReason, lpvReserved);
 
-    switch (fdwReason) {
+    switch(fdwReason)
+    {
     case DLL_PROCESS_ATTACH:
         TRACE("DLL_PROCESS_ATTACH\n");
+        instance = hInstDLL;
         load_libopenal();
         DisableThreadLibraryCalls(hInstDLL);
         /* Increase refcount on dsound by 1 */
@@ -1065,7 +1082,7 @@ BOOL WINAPI DllMain(HINSTANCE hInstDLL, DWORD fdwReason, LPVOID lpvReserved)
     case DLL_PROCESS_DETACH:
         TRACE("DLL_PROCESS_DETACH\n");
 #ifdef SONAME_LIBOPENAL
-        if (openal_handle)
+        if(openal_handle)
             wine_dlclose(openal_handle, NULL, 0);
 #endif /*SONAME_LIBOPENAL*/
         break;
@@ -1074,4 +1091,20 @@ BOOL WINAPI DllMain(HINSTANCE hInstDLL, DWORD fdwReason, LPVOID lpvReserved)
         break;
     }
     return TRUE;
+}
+
+/***********************************************************************
+ *              DllRegisterServer (DSOUND.@)
+ */
+HRESULT WINAPI DllRegisterServer(void)
+{
+    return __wine_register_resources(instance, NULL);
+}
+
+/***********************************************************************
+ *              DllUnregisterServer (DSOUND.@)
+ */
+HRESULT WINAPI DllUnregisterServer(void)
+{
+    return __wine_unregister_resources(instance, NULL);
 }

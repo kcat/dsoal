@@ -21,8 +21,7 @@ set(DSOAL_OBJS buffer.c
                dsound_main.c
                duplex.c
                primary.c
-               propset.c
-               regsvr.c)
+               propset.c)
 
 find_package(OpenAL REQUIRED)
 include_directories("${DSOAL_BINARY_DIR}" ${OPENAL_INCLUDE_DIR})
