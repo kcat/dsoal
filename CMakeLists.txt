@@ -57,14 +57,26 @@ if(NOT HAVE_DSOUND_H)
 endif()
 
 if(WIN32)
+    if(NOT WINDRES)
+        if(HOST)
+            set(WINDRES "${HOST}-windres")
+        else()
+            set(WINDRES "windres")
+        endif()
+    endif()
+
     add_definitions(-D_WIN32 -DDEBUG_INFO)
 
     set(DSOAL_OBJS ${DSOAL_OBJS} debug.c)
 
     add_library(${LIBNAME} SHARED ${DSOAL_OBJS})
+    add_custom_command(TARGET ${LIBNAME} PRE_BUILD
+                       COMMAND "${WINDRES}" -o version.o -i "${DSOAL_SOURCE_DIR}/version.rc"
+                       WORKING_DIRECTORY "${DSOAL_BINARY_DIR}"
+                       COMMENT "Generating version.o" VERBATIM)
     target_link_libraries(${LIBNAME} ${OPENAL_LIBRARY} dxguid uuid winmm ole32 dxerr8)
     set_target_properties(${LIBNAME} PROPERTIES PREFIX ""
-                                                LINK_FLAGS "${DSOAL_SOURCE_DIR}/dsound-mingw.def")
+                                     LINK_FLAGS "version.o ${DSOAL_SOURCE_DIR}/dsound-mingw.def")
 else()
     add_definitions(-D__WINESRC__)
 
