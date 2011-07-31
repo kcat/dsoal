@@ -167,7 +167,7 @@ static void DS8Impl_Destroy(DS8Impl *This)
 
         HeapFree(GetProcessHeap(), 0, This->deviceref);
     }
-    else if(This->deviceref && This->primary->parent == This)
+    else if(This->primary && This->primary->parent == This)
     {
         /* If the primary is referencing this as its parent, update it to
          * reference another handle for the device */
