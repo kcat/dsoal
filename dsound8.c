@@ -412,33 +412,25 @@ static HRESULT WINAPI DS8_DuplicateSoundBuffer(IDirectSound8 *iface, IDirectSoun
         hr = DSERR_INVALIDPARAM;
     else
     {
-        DWORD i;
         DSBCAPS caps;
         DS8Buffer *buf;
 
         *out = NULL;
 
-        for(i = 0; i < This->primary->nbuffers; ++i)
-        {
-            if(This->primary->buffers[i] == (DS8Buffer*)in)
-                break;
-        }
-        if(i == This->primary->nbuffers)
-        {
-            hr = DSERR_INVALIDPARAM;
-            WARN("Buffer %p not found\n", in);
-            goto out;
-        }
-
         caps.dwSize = sizeof(caps);
         hr = IDirectSoundBuffer_GetCaps(in, &caps);
+        if(SUCCEEDED(hr) && (caps.dwFlags&DSBCAPS_PRIMARYBUFFER))
+        {
+            WARN("Cannot duplicate buffer %p, which has DSBCAPS_PRIMARYBUFFER\n", in);
+            hr = DSERR_INVALIDPARAM;
+        }
         if(SUCCEEDED(hr) && (caps.dwFlags&DSBCAPS_CTRLFX))
         {
             WARN("Cannot duplicate buffer %p, which has DSBCAPS_CTRLFX\n", in);
             hr = DSERR_INVALIDPARAM;
         }
         if(SUCCEEDED(hr))
-            hr = DS8Buffer_Create(&buf, This->primary, (DS8Buffer*)in);
+            hr = DS8Buffer_Create(&buf, This->primary, in);
         if(SUCCEEDED(hr))
         {
             *out = (IDirectSoundBuffer*)&buf->IDirectSoundBuffer8_iface;

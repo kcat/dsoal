@@ -81,6 +81,32 @@ static const IDirectSoundNotifyVtbl DS8BufferNot_Vtbl;
 static const IKsPropertySetVtbl DS8BufferProp_Vtbl;
 
 
+static inline DS8Buffer *impl_from_IDirectSoundBuffer8(IDirectSoundBuffer8 *iface)
+{
+    return CONTAINING_RECORD(iface, DS8Buffer, IDirectSoundBuffer8_iface);
+}
+/* Shares the same vtable */
+static inline DS8Buffer *impl_from_IDirectSoundBuffer(IDirectSoundBuffer *iface)
+{
+    return CONTAINING_RECORD(iface, DS8Buffer, IDirectSoundBuffer8_iface);
+}
+
+static inline DS8Buffer *impl_from_IDirectSound3DBuffer(IDirectSound3DBuffer *iface)
+{
+    return CONTAINING_RECORD(iface, DS8Buffer, IDirectSound3DBuffer_iface);
+}
+
+static inline DS8Buffer *impl_from_IDirectSoundNotify(IDirectSoundNotify *iface)
+{
+    return CONTAINING_RECORD(iface, DS8Buffer, IDirectSoundNotify_iface);
+}
+
+static inline DS8Buffer *impl_from_IKsPropertySet(IKsPropertySet *iface)
+{
+    return CONTAINING_RECORD(iface, DS8Buffer, IKsPropertySet_iface);
+}
+
+
 static void CALLBACK DS8Buffer_timer(UINT timerID, UINT msg, DWORD_PTR dwUser,
                                      DWORD_PTR dw1, DWORD_PTR dw2)
 {
@@ -646,7 +672,7 @@ static void DS8Data_Release(DS8Data *This)
     HeapFree(GetProcessHeap(), 0, This);
 }
 
-HRESULT DS8Buffer_Create(DS8Buffer **ppv, DS8Primary *parent, DS8Buffer *orig)
+HRESULT DS8Buffer_Create(DS8Buffer **ppv, DS8Primary *parent, IDirectSoundBuffer *orig)
 {
     HRESULT hr = DSERR_OUTOFMEMORY;
     DS8Buffer *This;
@@ -669,8 +695,9 @@ HRESULT DS8Buffer_Create(DS8Buffer **ppv, DS8Primary *parent, DS8Buffer *orig)
 
     if(orig)
     {
-        This->buffer = orig->buffer;
-        DS8Data_AddRef(This->buffer);
+        DS8Buffer *org = impl_from_IDirectSoundBuffer(orig);
+        DS8Data_AddRef(org->buffer);
+        This->buffer = org->buffer;
     }
 
     /* Append to buffer list */
@@ -757,10 +784,6 @@ void DS8Buffer_Destroy(DS8Buffer *This)
     HeapFree(GetProcessHeap(), 0, This);
 }
 
-static inline DS8Buffer *impl_from_IDirectSoundBuffer8(IDirectSoundBuffer8 *iface)
-{
-    return CONTAINING_RECORD(iface, DS8Buffer, IDirectSoundBuffer8_iface);
-}
 
 static HRESULT WINAPI DS8Buffer_QueryInterface(IDirectSoundBuffer8 *iface, REFIID riid, void **ppv)
 {
@@ -1784,10 +1807,6 @@ static const IDirectSoundBuffer8Vtbl DS8Buffer_Vtbl =
     DS8Buffer_GetObjectInPath
 };
 
-static inline DS8Buffer *impl_from_IDirectSound3DBuffer(IDirectSound3DBuffer *iface)
-{
-    return CONTAINING_RECORD(iface, DS8Buffer, IDirectSound3DBuffer_iface);
-}
 
 static HRESULT WINAPI DS8Buffer3D_QueryInterface(IDirectSound3DBuffer *iface, REFIID riid, void **ppv)
 {
@@ -2382,10 +2401,6 @@ static const IDirectSound3DBufferVtbl DS8Buffer3d_Vtbl =
     DS8Buffer3D_SetVelocity
 };
 
-static inline DS8Buffer *impl_from_IDirectSoundNotify(IDirectSoundNotify *iface)
-{
-    return CONTAINING_RECORD(iface, DS8Buffer, IDirectSoundNotify_iface);
-}
 
 static HRESULT WINAPI DS8BufferNot_QueryInterface(IDirectSoundNotify *iface, REFIID riid, void **ppv)
 {
@@ -2483,12 +2498,6 @@ static const IDirectSoundNotifyVtbl DS8BufferNot_Vtbl =
     DS8BufferNot_SetNotificationPositions
 };
 
-/* NOTE: Due to some apparent quirks in DSound, the listener properties are
-         handled through secondary buffers. */
-static inline DS8Buffer *impl_from_IKsPropertySet(IKsPropertySet *iface)
-{
-    return CONTAINING_RECORD(iface, DS8Buffer, IKsPropertySet_iface);
-}
 
 static HRESULT WINAPI DS8BufferProp_QueryInterface(IKsPropertySet *iface, REFIID riid, void **ppv)
 {
@@ -2521,6 +2530,8 @@ static ULONG WINAPI DS8BufferProp_Release(IKsPropertySet *iface)
     return ret;
 }
 
+/* NOTE: Due to some apparent quirks in DSound, the listener properties are
+         handled through secondary buffers. */
 static HRESULT WINAPI DS8BufferProp_Get(IKsPropertySet *iface,
   REFGUID guidPropSet, ULONG dwPropID,
   LPVOID pInstanceData, ULONG cbInstanceData,
