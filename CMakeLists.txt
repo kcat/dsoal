@@ -7,6 +7,17 @@ include(CheckIncludeFile)
 
 project(DSOAL C)
 
+if(NOT WIN32)
+    find_path(WINE_DIR include/wine/library.h
+              PATHS /usr /usr/local)
+    if(NOT WINE_DIR)
+        message(FATAL_ERROR "Could not find Wine installation directory")
+    endif()
+    message(STATUS "Found Wine installation directory - ${WINE_DIR}")
+    include_directories("${WINE_DIR}/include/wine" "${WINE_DIR}/include/wine/windows")
+    set(CMAKE_REQUIRED_INCLUDES "${CMAKE_REQUIRED_INCLUDES}" "${WINE_DIR}/include/wine" "${WINE_DIR}/include/wine/windows")
+endif()
+
 set(LIBNAME dsound)
 
 IF(NOT CMAKE_BUILD_TYPE)
@@ -40,12 +51,12 @@ if(NOT MSVC)
     endif()
 endif()
 
-if(WIN32)
-    check_include_file(dsound.h HAVE_DSOUND_H)
-    if(NOT HAVE_DSOUND_H)
-        message(FATAL_ERROR "Could not find dsound.h")
-    endif()
+check_include_file(dsound.h HAVE_DSOUND_H)
+if(NOT HAVE_DSOUND_H)
+    message(FATAL_ERROR "Could not find dsound.h")
+endif()
 
+if(WIN32)
     add_definitions(-D_WIN32 -DDEBUG_INFO)
 
     set(DSOAL_OBJS ${DSOAL_OBJS} debug.c)
@@ -55,19 +66,7 @@ if(WIN32)
     set_target_properties(${LIBNAME} PROPERTIES PREFIX ""
                                                 LINK_FLAGS "${DSOAL_SOURCE_DIR}/dsound-mingw.def")
 else()
-    find_path(WINE_DIR include/wine/library.h
-              PATHS /usr /usr/local)
-    if(NOT WINE_DIR)
-        message(FATAL_ERROR "Could not find Wine installation directory")
-    endif()
-    message(STATUS "Found Wine installation directory - ${WINE_DIR}")
-    add_definitions(-D__WINESRC__ "-I${WINE_DIR}/include/wine" "-I${WINE_DIR}/include/wine/windows")
-    set(CMAKE_REQUIRED_INCLUDES "${CMAKE_REQUIRED_INCLUDES}" "${WINE_DIR}/include/wine" "${WINE_DIR}/include/wine/windows")
-
-    check_include_file(dsound.h HAVE_DSOUND_H)
-    if(NOT HAVE_DSOUND_H)
-        message(FATAL_ERROR "Could not find dsound.h")
-    endif()
+    add_definitions(-D__WINESRC__)
 
     add_library(${LIBNAME} STATIC ${DSOAL_OBJS})
     set_target_properties(${LIBNAME} PROPERTIES PREFIX "lib" SUFFIX ".a"
