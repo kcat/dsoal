@@ -93,5 +93,11 @@ else()
                        WORKING_DIRECTORY "${DSOAL_BINARY_DIR}/CMakeFiles/dsoal.dir"
                        COMMENT "Linking C shared library dsound.dll.so" VERBATIM)
 
-    add_custom_target(dsound ALL DEPENDS "${DSOAL_BINARY_DIR}/dsound.dll.so")
+    add_custom_command(OUTPUT "${DSOAL_BINARY_DIR}/dsound.dll.fake"
+                       COMMAND winegcc -shared "${DSOAL_SOURCE_DIR}/dsound.spec" version.res -o "${DSOAL_BINARY_DIR}/dsound.dll.fake" "${DSOAL_BINARY_DIR}/libdsoal.a" -lopenal -ldxguid -luuid -lwinmm -lole32 -ldxerr8
+                       DEPENDS version.res "${DSOAL_SOURCE_DIR}/dsound.spec" "${DSOAL_BINARY_DIR}/libdsoal.a"
+                       WORKING_DIRECTORY "${DSOAL_BINARY_DIR}/CMakeFiles/dsoal.dir"
+                       COMMENT "Linking C shared library dsound.dll.fake" VERBATIM)
+
+    add_custom_target(dsound ALL DEPENDS "${DSOAL_BINARY_DIR}/dsound.dll.so" "${DSOAL_BINARY_DIR}/dsound.dll.fake")
 endif()
