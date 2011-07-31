@@ -97,11 +97,11 @@ else()
                        WORKING_DIRECTORY "${DSOAL_BINARY_DIR}"
                        COMMENT "Generating lib${LIBNAME}.def" VERBATIM)
     add_custom_command(TARGET ${LIBNAME} POST_BUILD
-                       COMMAND winegcc -shared "${DSOAL_SOURCE_DIR}/${LIBNAME}.spec" "${LIBNAME}_classes_r.res" version.res -o "${DSOAL_BINARY_DIR}/${LIBNAME}.dll.so" "lib${LIBNAME}.a" -lopenal -ldxguid -luuid -lwinmm -lole32 -ldxerr8
+                       COMMAND winegcc -shared "${DSOAL_SOURCE_DIR}/${LIBNAME}.spec" "${LIBNAME}_classes_r.res" version.res -o "${LIBNAME}.dll.so" "lib${LIBNAME}.a" ${OPENAL_LIBRARY} -ldxguid -luuid -lwinmm -lole32 -ldxerr8
                        WORKING_DIRECTORY "${DSOAL_BINARY_DIR}"
                        COMMENT "Linking Wine shared library ${LIBNAME}.dll.so" VERBATIM)
     add_custom_command(TARGET ${LIBNAME} POST_BUILD
-                       COMMAND winegcc -shared "${DSOAL_SOURCE_DIR}/${LIBNAME}.spec" "${LIBNAME}_classes_r.res" version.res -o "${DSOAL_BINARY_DIR}/${LIBNAME}.dll.fake" "lib${LIBNAME}.a" -lopenal -ldxguid -luuid -lwinmm -lole32 -ldxerr8
+                       COMMAND winegcc -shared "${DSOAL_SOURCE_DIR}/${LIBNAME}.spec" "${LIBNAME}_classes_r.res" version.res -o "${LIBNAME}.dll.fake" "lib${LIBNAME}.a" ${OPENAL_LIBRARY} -ldxguid -luuid -lwinmm -lole32 -ldxerr8
                        WORKING_DIRECTORY "${DSOAL_BINARY_DIR}"
                        COMMENT "Creating ${LIBNAME}.dll.fake" VERBATIM)
 
