@@ -1,4 +1,4 @@
-/*  			DirectSound
+/*                      DirectSound
  *
  * Copyright 1998 Marcus Meissner
  * Copyright 1998 Rob Riggs
@@ -182,7 +182,7 @@ typedef struct IKsPrivatePropertySetImpl {
 
 static inline IKsPrivatePropertySetImpl *impl_from_IKsPropertySet(IKsPropertySet *iface)
 {
-	return CONTAINING_RECORD(iface, IKsPrivatePropertySetImpl, IKsPropertySet_iface);
+    return CONTAINING_RECORD(iface, IKsPrivatePropertySetImpl, IKsPropertySet_iface);
 }
 
 /* IUnknown methods */
@@ -719,37 +719,37 @@ static HRESULT WINAPI IKsPrivatePropertySetImpl_QuerySupport(
     TRACE("(%p,%s,%u,%p)\n",This,debugstr_guid(guidPropSet),dwPropID,pTypeSupport);
 
     if ( IsEqualGUID( &DSPROPSETID_DirectSoundDevice, guidPropSet) ) {
-	switch (dwPropID) {
-	case DSPROPERTY_DIRECTSOUNDDEVICE_WAVEDEVICEMAPPING_A:
-	    *pTypeSupport = KSPROPERTY_SUPPORT_GET;
-	    return S_OK;
-	case DSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_1:
-	    *pTypeSupport = KSPROPERTY_SUPPORT_GET;
-	    return S_OK;
-	case DSPROPERTY_DIRECTSOUNDDEVICE_ENUMERATE_1:
-	    *pTypeSupport = KSPROPERTY_SUPPORT_GET;
-	    return S_OK;
-	case DSPROPERTY_DIRECTSOUNDDEVICE_WAVEDEVICEMAPPING_W:
-	    *pTypeSupport = KSPROPERTY_SUPPORT_GET;
-	    return S_OK;
-	case DSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_A:
-	    *pTypeSupport = KSPROPERTY_SUPPORT_GET;
-	    return S_OK;
-	case DSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_W:
-	    *pTypeSupport = KSPROPERTY_SUPPORT_GET;
-	    return S_OK;
-	case DSPROPERTY_DIRECTSOUNDDEVICE_ENUMERATE_A:
-	    *pTypeSupport = KSPROPERTY_SUPPORT_GET;
-	    return S_OK;
-	case DSPROPERTY_DIRECTSOUNDDEVICE_ENUMERATE_W:
-	    *pTypeSupport = KSPROPERTY_SUPPORT_GET;
-	    return S_OK;
-	default:
+        switch (dwPropID) {
+        case DSPROPERTY_DIRECTSOUNDDEVICE_WAVEDEVICEMAPPING_A:
+            *pTypeSupport = KSPROPERTY_SUPPORT_GET;
+            return S_OK;
+        case DSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_1:
+            *pTypeSupport = KSPROPERTY_SUPPORT_GET;
+            return S_OK;
+        case DSPROPERTY_DIRECTSOUNDDEVICE_ENUMERATE_1:
+            *pTypeSupport = KSPROPERTY_SUPPORT_GET;
+            return S_OK;
+        case DSPROPERTY_DIRECTSOUNDDEVICE_WAVEDEVICEMAPPING_W:
+            *pTypeSupport = KSPROPERTY_SUPPORT_GET;
+            return S_OK;
+        case DSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_A:
+            *pTypeSupport = KSPROPERTY_SUPPORT_GET;
+            return S_OK;
+        case DSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_W:
+            *pTypeSupport = KSPROPERTY_SUPPORT_GET;
+            return S_OK;
+        case DSPROPERTY_DIRECTSOUNDDEVICE_ENUMERATE_A:
+            *pTypeSupport = KSPROPERTY_SUPPORT_GET;
+            return S_OK;
+        case DSPROPERTY_DIRECTSOUNDDEVICE_ENUMERATE_W:
+            *pTypeSupport = KSPROPERTY_SUPPORT_GET;
+            return S_OK;
+        default:
             FIXME("unsupported ID: %u\n",dwPropID);
-	    break;
-	}
+            break;
+        }
     } else {
-	FIXME("unsupported property: %s\n",debugstr_guid(guidPropSet));
+        FIXME("unsupported property: %s\n",debugstr_guid(guidPropSet));
     }
 
     return E_PROP_ID_UNSUPPORTED;
