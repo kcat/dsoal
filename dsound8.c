@@ -265,6 +265,14 @@ static HRESULT WINAPI DS8_CreateSoundBuffer(IDirectSound8 *iface, LPCDSBUFFERDES
         WARN("Invalid buffer %p/%u\n", desc, desc?desc->dwSize:0);
         return DSERR_INVALIDPARAM;
     }
+
+    TRACE("Requested buffer:\n"
+          "    Size        = %u\n"
+          "    Flags       = 0x%08x\n"
+          "    BufferBytes = %u\n",
+          (UINT)desc->dwSize, (UINT)desc->dwFlags,
+          (UINT)desc->dwBufferBytes);
+
     if(desc->dwSize >= sizeof(DSBUFFERDESC))
     {
         if(!(desc->dwFlags&DSBCAPS_CTRL3D))
@@ -335,7 +343,8 @@ static HRESULT WINAPI DS8_GetCaps(IDirectSound8 *iface, LPDSCAPS caps)
 {
     DS8Impl *This = impl_from_IDirectSound8(iface);
     HRESULT hr = S_OK;
-    TRACE("\n");
+
+    TRACE("(%p)->(%p)\n", iface, caps);
 
     EnterCriticalSection(&openal_crst);
     if(!This->device)
