@@ -75,15 +75,15 @@ else()
 
     add_custom_command(TARGET dsoal POST_BUILD
                        COMMAND wrc --nostdinc -D__WINESRC__ "-I${DSOAL_BINARY_DIR}" "-I${WINE_DIR}/include/wine" "-I${WINE_DIR}/include/wine/windows" -foversion.res ${DSOAL_SOURCE_DIR}/version.rc
-                       WORKING_DIRECTORY "${DSOAL_BINARY_DIR}/CMakeFiles/dsoal.dir"
+                       WORKING_DIRECTORY "${DSOAL_BINARY_DIR}"
                        COMMENT "Generating version.res..." VERBATIM)
     add_custom_command(TARGET dsoal POST_BUILD
-                       COMMAND winegcc -shared "${DSOAL_SOURCE_DIR}/dsound.spec" version.res -o "${DSOAL_BINARY_DIR}/dsound.dll.so" "${DSOAL_BINARY_DIR}/libdsoal.a" -lopenal -ldxguid -luuid -lwinmm -lole32 -ldxerr8
-                       WORKING_DIRECTORY "${DSOAL_BINARY_DIR}/CMakeFiles/dsoal.dir"
+                       COMMAND winegcc -shared "${DSOAL_SOURCE_DIR}/dsound.spec" version.res -o "${DSOAL_BINARY_DIR}/dsound.dll.so" libdsoal.a -lopenal -ldxguid -luuid -lwinmm -lole32 -ldxerr8
+                       WORKING_DIRECTORY "${DSOAL_BINARY_DIR}"
                        COMMENT "Linking Wine library dsound.dll.so" VERBATIM)
     add_custom_command(TARGET dsoal POST_BUILD
-                       COMMAND winegcc -shared "${DSOAL_SOURCE_DIR}/dsound.spec" version.res -o "${DSOAL_BINARY_DIR}/dsound.dll.fake" "${DSOAL_BINARY_DIR}/libdsoal.a" -lopenal -ldxguid -luuid -lwinmm -lole32 -ldxerr8
-                       WORKING_DIRECTORY "${DSOAL_BINARY_DIR}/CMakeFiles/dsoal.dir"
+                       COMMAND winegcc -shared "${DSOAL_SOURCE_DIR}/dsound.spec" version.res -o "${DSOAL_BINARY_DIR}/dsound.dll.fake" libdsoal.a -lopenal -ldxguid -luuid -lwinmm -lole32 -ldxerr8
+                       WORKING_DIRECTORY "${DSOAL_BINARY_DIR}"
                        COMMENT "Creating dsound.dll.fake" VERBATIM)
 
     install(FILES "${DSOAL_BINARY_DIR}/dsound.dll.so"
