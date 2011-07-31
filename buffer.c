@@ -767,12 +767,12 @@ static HRESULT DS8Data_Create(DS8Data **ppv, const DSBUFFERDESC *desc, DS8Primar
                   wfe->Samples.wReserved, wfe->dwChannelMask,
                   debugstr_guid(&wfe->SubFormat));
 
-            hr = DSERR_INVALIDCALL;
             fmt_str = get_fmtstr_EXT(prim, format, &pBuffer->format);
         }
         else
             ERR("Unhandled formattag 0x%04x\n", format->wFormatTag);
 
+        hr = DSERR_INVALIDCALL;
         if(!fmt_str)
             goto fail;
 
@@ -807,12 +807,12 @@ static HRESULT DS8Data_Create(DS8Data **ppv, const DSBUFFERDESC *desc, DS8Primar
                   wfe->Samples.wReserved, wfe->dwChannelMask,
                   debugstr_guid(&wfe->SubFormat));
 
-            hr = DSERR_INVALIDCALL;
             pBuffer->buf_format = get_fmt_EXT(format, &pBuffer->format, &pBuffer->in_chans, &pBuffer->in_type);
         }
         else
             ERR("Unhandled formattag 0x%04x\n", format->wFormatTag);
 
+        hr = DSERR_INVALIDCALL;
         if(prim->ExtAL.IsBufferFormatSupportedSOFT(pBuffer->buf_format) == AL_FALSE)
         {
             WARN("Unsupported OpenAL format: 0x%x\n", pBuffer->buf_format);
