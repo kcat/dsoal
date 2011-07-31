@@ -40,12 +40,12 @@ if(NOT MSVC)
     endif()
 endif()
 
-check_include_file(dsound.h HAVE_DSOUND_H)
-if(NOT HAVE_DSOUND_H)
-    message(FATAL_ERROR "Could not find dsound.h")
-endif()
-
 if(WIN32)
+    check_include_file(dsound.h HAVE_DSOUND_H)
+    if(NOT HAVE_DSOUND_H)
+        message(FATAL_ERROR "Could not find dsound.h")
+    endif()
+
     add_definitions(-D_WIN32 -DDEBUG_INFO)
 
     set(DSOAL_OBJS ${DSOAL_OBJS} debug.c)
@@ -64,6 +64,12 @@ else()
     endif()
     message(STATUS "Found Wine header files - ${WINE_INCLUDE_DIR}")
     add_definitions(-D__WINESRC__ "-I${WINE_INCLUDE_DIR}" "-I${WINE_INCLUDE_DIR}/windows")
+    set(CMAKE_REQUIRED_INCLUDES "${CMAKE_REQUIRED_INCLUDES}" "${WINE_INCLUDE_DIR}" "${WINE_INCLUDE_DIR}/windows")
+
+    check_include_file(dsound.h HAVE_DSOUND_H)
+    if(NOT HAVE_DSOUND_H)
+        message(FATAL_ERROR "Could not find dsound.h")
+    endif()
 
     add_custom_command(OUTPUT version.res
                        COMMAND wrc --nostdinc -D__WINESRC__ "-I${DSOAL_BINARY_DIR}" "-I${WINE_INCLUDE_DIR}" "-I${WINE_INCLUDE_DIR}/windows" -foversion.res ${DSOAL_SOURCE_DIR}/version.rc
