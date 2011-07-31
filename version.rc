@@ -16,13 +16,13 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-#define WINE_OLESELFREGISTER
 #define WINE_FILEDESCRIPTION_STR "Wine DirectSound"
 #define WINE_FILENAME_STR "dsound.dll"
 #define WINE_FILEVERSION 5,3,1,904
 #define WINE_FILEVERSION_STR "5.3.1.904"
 #define WINE_PRODUCTVERSION 5,3,1,904
 #define WINE_PRODUCTVERSION_STR "5.3.1.904"
+#define WINE_EXTRAVALUES VALUE "OLESelfRegister",""
 
 /*
  * Copyright 2001 Dmitry Timoshkov
@@ -113,6 +113,10 @@ never complain.
 #define WINE_PRODUCTNAME_STR "Wine"
 #endif
 
+#ifndef WINE_EXTRAVALUES
+#define WINE_EXTRAVALUES
+#endif
+
 VS_VERSION_INFO VERSIONINFO
 FILEVERSION    WINE_FILEVERSION
 PRODUCTVERSION WINE_PRODUCTVERSION
@@ -130,13 +134,11 @@ FILESUBTYPE    WINE_FILESUBTYPE
 	    VALUE "FileDescription", WINE_FILEDESCRIPTION_STR
 	    VALUE "FileVersion", WINE_FILEVERSION_STR
 	    VALUE "InternalName", WINE_FILENAME
-	    VALUE "LegalCopyright", "Copyright (c) 1993-2009 the Wine project authors (see the file AUTHORS for a complete list)"
+	    VALUE "LegalCopyright", "Copyright (c) 1993-2011 the Wine project authors (see the file AUTHORS for a complete list)"
 	    VALUE "OriginalFilename", WINE_FILENAME_STR
 	    VALUE "ProductName", WINE_PRODUCTNAME_STR
 	    VALUE "ProductVersion", WINE_PRODUCTVERSION_STR
-#ifdef WINE_OLESELFREGISTER
-	    VALUE "OLESelfRegister", ""
-#endif
+	    WINE_EXTRAVALUES
 	}
     }
     BLOCK "VarFileInfo"

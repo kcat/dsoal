@@ -89,15 +89,19 @@ else()
                        WORKING_DIRECTORY "${DSOAL_BINARY_DIR}"
                        COMMENT "Generating version.res" VERBATIM)
     add_custom_command(TARGET ${LIBNAME} POST_BUILD
+                       COMMAND widl -D__WINESRC__ "-I${DSOAL_BINARY_DIR}" "-I${WINE_DIR}/include/wine" "-I${WINE_DIR}/include/wine/windows" -r -o "${LIBNAME}_classes_r.res" "${DSOAL_SOURCE_DIR}/${LIBNAME}_classes.idl"
+                       WORKING_DIRECTORY "${DSOAL_BINARY_DIR}"
+                       COMMENT "Generating ${LIBNAME}_classes_r.res" VERBATIM)
+    add_custom_command(TARGET ${LIBNAME} POST_BUILD
                        COMMAND winebuild -w --def -o lib${LIBNAME}.def --export ${DSOAL_SOURCE_DIR}/${LIBNAME}.spec
                        WORKING_DIRECTORY "${DSOAL_BINARY_DIR}"
                        COMMENT "Generating lib${LIBNAME}.def" VERBATIM)
     add_custom_command(TARGET ${LIBNAME} POST_BUILD
-                       COMMAND winegcc -shared "${DSOAL_SOURCE_DIR}/${LIBNAME}.spec" version.res -o "${DSOAL_BINARY_DIR}/${LIBNAME}.dll.so" "lib${LIBNAME}.a" -lopenal -ldxguid -luuid -lwinmm -lole32 -ldxerr8
+                       COMMAND winegcc -shared "${DSOAL_SOURCE_DIR}/${LIBNAME}.spec" "${LIBNAME}_classes_r.res" version.res -o "${DSOAL_BINARY_DIR}/${LIBNAME}.dll.so" "lib${LIBNAME}.a" -lopenal -ldxguid -luuid -lwinmm -lole32 -ldxerr8
                        WORKING_DIRECTORY "${DSOAL_BINARY_DIR}"
                        COMMENT "Linking Wine shared library ${LIBNAME}.dll.so" VERBATIM)
     add_custom_command(TARGET ${LIBNAME} POST_BUILD
-                       COMMAND winegcc -shared "${DSOAL_SOURCE_DIR}/${LIBNAME}.spec" version.res -o "${DSOAL_BINARY_DIR}/${LIBNAME}.dll.fake" "lib${LIBNAME}.a" -lopenal -ldxguid -luuid -lwinmm -lole32 -ldxerr8
+                       COMMAND winegcc -shared "${DSOAL_SOURCE_DIR}/${LIBNAME}.spec" "${LIBNAME}_classes_r.res" version.res -o "${DSOAL_BINARY_DIR}/${LIBNAME}.dll.fake" "lib${LIBNAME}.a" -lopenal -ldxguid -luuid -lwinmm -lole32 -ldxerr8
                        WORKING_DIRECTORY "${DSOAL_BINARY_DIR}"
                        COMMENT "Creating ${LIBNAME}.dll.fake" VERBATIM)
 
