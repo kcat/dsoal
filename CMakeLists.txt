@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 2.6)
 SET(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 
 include(CheckCCompilerFlag)
+include(CheckIncludeFile)
 
 project(DSOAL C)
 
@@ -23,7 +24,7 @@ set(DSOAL_OBJS buffer.c
                propset.c
                regsvr.c)
 
-find_package(OpenAL)
+find_package(OpenAL REQUIRED)
 include_directories("${DSOAL_BINARY_DIR}" ${OPENAL_INCLUDE_DIR})
 
 if(NOT MSVC)
@@ -38,6 +39,11 @@ if(NOT MSVC)
             add_definitions(-Wformat=0)
         endif()
     endif()
+endif()
+
+check_include_file(dsound.h HAVE_DSOUND_H)
+if(NOT HAVE_DSOUND_H)
+    message(FATAL_ERROR "Could not find dsound.h")
 endif()
 
 if(WIN32)
