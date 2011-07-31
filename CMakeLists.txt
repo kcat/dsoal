@@ -73,12 +73,6 @@ else()
     set_target_properties(dsoal PROPERTIES PREFIX "lib" SUFFIX ".a"
                                 COMPILE_FLAGS -fPIC)
 
-    set(OBJECT_FILES)
-    foreach(SRC ${DSOAL_OBJS})
-        string(REGEX REPLACE ".c" ".o" OBJ "${SRC}")
-        set(OBJECT_FILES "${OBJECT_FILES}" "${OBJ}")
-    endforeach()
-
     add_custom_command(TARGET dsoal POST_BUILD
                        COMMAND wrc --nostdinc -D__WINESRC__ "-I${DSOAL_BINARY_DIR}" "-I${WINE_DIR}/include/wine" "-I${WINE_DIR}/include/wine/windows" -foversion.res ${DSOAL_SOURCE_DIR}/version.rc
                        WORKING_DIRECTORY "${DSOAL_BINARY_DIR}/CMakeFiles/dsoal.dir"
