@@ -157,6 +157,7 @@ static void DS8Impl_Destroy(DS8Impl *This)
             break;
         }
     }
+    LeaveCriticalSection(&openal_crst);
 
     if(This->deviceref && InterlockedDecrement(This->deviceref) == 0)
     {
@@ -167,20 +168,24 @@ static void DS8Impl_Destroy(DS8Impl *This)
 
         HeapFree(GetProcessHeap(), 0, This->deviceref);
     }
-    else if(This->primary && This->primary->parent == This)
+    else
     {
-        /* If the primary is referencing this as its parent, update it to
-         * reference another handle for the device */
-        for(i = 0;i < devicelistsize;i++)
+        EnterCriticalSection(&openal_crst);
+        if(This->primary && This->primary->parent == This)
         {
-            if(devicelist[i]->primary == This->primary)
+            /* If the primary is referencing this as its parent, update it to
+             * reference another handle for the device */
+            for(i = 0;i < devicelistsize;i++)
             {
-                This->primary->parent = devicelist[i];
-                break;
+                if(devicelist[i]->primary == This->primary)
+                {
+                    This->primary->parent = devicelist[i];
+                    break;
+                }
             }
         }
+        LeaveCriticalSection(&openal_crst);
     }
-    LeaveCriticalSection(&openal_crst);
 
     HeapFree(GetProcessHeap(), 0, This);
 }
