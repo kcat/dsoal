@@ -55,6 +55,7 @@
 #include "ks.h"
 #include "initguid.h"
 #include "ksmedia.h"
+#include "rpcproxy.h"
 
 #include "dsound_private.h"
 
