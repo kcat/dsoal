@@ -91,4 +91,10 @@ else()
                        COMMAND winegcc -shared "${DSOAL_SOURCE_DIR}/dsound.spec" version.res -o "${DSOAL_BINARY_DIR}/dsound.dll.fake" "${DSOAL_BINARY_DIR}/libdsoal.a" -lopenal -ldxguid -luuid -lwinmm -lole32 -ldxerr8
                        WORKING_DIRECTORY "${DSOAL_BINARY_DIR}/CMakeFiles/dsoal.dir"
                        COMMENT "Linking C shared library dsound.dll.fake" VERBATIM)
+
+    install(FILES "${DSOAL_BINARY_DIR}/dsound.dll.so"
+            DESTINATION "${WINE_DIR}/lib/wine")
+    install(FILES "${DSOAL_BINARY_DIR}/dsound.dll.fake"
+            DESTINATION "${WINE_DIR}/lib/wine/fakedlls"
+            RENAME dsound.dll)
 endif()
