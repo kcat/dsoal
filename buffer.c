@@ -696,6 +696,9 @@ HRESULT DS8Buffer_Create(DS8Buffer **ppv, DS8Primary *parent, IDirectSoundBuffer
     if(orig)
     {
         DS8Buffer *org = impl_from_IDirectSoundBuffer(orig);
+        hr = DSERR_BUFFERLOST;
+        if(org->bufferlost)
+            goto fail;
         DS8Data_AddRef(org->buffer);
         This->buffer = org->buffer;
     }
@@ -705,6 +708,7 @@ HRESULT DS8Buffer_Create(DS8Buffer **ppv, DS8Primary *parent, IDirectSoundBuffer
     if(parent->nbuffers == parent->sizebuffers)
     {
         bufs = HeapReAlloc(GetProcessHeap(), 0, bufs, sizeof(*bufs)*(1+parent->nbuffers));
+        hr = DSERR_OUTOFMEMORY;
         if(!bufs) goto fail;
         parent->sizebuffers++;
     }

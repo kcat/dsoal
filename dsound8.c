@@ -438,10 +438,7 @@ static HRESULT WINAPI DS8_DuplicateSoundBuffer(IDirectSound8 *iface, IDirectSoun
         }
         if(SUCCEEDED(hr))
         {
-            DWORD savelost = ((DS8Buffer*)in)->bufferlost;
-            ((DS8Buffer*)in)->bufferlost = 0;
-            /* According to MSDN volume isn't copied
-             */
+            /* According to MSDN volume isn't copied */
             if((caps.dwFlags&DSBCAPS_CTRLPAN))
             {
                 LONG pan;
@@ -475,7 +472,6 @@ static HRESULT WINAPI DS8_DuplicateSoundBuffer(IDirectSound8 *iface, IDirectSoun
                     IDirectSound3DBuffer_Release(buf3d);
                 }
             }
-            ((DS8Buffer*)in)->bufferlost = buf->bufferlost = savelost;
         }
         if(FAILED(hr))
         {
