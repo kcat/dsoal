@@ -406,8 +406,11 @@ struct DS8Primary
     DWORD nbuffers, sizebuffers;
     DS8Buffer **notifies;
     DWORD nnotifies, sizenotifies;
+
     UINT timer_id;
     DWORD timer_res;
+    HANDLE thread_hdl;
+    DWORD thread_id;
 
     ALuint auxslot;
     ALuint effect;
@@ -430,7 +433,28 @@ struct DS8Primary
     DS3DLISTENER listen;
 };
 
-typedef struct DS8Data DS8Data;
+
+typedef struct DS8Data {
+    LONG ref;
+
+    /* Lock was called and unlock isn't? */
+    BOOL locked;
+
+    WAVEFORMATEXTENSIBLE format;
+
+    ALuint buf_size;
+    ALenum buf_format;
+    ALenum in_type, in_chans;
+    DWORD dsbflags;
+    BYTE *data;
+    ALuint *buffers;
+    ALuint numsegs;
+    ALuint segsize;
+    ALuint lastsegsize;
+} DS8Data;
+/* Amount of buffers that have to be queued when
+ * bufferdatastatic and buffersubdata are not available */
+#define QBUFFERS 3
 
 struct DS8Buffer
 {

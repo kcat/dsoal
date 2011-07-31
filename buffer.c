@@ -80,58 +80,31 @@ static const IDirectSound3DBufferVtbl DS8Buffer3d_Vtbl;
 static const IDirectSoundNotifyVtbl DS8BufferNot_Vtbl;
 static const IKsPropertySetVtbl DS8BufferProp_Vtbl;
 
-/* Amount of buffers that have to be queued when
- * bufferdatastatic and buffersubdata are not available */
-#define QBUFFERS 3
-
-struct DS8Data
-{
-    LONG ref;
-
-    /* Lock was called and unlock isn't? */
-    BOOL locked;
-
-    WAVEFORMATEXTENSIBLE format;
-
-    ALuint buf_size;
-    ALenum buf_format;
-    ALenum in_type, in_chans;
-    DWORD dsbflags;
-    BYTE *data;
-    ALuint *buffers;
-    ALuint numsegs;
-    ALuint segsize;
-    ALuint lastsegsize;
-};
-
-static void trigger_notifies(DS8Buffer *buf, DWORD lastpos, DWORD curpos, BOOL stopping)
+static void trigger_notifies(DS8Buffer *buf, DWORD lastpos, DWORD curpos)
 {
     DWORD i;
-    if (lastpos == curpos && !stopping)
-        return;
-    for (i = 0; i < buf->nnotify; ++i)
+    for(i = 0;i < buf->nnotify;++i)
     {
         DSBPOSITIONNOTIFY *not = &buf->notify[i];
         HANDLE event = not->hEventNotify;
         DWORD ofs = not->dwOffset;
 
-        if (ofs == (DWORD)DSBPN_OFFSETSTOP)
+        if(ofs == (DWORD)DSBPN_OFFSETSTOP)
         {
-            if (stopping)
-                SetEvent(event);
+            SetEvent(event);
             continue;
         }
 
         /* Wraparound case */
-        if (curpos < lastpos)
+        if(curpos < lastpos)
         {
-            if (ofs < curpos || ofs >= lastpos)
+            if(ofs < curpos || ofs >= lastpos)
                 SetEvent(event);
             continue;
         }
 
         /* Normal case */
-        if (ofs >= lastpos && ofs < curpos)
+        if(ofs >= lastpos && ofs < curpos)
             SetEvent(event);
     }
 }
@@ -139,114 +112,18 @@ static void trigger_notifies(DS8Buffer *buf, DWORD lastpos, DWORD curpos, BOOL s
 static void CALLBACK DS8Buffer_timer(UINT timerID, UINT msg, DWORD_PTR dwUser,
                                      DWORD_PTR dw1, DWORD_PTR dw2)
 {
-    DS8Primary *prim = (DS8Primary*)dwUser;
-    DWORD i;
     (void)timerID;
     (void)msg;
     (void)dw1;
     (void)dw2;
-
-    EnterCriticalSection(&prim->crst);
-    setALContext(prim->ctx);
-
-    /* OpenAL doesn't support our lovely buffer extensions
-     * so just make sure enough buffers are queued
-     */
-    if(!prim->ExtAL.BufferSamplesSOFT && !prim->ExtAL.BufferSubData &&
-       !prim->ExtAL.BufferDataStatic)
-    {
-        /* FIXME: Should probably use this logic to also
-         * call trigger_notifies
-         */
-        for (i = 0; i < prim->nbuffers; ++i)
-        {
-            DS8Buffer *buf = prim->buffers[i];
-            ALint done = 0, queued = QBUFFERS, state = AL_PLAYING;
-            ALuint which, ofs;
-
-            if (buf->buffer->numsegs == 1 || !buf->isplaying)
-                continue;
-
-            alGetSourcei(buf->source, AL_SOURCE_STATE, &state);
-            alGetSourcei(buf->source, AL_BUFFERS_QUEUED, &queued);
-            alGetSourcei(buf->source, AL_BUFFERS_PROCESSED, &done);
-
-            queued -= done;
-            while (done--)
-                alSourceUnqueueBuffers(buf->source, 1, &which);
-            while (queued < QBUFFERS)
-            {
-                which = buf->buffer->buffers[buf->curidx];
-                ofs = buf->curidx*buf->buffer->segsize;
-                if(buf->curidx < buf->buffer->numsegs-1)
-                    alBufferData(which, buf->buffer->buf_format,
-                                 buf->buffer->data + ofs, buf->buffer->segsize,
-                                 buf->buffer->format.Format.nSamplesPerSec);
-                else
-                    alBufferData(which, buf->buffer->buf_format,
-                                 buf->buffer->data + ofs, buf->buffer->lastsegsize,
-                                 buf->buffer->format.Format.nSamplesPerSec);
-
-                alSourceQueueBuffers(buf->source, 1, &which);
-                buf->curidx = (buf->curidx+1)%buf->buffer->numsegs;
-                queued++;
-
-                if (!buf->curidx && !buf->islooping)
-                {
-                    buf->isplaying = FALSE;
-                    break;
-                }
-            }
-            if (state != AL_PLAYING)
-            {
-                if (!queued)
-                {
-                    IDirectSoundBuffer8_Stop(&buf->IDirectSoundBuffer8_iface);
-                    continue;
-                }
-                alSourcePlay(buf->source);
-            }
-            getALError();
-        }
-    }
-
-    for (i = 0; i < prim->nnotifies ; )
-    {
-        DS8Buffer *buf = prim->notifies[i];
-        IDirectSoundBuffer8 *dsb = &buf->IDirectSoundBuffer8_iface;
-        DWORD status, curpos;
-        HRESULT hr;
-
-        hr = IDirectSoundBuffer8_GetStatus(dsb, &status);
-        if (SUCCEEDED(hr))
-        {
-            if (!(status & DSBSTATUS_PLAYING))
-            {
-                /* Stop will remove this buffer from list,
-                 * and put another at the current position
-                 * don't increment i
-                 */
-                IDirectSoundBuffer8_Stop(dsb);
-                continue;
-            }
-            hr = IDirectSoundBuffer8_GetCurrentPosition(dsb, &curpos, NULL);
-            if (SUCCEEDED(hr))
-            {
-                trigger_notifies(buf, buf->lastpos, curpos, FALSE);
-                buf->lastpos = curpos;
-            }
-        }
-        i++;
-    }
-    popALContext();
-    LeaveCriticalSection(&prim->crst);
+    PostThreadMessageA(dwUser, WM_USER, 0, 0);
 }
 
 static void DS8Buffer_starttimer(DS8Primary *prim)
 {
-    TIMECAPS time;
-    ALint refresh = FAKE_REFRESH_COUNT;
     DWORD triggertime, res = DS_TIME_RES;
+    ALint refresh = FAKE_REFRESH_COUNT;
+    TIMECAPS time;
 
     if(prim->timer_id)
         return;
@@ -267,7 +144,7 @@ static void DS8Buffer_starttimer(DS8Primary *prim)
         WARN("Could not set minimum resolution, don't expect sound\n");
 
     prim->timer_res = res;
-    prim->timer_id = timeSetEvent(triggertime, res, DS8Buffer_timer, (DWORD_PTR)prim, TIME_PERIODIC | TIME_KILL_SYNCHRONOUS);
+    prim->timer_id = timeSetEvent(triggertime, res, DS8Buffer_timer, prim->thread_id, TIME_PERIODIC|TIME_KILL_SYNCHRONOUS);
 }
 
 /* Should be called with critsect held and context set.. */
@@ -1726,7 +1603,7 @@ static HRESULT WINAPI DS8Buffer_Stop(IDirectSoundBuffer8 *iface)
         hr = IDirectSoundBuffer8_GetCurrentPosition(iface, &pos, NULL);
         if(FAILED(hr))
             ERR("Own getcurrentposition failed!\n");
-        trigger_notifies(This, This->lastpos, pos, TRUE);
+        trigger_notifies(This, This->lastpos, pos);
         This->lastpos = pos;
         DS8Buffer_removenotify(This);
     }

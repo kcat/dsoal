@@ -73,6 +73,142 @@ static void AL_APIENTRY wrap_DeferUpdates(void)
 static void AL_APIENTRY wrap_ProcessUpdates(void)
 { alcProcessContext(alcGetCurrentContext()); }
 
+
+static void trigger_notifies(DS8Buffer *buf, DWORD lastpos, DWORD curpos)
+{
+    DWORD i;
+    for(i = 0; i < buf->nnotify; ++i)
+    {
+        DSBPOSITIONNOTIFY *not = &buf->notify[i];
+        HANDLE event = not->hEventNotify;
+        DWORD ofs = not->dwOffset;
+
+        if(ofs == (DWORD)DSBPN_OFFSETSTOP)
+            continue;
+
+        /* Wraparound case */
+        if(curpos < lastpos)
+        {
+            if(ofs < curpos || ofs >= lastpos)
+                SetEvent(event);
+            continue;
+        }
+
+        /* Normal case */
+        if(ofs >= lastpos && ofs < curpos)
+            SetEvent(event);
+    }
+}
+
+static DWORD CALLBACK ThreadProc(void *dwUser)
+{
+    DS8Primary *prim = (DS8Primary*)dwUser;
+    DWORD i;
+    MSG msg;
+
+    SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_TIME_CRITICAL);
+
+    while(GetMessageA(&msg, NULL, 0, 0))
+    {
+        if(msg.message != WM_USER)
+            continue;
+
+        EnterCriticalSection(&prim->crst);
+        setALContext(prim->ctx);
+
+        /* OpenAL doesn't support our lovely buffer extensions
+         * so just make sure enough buffers are queued
+         */
+        if(!prim->ExtAL.BufferSamplesSOFT && !prim->ExtAL.BufferSubData &&
+           !prim->ExtAL.BufferDataStatic)
+        {
+            for(i = 0;i < prim->nbuffers;++i)
+            {
+                DS8Buffer *buf = prim->buffers[i];
+                ALint done = 0, queued = QBUFFERS, state = AL_PLAYING;
+                ALuint which, ofs;
+
+                if(buf->buffer->numsegs == 1 || !buf->isplaying)
+                    continue;
+
+                alGetSourcei(buf->source, AL_SOURCE_STATE, &state);
+                alGetSourcei(buf->source, AL_BUFFERS_QUEUED, &queued);
+                alGetSourcei(buf->source, AL_BUFFERS_PROCESSED, &done);
+
+                queued -= done;
+                while(done--)
+                    alSourceUnqueueBuffers(buf->source, 1, &which);
+                while(queued < QBUFFERS)
+                {
+                    which = buf->buffer->buffers[buf->curidx];
+                    ofs = buf->curidx*buf->buffer->segsize;
+                    if(buf->curidx < buf->buffer->numsegs-1)
+                        alBufferData(which, buf->buffer->buf_format,
+                                     buf->buffer->data + ofs, buf->buffer->segsize,
+                                     buf->buffer->format.Format.nSamplesPerSec);
+                    else
+                        alBufferData(which, buf->buffer->buf_format,
+                                     buf->buffer->data + ofs, buf->buffer->lastsegsize,
+                                     buf->buffer->format.Format.nSamplesPerSec);
+
+                    alSourceQueueBuffers(buf->source, 1, &which);
+                    buf->curidx = (buf->curidx+1)%buf->buffer->numsegs;
+                    queued++;
+
+                    if(!buf->curidx && !buf->islooping)
+                    {
+                        buf->isplaying = FALSE;
+                        break;
+                    }
+                }
+                if(state != AL_PLAYING)
+                {
+                    if(!queued)
+                    {
+                        IDirectSoundBuffer8_Stop(&buf->IDirectSoundBuffer8_iface);
+                        continue;
+                    }
+                    alSourcePlay(buf->source);
+                }
+                getALError();
+            }
+        }
+
+        for(i = 0;i < prim->nnotifies;)
+        {
+            DS8Buffer *buf = prim->notifies[i];
+            IDirectSoundBuffer8 *dsb = &buf->IDirectSoundBuffer8_iface;
+            DWORD status, curpos;
+            HRESULT hr;
+
+            hr = IDirectSoundBuffer8_GetStatus(dsb, &status);
+            if(SUCCEEDED(hr))
+            {
+                if(!(status&DSBSTATUS_PLAYING))
+                {
+                    /* Stop will remove this buffer from list,
+                     * and put another at the current position
+                     * don't increment i
+                     */
+                    IDirectSoundBuffer8_Stop(dsb);
+                    continue;
+                }
+                hr = IDirectSoundBuffer8_GetCurrentPosition(dsb, &curpos, NULL);
+                if(SUCCEEDED(hr) && buf->lastpos != curpos)
+                {
+                    trigger_notifies(buf, buf->lastpos, curpos);
+                    buf->lastpos = curpos;
+                }
+            }
+            i++;
+        }
+        popALContext();
+        LeaveCriticalSection(&prim->crst);
+    }
+    return 0;
+}
+
+
 HRESULT DS8Primary_Create(DS8Primary **ppv, DS8Impl *parent)
 {
     HRESULT hr = DSERR_OUTOFMEMORY;
@@ -238,6 +374,10 @@ HRESULT DS8Primary_Create(DS8Primary **ppv, DS8Impl *parent)
     if(!This->sources || !This->buffers || !This->notifies)
         goto fail;
 
+    This->thread_hdl = CreateThread(NULL, 0, ThreadProc, This, 0, &This->thread_id);
+    if(This->thread_hdl == NULL)
+        goto fail;
+
     *ppv = This;
     return S_OK;
 
@@ -255,6 +395,12 @@ void DS8Primary_Destroy(DS8Primary *This)
         timeKillEvent(This->timer_id);
         timeEndPeriod(This->timer_res);
         TRACE("Killed timer\n");
+    }
+    if(This->thread_hdl)
+    {
+        PostThreadMessageA(This->thread_id, WM_QUIT, 0, 0);
+        WaitForSingleObject(This->thread_hdl, 1000);
+        CloseHandle(This->thread_hdl);
     }
 
     if(This->ctx)
