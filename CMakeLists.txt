@@ -71,12 +71,6 @@ else()
         message(FATAL_ERROR "Could not find dsound.h")
     endif()
 
-    add_custom_command(OUTPUT version.res
-                       COMMAND wrc --nostdinc -D__WINESRC__ "-I${DSOAL_BINARY_DIR}" "-I${WINE_INCLUDE_DIR}" "-I${WINE_INCLUDE_DIR}/windows" -foversion.res ${DSOAL_SOURCE_DIR}/version.rc
-                       DEPENDS "${DSOAL_SOURCE_DIR}/version.rc"
-                       WORKING_DIRECTORY "${DSOAL_BINARY_DIR}/CMakeFiles/dsoal.dir"
-                       COMMENT "Generating version.res..." VERBATIM)
-
     add_library(dsoal STATIC ${DSOAL_OBJS})
     set_target_properties(dsoal PROPERTIES PREFIX "lib" SUFFIX ".a"
                                 COMPILE_FLAGS -fPIC)
@@ -87,17 +81,16 @@ else()
         set(OBJECT_FILES "${OBJECT_FILES}" "${OBJ}")
     endforeach()
 
-    add_custom_command(OUTPUT "${DSOAL_BINARY_DIR}/dsound.dll.so"
+    add_custom_command(TARGET dsoal POST_BUILD
+                       COMMAND wrc --nostdinc -D__WINESRC__ "-I${DSOAL_BINARY_DIR}" "-I${WINE_INCLUDE_DIR}" "-I${WINE_INCLUDE_DIR}/windows" -foversion.res ${DSOAL_SOURCE_DIR}/version.rc
+                       WORKING_DIRECTORY "${DSOAL_BINARY_DIR}/CMakeFiles/dsoal.dir"
+                       COMMENT "Generating version.res..." VERBATIM)
+    add_custom_command(TARGET dsoal POST_BUILD
                        COMMAND winegcc -shared "${DSOAL_SOURCE_DIR}/dsound.spec" version.res -o "${DSOAL_BINARY_DIR}/dsound.dll.so" "${DSOAL_BINARY_DIR}/libdsoal.a" -lopenal -ldxguid -luuid -lwinmm -lole32 -ldxerr8
-                       DEPENDS version.res "${DSOAL_SOURCE_DIR}/dsound.spec" "${DSOAL_BINARY_DIR}/libdsoal.a"
                        WORKING_DIRECTORY "${DSOAL_BINARY_DIR}/CMakeFiles/dsoal.dir"
                        COMMENT "Linking C shared library dsound.dll.so" VERBATIM)
-
-    add_custom_command(OUTPUT "${DSOAL_BINARY_DIR}/dsound.dll.fake"
+    add_custom_command(TARGET dsoal POST_BUILD
                        COMMAND winegcc -shared "${DSOAL_SOURCE_DIR}/dsound.spec" version.res -o "${DSOAL_BINARY_DIR}/dsound.dll.fake" "${DSOAL_BINARY_DIR}/libdsoal.a" -lopenal -ldxguid -luuid -lwinmm -lole32 -ldxerr8
-                       DEPENDS version.res "${DSOAL_SOURCE_DIR}/dsound.spec" "${DSOAL_BINARY_DIR}/libdsoal.a"
                        WORKING_DIRECTORY "${DSOAL_BINARY_DIR}/CMakeFiles/dsoal.dir"
                        COMMENT "Linking C shared library dsound.dll.fake" VERBATIM)
-
-    add_custom_target(dsound ALL DEPENDS "${DSOAL_BINARY_DIR}/dsound.dll.so" "${DSOAL_BINARY_DIR}/dsound.dll.fake")
 endif()
