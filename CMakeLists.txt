@@ -86,11 +86,11 @@ else()
     add_custom_command(TARGET dsoal POST_BUILD
                        COMMAND winegcc -shared "${DSOAL_SOURCE_DIR}/dsound.spec" version.res -o "${DSOAL_BINARY_DIR}/dsound.dll.so" "${DSOAL_BINARY_DIR}/libdsoal.a" -lopenal -ldxguid -luuid -lwinmm -lole32 -ldxerr8
                        WORKING_DIRECTORY "${DSOAL_BINARY_DIR}/CMakeFiles/dsoal.dir"
-                       COMMENT "Linking C shared library dsound.dll.so" VERBATIM)
+                       COMMENT "Linking Wine library dsound.dll.so" VERBATIM)
     add_custom_command(TARGET dsoal POST_BUILD
                        COMMAND winegcc -shared "${DSOAL_SOURCE_DIR}/dsound.spec" version.res -o "${DSOAL_BINARY_DIR}/dsound.dll.fake" "${DSOAL_BINARY_DIR}/libdsoal.a" -lopenal -ldxguid -luuid -lwinmm -lole32 -ldxerr8
                        WORKING_DIRECTORY "${DSOAL_BINARY_DIR}/CMakeFiles/dsoal.dir"
-                       COMMENT "Linking C shared library dsound.dll.fake" VERBATIM)
+                       COMMENT "Creating dsound.dll.fake" VERBATIM)
 
     install(FILES "${DSOAL_BINARY_DIR}/dsound.dll.so"
             DESTINATION "${WINE_DIR}/lib/wine")
