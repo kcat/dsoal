@@ -61,7 +61,12 @@ static UINT devicelistsize;
 
 static const IDirectSound8Vtbl DS8_Vtbl;
 
-HRESULT DSOUND_Create(REFIID riid, LPVOID *ds)
+static inline DS8Impl *impl_from_IDirectSound8(IDirectSound8 *iface)
+{
+    return CONTAINING_RECORD(iface, DS8Impl, IDirectSound8_iface);
+}
+
+HRESULT DSOUND_Create(REFIID riid, void **ds)
 {
     HRESULT hr;
 
@@ -69,7 +74,10 @@ HRESULT DSOUND_Create(REFIID riid, LPVOID *ds)
         return E_NOINTERFACE;
     hr = DSOUND_Create8(riid, ds);
     if(hr == S_OK)
-        ((DS8Impl*)*ds)->is_8 = FALSE;
+    {
+        DS8Impl *impl = impl_from_IDirectSound8(*ds);
+        impl->is_8 = FALSE;
+    }
     return hr;
 }
 
@@ -190,10 +198,6 @@ static void DS8Impl_Destroy(DS8Impl *This)
     HeapFree(GetProcessHeap(), 0, This);
 }
 
-static inline DS8Impl *impl_from_IDirectSound8(IDirectSound8 *iface)
-{
-    return CONTAINING_RECORD(iface, DS8Impl, IDirectSound8_iface);
-}
 
 static HRESULT WINAPI DS8_QueryInterface(IDirectSound8 *iface, REFIID riid, LPVOID *ppv)
 {
