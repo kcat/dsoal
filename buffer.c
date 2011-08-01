@@ -1359,7 +1359,7 @@ static HRESULT WINAPI DS8Buffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSo
         {
             DS8Data *buf = This->buffer;
 
-            if(buf->in_type == AL_UNSIGNED_BYTE)
+            if(buf->format.Format.wBitsPerSample == 8)
                 memset(buf->data, 0x80, buf->buf_size);
             else
                 memset(buf->data, 0x00, buf->buf_size);
