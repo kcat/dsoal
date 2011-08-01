@@ -1936,7 +1936,7 @@ static HRESULT WINAPI DS8Buffer_SetFX(IDirectSoundBuffer8 *iface, DWORD fxcount,
         rescodes[i] = DSFXR_FAILED;
     }
 
-    return DSERR_INVALIDPARAM;
+    return DS_INCOMPLETE;
 }
 
 static HRESULT WINAPI DS8Buffer_AcquireResources(IDirectSoundBuffer8 *iface, DWORD flags, DWORD fxcount, DWORD *rescodes)
