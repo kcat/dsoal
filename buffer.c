@@ -1831,7 +1831,7 @@ static HRESULT WINAPI DS8Buffer_Unlock(IDirectSoundBuffer8 *iface, void *ptr1, D
 
     if(This->ExtAL->BufferSubSamplesSOFT)
     {
-        WAVEFORMATEX *format = &buf->format.Format;
+        const WAVEFORMATEX *format = &buf->format.Format;
 
         ptr1 = (BYTE*)ptr1 - (ofs1%format->nBlockAlign);
         ofs1 /= format->nBlockAlign;
@@ -1849,7 +1849,7 @@ static HRESULT WINAPI DS8Buffer_Unlock(IDirectSoundBuffer8 *iface, void *ptr1, D
     }
     else if(This->ExtAL->BufferSubData)
     {
-        WAVEFORMATEX *format = &buf->format.Format;
+        const WAVEFORMATEX *format = &buf->format.Format;
 
         len1 -= len1%format->nBlockAlign;
         if(len1 > 0)
