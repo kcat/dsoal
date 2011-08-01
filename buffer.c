@@ -1618,7 +1618,8 @@ static HRESULT WINAPI DS8Buffer_SetCurrentPosition(IDirectSoundBuffer8 *iface, D
 {
     DS8Buffer *This = impl_from_IDirectSoundBuffer8(iface);
     HRESULT hr;
-    TRACE("%p\n", This);
+
+    TRACE("(%p)->(%u)\n", iface, (UINT)pos);
 
     EnterCriticalSection(This->crst);
     setALContext(This->ctx);
