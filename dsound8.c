@@ -125,7 +125,7 @@ HRESULT DSOUND_Create8(REFIID riid, LPVOID *ds)
     }
     /*RegGetValueW(HKEY_LOCAL_MACHINE, speakerconfigkey, speakerconfig, RRF_RT_REG_DWORD, NULL, &This->speaker_config, NULL);*/
 
-    hr = IUnknown_QueryInterface(&This->IDirectSound8_iface, riid, ds);
+    hr = IDirectSound8_QueryInterface(&This->IDirectSound8_iface, riid, ds);
     if(FAILED(hr))
         DS8Impl_Destroy(This);
     else
