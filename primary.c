@@ -488,8 +488,7 @@ static ULONG WINAPI DS8Primary_AddRef(IDirectSoundBuffer *iface)
     LONG ret;
 
     ret = InterlockedIncrement(&This->ref);
-    if(This->ref == 1)
-        This->flags = 0;
+    if(ret == 1) This->flags = 0;
 
     return ret;
 }
