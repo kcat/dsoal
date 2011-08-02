@@ -275,6 +275,12 @@ static HRESULT WINAPI DS8_CreateSoundBuffer(IDirectSound8 *iface, LPCDSBUFFERDES
         return DSERR_INVALIDPARAM;
     }
 
+    if(!This->primary)
+    {
+        WARN("Device not initialized\n");
+        return DSERR_UNINITIALIZED;
+    }
+
     TRACE("Requested buffer:\n"
           "    Size        = %u\n"
           "    Flags       = 0x%08x\n"
@@ -306,10 +312,8 @@ static HRESULT WINAPI DS8_CreateSoundBuffer(IDirectSound8 *iface, LPCDSBUFFERDES
         return DSERR_INVALIDPARAM;
     }
 
-    EnterCriticalSection(&openal_crst);
-    if(!This->device)
-        hr = DSERR_UNINITIALIZED;
-    else if((desc->dwFlags&DSBCAPS_PRIMARYBUFFER))
+    EnterCriticalSection(&This->primary->crst);
+    if((desc->dwFlags&DSBCAPS_PRIMARYBUFFER))
     {
         IDirectSoundBuffer *prim = &This->primary->IDirectSoundBuffer_iface;
 
@@ -342,7 +346,7 @@ static HRESULT WINAPI DS8_CreateSoundBuffer(IDirectSound8 *iface, LPCDSBUFFERDES
             }
         }
     }
-    LeaveCriticalSection(&openal_crst);
+    LeaveCriticalSection(&This->primary->crst);
 
     TRACE("%08x\n", hr);
     return hr;
@@ -351,142 +355,151 @@ static HRESULT WINAPI DS8_CreateSoundBuffer(IDirectSound8 *iface, LPCDSBUFFERDES
 static HRESULT WINAPI DS8_GetCaps(IDirectSound8 *iface, LPDSCAPS caps)
 {
     DS8Impl *This = impl_from_IDirectSound8(iface);
-    HRESULT hr = S_OK;
+    LONG count;
 
     TRACE("(%p)->(%p)\n", iface, caps);
 
-    EnterCriticalSection(&openal_crst);
-    if(!This->device)
-        hr = DSERR_UNINITIALIZED;
-    else if(!caps || caps->dwSize < sizeof(*caps))
-        hr = DSERR_INVALIDPARAM;
-    else
+    if(!This->primary)
     {
-        LONG count = This->primary->max_sources;
-
-        setALContext(This->primary->ctx);
-        caps->dwFlags = DSCAPS_CONTINUOUSRATE |
-                        DSCAPS_PRIMARY16BIT | DSCAPS_PRIMARYSTEREO |
-                        DSCAPS_PRIMARY8BIT | DSCAPS_PRIMARYMONO |
-                        DSCAPS_SECONDARY16BIT | DSCAPS_SECONDARY8BIT |
-                        DSCAPS_SECONDARYMONO | DSCAPS_SECONDARYSTEREO;
-        caps->dwPrimaryBuffers = 1;
-        caps->dwMinSecondarySampleRate = DSBFREQUENCY_MIN;
-        caps->dwMaxSecondarySampleRate = DSBFREQUENCY_MAX;
-        caps->dwMaxHwMixingAllBuffers =
-            caps->dwMaxHwMixingStaticBuffers =
-            caps->dwMaxHwMixingStreamingBuffers =
-            caps->dwMaxHw3DAllBuffers =
-            caps->dwMaxHw3DStaticBuffers =
-            caps->dwMaxHw3DStreamingBuffers = count;
-        count -= This->primary->nbuffers;
-        if(count < 0)
-        {
-            ERR("How did the count drop below 0?\n");
-            count = 0;
-        }
-        caps->dwFreeHwMixingAllBuffers =
-            caps->dwFreeHwMixingStaticBuffers =
-            caps->dwFreeHwMixingStreamingBuffers =
-            caps->dwFreeHw3DAllBuffers =
-            caps->dwFreeHw3DStaticBuffers =
-            caps->dwFreeHw3DStreamingBuffers = count;
-        caps->dwTotalHwMemBytes =
-            caps->dwFreeHwMemBytes = 64 * 1024 * 1024;
-        caps->dwMaxContigFreeHwMemBytes = caps->dwFreeHwMemBytes;
-        caps->dwUnlockTransferRateHwBuffers = 4096;
-        caps->dwPlayCpuOverheadSwBuffers = 0;
-        popALContext();
+        WARN("Device not initialized\n");
+        return DSERR_UNINITIALIZED;
     }
-    LeaveCriticalSection(&openal_crst);
 
-    return hr;
+    if(!caps || caps->dwSize < sizeof(*caps))
+    {
+        WARN("Invalid DSCAPS (%p, %u)\n", caps, (caps?caps->dwSize:0));
+        return DSERR_INVALIDPARAM;
+    }
+
+    EnterCriticalSection(&This->primary->crst);
+    count = This->primary->max_sources;
+
+    setALContext(This->primary->ctx);
+    caps->dwFlags = DSCAPS_CONTINUOUSRATE |
+                    DSCAPS_PRIMARY16BIT | DSCAPS_PRIMARYSTEREO |
+                    DSCAPS_PRIMARY8BIT | DSCAPS_PRIMARYMONO |
+                    DSCAPS_SECONDARY16BIT | DSCAPS_SECONDARY8BIT |
+                    DSCAPS_SECONDARYMONO | DSCAPS_SECONDARYSTEREO;
+    caps->dwPrimaryBuffers = 1;
+    caps->dwMinSecondarySampleRate = DSBFREQUENCY_MIN;
+    caps->dwMaxSecondarySampleRate = DSBFREQUENCY_MAX;
+    caps->dwMaxHwMixingAllBuffers =
+        caps->dwMaxHwMixingStaticBuffers =
+        caps->dwMaxHwMixingStreamingBuffers =
+        caps->dwMaxHw3DAllBuffers =
+        caps->dwMaxHw3DStaticBuffers =
+        caps->dwMaxHw3DStreamingBuffers = count;
+    count -= This->primary->nbuffers;
+    if(count < 0)
+    {
+        ERR("How did the count drop below 0?\n");
+        count = 0;
+    }
+    caps->dwFreeHwMixingAllBuffers =
+        caps->dwFreeHwMixingStaticBuffers =
+        caps->dwFreeHwMixingStreamingBuffers =
+        caps->dwFreeHw3DAllBuffers =
+        caps->dwFreeHw3DStaticBuffers =
+        caps->dwFreeHw3DStreamingBuffers = count;
+    caps->dwTotalHwMemBytes =
+        caps->dwFreeHwMemBytes = 64 * 1024 * 1024;
+    caps->dwMaxContigFreeHwMemBytes = caps->dwFreeHwMemBytes;
+    caps->dwUnlockTransferRateHwBuffers = 4096;
+    caps->dwPlayCpuOverheadSwBuffers = 0;
+    popALContext();
+
+    LeaveCriticalSection(&This->primary->crst);
+
+    return DS_OK;
 }
 static HRESULT WINAPI DS8_DuplicateSoundBuffer(IDirectSound8 *iface, IDirectSoundBuffer *in, IDirectSoundBuffer **out)
 {
     DS8Impl *This = impl_from_IDirectSound8(iface);
-    HRESULT hr = S_OK;
+    DS8Buffer *buf;
+    DSBCAPS caps;
+    HRESULT hr;
 
     TRACE("(%p)->(%p, %p)\n", iface, in, out);
 
-    EnterCriticalSection(&openal_crst);
-    if(!This->device)
-        hr = DSERR_UNINITIALIZED;
-    else if(!in || !out)
-        hr = DSERR_INVALIDPARAM;
-    else
+    if(!This->primary)
     {
-        DSBCAPS caps;
-        DS8Buffer *buf;
+        WARN("Device not initialized\n");
+        return DSERR_UNINITIALIZED;
+    }
 
-        *out = NULL;
+    if(!in || !out)
+    {
+        WARN("Invalid pointer: int = %p, out = %p\n", in, out);
+        return DSERR_INVALIDPARAM;
+    }
+    *out = NULL;
 
-        caps.dwSize = sizeof(caps);
-        hr = IDirectSoundBuffer_GetCaps(in, &caps);
-        if(SUCCEEDED(hr) && (caps.dwFlags&DSBCAPS_PRIMARYBUFFER))
-        {
-            WARN("Cannot duplicate buffer %p, which has DSBCAPS_PRIMARYBUFFER\n", in);
-            hr = DSERR_INVALIDPARAM;
-        }
-        if(SUCCEEDED(hr) && (caps.dwFlags&DSBCAPS_CTRLFX))
-        {
-            WARN("Cannot duplicate buffer %p, which has DSBCAPS_CTRLFX\n", in);
-            hr = DSERR_INVALIDPARAM;
-        }
-        if(SUCCEEDED(hr))
-            hr = DS8Buffer_Create(&buf, This->primary, in);
-        if(SUCCEEDED(hr))
-        {
-            *out = (IDirectSoundBuffer*)&buf->IDirectSoundBuffer8_iface;
-            hr = IDirectSoundBuffer_Initialize(*out, NULL, NULL);
-        }
-        if(SUCCEEDED(hr))
-        {
-            /* According to MSDN volume isn't copied */
-            if((caps.dwFlags&DSBCAPS_CTRLPAN))
-            {
-                LONG pan;
-                if(SUCCEEDED(IDirectSoundBuffer_GetPan(in, &pan)))
-                    IDirectSoundBuffer_SetPan(*out, pan);
-            }
-            if((caps.dwFlags&DSBCAPS_CTRLFREQUENCY))
-            {
-                DWORD freq;
-                if(SUCCEEDED(IDirectSoundBuffer_GetFrequency(in, &freq)))
-                    IDirectSoundBuffer_SetFrequency(*out, freq);
-            }
-            if((caps.dwFlags&DSBCAPS_CTRL3D))
-            {
-                IDirectSound3DBuffer *buf3d;
-                DS3DBUFFER DS3DBuffer;
-                HRESULT subhr;
+    EnterCriticalSection(&This->primary->crst);
 
-                subhr = IDirectSound_QueryInterface(in, &IID_IDirectSound3DBuffer, (void**)&buf3d);
-                if(SUCCEEDED(subhr))
-                {
-                    DS3DBuffer.dwSize = sizeof(DS3DBuffer);
-                    subhr = IDirectSound3DBuffer_GetAllParameters(buf3d, &DS3DBuffer);
-                    IDirectSound3DBuffer_Release(buf3d);
-                }
-                if(SUCCEEDED(subhr))
-                    subhr = IDirectSoundBuffer_QueryInterface(*out, &IID_IDirectSound3DBuffer, (void**)&buf3d);
-                if(SUCCEEDED(subhr))
-                {
-                    subhr = IDirectSound3DBuffer_SetAllParameters(buf3d, &DS3DBuffer, DS3D_IMMEDIATE);
-                    IDirectSound3DBuffer_Release(buf3d);
-                }
-            }
-        }
-        if(FAILED(hr))
+    caps.dwSize = sizeof(caps);
+    hr = IDirectSoundBuffer_GetCaps(in, &caps);
+    if(SUCCEEDED(hr) && (caps.dwFlags&DSBCAPS_PRIMARYBUFFER))
+    {
+        WARN("Cannot duplicate buffer %p, which has DSBCAPS_PRIMARYBUFFER\n", in);
+        hr = DSERR_INVALIDPARAM;
+    }
+    if(SUCCEEDED(hr) && (caps.dwFlags&DSBCAPS_CTRLFX))
+    {
+        WARN("Cannot duplicate buffer %p, which has DSBCAPS_CTRLFX\n", in);
+        hr = DSERR_INVALIDPARAM;
+    }
+    if(SUCCEEDED(hr))
+        hr = DS8Buffer_Create(&buf, This->primary, in);
+    if(SUCCEEDED(hr))
+    {
+        *out = (IDirectSoundBuffer*)&buf->IDirectSoundBuffer8_iface;
+        hr = IDirectSoundBuffer_Initialize(*out, NULL, NULL);
+    }
+    if(SUCCEEDED(hr))
+    {
+        /* According to MSDN volume isn't copied */
+        if((caps.dwFlags&DSBCAPS_CTRLPAN))
         {
-            if(*out)
-                IDirectSoundBuffer_Release(*out);
-            *out = NULL;
-            goto out;
+            LONG pan;
+            if(SUCCEEDED(IDirectSoundBuffer_GetPan(in, &pan)))
+                IDirectSoundBuffer_SetPan(*out, pan);
+        }
+        if((caps.dwFlags&DSBCAPS_CTRLFREQUENCY))
+        {
+            DWORD freq;
+            if(SUCCEEDED(IDirectSoundBuffer_GetFrequency(in, &freq)))
+                IDirectSoundBuffer_SetFrequency(*out, freq);
+        }
+        if((caps.dwFlags&DSBCAPS_CTRL3D))
+        {
+            IDirectSound3DBuffer *buf3d;
+            DS3DBUFFER DS3DBuffer;
+            HRESULT subhr;
+
+            subhr = IDirectSound_QueryInterface(in, &IID_IDirectSound3DBuffer, (void**)&buf3d);
+            if(SUCCEEDED(subhr))
+            {
+                DS3DBuffer.dwSize = sizeof(DS3DBuffer);
+                subhr = IDirectSound3DBuffer_GetAllParameters(buf3d, &DS3DBuffer);
+                IDirectSound3DBuffer_Release(buf3d);
+            }
+            if(SUCCEEDED(subhr))
+                subhr = IDirectSoundBuffer_QueryInterface(*out, &IID_IDirectSound3DBuffer, (void**)&buf3d);
+            if(SUCCEEDED(subhr))
+            {
+                subhr = IDirectSound3DBuffer_SetAllParameters(buf3d, &DS3DBuffer, DS3D_IMMEDIATE);
+                IDirectSound3DBuffer_Release(buf3d);
+            }
         }
     }
-out:
-    LeaveCriticalSection(&openal_crst);
+    if(FAILED(hr))
+    {
+        if(*out)
+            IDirectSoundBuffer_Release(*out);
+        *out = NULL;
+    }
+
+    LeaveCriticalSection(&This->primary->crst);
     return hr;
 }
 
@@ -497,12 +510,20 @@ static HRESULT WINAPI DS8_SetCooperativeLevel(IDirectSound8 *iface, HWND hwnd, D
 
     TRACE("(%p)->(%p, %u)\n", iface, hwnd, level);
 
-    EnterCriticalSection(&openal_crst);
-    if(!This->device)
-        hr = DSERR_UNINITIALIZED;
-    else if(level > DSSCL_WRITEPRIMARY || level < DSSCL_NORMAL)
-        hr = E_INVALIDARG;
-    else if(level == DSSCL_WRITEPRIMARY && (This->prio_level != DSSCL_WRITEPRIMARY))
+    if(!This->primary)
+    {
+        WARN("Device not initialized\n");
+        return DSERR_UNINITIALIZED;
+    }
+
+    if(level > DSSCL_WRITEPRIMARY || level < DSSCL_NORMAL)
+    {
+        WARN("Invalid coop level: %u\n", level);
+        return DSERR_INVALIDPARAM;
+    }
+
+    EnterCriticalSection(&This->primary->crst);
+    if(level == DSSCL_WRITEPRIMARY && (This->prio_level != DSSCL_WRITEPRIMARY))
     {
         DWORD i, state;
 
@@ -561,7 +582,7 @@ static HRESULT WINAPI DS8_SetCooperativeLevel(IDirectSound8 *iface, HWND hwnd, D
     if(SUCCEEDED(hr))
         This->prio_level = level;
 out:
-    LeaveCriticalSection(&openal_crst);
+    LeaveCriticalSection(&This->primary->crst);
 
     return hr;
 }
@@ -573,12 +594,19 @@ static HRESULT WINAPI DS8_Compact(IDirectSound8 *iface)
 
     TRACE("(%p)->()\n", iface);
 
-    EnterCriticalSection(&openal_crst);
-    if(!This->device)
-        hr = DSERR_UNINITIALIZED;
-    else if(This->prio_level < DSSCL_PRIORITY)
+    if(!This->primary)
+    {
+        WARN("Device not initialized\n");
+        return DSERR_UNINITIALIZED;
+    }
+
+    EnterCriticalSection(&This->primary->crst);
+    if(This->prio_level < DSSCL_PRIORITY)
+    {
+        WARN("Coop level not high enough (%u)\n", This->prio_level);
         hr = DSERR_PRIOLEVELNEEDED;
-    LeaveCriticalSection(&openal_crst);
+    }
+    LeaveCriticalSection(&This->primary->crst);
 
     return hr;
 }
@@ -592,13 +620,17 @@ static HRESULT WINAPI DS8_GetSpeakerConfig(IDirectSound8 *iface, DWORD *config)
 
     if(!config)
         return DSERR_INVALIDPARAM;
+    *config = 0;
 
-    EnterCriticalSection(&openal_crst);
-    if(!This->device)
-        hr = DSERR_UNINITIALIZED;
-    else
-        *config = This->speaker_config;
-    LeaveCriticalSection(&openal_crst);
+    if(!This->primary)
+    {
+        WARN("Device not initialized\n");
+        return DSERR_UNINITIALIZED;
+    }
+
+    EnterCriticalSection(&This->primary->crst);
+    *config = This->speaker_config;
+    LeaveCriticalSection(&This->primary->crst);
 
     return hr;
 }
@@ -606,44 +638,45 @@ static HRESULT WINAPI DS8_GetSpeakerConfig(IDirectSound8 *iface, DWORD *config)
 static HRESULT WINAPI DS8_SetSpeakerConfig(IDirectSound8 *iface, DWORD config)
 {
     DS8Impl *This = impl_from_IDirectSound8(iface);
+    DWORD geo, speaker;
+    HKEY key;
     HRESULT hr;
 
     TRACE("(%p)->(0x%08x)\n", iface, config);
 
-    EnterCriticalSection(&openal_crst);
-    if(!This->device)
-        hr = DSERR_UNINITIALIZED;
-    else
+    if(!This->primary)
     {
-        HKEY key;
-        DWORD geo, speaker;
+        WARN("Device not initialized\n");
+        return DSERR_UNINITIALIZED;
+    }
 
-        geo = DSSPEAKER_GEOMETRY(config);
-        speaker = DSSPEAKER_CONFIG(config);
+    EnterCriticalSection(&This->primary->crst);
 
-        hr = DSERR_INVALIDPARAM;
-        if(geo && (geo < DSSPEAKER_GEOMETRY_MIN || geo > DSSPEAKER_GEOMETRY_MAX))
-        {
-            WARN("Invalid speaker angle %u\n", geo);
-            goto out;
-        }
-        if(speaker < DSSPEAKER_HEADPHONE || speaker > DSSPEAKER_7POINT1)
-        {
-            WARN("Invalid speaker config %u\n", speaker);
-            goto out;
-        }
+    geo = DSSPEAKER_GEOMETRY(config);
+    speaker = DSSPEAKER_CONFIG(config);
 
-        hr = DSERR_GENERIC;
-        if(!RegCreateKeyExW(HKEY_LOCAL_MACHINE, speakerconfigkey, 0, NULL, 0, KEY_WRITE, NULL, &key, NULL))
-        {
-            RegSetValueExW(key, speakerconfig, 0, REG_DWORD, (const BYTE*)&config, sizeof(DWORD));
-            This->speaker_config = config;
-            RegCloseKey(key);
-            hr = S_OK;
-        }
+    hr = DSERR_INVALIDPARAM;
+    if(geo && (geo < DSSPEAKER_GEOMETRY_MIN || geo > DSSPEAKER_GEOMETRY_MAX))
+    {
+        WARN("Invalid speaker angle %u\n", geo);
+        goto out;
+    }
+    if(speaker < DSSPEAKER_HEADPHONE || speaker > DSSPEAKER_7POINT1)
+    {
+        WARN("Invalid speaker config %u\n", speaker);
+        goto out;
+    }
+
+    hr = DSERR_GENERIC;
+    if(!RegCreateKeyExW(HKEY_LOCAL_MACHINE, speakerconfigkey, 0, NULL, 0, KEY_WRITE, NULL, &key, NULL))
+    {
+        RegSetValueExW(key, speakerconfig, 0, REG_DWORD, (const BYTE*)&config, sizeof(DWORD));
+        This->speaker_config = config;
+        RegCloseKey(key);
+        hr = S_OK;
     }
 out:
-    LeaveCriticalSection(&openal_crst);
+    LeaveCriticalSection(&This->primary->crst);
 
     return hr;
 }
@@ -660,18 +693,19 @@ static HRESULT WINAPI DS8_Initialize(IDirectSound8 *iface, const GUID *devguid)
     if(!openal_loaded)
         return DSERR_NODRIVER;
 
+    if(This->primary)
+    {
+        WARN("Device already initialized\n");
+        return DSERR_ALREADYINITIALIZED;
+    }
+
     if(!devguid)
         devguid = &DSDEVID_DefaultPlayback;
-
-    EnterCriticalSection(&openal_crst);
-
-    hr = DSERR_ALREADYINITIALIZED;
-    if(This->device)
-        goto out;
-
     hr = GetDeviceID(devguid, &This->guid);
     if(FAILED(hr))
-        goto out;
+        return hr;
+
+    EnterCriticalSection(&openal_crst);
 
     for(n = 0;n < devicelistsize;n++)
     {
@@ -743,22 +777,22 @@ out:
 static HRESULT WINAPI DS8_VerifyCertification(IDirectSound8 *iface, DWORD *certified)
 {
     DS8Impl *This = impl_from_IDirectSound8(iface);
-    HRESULT hr;
 
     TRACE("(%p)->(%p)\n", iface, certified);
 
     if(!certified)
         return DSERR_INVALIDPARAM;
+    *certified = 0;
 
-    EnterCriticalSection(&openal_crst);
-    hr = S_OK;
-    if(!This->device)
-        hr = DSERR_UNINITIALIZED;
-    else
-        *certified = DS_CERTIFIED;
-    LeaveCriticalSection(&openal_crst);
+    if(!This->primary)
+    {
+        WARN("Device not initialized\n");
+        return DSERR_UNINITIALIZED;
+    }
 
-    return hr;
+    *certified = DS_CERTIFIED;
+
+    return DS_OK;
 }
 
 static const IDirectSound8Vtbl DS8_Vtbl =
