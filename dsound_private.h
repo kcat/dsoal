@@ -461,7 +461,7 @@ typedef struct DS8Data {
     LONG ref;
 
     /* Lock was called and unlock isn't? */
-    BOOL locked;
+    LONG locked;
 
     WAVEFORMATEXTENSIBLE format;
 

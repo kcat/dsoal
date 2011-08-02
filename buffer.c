@@ -1438,7 +1438,6 @@ out:
 static HRESULT WINAPI DS8Buffer_Lock(IDirectSoundBuffer8 *iface, DWORD ofs, DWORD bytes, void **ptr1, DWORD *len1, void **ptr2, DWORD *len2, DWORD flags)
 {
     DS8Buffer *This = impl_from_IDirectSoundBuffer8(iface);
-    HRESULT hr;
     DWORD remain;
 
     TRACE("(%p)->(%u, %u, %p, %p, %p, %p, 0x%x)\n", This, ofs, bytes, ptr1, len1, ptr2, len2, flags);
@@ -1449,28 +1448,30 @@ static HRESULT WINAPI DS8Buffer_Lock(IDirectSoundBuffer8 *iface, DWORD ofs, DWOR
         return DSERR_INVALIDPARAM;
     }
 
-    EnterCriticalSection(This->crst);
-    setALContext(This->ctx);
-
     *ptr1 = NULL;
     *len1 = 0;
     if(ptr2) *ptr2 = NULL;
     if(len2) *len2 = 0;
 
-    hr = DSERR_INVALIDPARAM;
     if((flags&DSBLOCK_FROMWRITECURSOR))
         DS8Buffer_GetCurrentPosition(iface, NULL, &ofs);
     else if(ofs >= This->buffer->buf_size)
     {
         WARN("Invalid ofs %u\n", ofs);
-        goto out;
+        return DSERR_INVALIDPARAM;
     }
     if((flags&DSBLOCK_ENTIREBUFFER))
         bytes = This->buffer->buf_size;
     else if(bytes > This->buffer->buf_size)
     {
         WARN("Invalid size %u\n", bytes);
-        goto out;
+        return DSERR_INVALIDPARAM;
+    }
+
+    if(InterlockedExchange(&This->buffer->locked, TRUE) == TRUE)
+    {
+        WARN("Already locked\n");
+        return DSERR_INVALIDPARAM;
     }
 
     *ptr1 = This->buffer->data + ofs;
@@ -1485,19 +1486,13 @@ static HRESULT WINAPI DS8Buffer_Lock(IDirectSoundBuffer8 *iface, DWORD ofs, DWOR
         remain = 0;
     }
 
-    This->buffer->locked = TRUE;
-
     if(ptr2 && len2 && remain)
     {
         *ptr2 = This->buffer->data;
         *len2 = remain;
     }
-    hr = S_OK;
 
-out:
-    popALContext();
-    LeaveCriticalSection(This->crst);
-    return hr;
+    return DS_OK;
 }
 
 static HRESULT WINAPI DS8Buffer_Play(IDirectSoundBuffer8 *iface, DWORD res1, DWORD prio, DWORD flags)
@@ -1768,12 +1763,13 @@ static HRESULT WINAPI DS8Buffer_Unlock(IDirectSoundBuffer8 *iface, void *ptr1, D
 
     TRACE("(%p)->(%p, %u, %p, %u)\n", iface, ptr1, len1, ptr2, len2);
 
-    EnterCriticalSection(This->crst);
-    setALContext(This->ctx);
+    if(InterlockedExchange(&This->buffer->locked, FALSE) == FALSE)
+    {
+        WARN("Not locked\n");
+        return DSERR_INVALIDPARAM;
+    }
 
-    This->buffer->locked = 0;
     hr = DSERR_INVALIDPARAM;
-
     /* Make sure offset is between boundary and boundary + bufsize */
     ofs1 = (DWORD_PTR)ptr1;
     ofs2 = (DWORD_PTR)ptr2;
@@ -1788,13 +1784,13 @@ static HRESULT WINAPI DS8Buffer_Unlock(IDirectSoundBuffer8 *iface, void *ptr1, D
     if(!ptr2)
         len2 = 0;
 
-    hr = S_OK;
+    hr = DS_OK;
     if(!len1 && !len2)
         goto out;
-
     if(This->primary->SupportedExt[EXT_STATIC_BUFFER])
         goto out;
 
+    setALContext(This->ctx);
     if(This->primary->SupportedExt[SOFT_BUFFER_SAMPLES])
     {
         const WAVEFORMATEX *format = &buf->format.Format;
@@ -1834,12 +1830,11 @@ static HRESULT WINAPI DS8Buffer_Unlock(IDirectSoundBuffer8 *iface, void *ptr1, D
                      buf->format.Format.nSamplesPerSec);
         getALError();
     }
+    popALContext();
 
 out:
     if(hr != S_OK)
         WARN("Invalid parameters (0x%lx,%u) (%p,%u,%p,%u)\n", boundary, bufsize, ptr1, len1, ptr2, len2);
-    popALContext();
-    LeaveCriticalSection(This->crst);
     return hr;
 }
 
