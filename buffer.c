@@ -840,7 +840,7 @@ static void DS8Data_Release(DS8Data *This)
     HeapFree(GetProcessHeap(), 0, This);
 }
 
-HRESULT DS8Buffer_Create(DS8Buffer **ppv, DS8Primary *parent, IDirectSoundBuffer *orig)
+HRESULT DS8Buffer_Create(DS8Buffer **ppv, DS8Primary *prim, IDirectSoundBuffer *orig)
 {
     HRESULT hr = DSERR_OUTOFMEMORY;
     DS8Buffer *This;
@@ -855,10 +855,10 @@ HRESULT DS8Buffer_Create(DS8Buffer **ppv, DS8Primary *parent, IDirectSoundBuffer
     This->IDirectSoundNotify_iface.lpVtbl = (IDirectSoundNotifyVtbl*)&DS8BufferNot_Vtbl;
     This->IKsPropertySet_iface.lpVtbl = (IKsPropertySetVtbl*)&DS8BufferProp_Vtbl;
 
-    This->primary = parent;
-    This->ctx = parent->ctx;
-    This->ExtAL = &parent->ExtAL;
-    This->crst = &parent->crst;
+    This->primary = prim;
+    This->ctx = prim->ctx;
+    This->ExtAL = &prim->ExtAL;
+    This->crst = &prim->crst;
     This->ref = This->all_ref = 1;
 
     if(orig)
@@ -872,16 +872,16 @@ HRESULT DS8Buffer_Create(DS8Buffer **ppv, DS8Primary *parent, IDirectSoundBuffer
     }
 
     /* Append to buffer list */
-    bufs = parent->buffers;
-    if(parent->nbuffers == parent->sizebuffers)
+    bufs = prim->buffers;
+    if(prim->nbuffers == prim->sizebuffers)
     {
-        bufs = HeapReAlloc(GetProcessHeap(), 0, bufs, sizeof(*bufs)*(1+parent->nbuffers));
+        bufs = HeapReAlloc(GetProcessHeap(), 0, bufs, sizeof(*bufs)*(prim->nbuffers+1));
         hr = DSERR_OUTOFMEMORY;
         if(!bufs) goto fail;
-        parent->sizebuffers++;
+        prim->sizebuffers++;
     }
-    parent->buffers = bufs;
-    bufs[parent->nbuffers++] = This;
+    prim->buffers = bufs;
+    bufs[prim->nbuffers++] = This;
 
     /* Disable until initialized.. */
     This->ds3dmode = DS3DMODE_DISABLE;
