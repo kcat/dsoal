@@ -420,6 +420,7 @@ void DS8Primary_Destroy(DS8Primary *This)
          */
         ALCcontext *old_ctx;
 
+        EnterCriticalSection(&This->crst);
         EnterCriticalSection(&openal_crst);
         old_ctx = get_context();
         if(old_ctx != This->ctx)
@@ -445,6 +446,7 @@ void DS8Primary_Destroy(DS8Primary *This)
         set_context(old_ctx);
         alcDestroyContext(This->ctx);
         LeaveCriticalSection(&openal_crst);
+        LeaveCriticalSection(&This->crst);
     }
 
     This->crst.DebugInfo->Spare[0] = 0;
