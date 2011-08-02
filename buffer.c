@@ -842,13 +842,12 @@ static void DS8Data_Release(DS8Data *This)
 
 HRESULT DS8Buffer_Create(DS8Buffer **ppv, DS8Primary *prim, IDirectSoundBuffer *orig)
 {
-    HRESULT hr = DSERR_OUTOFMEMORY;
     DS8Buffer *This;
-    DS8Buffer **bufs;
+    HRESULT hr;
 
     *ppv = NULL;
     This = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(*This));
-    if(!This) return hr;
+    if(!This) return DSERR_OUTOFMEMORY;
 
     This->IDirectSoundBuffer8_iface.lpVtbl = (IDirectSoundBuffer8Vtbl*)&DS8Buffer_Vtbl;
     This->IDirectSound3DBuffer_iface.lpVtbl = (IDirectSound3DBufferVtbl*)&DS8Buffer3d_Vtbl;
@@ -872,22 +871,24 @@ HRESULT DS8Buffer_Create(DS8Buffer **ppv, DS8Primary *prim, IDirectSoundBuffer *
     }
 
     /* Append to buffer list */
-    bufs = prim->buffers;
     if(prim->nbuffers == prim->sizebuffers)
     {
-        bufs = HeapReAlloc(GetProcessHeap(), 0, bufs, sizeof(*bufs)*(prim->nbuffers+1));
+        void *bufs;
+
         hr = DSERR_OUTOFMEMORY;
+        bufs = HeapReAlloc(GetProcessHeap(), 0, prim->buffers, sizeof(*bufs)*(prim->nbuffers+1));
         if(!bufs) goto fail;
+
+        prim->buffers = bufs;
         prim->sizebuffers++;
     }
-    prim->buffers = bufs;
-    bufs[prim->nbuffers++] = This;
+    prim->buffers[prim->nbuffers++] = This;
 
     /* Disable until initialized.. */
     This->ds3dmode = DS3DMODE_DISABLE;
 
     *ppv = This;
-    return S_OK;
+    return DS_OK;
 
 fail:
     DS8Buffer_Destroy(This);
