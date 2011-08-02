@@ -906,7 +906,7 @@ static HRESULT WINAPI DS8Primary_SetFormat(IDirectSoundBuffer *iface, const WAVE
         if(FAILED(hr))
             goto out;
 
-        hr = IDirectSoundBuffer8_Initialize(&buf->IDirectSoundBuffer8_iface, (IDirectSound*)&This->parent->IDirectSound8_iface, &desc);
+        hr = IDirectSoundBuffer8_Initialize(&buf->IDirectSoundBuffer8_iface, &This->parent->IDirectSound_iface, &desc);
         if(FAILED(hr))
             DS8Buffer_Destroy(buf);
         else

@@ -308,6 +308,7 @@ typedef struct DS8Buffer DS8Buffer;
 typedef struct DS8Impl
 {
     IDirectSound8 IDirectSound8_iface;
+    IDirectSound IDirectSound_iface;
 
     LONG ref;
     BOOL is_8;

@@ -60,10 +60,16 @@ static DS8Impl **devicelist;
 static UINT devicelistsize;
 
 static const IDirectSound8Vtbl DS8_Vtbl;
+static const IDirectSoundVtbl DS_Vtbl;
 
 static inline DS8Impl *impl_from_IDirectSound8(IDirectSound8 *iface)
 {
     return CONTAINING_RECORD(iface, DS8Impl, IDirectSound8_iface);
+}
+
+static inline DS8Impl *impl_from_IDirectSound(IDirectSound *iface)
+{
+    return CONTAINING_RECORD(iface, DS8Impl, IDirectSound_iface);
 }
 
 HRESULT DSOUND_Create(REFIID riid, void **ds)
@@ -110,6 +116,7 @@ HRESULT DSOUND_Create8(REFIID riid, LPVOID *ds)
     if(!This)
         return E_OUTOFMEMORY;
     This->IDirectSound8_iface.lpVtbl = (IDirectSound8Vtbl*)&DS8_Vtbl;
+    This->IDirectSound_iface.lpVtbl = (IDirectSoundVtbl*)&DS_Vtbl;
 
     This->is_8 = TRUE;
     This->speaker_config = DSSPEAKER_COMBINED(DSSPEAKER_5POINT1, DSSPEAKER_GEOMETRY_WIDE);
@@ -323,7 +330,7 @@ static HRESULT WINAPI DS8_CreateSoundBuffer(IDirectSound8 *iface, LPCDSBUFFERDES
         hr = S_OK;
         if(IDirectSoundBuffer_AddRef(prim) == 1)
         {
-            hr = IDirectSoundBuffer_Initialize(prim, (IDirectSound*)&This->IDirectSound8_iface, desc);
+            hr = IDirectSoundBuffer_Initialize(prim, &This->IDirectSound_iface, desc);
             if(FAILED(hr))
             {
                 IDirectSoundBuffer_Release(prim);
@@ -339,7 +346,7 @@ static HRESULT WINAPI DS8_CreateSoundBuffer(IDirectSound8 *iface, LPCDSBUFFERDES
         hr = DS8Buffer_Create(&dsb, This->primary, NULL);
         if(SUCCEEDED(hr))
         {
-            hr = IDirectSoundBuffer8_Initialize(&dsb->IDirectSoundBuffer8_iface, (IDirectSound*)&This->IDirectSound8_iface, desc);
+            hr = IDirectSoundBuffer8_Initialize(&dsb->IDirectSoundBuffer8_iface, &This->IDirectSound_iface, desc);
             if(FAILED(hr))
                 IDirectSoundBuffer8_Release(&dsb->IDirectSoundBuffer8_iface);
             else
@@ -566,7 +573,7 @@ static HRESULT WINAPI DS8_SetCooperativeLevel(IDirectSound8 *iface, HWND hwnd, D
             if(SUCCEEDED(hr))
             {
                 This->primary->write_emu = &emu->IDirectSoundBuffer8_iface;
-                hr = IDirectSoundBuffer8_Initialize(This->primary->write_emu, (IDirectSound*)&This->IDirectSound8_iface, &desc);
+                hr = IDirectSoundBuffer8_Initialize(This->primary->write_emu, &This->IDirectSound_iface, &desc);
                 if(FAILED(hr))
                 {
                     IDirectSoundBuffer8_Release(This->primary->write_emu);
@@ -798,8 +805,7 @@ static HRESULT WINAPI DS8_VerifyCertification(IDirectSound8 *iface, DWORD *certi
     return DS_OK;
 }
 
-static const IDirectSound8Vtbl DS8_Vtbl =
-{
+static const IDirectSound8Vtbl DS8_Vtbl = {
     DS8_QueryInterface,
     DS8_AddRef,
     DS8_Release,
@@ -812,4 +818,84 @@ static const IDirectSound8Vtbl DS8_Vtbl =
     DS8_SetSpeakerConfig,
     DS8_Initialize,
     DS8_VerifyCertification
+};
+
+
+static HRESULT WINAPI DS_QueryInterface(IDirectSound *iface, REFIID riid, LPVOID *ppv)
+{
+    DS8Impl *This = impl_from_IDirectSound(iface);
+    return DS8_QueryInterface(&This->IDirectSound8_iface, riid, ppv);
+}
+
+static ULONG WINAPI DS_AddRef(IDirectSound *iface)
+{
+    DS8Impl *This = impl_from_IDirectSound(iface);
+    return DS8_AddRef(&This->IDirectSound8_iface);
+}
+
+static ULONG WINAPI DS_Release(IDirectSound *iface)
+{
+    DS8Impl *This = impl_from_IDirectSound(iface);
+    return DS8_Release(&This->IDirectSound8_iface);
+}
+
+static HRESULT WINAPI DS_CreateSoundBuffer(IDirectSound *iface, LPCDSBUFFERDESC desc, LPLPDIRECTSOUNDBUFFER buf, IUnknown *pUnkOuter)
+{
+    DS8Impl *This = impl_from_IDirectSound(iface);
+    return DS8_CreateSoundBuffer(&This->IDirectSound8_iface, desc, buf, pUnkOuter);
+}
+
+static HRESULT WINAPI DS_GetCaps(IDirectSound *iface, LPDSCAPS caps)
+{
+    DS8Impl *This = impl_from_IDirectSound(iface);
+    return DS8_GetCaps(&This->IDirectSound8_iface, caps);
+}
+static HRESULT WINAPI DS_DuplicateSoundBuffer(IDirectSound *iface, IDirectSoundBuffer *in, IDirectSoundBuffer **out)
+{
+    DS8Impl *This = impl_from_IDirectSound(iface);
+    return DS8_DuplicateSoundBuffer(&This->IDirectSound8_iface, in, out);
+}
+
+static HRESULT WINAPI DS_SetCooperativeLevel(IDirectSound *iface, HWND hwnd, DWORD level)
+{
+    DS8Impl *This = impl_from_IDirectSound(iface);
+    return DS8_SetCooperativeLevel(&This->IDirectSound8_iface, hwnd, level);
+}
+
+static HRESULT WINAPI DS_Compact(IDirectSound *iface)
+{
+    DS8Impl *This = impl_from_IDirectSound(iface);
+    return DS8_Compact(&This->IDirectSound8_iface);
+}
+
+static HRESULT WINAPI DS_GetSpeakerConfig(IDirectSound *iface, DWORD *config)
+{
+    DS8Impl *This = impl_from_IDirectSound(iface);
+    return DS8_GetSpeakerConfig(&This->IDirectSound8_iface, config);
+}
+
+static HRESULT WINAPI DS_SetSpeakerConfig(IDirectSound *iface, DWORD config)
+{
+    DS8Impl *This = impl_from_IDirectSound(iface);
+    return DS8_SetSpeakerConfig(&This->IDirectSound8_iface, config);
+}
+
+static HRESULT WINAPI DS_Initialize(IDirectSound *iface, const GUID *devguid)
+{
+    DS8Impl *This = impl_from_IDirectSound(iface);
+    return DS8_Initialize(&This->IDirectSound8_iface, devguid);
+}
+
+static const IDirectSoundVtbl DS_Vtbl = {
+    DS_QueryInterface,
+    DS_AddRef,
+    DS_Release,
+    DS_CreateSoundBuffer,
+    DS_GetCaps,
+    DS_DuplicateSoundBuffer,
+    DS_SetCooperativeLevel,
+    DS_Compact,
+    DS_GetSpeakerConfig,
+    DS_SetSpeakerConfig,
+    DS_Initialize
 };
