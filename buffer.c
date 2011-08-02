@@ -720,8 +720,8 @@ static HRESULT DS8Data_Create(DS8Data **ppv, const DSBUFFERDESC *desc, DS8Primar
     {
         const char *fmt_str;
 
-        if(!(pBuffer->dsbflags&DSBCAPS_STATIC) && !prim->ExtAL.BufferSubData &&
-           !prim->ExtAL.BufferDataStatic)
+        if(!(pBuffer->dsbflags&DSBCAPS_STATIC) && !prim->SupportedExt[SOFT_BUFFER_SUB_DATA] &&
+           !prim->SupportedExt[EXT_STATIC_BUFFER])
         {
             ALCint refresh = FAKE_REFRESH_COUNT;
             ALuint newSize;
@@ -1079,7 +1079,8 @@ static HRESULT WINAPI DS8Buffer_GetCurrentPosition(IDirectSoundBuffer8 *iface, D
         pos *= This->buffer->segsize;
         writecursor = This->curidx * This->buffer->segsize;
     }
-    else if(This->ExtAL->BufferSubData || This->ExtAL->BufferSamplesSOFT)
+    else if(This->primary->SupportedExt[SOFT_BUFFER_SUB_DATA] ||
+            This->primary->SupportedExt[SOFT_BUFFER_SAMPLES])
     {
         ALint rwpos[2] = { 0, 0 };
 
@@ -1364,16 +1365,16 @@ static HRESULT WINAPI DS8Buffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSo
             else
                 memset(buf->data, 0x00, buf->buf_size);
 
-            if(This->ExtAL->BufferDataStatic)
+            if(This->primary->SupportedExt[EXT_STATIC_BUFFER])
                 This->ExtAL->BufferDataStatic(buf->buffers[0], buf->buf_format,
                                               buf->data, buf->buf_size,
                                               buf->format.Format.nSamplesPerSec);
-            else if(This->ExtAL->BufferSamplesSOFT)
+            else if(This->primary->SupportedExt[SOFT_BUFFER_SAMPLES])
                 This->ExtAL->BufferSamplesSOFT(buf->buffers[0],
                          buf->format.Format.nSamplesPerSec, buf->buf_format,
                          buf->buf_size/buf->format.Format.nBlockAlign,
                          buf->in_chans, buf->in_type, buf->data);
-            else if(This->ExtAL->BufferSubData)
+            else if(This->primary->SupportedExt[SOFT_BUFFER_SUB_DATA])
                 alBufferData(buf->buffers[0], buf->buf_format,
                              buf->data, buf->buf_size,
                              buf->format.Format.nSamplesPerSec);
@@ -1826,10 +1827,10 @@ static HRESULT WINAPI DS8Buffer_Unlock(IDirectSoundBuffer8 *iface, void *ptr1, D
     if(!len1 && !len2)
         goto out;
 
-    if(This->ExtAL->BufferDataStatic)
+    if(This->primary->SupportedExt[EXT_STATIC_BUFFER])
         goto out;
 
-    if(This->ExtAL->BufferSubSamplesSOFT)
+    if(This->primary->SupportedExt[SOFT_BUFFER_SAMPLES])
     {
         const WAVEFORMATEX *format = &buf->format.Format;
 
@@ -1847,7 +1848,7 @@ static HRESULT WINAPI DS8Buffer_Unlock(IDirectSoundBuffer8 *iface, void *ptr1, D
                                               buf->in_chans, buf->in_type, ptr2);
         getALError();
     }
-    else if(This->ExtAL->BufferSubData)
+    else if(This->primary->SupportedExt[SOFT_BUFFER_SUB_DATA])
     {
         const WAVEFORMATEX *format = &buf->format.Format;
 

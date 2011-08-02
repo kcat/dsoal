@@ -130,8 +130,9 @@ static DWORD CALLBACK ThreadProc(void *dwUser)
         /* OpenAL doesn't support our lovely buffer extensions
          * so just make sure enough buffers are queued
          */
-        if(!prim->ExtAL.BufferSamplesSOFT && !prim->ExtAL.BufferSubData &&
-           !prim->ExtAL.BufferDataStatic)
+        if(!prim->SupportedExt[SOFT_BUFFER_SAMPLES] &&
+           !prim->SupportedExt[SOFT_BUFFER_SUB_DATA] &&
+           !prim->SupportedExt[EXT_STATIC_BUFFER])
         {
             for(i = 0;i < prim->nbuffers;++i)
             {
@@ -330,8 +331,9 @@ HRESULT DS8Primary_Create(DS8Primary **ppv, DS8Impl *parent)
      */
     This->buf_size = 32768;
 
-    if(!This->ExtAL.BufferSubData && !This->ExtAL.BufferSamplesSOFT &&
-       !This->ExtAL.BufferDataStatic)
+    if(!This->SupportedExt[SOFT_BUFFER_SUB_DATA] &&
+       !This->SupportedExt[SOFT_BUFFER_SAMPLES] &&
+       !This->SupportedExt[EXT_STATIC_BUFFER])
     {
         ERR("Missing alBufferSubDataSOFT, alBufferSamplesSOFT , and alBufferDataStatic on device '%s', sound playback quality may be degraded\n",
              alcGetString(parent->device, ALC_DEVICE_SPECIFIER));
