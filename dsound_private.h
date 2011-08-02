@@ -482,6 +482,7 @@ typedef struct DS8Data {
 struct DS8Buffer
 {
     IDirectSoundBuffer8 IDirectSoundBuffer8_iface;
+    IDirectSoundBuffer IDirectSoundBuffer_iface;
     IDirectSound3DBuffer IDirectSound3DBuffer_iface;
     IDirectSoundNotify IDirectSoundNotify_iface;
     IKsPropertySet IKsPropertySet_iface;

@@ -664,7 +664,7 @@ static HRESULT WINAPI DS8Primary_GetStatus(IDirectSoundBuffer *iface, DWORD *sta
 
         for(i = 0;i < This->nbuffers;++i)
         {
-            hr = IDirectSoundBuffer_GetStatus((IDirectSoundBuffer*)This->buffers[i], &state);
+            hr = IDirectSoundBuffer8_GetStatus(&This->buffers[i]->IDirectSoundBuffer8_iface, &state);
             if(SUCCEEDED(hr) && (state&DSBSTATUS_PLAYING))
                 break;
         }
@@ -1065,7 +1065,7 @@ static inline DS8Primary *impl_from_IDirectSound3DListener(IDirectSound3DListene
 static HRESULT WINAPI DS8Primary3D_QueryInterface(IDirectSound3DListener *iface, REFIID riid, void **ppv)
 {
     DS8Primary *This = impl_from_IDirectSound3DListener(iface);
-    return IDirectSoundBuffer_QueryInterface((IDirectSoundBuffer*)This, riid, ppv);
+    return DS8Primary_QueryInterface(&This->IDirectSoundBuffer_iface, riid, ppv);
 }
 
 static ULONG WINAPI DS8Primary3D_AddRef(IDirectSound3DListener *iface)
@@ -1656,7 +1656,7 @@ static inline DS8Primary *impl_from_IKsPropertySet(IKsPropertySet *iface)
 static HRESULT WINAPI DS8PrimaryProp_QueryInterface(IKsPropertySet *iface, REFIID riid, void **ppv)
 {
     DS8Primary *This = impl_from_IKsPropertySet(iface);
-    return IDirectSoundBuffer_QueryInterface((IDirectSoundBuffer*)This, riid, ppv);
+    return DS8Primary_QueryInterface(&This->IDirectSoundBuffer_iface, riid, ppv);
 }
 
 static ULONG WINAPI DS8PrimaryProp_AddRef(IKsPropertySet *iface)

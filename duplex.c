@@ -395,7 +395,9 @@ static HRESULT WINAPI IDirectSoundFullDuplexImpl_Initialize(
     IDirectSoundBuffer8 **lplpDirectSoundBuffer8)
 {
     IDirectSoundFullDuplexImpl *This = impl_from_IDirectSoundFullDuplex(iface);
-    void *device;
+    IDirectSoundCaptureBuffer *capbuffer;
+    IDirectSoundBuffer *buffer;
+    void *ptr;
     HRESULT hr;
 
     TRACE("(%p,%s,%s,%p,%p,%p,%x,%p,%p)\n", This,
@@ -412,10 +414,10 @@ static HRESULT WINAPI IDirectSoundFullDuplexImpl_Initialize(
         return DSERR_ALREADYINITIALIZED;
     }
 
-    hr = DSOUND_Create8(&IID_IDirectSound8, &device);
+    hr = DSOUND_Create8(&IID_IDirectSound8, &ptr);
     if(SUCCEEDED(hr))
     {
-        This->renderer_device = device;
+        This->renderer_device = ptr;
         hr = IDirectSound_Initialize(This->renderer_device, pRendererGuid);
     }
     if(hr != DS_OK)
@@ -427,17 +429,23 @@ static HRESULT WINAPI IDirectSoundFullDuplexImpl_Initialize(
     IDirectSound8_SetCooperativeLevel(This->renderer_device, hWnd, dwLevel);
 
     hr = IDirectSound8_CreateSoundBuffer(This->renderer_device, lpDsBufferDesc,
-        (IDirectSoundBuffer**)lplpDirectSoundBuffer8, NULL);
+                                         &buffer, NULL);
+    if(SUCCEEDED(hr))
+    {
+        hr = IDirectSoundBuffer_QueryInterface(buffer, &IID_IDirectSoundBuffer8, &ptr);
+        IDirectSoundBuffer_Release(buffer);
+    }
     if(hr != DS_OK)
     {
         WARN("IDirectSoundBufferImpl_Create() failed\n");
         return hr;
     }
+    *lplpDirectSoundBuffer8 = ptr;
 
-    hr = DSOUND_CaptureCreate8(&IID_IDirectSoundCapture8, &device);
+    hr = DSOUND_CaptureCreate8(&IID_IDirectSoundCapture8, &ptr);
     if(SUCCEEDED(hr))
     {
-        This->capture_device = device;
+        This->capture_device = ptr;
         hr = IDirectSoundCapture_Initialize(This->capture_device, pCaptureGuid);
     }
     if(hr != DS_OK)
@@ -447,12 +455,18 @@ static HRESULT WINAPI IDirectSoundFullDuplexImpl_Initialize(
     }
 
     hr = IDirectSoundCapture_CreateCaptureBuffer(This->capture_device, lpDscBufferDesc,
-        (IDirectSoundCaptureBuffer**)lplpDirectSoundCaptureBuffer8, NULL);
+                                                 &capbuffer, NULL);
+    if(SUCCEEDED(hr))
+    {
+        hr = IDirectSoundCaptureBuffer_QueryInterface(capbuffer, &IID_IDirectSoundCaptureBuffer8, &ptr);
+        IDirectSoundCaptureBuffer_Release(capbuffer);
+    }
     if(hr != DS_OK)
     {
         WARN("IDirectSoundCaptureBufferImpl_Create() failed\n");
         return hr;
     }
+    *lplpDirectSoundCaptureBuffer8 = ptr;
 
     return hr;
 }
