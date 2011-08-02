@@ -408,7 +408,8 @@ void DS8Primary_Destroy(DS8Primary *This)
     if(This->thread_hdl)
     {
         PostThreadMessageA(This->thread_id, WM_QUIT, 0, 0);
-        WaitForSingleObject(This->thread_hdl, 1000);
+        if(WaitForSingleObject(This->thread_hdl, 1000) != WAIT_OBJECT_0)
+            ERR("Thread wait timed out");
         CloseHandle(This->thread_hdl);
     }
 
