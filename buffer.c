@@ -1126,7 +1126,6 @@ static HRESULT WINAPI DS8Buffer_GetFormat(IDirectSoundBuffer8 *iface, WAVEFORMAT
         return DSERR_INVALIDPARAM;
     }
 
-    EnterCriticalSection(This->crst);
     size = sizeof(This->buffer->format.Format) + This->buffer->format.Format.cbSize;
     if(wfx)
     {
@@ -1137,7 +1136,6 @@ static HRESULT WINAPI DS8Buffer_GetFormat(IDirectSoundBuffer8 *iface, WAVEFORMAT
     }
     if(written)
         *written = size;
-    LeaveCriticalSection(This->crst);
 
     return hr;
 }
@@ -1154,8 +1152,6 @@ static HRESULT WINAPI DS8Buffer_GetVolume(IDirectSoundBuffer8 *iface, LONG *vol)
         WARN("Invalid pointer\n");
         return DSERR_INVALIDPARAM;
     }
-
-    EnterCriticalSection(This->crst);
 
     hr = DSERR_CONTROLUNAVAIL;
     if(!(This->buffer->dsbflags&DSBCAPS_CTRLVOLUME))
@@ -1176,7 +1172,6 @@ static HRESULT WINAPI DS8Buffer_GetVolume(IDirectSoundBuffer8 *iface, LONG *vol)
         hr = DS_OK;
     }
 
-    LeaveCriticalSection(This->crst);
     return hr;
 }
 
@@ -1192,8 +1187,6 @@ static HRESULT WINAPI DS8Buffer_GetPan(IDirectSoundBuffer8 *iface, LONG *pan)
         WARN("Invalid pointer\n");
         return DSERR_INVALIDPARAM;
     }
-
-    EnterCriticalSection(This->crst);
 
     hr = DSERR_CONTROLUNAVAIL;
     if(!(This->buffer->dsbflags&DSBCAPS_CTRLPAN))
@@ -1214,7 +1207,6 @@ static HRESULT WINAPI DS8Buffer_GetPan(IDirectSoundBuffer8 *iface, LONG *pan)
         hr = DS_OK;
     }
 
-    LeaveCriticalSection(This->crst);
     return hr;
 }
 
@@ -1230,8 +1222,6 @@ static HRESULT WINAPI DS8Buffer_GetFrequency(IDirectSoundBuffer8 *iface, DWORD *
         WARN("Invalid pointer\n");
         return DSERR_INVALIDPARAM;
     }
-
-    EnterCriticalSection(This->crst);
 
     hr = DSERR_CONTROLUNAVAIL;
     if(!(This->buffer->dsbflags&DSBCAPS_CTRLFREQUENCY))
@@ -1250,7 +1240,6 @@ static HRESULT WINAPI DS8Buffer_GetFrequency(IDirectSoundBuffer8 *iface, DWORD *
         hr = DS_OK;
     }
 
-    LeaveCriticalSection(This->crst);
     return hr;
 }
 
@@ -1279,6 +1268,8 @@ static HRESULT WINAPI DS8Buffer_GetStatus(IDirectSoundBuffer8 *iface, DWORD *sta
     getALError();
     popALContext();
 
+    LeaveCriticalSection(This->crst);
+
     *status = 0;
     if((This->buffer->dsbflags&DSBCAPS_LOCDEFER))
     {
@@ -1289,8 +1280,6 @@ static HRESULT WINAPI DS8Buffer_GetStatus(IDirectSoundBuffer8 *iface, DWORD *sta
     }
     if(state == AL_PLAYING)
         *status |= DSBSTATUS_PLAYING | (looping ? DSBSTATUS_LOOPING : 0);
-
-    LeaveCriticalSection(This->crst);
 
     return S_OK;
 }
@@ -1600,16 +1589,13 @@ out:
 static HRESULT WINAPI DS8Buffer_SetCurrentPosition(IDirectSoundBuffer8 *iface, DWORD pos)
 {
     DS8Buffer *This = impl_from_IDirectSoundBuffer8(iface);
-    HRESULT hr;
 
     TRACE("(%p)->(%u)\n", iface, (UINT)pos);
 
-    EnterCriticalSection(This->crst);
-    setALContext(This->ctx);
-
-    hr = DSERR_INVALIDPARAM;
     if(pos >= This->buffer->buf_size)
-        goto out;
+        return DSERR_INVALIDPARAM;
+
+    EnterCriticalSection(This->crst);
 
     if(This->buffer->numsegs > 1)
     {
@@ -1619,22 +1605,24 @@ static HRESULT WINAPI DS8Buffer_SetCurrentPosition(IDirectSoundBuffer8 *iface, D
             This->curidx = buf->numsegs - 1;
         if(This->isplaying)
         {
+            setALContext(This->ctx);
             /* Perform a flush, so the next timer update will restart at the
              * proper position */
             alSourceStop(This->source);
-            alSourcei(This->source, AL_BUFFER, 0);
             getALError();
+            popALContext();
         }
     }
     else
+    {
+        setALContext(This->ctx);
         alSourcei(This->source, AL_BYTE_OFFSET, pos);
+        popALContext();
+    }
     This->lastpos = pos;
-    hr = S_OK;
 
-out:
-    popALContext();
     LeaveCriticalSection(This->crst);
-    return hr;
+    return DS_OK;
 }
 
 static HRESULT WINAPI DS8Buffer_SetFormat(IDirectSoundBuffer8 *iface, const WAVEFORMATEX *wfx)
@@ -1657,7 +1645,6 @@ static HRESULT WINAPI DS8Buffer_SetVolume(IDirectSoundBuffer8 *iface, LONG vol)
         return DSERR_INVALIDPARAM;
     }
 
-    EnterCriticalSection(This->crst);
     if(!(This->buffer->dsbflags&DSBCAPS_CTRLVOLUME))
         hr = DSERR_CONTROLUNAVAIL;
     if(SUCCEEDED(hr))
@@ -1667,7 +1654,6 @@ static HRESULT WINAPI DS8Buffer_SetVolume(IDirectSoundBuffer8 *iface, LONG vol)
         alSourcef(This->source, AL_GAIN, fvol);
         popALContext();
     }
-    LeaveCriticalSection(This->crst);
 
     return hr;
 }
@@ -1685,7 +1671,6 @@ static HRESULT WINAPI DS8Buffer_SetPan(IDirectSoundBuffer8 *iface, LONG pan)
         return DSERR_INVALIDPARAM;
     }
 
-    EnterCriticalSection(This->crst);
     if(!(This->buffer->dsbflags&DSBCAPS_CTRLPAN))
         hr = DSERR_CONTROLUNAVAIL;
     else
@@ -1706,7 +1691,6 @@ static HRESULT WINAPI DS8Buffer_SetPan(IDirectSoundBuffer8 *iface, LONG pan)
         if(pan != 0 && This->buffer->format.Format.nChannels > 1)
             FIXME("Panning for multi-channel buffers is not supported\n");
     }
-    LeaveCriticalSection(This->crst);
 
     return hr;
 }
@@ -1724,7 +1708,6 @@ static HRESULT WINAPI DS8Buffer_SetFrequency(IDirectSoundBuffer8 *iface, DWORD f
         return DSERR_INVALIDPARAM;
     }
 
-    EnterCriticalSection(This->crst);
     if(!(This->buffer->dsbflags&DSBCAPS_CTRLFREQUENCY))
         hr = DSERR_CONTROLUNAVAIL;
     else
@@ -1738,7 +1721,7 @@ static HRESULT WINAPI DS8Buffer_SetFrequency(IDirectSoundBuffer8 *iface, DWORD f
         getALError();
         popALContext();
     }
-    LeaveCriticalSection(This->crst);
+
     return hr;
 }
 
