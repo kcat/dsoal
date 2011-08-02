@@ -194,7 +194,6 @@ static const char *get_fmtstr_PCM(const DS8Primary *prim, const WAVEFORMATEX *fo
         case 6: return "AL_FORMAT_51CHN8";
         case 7: return "AL_FORMAT_61CHN8";
         case 8: return "AL_FORMAT_71CHN8";
-        default: break;
         }
     }
     else if(format->wBitsPerSample == 16)
@@ -207,7 +206,6 @@ static const char *get_fmtstr_PCM(const DS8Primary *prim, const WAVEFORMATEX *fo
         case 6: return "AL_FORMAT_51CHN16";
         case 7: return "AL_FORMAT_61CHN16";
         case 8: return "AL_FORMAT_71CHN16";
-        default: break;
         }
     }
 
@@ -237,7 +235,6 @@ static ALenum get_fmt_PCM(const WAVEFORMATEX *format, WAVEFORMATEXTENSIBLE *out,
                 return AL_6POINT1_8;
         case 8: *in_chans = AL_7POINT1;
                 return AL_7POINT1_8;
-        default: break;
         }
     }
     else if(format->wBitsPerSample == 16)
@@ -257,7 +254,6 @@ static ALenum get_fmt_PCM(const WAVEFORMATEX *format, WAVEFORMATEXTENSIBLE *out,
                 return AL_6POINT1_16;
         case 8: *in_chans = AL_7POINT1;
                 return AL_7POINT1_16;
-        default: break;
         }
     }
 #if 0 /* Will cause incorrect byte offsets */
@@ -278,7 +274,6 @@ static ALenum get_fmt_PCM(const WAVEFORMATEX *format, WAVEFORMATEXTENSIBLE *out,
                 return AL_6POINT1_32F;
         case 8: *in_chans = AL_7POINT1;
                 return AL_7POINT1_32F;
-        default: break;
         }
     }
 #endif
@@ -299,7 +294,6 @@ static ALenum get_fmt_PCM(const WAVEFORMATEX *format, WAVEFORMATEXTENSIBLE *out,
                 return AL_6POINT1_32F;
         case 8: *in_chans = AL_7POINT1;
                 return AL_7POINT1_32F;
-        default: break;
         }
     }
 
@@ -330,7 +324,6 @@ static const char *get_fmtstr_FLOAT(const DS8Primary *prim, const WAVEFORMATEX *
         case 6: return "AL_FORMAT_51CHN32";
         case 7: return "AL_FORMAT_61CHN32";
         case 8: return "AL_FORMAT_71CHN32";
-        default: break;
         }
     }
 
@@ -360,7 +353,6 @@ static ALenum get_fmt_FLOAT(const WAVEFORMATEX *format, WAVEFORMATEXTENSIBLE *ou
                 return AL_6POINT1_32F;
         case 8: *in_chans = AL_7POINT1;
                 return AL_7POINT1_32F;
-        default: break;
         }
     }
 #if 0 /* Will cause incorrect byte offsets */
@@ -381,7 +373,6 @@ static ALenum get_fmt_FLOAT(const WAVEFORMATEX *format, WAVEFORMATEXTENSIBLE *ou
                 return AL_6POINT1_32F;
         case 8: *in_chans = AL_7POINT1;
                 return AL_7POINT1_32F;
-        default: break;
         }
     }
 #endif
@@ -433,7 +424,6 @@ static const char *get_fmtstr_EXT(const DS8Primary *prim, const WAVEFORMATEX *fo
             case X5DOT1: return "AL_FORMAT_51CHN8";
             case X6DOT1: return "AL_FORMAT_61CHN8";
             case X7DOT1: return "AL_FORMAT_71CHN8";
-            default: break;
             }
         }
         else if(out->Samples.wValidBitsPerSample == 16)
@@ -447,7 +437,6 @@ static const char *get_fmtstr_EXT(const DS8Primary *prim, const WAVEFORMATEX *fo
             case X5DOT1: return "AL_FORMAT_51CHN16";
             case X6DOT1: return "AL_FORMAT_61CHN16";
             case X7DOT1: return "AL_FORMAT_71CHN16";
-            default: break;
             }
         }
 
@@ -469,7 +458,6 @@ static const char *get_fmtstr_EXT(const DS8Primary *prim, const WAVEFORMATEX *fo
             case X5DOT1: return "AL_FORMAT_51CHN32";
             case X6DOT1: return "AL_FORMAT_61CHN32";
             case X7DOT1: return "AL_FORMAT_71CHN32";
-            default: break;
             }
         }
         else
@@ -520,7 +508,6 @@ static ALenum get_fmt_EXT(const WAVEFORMATEX *format, WAVEFORMATEXTENSIBLE *out,
                          return AL_6POINT1_8;
             case X7DOT1: *in_chans = AL_7POINT1;
                          return AL_7POINT1_8;
-            default: break;
             }
         }
         else if(out->Samples.wValidBitsPerSample == 16)
@@ -542,7 +529,6 @@ static ALenum get_fmt_EXT(const WAVEFORMATEX *format, WAVEFORMATEXTENSIBLE *out,
                          return AL_6POINT1_16;
             case X7DOT1: *in_chans = AL_7POINT1;
                          return AL_7POINT1_16;
-            default: break;
             }
         }
 #if 0
@@ -565,7 +551,6 @@ static ALenum get_fmt_EXT(const WAVEFORMATEX *format, WAVEFORMATEXTENSIBLE *out,
                          return AL_6POINT1_32F;
             case X7DOT1: *in_chans = AL_7POINT1;
                          return AL_7POINT1_32F;
-            default: break;
             }
         }
 #endif
@@ -588,7 +573,6 @@ static ALenum get_fmt_EXT(const WAVEFORMATEX *format, WAVEFORMATEXTENSIBLE *out,
                          return AL_6POINT1_32F;
             case X7DOT1: *in_chans = AL_7POINT1;
                          return AL_7POINT1_32F;
-            default: break;
             }
         }
 
@@ -617,7 +601,6 @@ static ALenum get_fmt_EXT(const WAVEFORMATEX *format, WAVEFORMATEXTENSIBLE *out,
                          return AL_6POINT1_32F;
             case X7DOT1: *in_chans = AL_7POINT1;
                          return AL_7POINT1_32F;
-            default: break;
             }
         }
 #if 0
@@ -640,7 +623,6 @@ static ALenum get_fmt_EXT(const WAVEFORMATEX *format, WAVEFORMATEXTENSIBLE *out,
                          return AL_6POINT1_32F;
             case X7DOT1: *in_chans = AL_7POINT1;
                          return AL_7POINT1_32F;
-            default: break;
             }
         }
 #endif
