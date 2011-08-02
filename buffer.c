@@ -1165,10 +1165,7 @@ static HRESULT WINAPI DS8Buffer_GetVolume(IDirectSoundBuffer8 *iface, LONG *vol)
         getALError();
         popALContext();
 
-        *vol = gain_to_mB(gain);
-        *vol = min(*vol, DSBVOLUME_MAX);
-        *vol = max(*vol, DSBVOLUME_MIN);
-
+        *vol = clampI(gain_to_mB(gain), DSBVOLUME_MIN, DSBVOLUME_MAX);
         hr = DS_OK;
     }
 
@@ -1200,10 +1197,7 @@ static HRESULT WINAPI DS8Buffer_GetPan(IDirectSoundBuffer8 *iface, LONG *pan)
         getALError();
         popALContext();
 
-        *pan = (LONG)((pos[0]+1.0) * (DSBPAN_RIGHT-DSBPAN_LEFT) / 2.0 + 0.5) + DSBPAN_LEFT;
-        *pan = min(*pan, DSBPAN_RIGHT);
-        *pan = max(*pan, DSBPAN_LEFT);
-
+        *pan = clampI(((pos[0]+1.0) * (DSBPAN_RIGHT-DSBPAN_LEFT) / 2.0 + 0.5) + DSBPAN_LEFT, DSBPAN_LEFT, DSBPAN_RIGHT);
         hr = DS_OK;
     }
 
@@ -1236,7 +1230,6 @@ static HRESULT WINAPI DS8Buffer_GetFrequency(IDirectSoundBuffer8 *iface, DWORD *
         popALContext();
 
         *freq = (DWORD)(This->buffer->format.Format.nSamplesPerSec * pitch);
-
         hr = DS_OK;
     }
 
@@ -2106,12 +2099,11 @@ static HRESULT WINAPI DS8Buffer3D_GetConeOutsideVolume(IDirectSound3DBuffer *ifa
 
     alGetSourcef(This->source, AL_CONE_OUTER_GAIN, &gain);
     getALError();
-    *vol = gain_to_mB(gain);
-    *vol = max(*vol, DSBVOLUME_MIN);
-    *vol = min(*vol, DSBVOLUME_MAX);
 
     popALContext();
     LeaveCriticalSection(This->crst);
+
+    *vol = clampI(gain_to_mB(gain), DSBVOLUME_MIN, DSBVOLUME_MAX);
     return S_OK;
 }
 
@@ -2132,11 +2124,11 @@ static HRESULT WINAPI DS8Buffer3D_GetMaxDistance(IDirectSound3DBuffer *iface, D3
 
     alGetSourcef(This->source, AL_MAX_DISTANCE, &dist);
     getALError();
-    *maxdist = dist;
 
     popALContext();
     LeaveCriticalSection(This->crst);
 
+    *maxdist = dist;
     return S_OK;
 }
 

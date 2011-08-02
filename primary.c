@@ -584,16 +584,13 @@ static HRESULT WINAPI DS8Primary_GetVolume(IDirectSoundBuffer *iface, LONG *volu
     else
     {
         ALfloat gain;
-        LONG vol;
 
         setALContext(This->ctx);
         alGetListenerf(AL_GAIN, &gain);
         getALError();
         popALContext();
 
-        vol = gain_to_mB(gain);
-        vol = max(vol, DSBVOLUME_MIN);
-        *volume = min(vol, DSBVOLUME_MAX);
+        *volume = clampI(gain_to_mB(gain), DSBVOLUME_MIN, DSBVOLUME_MAX);
     }
     LeaveCriticalSection(&This->crst);
 
