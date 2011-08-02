@@ -72,11 +72,14 @@ HRESULT DSOUND_Create(REFIID riid, void **ds)
 
     if(IsEqualIID(riid, &IID_IDirectSound8))
         return E_NOINTERFACE;
-    hr = DSOUND_Create8(riid, ds);
+    hr = DSOUND_Create8(&IID_IDirectSound8, ds);
     if(hr == S_OK)
     {
         DS8Impl *impl = impl_from_IDirectSound8(*ds);
         impl->is_8 = FALSE;
+
+        hr = IDirectSound8_QueryInterface(&impl->IDirectSound8_iface, riid, ds);
+        IDirectSound8_Release(&impl->IDirectSound8_iface);
     }
     return hr;
 }
