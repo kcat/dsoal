@@ -135,7 +135,7 @@ static void DS8Buffer_starttimer(DS8Primary *prim)
     triggertime = 1000 / refresh / 2;
     if(triggertime < time.wPeriodMin)
         triggertime = time.wPeriodMin;
-    TRACE("Calling timer every %u ms for %i refreshes per second\n", triggertime, refresh);
+    TRACE("Calling timer every %"LONGFMT"u ms for %i refreshes per second\n", triggertime, refresh);
 
     if (res < time.wPeriodMin)
         res = time.wPeriodMin;
@@ -441,7 +441,7 @@ static const char *get_fmtstr_EXT(const DS8Primary *prim, const WAVEFORMATEX *fo
             }
         }
 
-        FIXME("Could not get OpenAL PCM format (%d-bit, channelmask %#x)\n",
+        FIXME("Could not get OpenAL PCM format (%d-bit, channelmask %#"LONGFMT"x)\n",
               out->Samples.wValidBitsPerSample, out->dwChannelMask);
         return NULL;
     }
@@ -467,7 +467,7 @@ static const char *get_fmtstr_EXT(const DS8Primary *prim, const WAVEFORMATEX *fo
             return NULL;
         }
 
-        FIXME("Could not get OpenAL float format (%d-bit, channelmask %#x)\n",
+        FIXME("Could not get OpenAL float format (%d-bit, channelmask %#"LONGFMT"x)\n",
               out->Samples.wValidBitsPerSample, out->dwChannelMask);
         return NULL;
     }
@@ -577,7 +577,7 @@ static ALenum get_fmt_EXT(const WAVEFORMATEX *format, WAVEFORMATEXTENSIBLE *out,
             }
         }
 
-        FIXME("Could not get OpenAL PCM format (%d-bit, channelmask %#x)\n",
+        FIXME("Could not get OpenAL PCM format (%d-bit, channelmask %#"LONGFMT"x)\n",
               out->Samples.wValidBitsPerSample, out->dwChannelMask);
         return AL_NONE;
     }
@@ -633,7 +633,7 @@ static ALenum get_fmt_EXT(const WAVEFORMATEX *format, WAVEFORMATEXTENSIBLE *out,
             return AL_NONE;
         }
 
-        FIXME("Could not get OpenAL float format (%d-bit, channelmask %#x)\n",
+        FIXME("Could not get OpenAL float format (%d-bit, channelmask %#"LONGFMT"x)\n",
               out->Samples.wValidBitsPerSample, out->dwChannelMask);
         return AL_NONE;
     }
@@ -653,8 +653,8 @@ static HRESULT DS8Data_Create(DS8Data **ppv, const DSBUFFERDESC *desc, DS8Primar
     TRACE("Requested buffer format:\n"
           "    FormatTag      = 0x%04x\n"
           "    Channels       = %d\n"
-          "    SamplesPerSec  = %u\n"
-          "    AvgBytesPerSec = %u\n"
+          "    SamplesPerSec  = %"LONGFMT"u\n"
+          "    AvgBytesPerSec = %"LONGFMT"u\n"
           "    BlockAlign     = %d\n"
           "    BitsPerSample  = %d\n",
           format->wFormatTag, format->nChannels,
@@ -701,7 +701,7 @@ static HRESULT DS8Data_Create(DS8Data **ppv, const DSBUFFERDESC *desc, DS8Primar
 
     if(!prim->SupportedExt[SOFT_BUFFER_SAMPLES])
     {
-        const char *fmt_str;
+        const char *fmt_str = NULL;
 
         if(!(pBuffer->dsbflags&DSBCAPS_STATIC) && !prim->SupportedExt[SOFT_BUFFER_SUB_DATA] &&
            !prim->SupportedExt[EXT_STATIC_BUFFER])
@@ -745,7 +745,7 @@ static HRESULT DS8Data_Create(DS8Data **ppv, const DSBUFFERDESC *desc, DS8Primar
             wfe = CONTAINING_RECORD(format, const WAVEFORMATEXTENSIBLE, Format);
             TRACE("Extensible values:\n"
                   "    Samples     = %d\n"
-                  "    ChannelMask = 0x%x\n"
+                  "    ChannelMask = 0x%"LONGFMT"x\n"
                   "    SubFormat   = %s\n",
                   wfe->Samples.wReserved, wfe->dwChannelMask,
                   debugstr_guid(&wfe->SubFormat));
@@ -785,7 +785,7 @@ static HRESULT DS8Data_Create(DS8Data **ppv, const DSBUFFERDESC *desc, DS8Primar
             wfe = CONTAINING_RECORD(format, const WAVEFORMATEXTENSIBLE, Format);
             TRACE("Extensible values:\n"
                   "    Samples     = %d\n"
-                  "    ChannelMask = 0x%x\n"
+                  "    ChannelMask = 0x%"LONGFMT"x\n"
                   "    SubFormat   = %s\n",
                   wfe->Samples.wReserved, wfe->dwChannelMask,
                   debugstr_guid(&wfe->SubFormat));
@@ -1007,7 +1007,7 @@ static ULONG WINAPI DS8Buffer_AddRef(IDirectSoundBuffer8 *iface)
 
     InterlockedIncrement(&This->all_ref);
     ret = InterlockedIncrement(&This->ref);
-    TRACE("new refcount %d\n", ret);
+    TRACE("new refcount %"LONGFMT"d\n", ret);
 
     return ret;
 }
@@ -1018,7 +1018,7 @@ static ULONG WINAPI DS8Buffer_Release(IDirectSoundBuffer8 *iface)
     LONG ret;
 
     ret = InterlockedDecrement(&This->ref);
-    TRACE("new refcount %d\n", ret);
+    TRACE("new refcount %"LONGFMT"d\n", ret);
     if(InterlockedDecrement(&This->all_ref) == 0)
         DS8Buffer_Destroy(This);
 
@@ -1033,7 +1033,7 @@ static HRESULT WINAPI DS8Buffer_GetCaps(IDirectSoundBuffer8 *iface, DSBCAPS *cap
 
     if(!caps || caps->dwSize < sizeof(*caps))
     {
-        WARN("Invalid DSBCAPS (%p, %u)\n", caps, (caps ? caps->dwSize : 0));
+        WARN("Invalid DSBCAPS (%p, %"LONGFMT"u)\n", caps, (caps ? caps->dwSize : 0));
         return DSERR_INVALIDPARAM;
     }
 
@@ -1122,7 +1122,7 @@ static HRESULT WINAPI DS8Buffer_GetFormat(IDirectSoundBuffer8 *iface, WAVEFORMAT
     HRESULT hr = S_OK;
     UINT size;
 
-    TRACE("(%p)->(%p, %u, %p)\n", iface, wfx, allocated, written);
+    TRACE("(%p)->(%p, %"LONGFMT"u, %p)\n", iface, wfx, allocated, written);
 
     if(!wfx && !written)
     {
@@ -1437,7 +1437,7 @@ static HRESULT WINAPI DS8Buffer_Lock(IDirectSoundBuffer8 *iface, DWORD ofs, DWOR
     DS8Buffer *This = impl_from_IDirectSoundBuffer8(iface);
     DWORD remain;
 
-    TRACE("(%p)->(%u, %u, %p, %p, %p, %p, 0x%x)\n", This, ofs, bytes, ptr1, len1, ptr2, len2, flags);
+    TRACE("(%p)->(%"LONGFMT"u, %"LONGFMT"u, %p, %p, %p, %p, 0x%"LONGFMT"x)\n", This, ofs, bytes, ptr1, len1, ptr2, len2, flags);
 
     if(!ptr1 || !len1)
     {
@@ -1454,14 +1454,14 @@ static HRESULT WINAPI DS8Buffer_Lock(IDirectSoundBuffer8 *iface, DWORD ofs, DWOR
         DS8Buffer_GetCurrentPosition(iface, NULL, &ofs);
     else if(ofs >= This->buffer->buf_size)
     {
-        WARN("Invalid ofs %u\n", ofs);
+        WARN("Invalid ofs %"LONGFMT"u\n", ofs);
         return DSERR_INVALIDPARAM;
     }
     if((flags&DSBLOCK_ENTIREBUFFER))
         bytes = This->buffer->buf_size;
     else if(bytes > This->buffer->buf_size)
     {
-        WARN("Invalid size %u\n", bytes);
+        WARN("Invalid size %"LONGFMT"u\n", bytes);
         return DSERR_INVALIDPARAM;
     }
 
@@ -1523,7 +1523,7 @@ static HRESULT WINAPI DS8Buffer_Play(IDirectSoundBuffer8 *iface, DWORD res1, DWO
     }
     else if(prio)
     {
-        ERR("Invalid priority set for non-deferred buffer %p, %u!\n", This->buffer, prio);
+        ERR("Invalid priority set for non-deferred buffer %p, %"LONGFMT"u!\n", This->buffer, prio);
         hr = DSERR_INVALIDPARAM;
         goto out;
     }
@@ -1629,11 +1629,11 @@ static HRESULT WINAPI DS8Buffer_SetVolume(IDirectSoundBuffer8 *iface, LONG vol)
     DS8Buffer *This = impl_from_IDirectSoundBuffer8(iface);
     HRESULT hr = S_OK;
 
-    TRACE("(%p)->(%d)\n", iface, vol);
+    TRACE("(%p)->(%"LONGFMT"d)\n", iface, vol);
 
     if(vol > DSBVOLUME_MAX || vol < DSBVOLUME_MIN)
     {
-        WARN("Invalid volume (%d)\n", vol);
+        WARN("Invalid volume (%"LONGFMT"d)\n", vol);
         return DSERR_INVALIDPARAM;
     }
 
@@ -1655,11 +1655,11 @@ static HRESULT WINAPI DS8Buffer_SetPan(IDirectSoundBuffer8 *iface, LONG pan)
     DS8Buffer *This = impl_from_IDirectSoundBuffer8(iface);
     HRESULT hr = S_OK;
 
-    TRACE("(%p)->(%d)\n", iface, pan);
+    TRACE("(%p)->(%"LONGFMT"d)\n", iface, pan);
 
     if(pan > DSBPAN_RIGHT || pan < DSBPAN_LEFT)
     {
-        WARN("invalid parameter: pan = %d\n", pan);
+        WARN("invalid parameter: pan = %"LONGFMT"d\n", pan);
         return DSERR_INVALIDPARAM;
     }
 
@@ -1692,11 +1692,11 @@ static HRESULT WINAPI DS8Buffer_SetFrequency(IDirectSoundBuffer8 *iface, DWORD f
     DS8Buffer *This = impl_from_IDirectSoundBuffer8(iface);
     HRESULT hr = S_OK;
 
-    TRACE("(%p)->(%u)\n", iface, freq);
+    TRACE("(%p)->(%"LONGFMT"u)\n", iface, freq);
 
     if(freq < DSBFREQUENCY_MIN || freq > DSBFREQUENCY_MAX)
     {
-        WARN("invalid parameter: freq = %d\n", freq);
+        WARN("invalid parameter: freq = %"LONGFMT"u\n", freq);
         return DSERR_INVALIDPARAM;
     }
 
@@ -1758,7 +1758,7 @@ static HRESULT WINAPI DS8Buffer_Unlock(IDirectSoundBuffer8 *iface, void *ptr1, D
     DWORD_PTR boundary = (DWORD_PTR)buf->data;
     HRESULT hr;
 
-    TRACE("(%p)->(%p, %u, %p, %u)\n", iface, ptr1, len1, ptr2, len2);
+    TRACE("(%p)->(%p, %"LONGFMT"u, %p, %"LONGFMT"u)\n", iface, ptr1, len1, ptr2, len2);
 
     if(InterlockedExchange(&This->buffer->locked, FALSE) == FALSE)
     {
@@ -1831,7 +1831,7 @@ static HRESULT WINAPI DS8Buffer_Unlock(IDirectSoundBuffer8 *iface, void *ptr1, D
 
 out:
     if(hr != S_OK)
-        WARN("Invalid parameters (0x%lx,%u) (%p,%u,%p,%u)\n", boundary, bufsize, ptr1, len1, ptr2, len2);
+        WARN("Invalid parameters (0x%lx,%"LONGFMT"u) (%p,%"LONGFMT"u,%p,%"LONGFMT"u)\n", boundary, bufsize, ptr1, len1, ptr2, len2);
     return hr;
 }
 
@@ -1861,7 +1861,7 @@ static HRESULT WINAPI DS8Buffer_SetFX(IDirectSoundBuffer8 *iface, DWORD fxcount,
     DS8Buffer *This = impl_from_IDirectSoundBuffer8(iface);
     DWORD i;
 
-    TRACE("(%p)->(%u, %p, %p)\n", This, fxcount, desc, rescodes);
+    TRACE("(%p)->(%"LONGFMT"u, %p, %p)\n", This, fxcount, desc, rescodes);
 
     if(!(This->buffer->dsbflags&DSBCAPS_CTRLFX))
     {
@@ -1901,7 +1901,7 @@ static HRESULT WINAPI DS8Buffer_AcquireResources(IDirectSoundBuffer8 *iface, DWO
 {
     DS8Buffer *This = impl_from_IDirectSoundBuffer8(iface);
 
-    TRACE("(%p)->(%u, %u, %p)\n", This, flags, fxcount, rescodes);
+    TRACE("(%p)->(%"LONGFMT"u, %"LONGFMT"u, %p)\n", This, flags, fxcount, rescodes);
 
     /* effects aren't supported at the moment.. */
     if(fxcount != 0 || rescodes)
@@ -1926,7 +1926,7 @@ static HRESULT WINAPI DS8Buffer_AcquireResources(IDirectSoundBuffer8 *iface, DWO
 
 static HRESULT WINAPI DS8Buffer_GetObjectInPath(IDirectSoundBuffer8 *iface, REFGUID guid, DWORD idx, REFGUID rguidiface, void **ppv)
 {
-    FIXME("(%p)->(%s, %u, %s, %p) : stub!\n", iface, debugstr_guid(guid), idx, debugstr_guid(rguidiface), ppv);
+    FIXME("(%p)->(%s, %"LONGFMT"u, %s, %p) : stub!\n", iface, debugstr_guid(guid), idx, debugstr_guid(rguidiface), ppv);
     return E_NOTIMPL;
 }
 
@@ -2122,7 +2122,7 @@ static ULONG WINAPI DS8Buffer3D_AddRef(IDirectSound3DBuffer *iface)
 
     InterlockedIncrement(&This->all_ref);
     ret = InterlockedIncrement(&This->ds3d_ref);
-    TRACE("new refcount %d\n", ret);
+    TRACE("new refcount %"LONGFMT"d\n", ret);
 
     return ret;
 }
@@ -2133,7 +2133,7 @@ static ULONG WINAPI DS8Buffer3D_Release(IDirectSound3DBuffer *iface)
     LONG ret;
 
     ret = InterlockedDecrement(&This->ds3d_ref);
-    TRACE("new refcount %d\n", ret);
+    TRACE("new refcount %"LONGFMT"d\n", ret);
     if(InterlockedDecrement(&This->all_ref) == 0)
         DS8Buffer_Destroy(This);
 
@@ -2150,7 +2150,7 @@ static HRESULT WINAPI DS8Buffer3D_GetAllParameters(IDirectSound3DBuffer *iface, 
 
     if(!ds3dbuffer || ds3dbuffer->dwSize < sizeof(*ds3dbuffer))
     {
-        WARN("Invalid parameters %p %u\n", ds3dbuffer, ds3dbuffer ? ds3dbuffer->dwSize : 0);
+        WARN("Invalid parameters %p %"LONGFMT"u\n", ds3dbuffer, ds3dbuffer ? ds3dbuffer->dwSize : 0);
         return DSERR_INVALIDPARAM;
     }
     ds3dbuf.dwSize = sizeof(ds3dbuf);
@@ -2386,26 +2386,26 @@ static HRESULT WINAPI DS8Buffer3D_GetVelocity(IDirectSound3DBuffer *iface, D3DVE
 static HRESULT WINAPI DS8Buffer3D_SetAllParameters(IDirectSound3DBuffer *iface, const DS3DBUFFER *ds3dbuffer, DWORD apply)
 {
     DS8Buffer *This = impl_from_IDirectSound3DBuffer(iface);
-    TRACE("(%p)->(%p, %u)\n", This, ds3dbuffer, apply);
+    TRACE("(%p)->(%p, %"LONGFMT"u)\n", This, ds3dbuffer, apply);
 
     if(!ds3dbuffer || ds3dbuffer->dwSize < sizeof(*ds3dbuffer))
     {
-        WARN("Invalid DS3DBUFFER (%p, %u)\n", ds3dbuffer, ds3dbuffer ? ds3dbuffer->dwSize : 0);
+        WARN("Invalid DS3DBUFFER (%p, %"LONGFMT"u)\n", ds3dbuffer, ds3dbuffer ? ds3dbuffer->dwSize : 0);
         return DSERR_INVALIDPARAM;
     }
 
     if(ds3dbuffer->dwInsideConeAngle > DS3D_MAXCONEANGLE ||
        ds3dbuffer->dwOutsideConeAngle > DS3D_MAXCONEANGLE)
     {
-        WARN("Invalid cone angles (%u, %u)\n", ds3dbuffer->dwInsideConeAngle,
-                                               ds3dbuffer->dwOutsideConeAngle);
+        WARN("Invalid cone angles (%"LONGFMT"u, %"LONGFMT"u)\n", ds3dbuffer->dwInsideConeAngle,
+                                                                     ds3dbuffer->dwOutsideConeAngle);
         return DSERR_INVALIDPARAM;
     }
 
     if(ds3dbuffer->lConeOutsideVolume > DSBVOLUME_MAX ||
        ds3dbuffer->lConeOutsideVolume < DSBVOLUME_MIN)
     {
-        WARN("Invalid cone outside volume (%d)\n", ds3dbuffer->lConeOutsideVolume);
+        WARN("Invalid cone outside volume (%"LONGFMT"d)\n", ds3dbuffer->lConeOutsideVolume);
         return DSERR_INVALIDPARAM;
     }
 
@@ -2425,7 +2425,7 @@ static HRESULT WINAPI DS8Buffer3D_SetAllParameters(IDirectSound3DBuffer *iface, 
        ds3dbuffer->dwMode != DS3DMODE_HEADRELATIVE &&
        ds3dbuffer->dwMode != DS3DMODE_DISABLE)
     {
-        WARN("Invalid mode (%u)\n", ds3dbuffer->dwMode);
+        WARN("Invalid mode (%"LONGFMT"u)\n", ds3dbuffer->dwMode);
         return DSERR_INVALIDPARAM;
     }
 
@@ -2449,11 +2449,11 @@ static HRESULT WINAPI DS8Buffer3D_SetConeAngles(IDirectSound3DBuffer *iface, DWO
 {
     DS8Buffer *This = impl_from_IDirectSound3DBuffer(iface);
 
-    TRACE("(%p)->(%u, %u, %u)\n", This, dwInsideConeAngle, dwOutsideConeAngle, apply);
+    TRACE("(%p)->(%"LONGFMT"u, %"LONGFMT"u, %"LONGFMT"u)\n", This, dwInsideConeAngle, dwOutsideConeAngle, apply);
     if(dwInsideConeAngle > DS3D_MAXCONEANGLE ||
        dwOutsideConeAngle > DS3D_MAXCONEANGLE)
     {
-        WARN("Invalid cone angles (%u, %u)\n", dwInsideConeAngle, dwOutsideConeAngle);
+        WARN("Invalid cone angles (%"LONGFMT"u, %"LONGFMT"u)\n", dwInsideConeAngle, dwOutsideConeAngle);
         return DSERR_INVALIDPARAM;
     }
 
@@ -2481,7 +2481,7 @@ static HRESULT WINAPI DS8Buffer3D_SetConeOrientation(IDirectSound3DBuffer *iface
 {
     DS8Buffer *This = impl_from_IDirectSound3DBuffer(iface);
 
-    TRACE("(%p)->(%f, %f, %f, %u)\n", This, x, y, z, apply);
+    TRACE("(%p)->(%f, %f, %f, %"LONGFMT"u)\n", This, x, y, z, apply);
 
     EnterCriticalSection(This->crst);
     if(apply == DS3D_DEFERRED)
@@ -2507,10 +2507,10 @@ static HRESULT WINAPI DS8Buffer3D_SetConeOutsideVolume(IDirectSound3DBuffer *ifa
 {
     DS8Buffer *This = impl_from_IDirectSound3DBuffer(iface);
 
-    TRACE("(%p)->(%u, %u)\n", This, vol, apply);
+    TRACE("(%p)->(%"LONGFMT"d, %"LONGFMT"u)\n", This, vol, apply);
     if(vol < DSBVOLUME_MIN || vol > DSBVOLUME_MAX)
     {
-        WARN("Invalid volume (%u)\n", vol);
+        WARN("Invalid volume (%"LONGFMT"d)\n", vol);
         return DSERR_INVALIDPARAM;
     }
 
@@ -2536,7 +2536,7 @@ static HRESULT WINAPI DS8Buffer3D_SetMaxDistance(IDirectSound3DBuffer *iface, D3
 {
     DS8Buffer *This = impl_from_IDirectSound3DBuffer(iface);
 
-    TRACE("(%p)->(%f, %u)\n", This, maxdist, apply);
+    TRACE("(%p)->(%f, %"LONGFMT"u)\n", This, maxdist, apply);
     if(maxdist < 0.0f)
     {
         WARN("Invalid max distance (%f)\n", maxdist);
@@ -2565,7 +2565,7 @@ static HRESULT WINAPI DS8Buffer3D_SetMinDistance(IDirectSound3DBuffer *iface, D3
 {
     DS8Buffer *This = impl_from_IDirectSound3DBuffer(iface);
 
-    TRACE("(%p)->(%f, %u)\n", This, mindist, apply);
+    TRACE("(%p)->(%f, %"LONGFMT"u)\n", This, mindist, apply);
     if(mindist < 0.0f)
     {
         WARN("Invalid min distance (%f)\n", mindist);
@@ -2594,11 +2594,11 @@ static HRESULT WINAPI DS8Buffer3D_SetMode(IDirectSound3DBuffer *iface, DWORD mod
 {
     DS8Buffer *This = impl_from_IDirectSound3DBuffer(iface);
 
-    TRACE("(%p)->(%u, %u)\n", This, mode, apply);
+    TRACE("(%p)->(%"LONGFMT"u, %"LONGFMT"u)\n", This, mode, apply);
     if(mode != DS3DMODE_NORMAL && mode != DS3DMODE_HEADRELATIVE &&
        mode != DS3DMODE_DISABLE)
     {
-        WARN("Invalid mode (%u)\n", mode);
+        WARN("Invalid mode (%"LONGFMT"u)\n", mode);
         return DSERR_INVALIDPARAM;
     }
 
@@ -2628,7 +2628,7 @@ static HRESULT WINAPI DS8Buffer3D_SetPosition(IDirectSound3DBuffer *iface, D3DVA
 {
     DS8Buffer *This = impl_from_IDirectSound3DBuffer(iface);
 
-    TRACE("(%p)->(%f, %f, %f, %u)\n", This, x, y, z, apply);
+    TRACE("(%p)->(%f, %f, %f, %"LONGFMT"u)\n", This, x, y, z, apply);
 
     EnterCriticalSection(This->crst);
     if(apply == DS3D_DEFERRED)
@@ -2654,7 +2654,7 @@ static HRESULT WINAPI DS8Buffer3D_SetVelocity(IDirectSound3DBuffer *iface, D3DVA
 {
     DS8Buffer *This = impl_from_IDirectSound3DBuffer(iface);
 
-    TRACE("(%p)->(%f, %f, %f, %u)\n", This, x, y, z, apply);
+    TRACE("(%p)->(%f, %f, %f, %"LONGFMT"u)\n", This, x, y, z, apply);
 
     EnterCriticalSection(This->crst);
     if(apply == DS3D_DEFERRED)
@@ -2715,7 +2715,7 @@ static ULONG WINAPI DS8BufferNot_AddRef(IDirectSoundNotify *iface)
 
     InterlockedIncrement(&This->all_ref);
     ret = InterlockedIncrement(&This->not_ref);
-    TRACE("new refcount %d\n", ret);
+    TRACE("new refcount %"LONGFMT"d\n", ret);
 
     return ret;
 }
@@ -2726,7 +2726,7 @@ static ULONG WINAPI DS8BufferNot_Release(IDirectSoundNotify *iface)
     LONG ret;
 
     ret = InterlockedDecrement(&This->not_ref);
-    TRACE("new refcount %d\n", ret);
+    TRACE("new refcount %"LONGFMT"d\n", ret);
     if(InterlockedDecrement(&This->all_ref) == 0)
         DS8Buffer_Destroy(This);
 
@@ -2812,7 +2812,7 @@ static ULONG WINAPI DS8BufferProp_AddRef(IKsPropertySet *iface)
 
     InterlockedIncrement(&This->all_ref);
     ret = InterlockedIncrement(&This->prop_ref);
-    TRACE("new refcount %d\n", ret);
+    TRACE("new refcount %"LONGFMT"d\n", ret);
 
     return ret;
 }
@@ -2823,7 +2823,7 @@ static ULONG WINAPI DS8BufferProp_Release(IKsPropertySet *iface)
     LONG ret;
 
     ret = InterlockedDecrement(&This->prop_ref);
-    TRACE("new refcount %d\n", ret);
+    TRACE("new refcount %"LONGFMT"d\n", ret);
     if(InterlockedDecrement(&This->all_ref) == 0)
         DS8Buffer_Destroy(This);
 
@@ -2841,7 +2841,7 @@ static HRESULT WINAPI DS8BufferProp_Get(IKsPropertySet *iface,
     DS8Buffer *This = impl_from_IKsPropertySet(iface);
     HRESULT hr = E_PROP_ID_UNSUPPORTED;
 
-    TRACE("(%p)->(%s, %u, %p, %u, %p, %u, %p)\n", iface, debugstr_guid(guidPropSet),
+    TRACE("(%p)->(%s, %"LONGFMT"u, %p, %"LONGFMT"u, %p, %"LONGFMT"u, %p)\n", iface, debugstr_guid(guidPropSet),
           dwPropID, pInstanceData, cbInstanceData, pPropData, cbPropData, pcbReturned);
 
     if(!pcbReturned)
@@ -2872,7 +2872,7 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
     DS8Buffer *This = impl_from_IKsPropertySet(iface);
     HRESULT hr = E_PROP_ID_UNSUPPORTED;
 
-    TRACE("(%p)->(%s, %u, %p, %u, %p, %u)\n", iface, debugstr_guid(guidPropSet),
+    TRACE("(%p)->(%s, %"LONGFMT"u, %p, %"LONGFMT"u, %p, %"LONGFMT"u)\n", iface, debugstr_guid(guidPropSet),
           dwPropID, pInstanceData, cbInstanceData, pPropData, cbPropData);
 
 #if 0
@@ -2898,7 +2898,7 @@ static HRESULT WINAPI DS8BufferProp_QuerySupport(IKsPropertySet *iface,
     DS8Buffer *This = impl_from_IKsPropertySet(iface);
     HRESULT hr = E_PROP_ID_UNSUPPORTED;
 
-    TRACE("(%p)->(%s, %u, %p)\n", iface, debugstr_guid(guidPropSet), dwPropID, pTypeSupport);
+    TRACE("(%p)->(%s, %"LONGFMT"u, %p)\n", iface, debugstr_guid(guidPropSet), dwPropID, pTypeSupport);
 
     if(!pTypeSupport)
         return E_POINTER;

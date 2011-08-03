@@ -36,6 +36,7 @@
 #include <AL/alc.h>
 #endif
 
+#define LONGFMT
 #else
 
 #include <al.h>
@@ -84,6 +85,7 @@ static inline const char *debugstr_guid( const GUID *id )
 
 static inline const char *debugstr_w( const WCHAR *s ) { return wine_dbgstr_wn( s, -1 ); }
 
+#define LONGFMT "l"
 #endif
 
 

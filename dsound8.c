@@ -242,7 +242,7 @@ static ULONG WINAPI DS8_AddRef(IDirectSound8 *iface)
     LONG ref;
 
     ref = InterlockedIncrement(&This->ref);
-    TRACE("Reference count incremented to %d\n", ref);
+    TRACE("Reference count incremented to %"LONGFMT"d\n", ref);
 
     return ref;
 }
@@ -253,7 +253,7 @@ static ULONG WINAPI DS8_Release(IDirectSound8 *iface)
     LONG ref;
 
     ref = InterlockedDecrement(&This->ref);
-    TRACE("Reference count decremented to %d\n", ref);
+    TRACE("Reference count decremented to %"LONGFMT"d\n", ref);
     if(ref == 0)
         DS8Impl_Destroy(This);
 
@@ -281,7 +281,7 @@ static HRESULT WINAPI DS8_CreateSoundBuffer(IDirectSound8 *iface, LPCDSBUFFERDES
     }
     if(!desc || desc->dwSize < sizeof(DSBUFFERDESC1))
     {
-        WARN("Invalid buffer %p/%u\n", desc, desc?desc->dwSize:0);
+        WARN("Invalid buffer %p/%"LONGFMT"u\n", desc, desc?desc->dwSize:0);
         return DSERR_INVALIDPARAM;
     }
 
@@ -358,7 +358,7 @@ static HRESULT WINAPI DS8_CreateSoundBuffer(IDirectSound8 *iface, LPCDSBUFFERDES
     }
     LeaveCriticalSection(&This->primary->crst);
 
-    TRACE("%08x\n", hr);
+    TRACE("%08"LONGFMT"x\n", hr);
     return hr;
 }
 
@@ -377,7 +377,7 @@ static HRESULT WINAPI DS8_GetCaps(IDirectSound8 *iface, LPDSCAPS caps)
 
     if(!caps || caps->dwSize < sizeof(*caps))
     {
-        WARN("Invalid DSCAPS (%p, %u)\n", caps, (caps?caps->dwSize:0));
+        WARN("Invalid DSCAPS (%p, %"LONGFMT"u)\n", caps, (caps?caps->dwSize:0));
         return DSERR_INVALIDPARAM;
     }
 
@@ -518,7 +518,7 @@ static HRESULT WINAPI DS8_SetCooperativeLevel(IDirectSound8 *iface, HWND hwnd, D
     DS8Impl *This = impl_from_IDirectSound8(iface);
     HRESULT hr = S_OK;
 
-    TRACE("(%p)->(%p, %u)\n", iface, hwnd, level);
+    TRACE("(%p)->(%p, %"LONGFMT"u)\n", iface, hwnd, level);
 
     if(!This->primary)
     {
@@ -528,7 +528,7 @@ static HRESULT WINAPI DS8_SetCooperativeLevel(IDirectSound8 *iface, HWND hwnd, D
 
     if(level > DSSCL_WRITEPRIMARY || level < DSSCL_NORMAL)
     {
-        WARN("Invalid coop level: %u\n", level);
+        WARN("Invalid coop level: %"LONGFMT"u\n", level);
         return DSERR_INVALIDPARAM;
     }
 
@@ -613,7 +613,7 @@ static HRESULT WINAPI DS8_Compact(IDirectSound8 *iface)
     EnterCriticalSection(&This->primary->crst);
     if(This->prio_level < DSSCL_PRIORITY)
     {
-        WARN("Coop level not high enough (%u)\n", This->prio_level);
+        WARN("Coop level not high enough (%"LONGFMT"u)\n", This->prio_level);
         hr = DSERR_PRIOLEVELNEEDED;
     }
     LeaveCriticalSection(&This->primary->crst);
@@ -652,7 +652,7 @@ static HRESULT WINAPI DS8_SetSpeakerConfig(IDirectSound8 *iface, DWORD config)
     HKEY key;
     HRESULT hr;
 
-    TRACE("(%p)->(0x%08x)\n", iface, config);
+    TRACE("(%p)->(0x%08"LONGFMT"x)\n", iface, config);
 
     if(!This->primary)
     {
@@ -668,12 +668,12 @@ static HRESULT WINAPI DS8_SetSpeakerConfig(IDirectSound8 *iface, DWORD config)
     hr = DSERR_INVALIDPARAM;
     if(geo && (geo < DSSPEAKER_GEOMETRY_MIN || geo > DSSPEAKER_GEOMETRY_MAX))
     {
-        WARN("Invalid speaker angle %u\n", geo);
+        WARN("Invalid speaker angle %"LONGFMT"u\n", geo);
         goto out;
     }
     if(speaker < DSSPEAKER_HEADPHONE || speaker > DSSPEAKER_7POINT1)
     {
-        WARN("Invalid speaker config %u\n", speaker);
+        WARN("Invalid speaker config %"LONGFMT"u\n", speaker);
         goto out;
     }
 
