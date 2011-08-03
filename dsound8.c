@@ -292,11 +292,10 @@ static HRESULT WINAPI DS8_CreateSoundBuffer(IDirectSound8 *iface, LPCDSBUFFERDES
     }
 
     TRACE("Requested buffer:\n"
-          "    Size        = %u\n"
-          "    Flags       = 0x%08x\n"
-          "    BufferBytes = %u\n",
-          (UINT)desc->dwSize, (UINT)desc->dwFlags,
-          (UINT)desc->dwBufferBytes);
+          "    Size        = %"LONGFMT"u\n"
+          "    Flags       = 0x%08"LONGFMT"x\n"
+          "    BufferBytes = %"LONGFMT"u\n",
+          desc->dwSize, desc->dwFlags, desc->dwBufferBytes);
 
     if(desc->dwSize >= sizeof(DSBUFFERDESC))
     {

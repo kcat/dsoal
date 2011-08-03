@@ -1582,7 +1582,7 @@ static HRESULT WINAPI DS8Buffer_SetCurrentPosition(IDirectSoundBuffer8 *iface, D
 {
     DS8Buffer *This = impl_from_IDirectSoundBuffer8(iface);
 
-    TRACE("(%p)->(%u)\n", iface, (UINT)pos);
+    TRACE("(%p)->(%"LONGFMT"u)\n", iface, pos);
 
     if(pos >= This->buffer->buf_size)
         return DSERR_INVALIDPARAM;
