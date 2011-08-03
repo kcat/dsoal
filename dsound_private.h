@@ -72,16 +72,7 @@ extern int LogLevel;
 
 const char *wine_dbg_sprintf( const char *format, ... );
 const char *wine_dbgstr_wn( const WCHAR *str, int n );
-
-static inline const char *debugstr_guid( const GUID *id )
-{
-    if (!id) return "(null)";
-    if (!((ULONG_PTR)id >> 16)) return wine_dbg_sprintf( "<guid-0x%04hx>", (WORD)(ULONG_PTR)id );
-    return wine_dbg_sprintf( "{%08x-%04x-%04x-%02x%02x-%02x%02x%02x%02x%02x%02x}",
-                             id->Data1, id->Data2, id->Data3,
-                             id->Data4[0], id->Data4[1], id->Data4[2], id->Data4[3],
-                             id->Data4[4], id->Data4[5], id->Data4[6], id->Data4[7] );
-}
+const char *debugstr_guid( const GUID *id );
 
 static inline const char *debugstr_w( const WCHAR *s ) { return wine_dbgstr_wn( s, -1 ); }
 
