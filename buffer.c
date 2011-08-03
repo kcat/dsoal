@@ -1497,9 +1497,8 @@ static HRESULT WINAPI DS8Buffer_Play(IDirectSoundBuffer8 *iface, DWORD res1, DWO
     DS8Buffer *This = impl_from_IDirectSoundBuffer8(iface);
     ALint type, state = AL_STOPPED;
     HRESULT hr;
-    (void)res1;
 
-    TRACE("%p\n", This);
+    TRACE("(%p)->(%"LONGFMT"u, %"LONGFMT"u, %"LONGFMT"u\n", iface, res1, prio, flags);
 
     EnterCriticalSection(This->crst);
     setALContext(This->ctx);
