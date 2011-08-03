@@ -1601,6 +1601,7 @@ static HRESULT WINAPI DS8Buffer_SetCurrentPosition(IDirectSoundBuffer8 *iface, D
             /* Perform a flush, so the next timer update will restart at the
              * proper position */
             alSourceStop(This->source);
+            alSourcei(This->source, AL_BUFFER, 0);
             getALError();
             popALContext();
         }
