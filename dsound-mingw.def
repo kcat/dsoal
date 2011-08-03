@@ -13,5 +13,3 @@ EXPORTS
     DirectSoundCaptureCreate8       = DirectSoundCaptureCreate8@12      @12
     DllCanUnloadNow                 = DllCanUnloadNow@0                 @4 PRIVATE
     DllGetClassObject               = DllGetClassObject@12              @5 PRIVATE
-    DllRegisterServer               = DllRegisterServer@0               @13 PRIVATE
-    DllUnregisterServer             = DllUnregisterServer@0             @14 PRIVATE

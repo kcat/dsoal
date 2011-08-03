@@ -76,20 +76,6 @@ WINE_DEFAULT_DEBUG_CHANNEL(dsound);
 DEFINE_GUID(CLSID_DirectSoundPrivate,0x11ab3ec0,0x25ec,0x11d1,0xa4,0xd8,0x00,0xc0,0x4f,0xc2,0x8a,0xca);
 
 int LogLevel = 1;
-
-/* From dlls/winecrt0/register.c */
-static HRESULT __wine_register_resources(HMODULE module, const CLSID *clsid)
-{
-    (void)module;
-    (void)clsid;
-    return E_FAIL;
-}
-static HRESULT __wine_unregister_resources(HMODULE module, const CLSID *clsid)
-{
-    (void)module;
-    (void)clsid;
-    return E_FAIL;
-}
 #endif
 
 static HINSTANCE instance;
@@ -1073,6 +1059,7 @@ BOOL WINAPI DllMain(HINSTANCE hInstDLL, DWORD fdwReason, LPVOID lpvReserved)
     return TRUE;
 }
 
+#ifdef __WINESRC__
 /***********************************************************************
  *              DllRegisterServer (DSOUND.@)
  */
@@ -1088,3 +1075,4 @@ HRESULT WINAPI DllUnregisterServer(void)
 {
     return __wine_unregister_resources(instance, NULL);
 }
+#endif
