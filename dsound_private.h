@@ -551,57 +551,52 @@ static inline FLOAT clampF(FLOAT val, FLOAT minval, FLOAT maxval)
 }
 
 
-#define getALError() \
-do { \
-    ALenum err = alGetError(); \
-    if(err != AL_NO_ERROR) \
-        ERR(">>>>>>>>>>>> Received AL error %#x on context %p, %s:%u\n", err, get_context(), __FUNCTION__, __LINE__); \
+#define checkALError() do {                                                   \
+    ALenum err = alGetError();                                                \
+    if(err != AL_NO_ERROR)                                                    \
+        ERR(">>>>>>>>>>>> Received AL error %#x on context %p, %s:%u\n",      \
+            err, get_context(), __FUNCTION__, __LINE__);                      \
 } while (0)
 
-#define getALCError(dev) \
-do { \
-    ALenum err = alcGetError(dev); \
-    if(err != ALC_NO_ERROR) \
-        ERR(">>>>>>>>>>>> Received ALC error %#x on device %p, %s:%u\n", err, dev, __FUNCTION__, __LINE__); \
+#define checkALCError(dev) do {                                               \
+    ALenum err = alcGetError(dev);                                            \
+    if(err != ALC_NO_ERROR)                                                   \
+        ERR(">>>>>>>>>>>> Received ALC error %#x on device %p, %s:%u\n",      \
+            err, dev, __FUNCTION__, __LINE__);                                \
 } while(0)
 
 #if ALLOW_CONCURRENT_AL
 
-#define setALContext(actx) \
-    do { \
-        ALCcontext *__old_ctx, *cur_ctx = actx; \
-        if (!local_contexts) EnterCriticalSection(&openal_crst); \
-        __old_ctx = get_context(); \
-        if (__old_ctx != cur_ctx && set_context(cur_ctx) == ALC_FALSE) {\
-            ERR("Couldn't set current context!!\n"); \
-            getALCError(alcGetContextsDevice(cur_ctx)); \
-        }
-
+#define setALContext(actx) do {                                               \
+    ALCcontext *__old_ctx, *cur_ctx = actx;                                   \
+    if(!local_contexts) EnterCriticalSection(&openal_crst);                   \
+    __old_ctx = get_context();                                                \
+    if(__old_ctx != cur_ctx && set_context(cur_ctx) == ALC_FALSE) {           \
+        ERR("Couldn't set current context!!\n");                              \
+        checkALCError(alcGetContextsDevice(cur_ctx));                         \
+    }
 /* Only restore a NULL context if using global contexts, for TLS contexts always restore */
-#define popALContext() \
-        if (__old_ctx != cur_ctx && \
-            (local_contexts || __old_ctx) && \
-            set_context(__old_ctx) == ALC_FALSE) { \
-            ERR("Couldn't restore old context!!\n"); \
-            getALCError(alcGetContextsDevice(__old_ctx)); \
-        } \
-        if (!local_contexts) LeaveCriticalSection(&openal_crst); \
-    } while (0)
+#define popALContext()                                                        \
+    if(__old_ctx != cur_ctx && (local_contexts || __old_ctx) &&               \
+       set_context(__old_ctx) == ALC_FALSE) {                                 \
+        ERR("Couldn't restore old context!!\n");                              \
+        checkALCError(alcGetContextsDevice(__old_ctx));                       \
+    }                                                                         \
+    if (!local_contexts) LeaveCriticalSection(&openal_crst);                  \
+} while(0)
 
 #else
 
-#define setALContext(actx) \
-    do { \
-        ALCcontext *cur_ctx = actx; \
-        if (!local_contexts) EnterCriticalSection(&openal_crst); \
-        if (set_context(cur_ctx) == ALC_FALSE) { \
-            ERR("Couldn't set current context!!\n"); \
-            getALCError(alcGetContextsDevice(cur_ctx)); \
-        }
-
-#define popALContext() \
-        if (!local_contexts) LeaveCriticalSection(&openal_crst); \
-    } while (0)
+#define setALContext(actx) do {                                               \
+    ALCcontext *cur_ctx = actx;                                               \
+    if(!local_contexts) EnterCriticalSection(&openal_crst);                   \
+    if(set_context(cur_ctx) == ALC_FALSE) {                                   \
+        ERR("Couldn't set current context!!\n");                              \
+        checkALCError(alcGetContextsDevice(cur_ctx));                         \
+    }
+#define popALContext()                                                        \
+    if (!local_contexts) LeaveCriticalSection(&openal_crst);                  \
+} while (0)
 
 #endif
 

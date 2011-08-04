@@ -182,8 +182,8 @@ static DWORD CALLBACK ThreadProc(void *dwUser)
                     }
                     alSourcePlay(buf->source);
                 }
-                getALError();
             }
+            checkALError();
         }
 
         for(i = 0;i < prim->nnotifies;)
@@ -375,7 +375,7 @@ HRESULT DS8Primary_Create(DS8Primary **ppv, DS8Impl *parent)
             break;
     }
     alDeleteSources(nsources, srcs);
-    getALError();
+    checkALError();
 
     popALContext();
 
@@ -596,7 +596,7 @@ static HRESULT WINAPI DS8Primary_GetVolume(IDirectSoundBuffer *iface, LONG *volu
 
         setALContext(This->ctx);
         alGetListenerf(AL_GAIN, &gain);
-        getALError();
+        checkALError();
         popALContext();
 
         *volume = clampI(gain_to_mB(gain), DSBVOLUME_MIN, DSBVOLUME_MAX);
@@ -891,7 +891,7 @@ static HRESULT WINAPI DS8Primary_SetFormat(IDirectSoundBuffer *iface, const WAVE
 
     freq = This->format.Format.nSamplesPerSec;
     alcGetIntegerv(This->parent->device, ALC_FREQUENCY, 1, &freq);
-    getALCError(This->parent->device);
+    checkALCError(This->parent->device);
 
     This->format.Format.nSamplesPerSec = freq;
     This->format.Format.nAvgBytesPerSec = This->format.Format.nBlockAlign *
@@ -1143,7 +1143,7 @@ static HRESULT WINAPI DS8Primary3D_GetDistanceFactor(IDirectSound3DListener *ifa
     setALContext(This->ctx);
 
     *distancefactor = 343.3f/alGetFloat(AL_SPEED_OF_SOUND);
-    getALError();
+    checkALError();
 
     popALContext();
     LeaveCriticalSection(&This->crst);
@@ -1167,7 +1167,7 @@ static HRESULT WINAPI DS8Primary3D_GetDopplerFactor(IDirectSound3DListener *ifac
     setALContext(This->ctx);
 
     *dopplerfactor = alGetFloat(AL_DOPPLER_FACTOR);
-    getALError();
+    checkALError();
 
     popALContext();
     LeaveCriticalSection(&This->crst);
@@ -1192,7 +1192,7 @@ static HRESULT WINAPI DS8Primary3D_GetOrientation(IDirectSound3DListener *iface,
     setALContext(This->ctx);
 
     alGetListenerfv(AL_ORIENTATION, orient);
-    getALError();
+    checkALError();
 
     front->x =  orient[0];
     front->y =  orient[1];
@@ -1224,7 +1224,7 @@ static HRESULT WINAPI DS8Primary3D_GetPosition(IDirectSound3DListener *iface, D3
     setALContext(This->ctx);
 
     alGetListenerfv(AL_POSITION, alpos);
-    getALError();
+    checkALError();
 
     pos->x =  alpos[0];
     pos->y =  alpos[1];
@@ -1272,7 +1272,7 @@ static HRESULT WINAPI DS8Primary3D_GetVelocity(IDirectSound3DListener *iface, D3
     setALContext(This->ctx);
 
     alGetListenerfv(AL_VELOCITY, vel);
-    getALError();
+    checkALError();
 
     velocity->x =  vel[0];
     velocity->y =  vel[1];
@@ -1357,7 +1357,7 @@ static HRESULT WINAPI DS8Primary3D_SetDistanceFactor(IDirectSound3DListener *ifa
         alSpeedOfSound(343.3f/factor);
         if(This->SupportedExt[EXT_EFX])
             alListenerf(AL_METERS_PER_UNIT, factor);
-        getALError();
+        checkALError();
         popALContext();
     }
     LeaveCriticalSection(&This->crst);
@@ -1388,7 +1388,7 @@ static HRESULT WINAPI DS8Primary3D_SetDopplerFactor(IDirectSound3DListener *ifac
     {
         setALContext(This->ctx);
         alDopplerFactor(factor);
-        getALError();
+        checkALError();
         popALContext();
     }
     LeaveCriticalSection(&This->crst);
@@ -1421,7 +1421,7 @@ static HRESULT WINAPI DS8Primary3D_SetOrientation(IDirectSound3DListener *iface,
         };
         setALContext(This->ctx);
         alListenerfv(AL_ORIENTATION, orient);
-        getALError();
+        checkALError();
         popALContext();
     }
     LeaveCriticalSection(&This->crst);
@@ -1447,7 +1447,7 @@ static HRESULT WINAPI DS8Primary3D_SetPosition(IDirectSound3DListener *iface, D3
     {
         setALContext(This->ctx);
         alListener3f(AL_POSITION, x, y, -z);
-        getALError();
+        checkALError();
         popALContext();
     }
     LeaveCriticalSection(&This->crst);
@@ -1484,7 +1484,7 @@ static HRESULT WINAPI DS8Primary3D_SetRolloffFactor(IDirectSound3DListener *ifac
             if(This->buffers[i]->ds3dmode != DS3DMODE_DISABLE)
                 alSourcef(This->buffers[i]->source, AL_ROLLOFF_FACTOR, factor);
         }
-        getALError();
+        checkALError();
         popALContext();
 
         This->rollofffactor = factor;
@@ -1512,7 +1512,7 @@ static HRESULT WINAPI DS8Primary3D_SetVelocity(IDirectSound3DListener *iface, D3
     {
         setALContext(This->ctx);
         alListener3f(AL_VELOCITY, x, y, -z);
-        getALError();
+        checkALError();
         popALContext();
     }
     LeaveCriticalSection(&This->crst);
@@ -1566,8 +1566,8 @@ static HRESULT WINAPI DS8Primary3D_CommitDeferredSettings(IDirectSound3DListener
     if(This->dirty.bit.effect)
         This->ExtAL.AuxiliaryEffectSloti(This->auxslot, AL_EFFECTSLOT_EFFECT, This->effect);
 
-    /* getALError is here for debugging */
-    getALError();
+    /* checkALError is here for debugging */
+    checkALError();
 
     TRACE("Dirty flags was: 0x%02x\n", This->dirty.flags);
     This->dirty.flags = 0;
@@ -1618,7 +1618,7 @@ static HRESULT WINAPI DS8Primary3D_CommitDeferredSettings(IDirectSound3DListener
         }
         buf->dirty.flags = 0;
     }
-    getALError();
+    checkALError();
 
     This->ProcessUpdates();
     popALContext();
@@ -1924,7 +1924,7 @@ static HRESULT WINAPI DS8PrimaryProp_Set(IKsPropertySet *iface,
                                     (data.props->dwFlags&EAXLISTENERFLAGS_DECAYHFLIMIT) ?
                                     AL_TRUE : AL_FALSE);
 
-                getALError();
+                checkALError();
 
                 This->dirty.bit.effect = 1;
                 res = DS_OK;
@@ -1943,7 +1943,7 @@ static HRESULT WINAPI DS8PrimaryProp_Set(IKsPropertySet *iface,
                 This->eax_prop.lRoom = *data.l;
                 This->ExtAL.Effectf(This->effect, AL_REVERB_GAIN,
                                     mB_to_gain(This->eax_prop.lRoom));
-                getALError();
+                checkALError();
 
                 This->dirty.bit.effect = 1;
                 res = DS_OK;
@@ -1961,7 +1961,7 @@ static HRESULT WINAPI DS8PrimaryProp_Set(IKsPropertySet *iface,
                 This->eax_prop.lRoomHF = *data.l;
                 This->ExtAL.Effectf(This->effect, AL_REVERB_GAINHF,
                                     mB_to_gain(This->eax_prop.lRoomHF));
-                getALError();
+                checkALError();
 
                 This->dirty.bit.effect = 1;
                 res = DS_OK;
@@ -1980,7 +1980,7 @@ static HRESULT WINAPI DS8PrimaryProp_Set(IKsPropertySet *iface,
                 This->eax_prop.flRoomRolloffFactor = *data.fl;
                 This->ExtAL.Effectf(This->effect, AL_REVERB_ROOM_ROLLOFF_FACTOR,
                                     This->eax_prop.flRoomRolloffFactor);
-                getALError();
+                checkALError();
 
                 This->dirty.bit.effect = 1;
                 res = DS_OK;
@@ -2069,7 +2069,7 @@ static HRESULT WINAPI DS8PrimaryProp_Set(IKsPropertySet *iface,
                 This->eax_prop.flEnvironmentDiffusion = *data.fl;
                 This->ExtAL.Effectf(This->effect, AL_REVERB_DIFFUSION,
                                     This->eax_prop.flEnvironmentDiffusion);
-                getALError();
+                checkALError();
 
                 This->dirty.bit.effect = 1;
                 res = DS_OK;
@@ -2088,7 +2088,7 @@ static HRESULT WINAPI DS8PrimaryProp_Set(IKsPropertySet *iface,
                 This->eax_prop.flAirAbsorptionHF = *data.fl;
                 This->ExtAL.Effectf(This->effect, AL_REVERB_AIR_ABSORPTION_GAINHF,
                                     mB_to_gain(This->eax_prop.flAirAbsorptionHF));
-                getALError();
+                checkALError();
 
                 This->dirty.bit.effect = 1;
                 res = DS_OK;
@@ -2108,7 +2108,7 @@ static HRESULT WINAPI DS8PrimaryProp_Set(IKsPropertySet *iface,
                 This->ExtAL.Effecti(This->effect, AL_REVERB_DECAY_HFLIMIT,
                                     (This->eax_prop.dwFlags&EAXLISTENERFLAGS_DECAYHFLIMIT) ?
                                     AL_TRUE : AL_FALSE);
-                getALError();
+                checkALError();
 
                 This->dirty.bit.effect = 1;
                 res = DS_OK;

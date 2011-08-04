@@ -130,7 +130,7 @@ static void DS8Buffer_starttimer(DS8Primary *prim)
     timeGetDevCaps(&time, sizeof(TIMECAPS));
 
     alcGetIntegerv(prim->parent->device, ALC_REFRESH, 1, &refresh);
-    getALCError(prim->parent->device);
+    checkALCError(prim->parent->device);
 
     triggertime = 1000 / refresh / 2;
     if(triggertime < time.wPeriodMin)
@@ -710,7 +710,7 @@ static HRESULT DS8Data_Create(DS8Data **ppv, const DSBUFFERDESC *desc, DS8Primar
             ALuint newSize;
 
             alcGetIntegerv(prim->parent->device, ALC_REFRESH, 1, &refresh);
-            getALCError(prim->parent->device);
+            checkALCError(prim->parent->device);
 
             newSize  = format->nAvgBytesPerSec/refresh + format->nBlockAlign - 1;
             newSize -= newSize%format->nBlockAlign;
@@ -810,7 +810,7 @@ static HRESULT DS8Data_Create(DS8Data **ppv, const DSBUFFERDESC *desc, DS8Primar
         goto fail;
 
     alGenBuffers(pBuffer->numsegs, pBuffer->buffers);
-    getALError();
+    checkALError();
 
     *ppv = pBuffer;
     return S_OK;
@@ -834,7 +834,7 @@ static void DS8Data_Release(DS8Data *This)
     if (This->buffers && This->buffers[0])
     {
         alDeleteBuffers(This->numsegs, This->buffers);
-        getALError();
+        checkALError();
     }
     HeapFree(GetProcessHeap(), 0, This->buffers);
     HeapFree(GetProcessHeap(), 0, This->data);
@@ -930,7 +930,7 @@ void DS8Buffer_Destroy(DS8Buffer *This)
 
         alSourceStop(This->source);
         alSourcei(This->source, AL_BUFFER, 0);
-        getALError();
+        checkALError();
 
         sources = prim->sources;
         if(prim->nsources == prim->sizesources)
@@ -1059,7 +1059,7 @@ static HRESULT WINAPI DS8Buffer_GetCurrentPosition(IDirectSoundBuffer8 *iface, D
     {
         ALint queued = QBUFFERS;
         alGetSourcei(This->source, AL_BUFFERS_QUEUED, &queued);
-        getALError();
+        checkALError();
 
         pos = (This->curidx+This->buffer->numsegs-queued)%This->buffer->numsegs;
         pos *= This->buffer->segsize;
@@ -1071,7 +1071,7 @@ static HRESULT WINAPI DS8Buffer_GetCurrentPosition(IDirectSoundBuffer8 *iface, D
         ALint rwpos[2] = { 0, 0 };
 
         alGetSourceiv(This->source, AL_BYTE_RW_OFFSETS_SOFT, rwpos);
-        getALError();
+        checkALError();
 
         pos = rwpos[0];
         writecursor = rwpos[1];
@@ -1083,7 +1083,7 @@ static HRESULT WINAPI DS8Buffer_GetCurrentPosition(IDirectSoundBuffer8 *iface, D
 
         alGetSourcei(This->source, AL_BYTE_OFFSET, &ofs);
         alGetSourcei(This->source, AL_SOURCE_STATE, &status);
-        getALError();
+        checkALError();
 
         pos = ofs;
         if(status == AL_PLAYING)
@@ -1166,7 +1166,7 @@ static HRESULT WINAPI DS8Buffer_GetVolume(IDirectSoundBuffer8 *iface, LONG *vol)
 
         setALContext(This->ctx);
         alGetSourcef(This->source, AL_GAIN, &gain);
-        getALError();
+        checkALError();
         popALContext();
 
         *vol = clampI(gain_to_mB(gain), DSBVOLUME_MIN, DSBVOLUME_MAX);
@@ -1198,7 +1198,7 @@ static HRESULT WINAPI DS8Buffer_GetPan(IDirectSoundBuffer8 *iface, LONG *pan)
 
         setALContext(This->ctx);
         alGetSourcefv(This->source, AL_POSITION, pos);
-        getALError();
+        checkALError();
         popALContext();
 
         *pan = clampI(((pos[0]+1.0) * (DSBPAN_RIGHT-DSBPAN_LEFT) / 2.0 + 0.5) + DSBPAN_LEFT, DSBPAN_LEFT, DSBPAN_RIGHT);
@@ -1230,7 +1230,7 @@ static HRESULT WINAPI DS8Buffer_GetFrequency(IDirectSoundBuffer8 *iface, DWORD *
 
         setALContext(This->ctx);
         alGetSourcefv(This->source, AL_PITCH, &pitch);
-        getALError();
+        checkALError();
         popALContext();
 
         *freq = (DWORD)(This->buffer->format.Format.nSamplesPerSec * pitch);
@@ -1262,7 +1262,7 @@ static HRESULT WINAPI DS8Buffer_GetStatus(IDirectSoundBuffer8 *iface, DWORD *sta
         alGetSourcei(This->source, AL_LOOPING, &looping);
     else if(state != AL_PLAYING)
         state = This->isplaying ? AL_PLAYING : AL_PAUSED;
-    getALError();
+    checkALError();
     popALContext();
 
     LeaveCriticalSection(This->crst);
@@ -1347,7 +1347,7 @@ static HRESULT WINAPI DS8Buffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSo
                              buf->data, buf->buf_size,
                              buf->format.Format.nSamplesPerSec);
         }
-        getALError();
+        checkALError();
     }
 
     hr = DSERR_GENERIC;
@@ -1356,7 +1356,7 @@ static HRESULT WINAPI DS8Buffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSo
         This->source = This->primary->sources[--This->primary->nsources];
         alSourcef(This->source, AL_GAIN, 1.0f);
         alSourcef(This->source, AL_PITCH, 1.0f);
-        getALError();
+        checkALError();
     }
     else
     {
@@ -1388,7 +1388,7 @@ static HRESULT WINAPI DS8Buffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSo
         if(This->primary->auxslot != 0)
         {
             alSource3i(This->source, AL_AUXILIARY_SEND_FILTER, This->primary->auxslot, 0, AL_FILTER_NULL);
-            getALError();
+            checkALError();
         }
 
         hr = IDirectSound3DBuffer_SetAllParameters(&This->IDirectSound3DBuffer_iface, ds3dbuffer, DS3D_IMMEDIATE);
@@ -1421,7 +1421,7 @@ static HRESULT WINAPI DS8Buffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSo
         alSourcei(source, AL_CONE_INNER_ANGLE, 360);
         alSourcei(source, AL_CONE_OUTER_ANGLE, 360);
         alSourcei(source, AL_SOURCE_RELATIVE, AL_TRUE);
-        getALError();
+        checkALError();
     }
     hr = S_OK;
 
@@ -1539,7 +1539,7 @@ static HRESULT WINAPI DS8Buffer_Play(IDirectSoundBuffer8 *iface, DWORD res1, DWO
         alGetSourcei(This->source, AL_SOURCE_TYPE, &type);
         alSourcei(This->source, AL_LOOPING, (flags&DSBPLAY_LOOPING) ? AL_TRUE : AL_FALSE);
     }
-    getALError();
+    checkALError();
 
     hr = S_OK;
     if(state == AL_PLAYING)
@@ -1557,7 +1557,7 @@ static HRESULT WINAPI DS8Buffer_Play(IDirectSoundBuffer8 *iface, DWORD res1, DWO
         ERR("Couldn't start source\n");
         This->curidx = (This->buffer->numsegs-1+This->curidx)%This->buffer->numsegs;
         alSourcei(This->source, AL_BUFFER, 0);
-        getALError();
+        checkALError();
         hr = DSERR_GENERIC;
         goto out;
     }
@@ -1601,7 +1601,7 @@ static HRESULT WINAPI DS8Buffer_SetCurrentPosition(IDirectSoundBuffer8 *iface, D
              * proper position */
             alSourceStop(This->source);
             alSourcei(This->source, AL_BUFFER, 0);
-            getALError();
+            checkALError();
             popALContext();
         }
     }
@@ -1677,7 +1677,7 @@ static HRESULT WINAPI DS8Buffer_SetPan(IDirectSoundBuffer8 *iface, LONG pan)
 
         setALContext(This->ctx);
         alSourcefv(This->source, AL_POSITION, pos);
-        getALError();
+        checkALError();
         popALContext();
 
         if(pan != 0 && This->buffer->format.Format.nChannels > 1)
@@ -1710,7 +1710,7 @@ static HRESULT WINAPI DS8Buffer_SetFrequency(IDirectSoundBuffer8 *iface, DWORD f
 
         setALContext(This->ctx);
         alSourcef(This->source, AL_PITCH, pitch);
-        getALError();
+        checkALError();
         popALContext();
     }
 
@@ -1728,7 +1728,7 @@ static HRESULT WINAPI DS8Buffer_Stop(IDirectSoundBuffer8 *iface)
     setALContext(This->ctx);
 
     alSourcePause(This->source);
-    getALError();
+    checkALError();
     /* Mac OS X doesn't immediately report state change
      * if Play() is immediately called after Stop, this can be fatal,
      * the buffer would never be restarted
@@ -1804,7 +1804,7 @@ static HRESULT WINAPI DS8Buffer_Unlock(IDirectSoundBuffer8 *iface, void *ptr1, D
         if(len2 > 0)
             This->ExtAL->BufferSubSamplesSOFT(buf->buffers[0], ofs2, len2,
                                               buf->in_chans, buf->in_type, ptr2);
-        getALError();
+        checkALError();
     }
     else if(This->primary->SupportedExt[SOFT_BUFFER_SUB_DATA])
     {
@@ -1818,14 +1818,14 @@ static HRESULT WINAPI DS8Buffer_Unlock(IDirectSoundBuffer8 *iface, void *ptr1, D
         if(len2 > 0)
             This->ExtAL->BufferSubData(buf->buffers[0], buf->buf_format, ptr2,
                                        ofs2, len2);
-        getALError();
+        checkALError();
     }
     else
     {
         alBufferData(buf->buffers[0], buf->buf_format,
                      buf->data, buf->buf_size,
                      buf->format.Format.nSamplesPerSec);
-        getALError();
+        checkALError();
     }
     popALContext();
 
@@ -2199,7 +2199,7 @@ static HRESULT WINAPI DS8Buffer3D_GetConeAngles(IDirectSound3DBuffer *iface, DWO
 
     alGetSourcei(This->source, AL_CONE_INNER_ANGLE, &inangle);
     alGetSourcei(This->source, AL_CONE_OUTER_ANGLE, &outangle);
-    getALError();
+    checkALError();
     *pdwInsideConeAngle = inangle;
     *pdwOutsideConeAngle = outangle;
 
@@ -2225,7 +2225,7 @@ static HRESULT WINAPI DS8Buffer3D_GetConeOrientation(IDirectSound3DBuffer *iface
     setALContext(This->ctx);
 
     alGetSourcefv(This->source, AL_DIRECTION, dir);
-    getALError();
+    checkALError();
     orient->x =  dir[0];
     orient->y =  dir[1];
     orient->z = -dir[2];
@@ -2252,7 +2252,7 @@ static HRESULT WINAPI DS8Buffer3D_GetConeOutsideVolume(IDirectSound3DBuffer *ifa
     setALContext(This->ctx);
 
     alGetSourcef(This->source, AL_CONE_OUTER_GAIN, &gain);
-    getALError();
+    checkALError();
 
     popALContext();
     LeaveCriticalSection(This->crst);
@@ -2277,7 +2277,7 @@ static HRESULT WINAPI DS8Buffer3D_GetMaxDistance(IDirectSound3DBuffer *iface, D3
     setALContext(This->ctx);
 
     alGetSourcef(This->source, AL_MAX_DISTANCE, &dist);
-    getALError();
+    checkALError();
 
     popALContext();
     LeaveCriticalSection(This->crst);
@@ -2302,7 +2302,7 @@ static HRESULT WINAPI DS8Buffer3D_GetMinDistance(IDirectSound3DBuffer *iface, D3
     setALContext(This->ctx);
 
     alGetSourcef(This->source, AL_REFERENCE_DISTANCE, &dist);
-    getALError();
+    checkALError();
     *mindist = dist;
 
     popALContext();
@@ -2345,7 +2345,7 @@ static HRESULT WINAPI DS8Buffer3D_GetPosition(IDirectSound3DBuffer *iface, D3DVE
     setALContext(This->ctx);
 
     alGetSourcefv(This->source, AL_POSITION, alpos);
-    getALError();
+    checkALError();
     pos->x =  alpos[0];
     pos->y =  alpos[1];
     pos->z = -alpos[2];
@@ -2372,7 +2372,7 @@ static HRESULT WINAPI DS8Buffer3D_GetVelocity(IDirectSound3DBuffer *iface, D3DVE
     setALContext(This->ctx);
 
     alGetSourcefv(This->source, AL_VELOCITY, alvel);
-    getALError();
+    checkALError();
     vel->x =  alvel[0];
     vel->y =  alvel[1];
     vel->z = -alvel[2];
@@ -2469,7 +2469,7 @@ static HRESULT WINAPI DS8Buffer3D_SetConeAngles(IDirectSound3DBuffer *iface, DWO
         setALContext(This->ctx);
         alSourcei(This->source, AL_CONE_INNER_ANGLE, dwInsideConeAngle);
         alSourcei(This->source, AL_CONE_OUTER_ANGLE, dwOutsideConeAngle);
-        getALError();
+        checkALError();
         popALContext();
     }
     LeaveCriticalSection(This->crst);
@@ -2495,7 +2495,7 @@ static HRESULT WINAPI DS8Buffer3D_SetConeOrientation(IDirectSound3DBuffer *iface
     {
         setALContext(This->ctx);
         alSource3f(This->source, AL_DIRECTION, x, y, -z);
-        getALError();
+        checkALError();
         popALContext();
     }
     LeaveCriticalSection(This->crst);
@@ -2524,7 +2524,7 @@ static HRESULT WINAPI DS8Buffer3D_SetConeOutsideVolume(IDirectSound3DBuffer *ifa
     {
         setALContext(This->ctx);
         alSourcef(This->source, AL_CONE_OUTER_GAIN, mB_to_gain(vol));
-        getALError();
+        checkALError();
         popALContext();
     }
     LeaveCriticalSection(This->crst);
@@ -2553,7 +2553,7 @@ static HRESULT WINAPI DS8Buffer3D_SetMaxDistance(IDirectSound3DBuffer *iface, D3
     {
         setALContext(This->ctx);
         alSourcef(This->source, AL_MAX_DISTANCE, maxdist);
-        getALError();
+        checkALError();
         popALContext();
     }
     LeaveCriticalSection(This->crst);
@@ -2582,7 +2582,7 @@ static HRESULT WINAPI DS8Buffer3D_SetMinDistance(IDirectSound3DBuffer *iface, D3
     {
         setALContext(This->ctx);
         alSourcef(This->source, AL_REFERENCE_DISTANCE, mindist);
-        getALError();
+        checkALError();
         popALContext();
     }
     LeaveCriticalSection(This->crst);
@@ -2616,7 +2616,7 @@ static HRESULT WINAPI DS8Buffer3D_SetMode(IDirectSound3DBuffer *iface, DWORD mod
         alSourcef(This->source, AL_ROLLOFF_FACTOR,
                   (mode == DS3DMODE_DISABLE) ? 0.0f : This->primary->rollofffactor);
         This->ds3dmode = mode;
-        getALError();
+        checkALError();
         popALContext();
     }
     LeaveCriticalSection(This->crst);
@@ -2642,7 +2642,7 @@ static HRESULT WINAPI DS8Buffer3D_SetPosition(IDirectSound3DBuffer *iface, D3DVA
     {
         setALContext(This->ctx);
         alSource3f(This->source, AL_POSITION, x, y, -z);
-        getALError();
+        checkALError();
         popALContext();
     }
     LeaveCriticalSection(This->crst);
@@ -2668,7 +2668,7 @@ static HRESULT WINAPI DS8Buffer3D_SetVelocity(IDirectSound3DBuffer *iface, D3DVA
     {
         setALContext(This->ctx);
         alSource3f(This->source, AL_VELOCITY, x, y, -z);
-        getALError();
+        checkALError();
         popALContext();
     }
     LeaveCriticalSection(This->crst);
