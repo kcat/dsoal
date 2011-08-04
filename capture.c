@@ -97,15 +97,17 @@ static const IDirectSoundNotifyVtbl DSCNot_Vtbl;
 
 static void DSCImpl_Destroy(DSCImpl *This);
 
-static HRESULT DSCBuffer_Create(DSCBuffer **buf)
+static HRESULT DSCBuffer_Create(DSCBuffer **buf, DSCImpl *parent)
 {
     DSCBuffer *This = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(*This));
-    if (!This) return E_OUTOFMEMORY;
+    if(!This) return E_OUTOFMEMORY;
 
     This->IDirectSoundCaptureBuffer8_iface.lpVtbl = (IDirectSoundCaptureBuffer8Vtbl*)&DSCBuffer_Vtbl;
     This->IDirectSoundNotify_iface.lpVtbl = (IDirectSoundNotifyVtbl*)&DSCNot_Vtbl;
 
     This->all_ref = This->ref = 1;
+
+    This->parent = parent;
 
     *buf = This;
     return S_OK;
@@ -377,9 +379,10 @@ static HRESULT WINAPI DSCBuffer_Initialize(IDirectSoundCaptureBuffer8 *iface, ID
     WAVEFORMATEX *format;
     ALenum buf_format = -1;
 
-    if (This->parent)
+    TRACE("(%p)->(%p, %p)\n", iface, parent, desc);
+
+    if(This->dev)
         return DSERR_ALREADYINITIALIZED;
-    This->parent = (DSCImpl*)parent;
 
     if (!desc->lpwfxFormat)
         return DSERR_INVALIDPARAM;
@@ -837,7 +840,7 @@ static HRESULT WINAPI DSCImpl_CreateCaptureBuffer(IDirectSoundCapture *iface, co
         goto out;
     }
 
-    hr = DSCBuffer_Create(&This->buf);
+    hr = DSCBuffer_Create(&This->buf, This);
     if(SUCCEEDED(hr))
     {
         hr = IDirectSoundCaptureBuffer8_Initialize(&This->buf->IDirectSoundCaptureBuffer8_iface, iface, desc);
@@ -943,7 +946,7 @@ static HRESULT WINAPI DSCImpl_Initialize(IDirectSoundCapture *iface, const GUID 
         drv_name = devs;
 
     This->device = HeapAlloc(GetProcessHeap(), 0, strlen(drv_name)+1);
-    if (!This->device)
+    if(!This->device)
     {
         WARN("Out of memory to allocate %s\n", drv_name);
         goto out;
