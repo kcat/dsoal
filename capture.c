@@ -583,13 +583,12 @@ static HRESULT WINAPI DSCBuffer_Stop(IDirectSoundCaptureBuffer8 *iface)
     if(This->playing)
     {
         DWORD i;
-
-        for (i = 0; i < This->nnotify; ++i)
-            if (This->notify[i].dwOffset == DSCBPN_OFFSET_STOP)
-            {
+        for(i = 0;i < This->nnotify;++i)
+        {
+            if(This->notify[i].dwOffset == DSCBPN_OFFSET_STOP)
                 SetEvent(This->notify[i].hEventNotify);
-                break;
-            }
+        }
+
         This->playing = This->looping = 0;
         alcCaptureStop(This->dev);
     }
