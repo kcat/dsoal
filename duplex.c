@@ -418,7 +418,7 @@ static HRESULT WINAPI IDirectSoundFullDuplexImpl_Initialize(
     if(SUCCEEDED(hr))
     {
         This->renderer_device = ptr;
-        hr = IDirectSound_Initialize(This->renderer_device, pRendererGuid);
+        hr = IDirectSound8_Initialize(This->renderer_device, pRendererGuid);
     }
     if(hr != DS_OK)
     {
