@@ -1687,9 +1687,8 @@ static HRESULT WINAPI DS8PrimaryProp_Get(IKsPropertySet *iface,
 {
     DS8Primary *This = impl_from_IKsPropertySet(iface);
     HRESULT res = E_PROP_ID_UNSUPPORTED;
-
-    TRACE("(%p)->(%s, %"LONGFMT"u, %p, %"LONGFMT"u, %p, %"LONGFMT"u, %p)\n", iface, debugstr_guid(guidPropSet),
-          dwPropID, pInstanceData, cbInstanceData, pPropData, cbPropData, pcbReturned);
+    (void)pInstanceData;
+    (void)cbInstanceData;
 
     if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX20_ListenerProperties))
     {
@@ -1852,9 +1851,8 @@ static HRESULT WINAPI DS8PrimaryProp_Set(IKsPropertySet *iface,
 {
     DS8Primary *This = impl_from_IKsPropertySet(iface);
     HRESULT res = E_PROP_ID_UNSUPPORTED;
-
-    TRACE("(%p)->(%s, %"LONGFMT"u, %p, %"LONGFMT"u, %p, %"LONGFMT"u)\n", iface, debugstr_guid(guidPropSet),
-          dwPropID, pInstanceData, cbInstanceData, pPropData, cbPropData);
+    (void)pInstanceData;
+    (void)cbInstanceData;
 
     if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX20_ListenerProperties))
     {
@@ -2132,8 +2130,6 @@ static HRESULT WINAPI DS8PrimaryProp_QuerySupport(IKsPropertySet *iface,
 {
     DS8Primary *This = impl_from_IKsPropertySet(iface);
     HRESULT res = E_PROP_ID_UNSUPPORTED;
-
-    TRACE("(%p)->(%s, %"LONGFMT"u, %p)\n", iface, debugstr_guid(guidPropSet), dwPropID, pTypeSupport);
 
     if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX20_ListenerProperties))
     {
