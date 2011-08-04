@@ -392,8 +392,8 @@ typedef struct ExtALFuncs
     void (AL_APIENTRY*GetBufferSamplesSOFT)(ALuint,ALsizei,ALsizei,ALenum,ALenum,ALvoid*);
     ALboolean (AL_APIENTRY*IsBufferFormatSupportedSOFT)(ALenum);
 
-    void (AL_APIENTRY*DeferUpdates)(void);
-    void (AL_APIENTRY*ProcessUpdates)(void);
+    void (AL_APIENTRY*DeferUpdatesSOFT)(void);
+    void (AL_APIENTRY*ProcessUpdatesSOFT)(void);
 } ExtALFuncs;
 
 struct DS8Primary
@@ -448,6 +448,9 @@ struct DS8Primary
     } dirty;
     ALfloat rollofffactor;
     DS3DLISTENER listen;
+
+    void (AL_APIENTRY*DeferUpdates)(void);
+    void (AL_APIENTRY*ProcessUpdates)(void);
 };
 
 

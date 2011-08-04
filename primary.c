@@ -284,14 +284,9 @@ HRESULT DS8Primary_Create(DS8Primary **ppv, DS8Impl *parent)
     if(alIsExtensionPresent("AL_SOFTX_deferred_updates"))
     {
         TRACE("Found AL_SOFTX_deferred_updates\n");
-        This->ExtAL.DeferUpdates = alGetProcAddress("alDeferUpdatesSOFT");
-        This->ExtAL.ProcessUpdates = alGetProcAddress("alProcessUpdatesSOFT");
+        This->ExtAL.DeferUpdatesSOFT = alGetProcAddress("alDeferUpdatesSOFT");
+        This->ExtAL.ProcessUpdatesSOFT = alGetProcAddress("alProcessUpdatesSOFT");
         This->SupportedExt[SOFT_DEFERRED_UPDATES] = AL_TRUE;
-    }
-    else
-    {
-        This->ExtAL.DeferUpdates = wrap_DeferUpdates;
-        This->ExtAL.ProcessUpdates = wrap_ProcessUpdates;
     }
 
     if(alcIsExtensionPresent(parent->device, "ALC_EXT_EFX"))
@@ -338,6 +333,17 @@ HRESULT DS8Primary_Create(DS8Primary **ppv, DS8Impl *parent)
         ERR("Missing alBufferSubDataSOFT, alBufferSamplesSOFT , and alBufferDataStatic on device '%s', sound playback quality may be degraded\n",
              alcGetString(parent->device, ALC_DEVICE_SPECIFIER));
         ERR("Please consider using OpenAL-Soft\n");
+    }
+
+    if(This->SupportedExt[SOFT_DEFERRED_UPDATES])
+    {
+        This->DeferUpdates = This->ExtAL.DeferUpdatesSOFT;
+        This->ProcessUpdates = This->ExtAL.ProcessUpdatesSOFT;
+    }
+    else
+    {
+        This->DeferUpdates = wrap_DeferUpdates;
+        This->ProcessUpdates = wrap_ProcessUpdates;
     }
 
     /* Make sure DS3DListener defaults are applied to OpenAL */
@@ -1522,7 +1528,7 @@ static HRESULT WINAPI DS8Primary3D_CommitDeferredSettings(IDirectSound3DListener
 
     EnterCriticalSection(&This->crst);
     setALContext(This->ctx);
-    This->ExtAL.DeferUpdates();
+    This->DeferUpdates();
 
     if(This->dirty.bit.pos)
         alListener3f(AL_POSITION, listen->vPosition.x, listen->vPosition.y, -listen->vPosition.z);
@@ -1614,7 +1620,7 @@ static HRESULT WINAPI DS8Primary3D_CommitDeferredSettings(IDirectSound3DListener
     }
     getALError();
 
-    This->ExtAL.ProcessUpdates();
+    This->ProcessUpdates();
     popALContext();
     LeaveCriticalSection(&This->crst);
 
