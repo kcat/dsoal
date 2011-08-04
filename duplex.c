@@ -492,7 +492,7 @@ HRESULT DSOUND_FullDuplexCreate(
         WARN("invalid parameter: ppDSFD == NULL\n");
         return DSERR_INVALIDPARAM;
     }
-        *ppDSFD = NULL;
+    *ppDSFD = NULL;
 
     if(!IsEqualIID(riid, &IID_IUnknown) &&
        !IsEqualIID(riid, &IID_IDirectSoundFullDuplex))
