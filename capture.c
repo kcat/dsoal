@@ -703,6 +703,12 @@ static const IDirectSoundNotifyVtbl DSCNot_Vtbl =
     DSCBufferNot_SetNotificationPositions
 };
 
+
+static inline DSCImpl *impl_from_IDirectSoundCapture(IDirectSoundCapture *iface)
+{
+    return CONTAINING_RECORD(iface, DSCImpl, IDirectSoundCapture_iface);
+}
+
 HRESULT DSOUND_CaptureCreate(REFIID riid, void **cap)
 {
     DSCImpl *This;
@@ -748,20 +754,29 @@ static void DSCImpl_Destroy(DSCImpl *This)
 
 static HRESULT WINAPI DSCImpl_QueryInterface(IDirectSoundCapture *iface, REFIID riid, void **ppv)
 {
+    DSCImpl *This = impl_from_IDirectSoundCapture(iface);
+
+    TRACE("(%p)->(%s, %p)\n", iface, debugstr_guid(riid), ppv);
+
     *ppv = NULL;
     if(IsEqualIID(riid, &IID_IUnknown) ||
        IsEqualIID(riid, &IID_IDirectSoundCapture))
-        *ppv = iface;
+        *ppv = &This->IDirectSoundCapture_iface;
+    else
+        FIXME("Unhandled GUID: %s\n", debugstr_guid(riid));
 
-    if(!*ppv)
-        return E_NOINTERFACE;
-    IUnknown_AddRef((IUnknown*)*ppv);
-    return S_OK;
+    if(*ppv)
+    {
+        IUnknown_AddRef((IUnknown*)*ppv);
+        return S_OK;
+    }
+
+    return E_NOINTERFACE;
 }
 
-static ULONG WINAPI DSCImpl_AddRef(IDirectSoundCapture8 *iface)
+static ULONG WINAPI DSCImpl_AddRef(IDirectSoundCapture *iface)
 {
-    DSCImpl *This = (DSCImpl*)iface;
+    DSCImpl *This = impl_from_IDirectSoundCapture(iface);
     LONG ref;
 
     ref = InterlockedIncrement(&This->ref);
@@ -770,9 +785,9 @@ static ULONG WINAPI DSCImpl_AddRef(IDirectSoundCapture8 *iface)
     return ref;
 }
 
-static ULONG WINAPI DSCImpl_Release(IDirectSoundCapture8 *iface)
+static ULONG WINAPI DSCImpl_Release(IDirectSoundCapture *iface)
 {
-    DSCImpl *This = (DSCImpl*)iface;
+    DSCImpl *This = impl_from_IDirectSoundCapture(iface);
     LONG ref;
 
     ref = InterlockedDecrement(&This->ref);
@@ -783,24 +798,25 @@ static ULONG WINAPI DSCImpl_Release(IDirectSoundCapture8 *iface)
     return ref;
 }
 
-static HRESULT WINAPI DSCImpl_CreateCaptureBuffer(IDirectSoundCapture8 *iface, const DSCBUFFERDESC *desc, IDirectSoundCaptureBuffer **ppv, IUnknown *unk)
+static HRESULT WINAPI DSCImpl_CreateCaptureBuffer(IDirectSoundCapture *iface, const DSCBUFFERDESC *desc, IDirectSoundCaptureBuffer **ppv, IUnknown *unk)
 {
-    DSCImpl *This = (DSCImpl*)iface;
+    DSCImpl *This = impl_from_IDirectSoundCapture(iface);
     HRESULT hr;
-    TRACE("(%p)->(%p,%p,%p)\n", This, desc, ppv, unk);
 
-    if (unk)
+    TRACE("(%p)->(%p, %p, %p)\n", This, desc, ppv, unk);
+
+    if(unk)
     {
         WARN("Aggregation isn't supported\n");
         return DSERR_NOAGGREGATION;
     }
 
-    if (!desc || desc->dwSize < sizeof(DSCBUFFERDESC1))
+    if(!desc || desc->dwSize < sizeof(DSCBUFFERDESC1))
     {
         WARN("Passed invalid description %p %"LONGFMT"u\n", desc, desc?desc->dwSize:0);
         return DSERR_INVALIDPARAM;
     }
-    if (!ppv)
+    if(!ppv)
     {
         WARN("Passed null pointer\n");
         return DSERR_INVALIDPARAM;
@@ -808,13 +824,13 @@ static HRESULT WINAPI DSCImpl_CreateCaptureBuffer(IDirectSoundCapture8 *iface, c
     *ppv = NULL;
 
     EnterCriticalSection(&This->crst);
-    if (!This->device)
+    if(!This->device)
     {
         hr = DSERR_UNINITIALIZED;
         WARN("Not initialized\n");
         goto out;
     }
-    if (This->buf)
+    if(This->buf)
     {
         hr = DSERR_ALLOCATED;
         WARN("Capture buffer already allocated\n");
@@ -822,37 +838,39 @@ static HRESULT WINAPI DSCImpl_CreateCaptureBuffer(IDirectSoundCapture8 *iface, c
     }
 
     hr = DSCBuffer_Create(&This->buf);
-    if (SUCCEEDED(hr))
+    if(SUCCEEDED(hr))
     {
-        hr = IDirectSoundCaptureBuffer_Initialize((IDirectSoundCaptureBuffer*)This->buf, iface, desc);
-        if (FAILED(hr))
+        hr = IDirectSoundCaptureBuffer8_Initialize(&This->buf->IDirectSoundCaptureBuffer8_iface, iface, desc);
+        if(SUCCEEDED(hr))
+            *ppv = (IDirectSoundCaptureBuffer*)&This->buf->IDirectSoundCaptureBuffer8_iface;
+        else
         {
             DSCBuffer_Destroy(This->buf);
             This->buf = NULL;
         }
     }
-    *ppv = (IDirectSoundCaptureBuffer*)This->buf;
+
 out:
     LeaveCriticalSection(&This->crst);
     return hr;
 }
 
-static HRESULT WINAPI DSCImpl_GetCaps(IDirectSoundCapture8 *iface, DSCCAPS *caps)
+static HRESULT WINAPI DSCImpl_GetCaps(IDirectSoundCapture *iface, DSCCAPS *caps)
 {
-    DSCImpl *This = (DSCImpl*)iface;
-    TRACE("(%p,%p)\n", This, caps);
+    DSCImpl *This = impl_from_IDirectSoundCapture(iface);
 
-    if (!This->device) {
+    TRACE("(%p)->(%p)\n", iface, caps);
+
+    if(!This->device) {
         WARN("Not initialized\n");
         return DSERR_UNINITIALIZED;
     }
 
-    if (!caps) {
+    if(!caps) {
         WARN("Caps is null\n");
         return DSERR_INVALIDPARAM;
     }
-
-    if (caps->dwSize < sizeof(*caps)) {
+    if(caps->dwSize < sizeof(*caps)) {
         WARN("Invalid size %"LONGFMT"d\n", caps->dwSize);
         return DSERR_INVALIDPARAM;
     }
@@ -865,27 +883,28 @@ static HRESULT WINAPI DSCImpl_GetCaps(IDirectSoundCapture8 *iface, DSCCAPS *caps
     return DS_OK;
 }
 
-static HRESULT WINAPI DSCImpl_Initialize(IDirectSoundCapture8 *iface, const GUID *devguid)
+static HRESULT WINAPI DSCImpl_Initialize(IDirectSoundCapture *iface, const GUID *devguid)
 {
-    DSCImpl *This = (DSCImpl*)iface;
+    DSCImpl *This = impl_from_IDirectSoundCapture(iface);
     HRESULT hr;
     const ALCchar *devs, *drv_name;
     GUID guid;
     UINT n;
-    TRACE("(%p,%p)\n", This, devguid);
 
-    if (!openal_loaded)
+    TRACE("(%p)->(%p)\n", iface, devguid);
+
+    if(!openal_loaded)
     {
         ERR("OpenAL not loaded!\n");
         return DSERR_NODRIVER;
     }
 
-    if (This->device) {
+    if(This->device) {
         WARN("Already initialized\n");
         return DSERR_ALREADYINITIALIZED;
     }
 
-    if (!devguid)
+    if(!devguid)
         devguid = &DSDEVID_DefaultCapture;
 
     hr = GetDeviceID(devguid, &guid);
