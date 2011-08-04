@@ -928,7 +928,7 @@ static HRESULT WINAPI DSCImpl_Initialize(IDirectSoundCapture *iface, const GUID 
         return DSERR_ALREADYINITIALIZED;
     }
 
-    if(!devguid)
+    if(!devguid || IsEqualGUID(devguid, &GUID_NULL))
         devguid = &DSDEVID_DefaultCapture;
 
     hr = GetDeviceID(devguid, &guid);
