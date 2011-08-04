@@ -657,40 +657,36 @@ DirectSoundCaptureEnumerateW(
  *     Failure: DSERR_ALLOCATED, DSERR_INVALIDPARAM, DSERR_NOAGGREGATION,
  *              DSERR_NODRIVER, DSERR_OUTOFMEMORY
  */
-HRESULT WINAPI DirectSoundCreate(
-    LPCGUID lpcGUID,
-    LPDIRECTSOUND *ppDS,
-    IUnknown *pUnkOuter)
+HRESULT WINAPI
+DirectSoundCreate(LPCGUID lpcGUID, IDirectSound **ppDS, IUnknown *pUnkOuter)
 {
     HRESULT hr;
-    LPDIRECTSOUND pDS;
+    void *pDS;
 
-    TRACE("(%s,%p,%p)\n",debugstr_guid(lpcGUID),ppDS,pUnkOuter);
+    TRACE("(%s, %p, %p)\n", debugstr_guid(lpcGUID), ppDS, pUnkOuter);
 
     if (ppDS == NULL) {
         WARN("invalid parameter: ppDS == NULL\n");
         return DSERR_INVALIDPARAM;
     }
+    *ppDS = NULL;
 
     if (pUnkOuter != NULL) {
         WARN("invalid parameter: pUnkOuter != NULL\n");
-        *ppDS = 0;
         return DSERR_INVALIDPARAM;
     }
 
-    hr = DSOUND_Create(&IID_IDirectSound, (void **)&pDS);
-    if (hr == DS_OK) {
-        hr = IDirectSound_Initialize(pDS, lpcGUID);
-        if (hr != DS_OK) {
-            if (hr != DSERR_ALREADYINITIALIZED) {
-                IDirectSound_Release(pDS);
-                pDS = 0;
-            } else
-                hr = DS_OK;
+    hr = DSOUND_Create(&IID_IDirectSound, &pDS);
+    if(SUCCEEDED(hr))
+    {
+        *ppDS = pDS;
+        hr = IDirectSound_Initialize(*ppDS, lpcGUID);
+        if(FAILED(hr))
+        {
+            IDirectSound_Release(*ppDS);
+            *ppDS = NULL;
         }
     }
-
-    *ppDS = pDS;
 
     return hr;
 }
@@ -710,40 +706,36 @@ HRESULT WINAPI DirectSoundCreate(
  *     Failure: DSERR_ALLOCATED, DSERR_INVALIDPARAM, DSERR_NOAGGREGATION,
  *              DSERR_NODRIVER, DSERR_OUTOFMEMORY
  */
-HRESULT WINAPI DirectSoundCreate8(
-    LPCGUID lpcGUID,
-    LPDIRECTSOUND8 *ppDS,
-    IUnknown *pUnkOuter)
+HRESULT WINAPI
+DirectSoundCreate8(LPCGUID lpcGUID, IDirectSound8 **ppDS, IUnknown *pUnkOuter)
 {
     HRESULT hr;
-    LPDIRECTSOUND8 pDS;
+    void *pDS;
 
-    TRACE("(%s,%p,%p)\n",debugstr_guid(lpcGUID),ppDS,pUnkOuter);
+    TRACE("(%s, %p, %p)\n", debugstr_guid(lpcGUID), ppDS, pUnkOuter);
 
     if (ppDS == NULL) {
         WARN("invalid parameter: ppDS == NULL\n");
         return DSERR_INVALIDPARAM;
     }
+    *ppDS = NULL;
 
     if (pUnkOuter != NULL) {
         WARN("invalid parameter: pUnkOuter != NULL\n");
-        *ppDS = 0;
         return DSERR_INVALIDPARAM;
     }
 
-    hr = DSOUND_Create8(&IID_IDirectSound8, (void**)&pDS);
-    if (hr == DS_OK) {
-        hr = IDirectSound8_Initialize(pDS, lpcGUID);
-        if (hr != DS_OK) {
-            if (hr != DSERR_ALREADYINITIALIZED) {
-                IDirectSound8_Release(pDS);
-                pDS = 0;
-            } else
-                hr = DS_OK;
+    hr = DSOUND_Create8(&IID_IDirectSound8, &pDS);
+    if(SUCCEEDED(hr))
+    {
+        *ppDS = pDS;
+        hr = IDirectSound8_Initialize(*ppDS, lpcGUID);
+        if(FAILED(hr))
+        {
+            IDirectSound8_Release(*ppDS);
+            *ppDS = NULL;
         }
     }
-
-    *ppDS = pDS;
 
     return hr;
 }
@@ -770,13 +762,11 @@ HRESULT WINAPI DirectSoundCreate8(
  *
  *    DSERR_ALLOCATED is returned for sound devices that do not support full duplex.
  */
-HRESULT WINAPI DirectSoundCaptureCreate(
-    LPCGUID lpcGUID,
-    IDirectSoundCapture **ppDSC,
-    IUnknown *pUnkOuter)
+HRESULT WINAPI
+DirectSoundCaptureCreate(LPCGUID lpcGUID, IDirectSoundCapture **ppDSC, IUnknown *pUnkOuter)
 {
-    void *pDSC;
     HRESULT hr;
+    void *pDSC;
 
     TRACE("(%s, %p, %p)\n", debugstr_guid(lpcGUID), ppDSC, pUnkOuter);
 
@@ -794,14 +784,14 @@ HRESULT WINAPI DirectSoundCaptureCreate(
     }
 
     hr = DSOUND_CaptureCreate(&IID_IDirectSoundCapture, &pDSC);
-    if(hr == DS_OK)
+    if(SUCCEEDED(hr))
     {
         *ppDSC = pDSC;
         hr = IDirectSoundCapture_Initialize(*ppDSC, lpcGUID);
-        if(hr != DS_OK)
+        if(FAILED(hr))
         {
             IDirectSoundCapture_Release(*ppDSC);
-            *ppDSC = 0;
+            *ppDSC = NULL;
         }
     }
 
@@ -830,13 +820,11 @@ HRESULT WINAPI DirectSoundCaptureCreate(
  *
  *    DSERR_ALLOCATED is returned for sound devices that do not support full duplex.
  */
-HRESULT WINAPI DirectSoundCaptureCreate8(
-    LPCGUID lpcGUID,
-    IDirectSoundCapture8 **ppDSC8,
-    IUnknown *pUnkOuter)
+HRESULT WINAPI
+DirectSoundCaptureCreate8(LPCGUID lpcGUID, IDirectSoundCapture8 **ppDSC8, IUnknown *pUnkOuter)
 {
-    void *pDSC8;
     HRESULT hr;
+    void *pDSC8;
 
     TRACE("(%s, %p, %p)\n", debugstr_guid(lpcGUID), ppDSC8, pUnkOuter);
 
@@ -854,11 +842,11 @@ HRESULT WINAPI DirectSoundCaptureCreate8(
     }
 
     hr = DSOUND_CaptureCreate8(&IID_IDirectSoundCapture8, &pDSC8);
-    if(hr == DS_OK)
+    if(SUCCEEDED(hr))
     {
         *ppDSC8 = pDSC8;
         hr = IDirectSoundCapture_Initialize(*ppDSC8, lpcGUID);
-        if(hr != DS_OK)
+        if(FAILED(hr))
         {
             IDirectSoundCapture_Release(*ppDSC8);
             *ppDSC8 = NULL;
