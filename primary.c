@@ -1098,7 +1098,6 @@ static ULONG WINAPI DS8Primary3D_Release(IDirectSound3DListener *iface)
 static HRESULT WINAPI DS8Primary3D_GetAllParameters(IDirectSound3DListener *iface, DS3DLISTENER *listener)
 {
     DS8Primary *This = impl_from_IDirectSound3DListener(iface);
-//    HRESULT hr;
 
     TRACE("(%p)->(%p)\n", iface, listener);
 
@@ -1119,7 +1118,6 @@ static HRESULT WINAPI DS8Primary3D_GetAllParameters(IDirectSound3DListener *ifac
     popALContext();
     LeaveCriticalSection(&This->crst);
 
-//    return hr;
     return DS_OK;
 }
 
