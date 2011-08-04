@@ -68,8 +68,7 @@ struct DSCImpl {
 
     ALCchar *device;
     DSCBuffer *buf;
-    UINT timer_id;
-    DWORD timer_res;
+
     CRITICAL_SECTION crst;
 };
 
@@ -81,11 +80,19 @@ struct DSCBuffer {
 
     DSCImpl *parent;
     ALCdevice *dev;
+
     DWORD buf_size;
     BYTE *buf;
+
     WAVEFORMATEX *format;
+
     DSBPOSITIONNOTIFY *notify;
     DWORD nnotify;
+
+    UINT timer_id;
+    DWORD timer_res;
+    HANDLE thread_hdl;
+    DWORD thread_id;
 
     DWORD pos;
     BOOL playing, looping;
@@ -96,22 +103,6 @@ static const IDirectSoundCaptureBuffer8Vtbl DSCBuffer_Vtbl;
 static const IDirectSoundNotifyVtbl DSCNot_Vtbl;
 
 static void DSCImpl_Destroy(DSCImpl *This);
-
-static HRESULT DSCBuffer_Create(DSCBuffer **buf, DSCImpl *parent)
-{
-    DSCBuffer *This = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(*This));
-    if(!This) return E_OUTOFMEMORY;
-
-    This->IDirectSoundCaptureBuffer8_iface.lpVtbl = (IDirectSoundCaptureBuffer8Vtbl*)&DSCBuffer_Vtbl;
-    This->IDirectSoundNotify_iface.lpVtbl = (IDirectSoundNotifyVtbl*)&DSCNot_Vtbl;
-
-    This->all_ref = This->ref = 1;
-
-    This->parent = parent;
-
-    *buf = This;
-    return S_OK;
-}
 
 static void trigger_notifies(DSCBuffer *buf, DWORD lastpos, DWORD curpos)
 {
@@ -143,71 +134,72 @@ static void trigger_notifies(DSCBuffer *buf, DWORD lastpos, DWORD curpos)
     }
 }
 
-static void CALLBACK DSCBuffer_timer(UINT timerID, UINT msg, DWORD_PTR dwUser,
-                                     DWORD_PTR dw1, DWORD_PTR dw2)
+static DWORD CALLBACK DSCBuffer_thread(void *param)
 {
-    DSCImpl *This = (DSCImpl*)dwUser;
-    ALCint avail = 0;
+    DSCImpl *This = param;
     DSCBuffer *buf;
-    (void)timerID;
-    (void)msg;
-    (void)dw1;
-    (void)dw2;
+    ALCint avail;
+    MSG msg;
 
-    EnterCriticalSection(&This->crst);
-    buf = This->buf;
-    if (!buf || !buf->dev || !buf->playing)
-        goto out;
+    SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_TIME_CRITICAL);
 
-    alcGetIntegerv(buf->dev, ALC_CAPTURE_SAMPLES, 1, &avail);
-    if (avail)
+    while(GetMessageA(&msg, NULL, 0, 0))
     {
+        if(msg.message != WM_USER)
+            continue;
+
+        avail = 0;
+        buf = This->buf;
+        alcGetIntegerv(buf->dev, ALC_CAPTURE_SAMPLES, 1, &avail);
+        if(avail == 0)
+            continue;
+
+        EnterCriticalSection(&This->crst);
+    more_samples:
         avail *= buf->format->nBlockAlign;
-        if (avail + buf->pos > buf->buf_size)
+        if(avail + buf->pos > buf->buf_size)
             avail = buf->buf_size - buf->pos;
 
         alcCaptureSamples(buf->dev, buf->buf + buf->pos, avail/buf->format->nBlockAlign);
         trigger_notifies(buf, buf->pos, buf->pos + avail);
         buf->pos += avail;
 
-        if (buf->pos == buf->buf_size)
+        if(buf->pos == buf->buf_size)
         {
             buf->pos = 0;
-            if (!buf->looping)
+            if(!buf->looping)
                 IDirectSoundCaptureBuffer8_Stop(&buf->IDirectSoundCaptureBuffer8_iface);
             else
             {
-                avail = 0;
                 alcGetIntegerv(buf->dev, ALC_CAPTURE_SAMPLES, 1, &avail);
-                avail *= buf->format->nBlockAlign;
-                if ((ALCuint)avail >= buf->buf_size)
-                {
-                    ERR("TOO MUCH AVAIL: %u/%"LONGFMT"u\n", avail, buf->buf_size);
-                    avail = buf->buf_size;
-                }
-
-                if (avail)
-                {
-                    alcCaptureSamples(buf->dev, buf->buf + buf->pos, avail/buf->format->nBlockAlign);
-                    trigger_notifies(buf, buf->pos, buf->pos + avail);
-                    buf->pos += avail;
-                }
+                if(avail) goto more_samples;
             }
         }
+
+        LeaveCriticalSection(&This->crst);
     }
 
-out:
-    LeaveCriticalSection(&This->crst);
-    return;
+    return 0;
 }
 
-static void DSCBuffer_starttimer(DSCImpl *prim)
+
+static void CALLBACK DSCBuffer_timer(UINT timerID, UINT msg, DWORD_PTR dwUser,
+                                     DWORD_PTR dw1, DWORD_PTR dw2)
+{
+    (void)timerID;
+    (void)msg;
+    (void)dw1;
+    (void)dw2;
+    PostThreadMessageA(dwUser, WM_USER, 0, 0);
+}
+
+static void DSCBuffer_starttimer(DSCBuffer *This)
 {
     TIMECAPS time;
     ALint refresh = FAKE_REFRESH_COUNT;
     DWORD triggertime, res = DS_TIME_RES;
 
-    if (prim->timer_id)
+    if(This->timer_id)
         return;
 
     timeGetDevCaps(&time, sizeof(TIMECAPS));
@@ -219,20 +211,56 @@ static void DSCBuffer_starttimer(DSCImpl *prim)
         res = time.wPeriodMin;
     if (timeBeginPeriod(res) == TIMERR_NOCANDO)
         WARN("Could not set minimum resolution, don't expect sound\n");
-    prim->timer_res = res;
-    prim->timer_id = timeSetEvent(triggertime, res, DSCBuffer_timer, (DWORD_PTR)prim, TIME_PERIODIC | TIME_KILL_SYNCHRONOUS);
+    This->timer_res = res;
+    This->timer_id = timeSetEvent(triggertime, res, DSCBuffer_timer, This->thread_id, TIME_PERIODIC|TIME_KILL_SYNCHRONOUS);
+}
+
+static HRESULT DSCBuffer_Create(DSCBuffer **buf, DSCImpl *parent)
+{
+    DSCBuffer *This = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(*This));
+    if(!This) return E_OUTOFMEMORY;
+
+    This->IDirectSoundCaptureBuffer8_iface.lpVtbl = (IDirectSoundCaptureBuffer8Vtbl*)&DSCBuffer_Vtbl;
+    This->IDirectSoundNotify_iface.lpVtbl = (IDirectSoundNotifyVtbl*)&DSCNot_Vtbl;
+
+    This->all_ref = This->ref = 1;
+
+    This->parent = parent;
+
+    This->thread_hdl = CreateThread(NULL, 0, DSCBuffer_thread, This->parent, 0, &This->thread_id);
+    if(This->thread_hdl == NULL)
+    {
+        HeapFree(GetProcessHeap(), 0, This);
+        return DSERR_OUTOFMEMORY;
+    }
+
+    *buf = This;
+    return S_OK;
 }
 
 static void DSCBuffer_Destroy(DSCBuffer *This)
 {
+    if(This->timer_id)
+    {
+        timeKillEvent(This->timer_id);
+        timeEndPeriod(This->timer_res);
+    }
+    if(This->thread_hdl)
+    {
+        PostThreadMessageA(This->thread_id, WM_QUIT, 0, 0);
+        if(WaitForSingleObject(This->thread_hdl, 1000) != WAIT_OBJECT_0)
+            ERR("Thread wait timed out");
+        CloseHandle(This->thread_hdl);
+    }
+
     if(This->dev)
     {
         if(This->playing)
             alcCaptureStop(This->dev);
         alcCaptureCloseDevice(This->dev);
     }
-    if(This->parent)
-        This->parent->buf = NULL;
+    This->parent->buf = NULL;
+
     HeapFree(GetProcessHeap(), 0, This->notify);
     HeapFree(GetProcessHeap(), 0, This->format);
     HeapFree(GetProcessHeap(), 0, This->buf);
@@ -535,9 +563,9 @@ static HRESULT WINAPI DSCBuffer_Start(IDirectSoundCaptureBuffer8 *iface, DWORD f
     TRACE("(%p)->(%08"LONGFMT"x)\n", This, flags);
 
     EnterCriticalSection(&This->parent->crst);
-    if (!This->playing)
+    if(!This->playing)
     {
-        DSCBuffer_starttimer(This->parent);
+        DSCBuffer_starttimer(This);
         This->playing = 1;
         alcCaptureStart(This->dev);
     }
@@ -552,7 +580,7 @@ static HRESULT WINAPI DSCBuffer_Stop(IDirectSoundCaptureBuffer8 *iface)
     TRACE("(%p)\n", This);
 
     EnterCriticalSection(&This->parent->crst);
-    if (This->playing)
+    if(This->playing)
     {
         DWORD i;
 
@@ -736,12 +764,6 @@ HRESULT DSOUND_CaptureCreate(REFIID riid, void **cap)
 
 static void DSCImpl_Destroy(DSCImpl *This)
 {
-    if (This->timer_id)
-    {
-        timeKillEvent(This->timer_id);
-        timeEndPeriod(This->timer_res);
-    }
-
     EnterCriticalSection(&This->crst);
     if (This->buf)
         DSCBuffer_Destroy(This->buf);
