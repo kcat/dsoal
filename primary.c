@@ -1697,8 +1697,9 @@ static HRESULT WINAPI DS8PrimaryProp_Get(IKsPropertySet *iface,
 
         if(This->effect == 0)
             res = E_PROP_ID_UNSUPPORTED;
-        else if(dwPropID == DSPROPERTY_EAXLISTENER_ALLPARAMETERS)
+        else switch(dwPropID)
         {
+        case DSPROPERTY_EAXLISTENER_ALLPARAMETERS:
             res = DSERR_INVALIDPARAM;
             if(cbPropData >= sizeof(EAXLISTENERPROPERTIES))
             {
@@ -1711,9 +1712,9 @@ static HRESULT WINAPI DS8PrimaryProp_Get(IKsPropertySet *iface,
                 *pcbReturned = sizeof(EAXLISTENERPROPERTIES);
                 res = DS_OK;
             }
-        }
-        else if(dwPropID == DSPROPERTY_EAXLISTENER_ROOM)
-        {
+            break;
+
+        case DSPROPERTY_EAXLISTENER_ROOM:
             res = DSERR_INVALIDPARAM;
             if(cbPropData >= sizeof(LONG))
             {
@@ -1726,9 +1727,8 @@ static HRESULT WINAPI DS8PrimaryProp_Get(IKsPropertySet *iface,
                 *pcbReturned = sizeof(LONG);
                 res = DS_OK;
             }
-        }
-        else if(dwPropID == DSPROPERTY_EAXLISTENER_ROOMHF)
-        {
+            break;
+        case DSPROPERTY_EAXLISTENER_ROOMHF:
             res = DSERR_INVALIDPARAM;
             if(cbPropData >= sizeof(LONG))
             {
@@ -1741,9 +1741,9 @@ static HRESULT WINAPI DS8PrimaryProp_Get(IKsPropertySet *iface,
                 *pcbReturned = sizeof(LONG);
                 res = DS_OK;
             }
-        }
-        else if(dwPropID == DSPROPERTY_EAXLISTENER_ROOMROLLOFFFACTOR)
-        {
+            break;
+
+        case DSPROPERTY_EAXLISTENER_ROOMROLLOFFFACTOR:
             res = DSERR_INVALIDPARAM;
             if(cbPropData >= sizeof(FLOAT))
             {
@@ -1756,9 +1756,9 @@ static HRESULT WINAPI DS8PrimaryProp_Get(IKsPropertySet *iface,
                 *pcbReturned = sizeof(FLOAT);
                 res = DS_OK;
             }
-        }
-        else if(dwPropID == DSPROPERTY_EAXLISTENER_ENVIRONMENT)
-        {
+            break;
+
+        case DSPROPERTY_EAXLISTENER_ENVIRONMENT:
             res = DSERR_INVALIDPARAM;
             if(cbPropData >= sizeof(DWORD))
             {
@@ -1771,9 +1771,9 @@ static HRESULT WINAPI DS8PrimaryProp_Get(IKsPropertySet *iface,
                 *pcbReturned = sizeof(DWORD);
                 res = DS_OK;
             }
-        }
-        else if(dwPropID == DSPROPERTY_EAXLISTENER_ENVIRONMENTSIZE)
-        {
+            break;
+
+        case DSPROPERTY_EAXLISTENER_ENVIRONMENTSIZE:
             res = DSERR_INVALIDPARAM;
             if(cbPropData >= sizeof(FLOAT))
             {
@@ -1786,9 +1786,8 @@ static HRESULT WINAPI DS8PrimaryProp_Get(IKsPropertySet *iface,
                 *pcbReturned = sizeof(FLOAT);
                 res = DS_OK;
             }
-        }
-        else if(dwPropID == DSPROPERTY_EAXLISTENER_ENVIRONMENTDIFFUSION)
-        {
+            break;
+        case DSPROPERTY_EAXLISTENER_ENVIRONMENTDIFFUSION:
             res = DSERR_INVALIDPARAM;
             if(cbPropData >= sizeof(FLOAT))
             {
@@ -1801,9 +1800,9 @@ static HRESULT WINAPI DS8PrimaryProp_Get(IKsPropertySet *iface,
                 *pcbReturned = sizeof(FLOAT);
                 res = DS_OK;
             }
-        }
-        else if(dwPropID == DSPROPERTY_EAXLISTENER_AIRABSORPTIONHF)
-        {
+            break;
+
+        case DSPROPERTY_EAXLISTENER_AIRABSORPTIONHF:
             res = DSERR_INVALIDPARAM;
             if(cbPropData >= sizeof(FLOAT))
             {
@@ -1816,9 +1815,9 @@ static HRESULT WINAPI DS8PrimaryProp_Get(IKsPropertySet *iface,
                 *pcbReturned = sizeof(FLOAT);
                 res = DS_OK;
             }
-        }
-        else if(dwPropID == DSPROPERTY_EAXLISTENER_FLAGS)
-        {
+            break;
+
+        case DSPROPERTY_EAXLISTENER_FLAGS:
             res = DSERR_INVALIDPARAM;
             if(cbPropData >= sizeof(DWORD))
             {
@@ -1831,9 +1830,12 @@ static HRESULT WINAPI DS8PrimaryProp_Get(IKsPropertySet *iface,
                 *pcbReturned = sizeof(DWORD);
                 res = DS_OK;
             }
-        }
-        else
+            break;
+
+        default:
             FIXME("Unhandled propid: 0x%08"LONGFMT"x\n", dwPropID);
+            break;
+        }
 
         LeaveCriticalSection(&This->crst);
     }
@@ -1864,8 +1866,13 @@ static HRESULT WINAPI DS8PrimaryProp_Set(IKsPropertySet *iface,
 
         if(This->effect == 0)
             res = E_PROP_ID_UNSUPPORTED;
-        else if(propid == DSPROPERTY_EAXLISTENER_ALLPARAMETERS)
+        else switch(propid)
         {
+        case 0: /* 0 = not setting any property, just apply */
+            res = DS_OK;
+            break;
+
+        case DSPROPERTY_EAXLISTENER_ALLPARAMETERS:
         do_allparams:
             res = DSERR_INVALIDPARAM;
             if(cbPropData >= sizeof(EAXLISTENERPROPERTIES))
@@ -1918,9 +1925,9 @@ static HRESULT WINAPI DS8PrimaryProp_Set(IKsPropertySet *iface,
                 This->dirty.bit.effect = 1;
                 res = DS_OK;
             }
-        }
-        else if(propid == DSPROPERTY_EAXLISTENER_ROOM)
-        {
+            break;
+
+        case DSPROPERTY_EAXLISTENER_ROOM:
             res = DSERR_INVALIDPARAM;
             if(cbPropData >= sizeof(LONG))
             {
@@ -1937,9 +1944,8 @@ static HRESULT WINAPI DS8PrimaryProp_Set(IKsPropertySet *iface,
                 This->dirty.bit.effect = 1;
                 res = DS_OK;
             }
-        }
-        else if(propid == DSPROPERTY_EAXLISTENER_ROOMHF)
-        {
+            break;
+        case DSPROPERTY_EAXLISTENER_ROOMHF:
             res = DSERR_INVALIDPARAM;
             if(cbPropData >= sizeof(LONG))
             {
@@ -1956,9 +1962,9 @@ static HRESULT WINAPI DS8PrimaryProp_Set(IKsPropertySet *iface,
                 This->dirty.bit.effect = 1;
                 res = DS_OK;
             }
-        }
-        else if(propid == DSPROPERTY_EAXLISTENER_ROOMROLLOFFFACTOR)
-        {
+            break;
+
+        case DSPROPERTY_EAXLISTENER_ROOMROLLOFFFACTOR:
             res = DSERR_INVALIDPARAM;
             if(cbPropData >= sizeof(FLOAT))
             {
@@ -1975,9 +1981,9 @@ static HRESULT WINAPI DS8PrimaryProp_Set(IKsPropertySet *iface,
                 This->dirty.bit.effect = 1;
                 res = DS_OK;
             }
-        }
-        else if(propid == DSPROPERTY_EAXLISTENER_ENVIRONMENT)
-        {
+            break;
+
+        case DSPROPERTY_EAXLISTENER_ENVIRONMENT:
             res = DSERR_INVALIDPARAM;
             if(cbPropData >= sizeof(DWORD))
             {
@@ -1996,9 +2002,9 @@ static HRESULT WINAPI DS8PrimaryProp_Set(IKsPropertySet *iface,
                     goto do_allparams;
                 }
             }
-        }
-        else if(propid == DSPROPERTY_EAXLISTENER_ENVIRONMENTSIZE)
-        {
+            break;
+
+        case DSPROPERTY_EAXLISTENER_ENVIRONMENTSIZE:
             res = DSERR_INVALIDPARAM;
             if(cbPropData >= sizeof(FLOAT))
             {
@@ -2046,9 +2052,8 @@ static HRESULT WINAPI DS8PrimaryProp_Set(IKsPropertySet *iface,
                     goto do_allparams;
                 }
             }
-        }
-        else if(propid == DSPROPERTY_EAXLISTENER_ENVIRONMENTDIFFUSION)
-        {
+            break;
+        case DSPROPERTY_EAXLISTENER_ENVIRONMENTDIFFUSION:
             res = DSERR_INVALIDPARAM;
             if(cbPropData >= sizeof(FLOAT))
             {
@@ -2065,9 +2070,9 @@ static HRESULT WINAPI DS8PrimaryProp_Set(IKsPropertySet *iface,
                 This->dirty.bit.effect = 1;
                 res = DS_OK;
             }
-        }
-        else if(propid == DSPROPERTY_EAXLISTENER_AIRABSORPTIONHF)
-        {
+            break;
+
+        case DSPROPERTY_EAXLISTENER_AIRABSORPTIONHF:
             res = DSERR_INVALIDPARAM;
             if(cbPropData >= sizeof(FLOAT))
             {
@@ -2084,9 +2089,9 @@ static HRESULT WINAPI DS8PrimaryProp_Set(IKsPropertySet *iface,
                 This->dirty.bit.effect = 1;
                 res = DS_OK;
             }
-        }
-        else if(propid == DSPROPERTY_EAXLISTENER_FLAGS)
-        {
+            break;
+
+        case DSPROPERTY_EAXLISTENER_FLAGS:
             res = DSERR_INVALIDPARAM;
             if(cbPropData >= sizeof(DWORD))
             {
@@ -2104,9 +2109,10 @@ static HRESULT WINAPI DS8PrimaryProp_Set(IKsPropertySet *iface,
                 This->dirty.bit.effect = 1;
                 res = DS_OK;
             }
-        }
-        else if(propid != 0)
+        default:
             FIXME("Unhandled propid: 0x%08"LONGFMT"x\n", propid);
+            break;
+        }
 
         if(res == DS_OK && immediate)
             IDirectSound3DListener_CommitDeferredSettings(&This->IDirectSound3DListener_iface);
