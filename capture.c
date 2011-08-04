@@ -58,16 +58,11 @@ DEFINE_GUID(KSDATAFORMAT_SUBTYPE_PCM, 0x00000001, 0x0000, 0x0010, 0x80, 0x00, 0x
 
 #endif
 
-/* IDirectSoundCapture and IDirectSoundCapture8 are aliases */
-HRESULT DSOUND_CaptureCreate(REFIID riid, void **cap)
-{
-    return DSOUND_CaptureCreate8(riid, cap);
-}
-
 typedef struct DSCImpl DSCImpl;
 typedef struct DSCBuffer DSCBuffer;
 
 struct DSCImpl {
+    /* IDirectSoundCapture and IDirectSoundCapture8 are aliases */
     IDirectSoundCapture IDirectSoundCapture_iface;
     LONG ref;
 
@@ -177,7 +172,7 @@ static void CALLBACK DSCBuffer_timer(UINT timerID, UINT msg, DWORD_PTR dwUser,
         {
             buf->pos = 0;
             if (!buf->looping)
-                IDirectSoundCaptureBuffer_Stop((IDirectSoundCaptureBuffer*)buf);
+                IDirectSoundCaptureBuffer8_Stop(&buf->IDirectSoundCaptureBuffer8_iface);
             else
             {
                 avail = 0;
@@ -708,7 +703,7 @@ static const IDirectSoundNotifyVtbl DSCNot_Vtbl =
     DSCBufferNot_SetNotificationPositions
 };
 
-HRESULT DSOUND_CaptureCreate8(REFIID riid, void **cap)
+HRESULT DSOUND_CaptureCreate(REFIID riid, void **cap)
 {
     DSCImpl *This;
 
