@@ -234,13 +234,10 @@ HRESULT DS8Primary_PreInit(DS8Primary *This, DS8Impl *parent)
     This->SupportedExt = parent->share->SupportedExt;
     This->ExtAL = &parent->share->ExtAL;
     This->sources = parent->share->sources;
-    This->effect = parent->share->effect;
     This->auxslot = parent->share->auxslot;
 
     /* Allocate enough for a WAVEFORMATEXTENSIBLE */
     wfx = &This->format.Format;
-
-    This->eax_prop = EnvironmentDefaults[EAX_ENVIRONMENT_GENERIC];
 
     wfx->wFormatTag = WAVE_FORMAT_PCM;
     wfx->nChannels = 2;
@@ -267,6 +264,18 @@ HRESULT DS8Primary_PreInit(DS8Primary *This, DS8Impl *parent)
     {
         This->DeferUpdates = wrap_DeferUpdates;
         This->ProcessUpdates = wrap_ProcessUpdates;
+    }
+
+    This->eax_prop = EnvironmentDefaults[EAX_ENVIRONMENT_GENERIC];
+    if(This->SupportedExt[EXT_EFX] && This->auxslot != 0)
+    {
+        ALint revid = alGetEnumValue("AL_EFFECT_REVERB");
+        if(revid != 0 && revid != -1)
+        {
+            This->ExtAL->GenEffects(1, &This->effect);
+            This->ExtAL->Effecti(This->effect, AL_EFFECT_TYPE, AL_EFFECT_REVERB);
+            checkALError();
+        }
     }
 
     /* Make sure DS3DListener defaults are applied to OpenAL */
@@ -331,10 +340,12 @@ void DS8Primary_Clear(DS8Primary *This)
         CloseHandle(This->thread_hdl);
     }
 
-    EnterCriticalSection(This->crst);
+    setALContext(This->ctx);
+    if(This->effect)
+        This->ExtAL->DeleteEffects(1, &This->effect);
+    popALContext();
     while(This->nbuffers--)
         DS8Buffer_Destroy(This->buffers[This->nbuffers]);
-    LeaveCriticalSection(This->crst);
 
     HeapFree(GetProcessHeap(), 0, This->notifies);
     HeapFree(GetProcessHeap(), 0, This->buffers);

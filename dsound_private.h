@@ -397,7 +397,6 @@ typedef struct DeviceShare {
     DWORD nsources, max_sources;
 
     ALuint auxslot;
-    ALuint effect;
 
     GUID guid;
 } DeviceShare;
@@ -419,7 +418,6 @@ struct DS8Primary {
     CRITICAL_SECTION *crst;
     ALuint *sources;
     ALuint auxslot;
-    ALuint effect;
 
     DWORD buf_size;
     BOOL stopped;
@@ -436,6 +434,9 @@ struct DS8Primary {
     DS8Buffer **notifies;
     DWORD nnotifies, sizenotifies;
 
+    ALuint effect;
+    ALfloat rollofffactor;
+
     union {
         struct {
             BOOL pos : 1;
@@ -448,7 +449,6 @@ struct DS8Primary {
         } bit;
         int flags;
     } dirty;
-    ALfloat rollofffactor;
     DS3DLISTENER listen;
 
     EAXLISTENERPROPERTIES eax_prop;

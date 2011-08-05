@@ -96,8 +96,6 @@ static void DSShare_Destroy(DeviceShare *share)
         if(share->nsources)
             alDeleteSources(share->nsources, share->sources);
 
-        if(share->effect)
-            share->ExtAL.DeleteEffects(1, &share->effect);
         if(share->auxslot)
             share->ExtAL.DeleteAuxiliaryEffectSlots(1, &share->auxslot);
 
@@ -220,9 +218,6 @@ static HRESULT DSShare_Create(REFIID guid, DeviceShare **out)
         LOAD_FUNC(AuxiliaryEffectSloti);
 #undef LOAD_FUNC
         share->SupportedExt[EXT_EFX] = AL_TRUE;
-
-        share->ExtAL.GenEffects(1, &share->effect);
-        share->ExtAL.Effecti(share->effect, AL_EFFECT_TYPE, AL_EFFECT_REVERB);
 
         share->ExtAL.GenAuxiliaryEffectSlots(1, &share->auxslot);
     }
