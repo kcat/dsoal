@@ -68,6 +68,7 @@ static const IDirectSoundBufferVtbl DS8Primary_Vtbl;
 static const IDirectSound3DListenerVtbl DS8Primary3D_Vtbl;
 static const IKsPropertySetVtbl DS8PrimaryProp_Vtbl;
 
+
 static void AL_APIENTRY wrap_DeferUpdates(void)
 { alcSuspendContext(alcGetCurrentContext()); }
 static void AL_APIENTRY wrap_ProcessUpdates(void)
@@ -217,7 +218,7 @@ static DWORD CALLBACK ThreadProc(void *dwUser)
 }
 
 
-HRESULT DS8Primary_Create(DS8Primary *This, DS8Impl *parent)
+HRESULT DS8Primary_PreInit(DS8Primary *This, DS8Impl *parent)
 {
     DS3DLISTENER *listener;
     WAVEFORMATEX *wfx;
@@ -305,13 +306,13 @@ HRESULT DS8Primary_Create(DS8Primary *This, DS8Impl *parent)
     return S_OK;
 
 fail:
-    DS8Primary_Destroy(This);
+    DS8Primary_Clear(This);
     return hr;
 }
 
-void DS8Primary_Destroy(DS8Primary *This)
+void DS8Primary_Clear(DS8Primary *This)
 {
-    TRACE("Destroying primary %p\n", This);
+    TRACE("Clearing primary %p\n", This);
 
     if(!This->parent)
         return;

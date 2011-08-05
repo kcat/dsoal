@@ -364,7 +364,7 @@ HRESULT DSOUND_Create8(REFIID riid, LPVOID *ds)
 
 static void DS8Impl_Destroy(DS8Impl *This)
 {
-    DS8Primary_Destroy(&This->primary);
+    DS8Primary_Clear(&This->primary);
     if(This->share)
         DSShare_Release(This->share);
     This->share = NULL;
@@ -883,7 +883,7 @@ static HRESULT WINAPI DS8_Initialize(IDirectSound8 *iface, const GUID *devguid)
     if(SUCCEEDED(hr))
     {
         This->device = This->share->device;
-        hr = DS8Primary_Create(&This->primary, This);
+        hr = DS8Primary_PreInit(&This->primary, This);
     }
 
     if(FAILED(hr))
