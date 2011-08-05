@@ -380,14 +380,15 @@ static HRESULT WINAPI DS8_QueryInterface(IDirectSound8 *iface, REFIID riid, LPVO
     TRACE("(%p)->(%s, %p)\n", iface, debugstr_guid(riid), ppv);
 
     *ppv = NULL;
-    if(IsEqualIID(riid, &IID_IUnknown) ||
-       IsEqualIID(riid, &IID_IDirectSound))
+    if(IsEqualIID(riid, &IID_IUnknown))
         *ppv = &This->IDirectSound8_iface;
-    else if((IsEqualIID(riid, &IID_IDirectSound8)))
+    else if(IsEqualIID(riid, &IID_IDirectSound8))
     {
         if(This->is_8)
             *ppv = &This->IDirectSound8_iface;
     }
+    else if(IsEqualIID(riid, &IID_IDirectSound))
+        *ppv = &This->IDirectSound_iface;
     else
         FIXME("Unhandled GUID: %s\n", debugstr_guid(riid));
 
