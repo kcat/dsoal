@@ -414,8 +414,8 @@ struct DS8Primary {
 
     /* Taken from the share */
     ALCcontext *ctx;
-    ALboolean *SupportedExt;
-    ExtALFuncs *ExtAL;
+    const ALboolean *SupportedExt;
+    const ExtALFuncs *ExtAL;
     CRITICAL_SECTION *crst;
     ALuint *sources;
     ALuint auxslot;
@@ -517,7 +517,7 @@ struct DS8Buffer {
     ALuint curidx;
     BOOL isplaying, islooping, bufferlost;
     ALCcontext *ctx;
-    ExtALFuncs *ExtAL;
+    const ExtALFuncs *ExtAL;
     CRITICAL_SECTION *crst;
 
     DS3DBUFFER ds3dbuffer;
