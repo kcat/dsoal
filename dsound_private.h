@@ -295,6 +295,11 @@ extern LPALCGETCURRENTCONTEXT get_context;
 extern BOOL local_contexts;
 
 
+typedef struct DS8Impl DS8Impl;
+typedef struct DS8Primary DS8Primary;
+typedef struct DS8Buffer DS8Buffer;
+
+
 /* Sample types */
 #define AL_BYTE                                  0x1400
 #define AL_UNSIGNED_BYTE                         0x1401
@@ -353,7 +358,7 @@ enum {
     MAX_EXTENSIONS
 };
 
-typedef struct {
+typedef struct ExtALFuncs {
     PFNALBUFFERSUBDATASOFTPROC BufferSubData;
     PFNALBUFFERDATASTATICPROC BufferDataStatic;
 
@@ -376,7 +381,7 @@ typedef struct {
 } ExtALFuncs;
 
 #define MAX_SOURCES 256
-typedef struct {
+typedef struct DeviceShare {
     LONG ref;
 
     ALCdevice *device;
@@ -397,27 +402,6 @@ typedef struct {
     GUID guid;
 } DeviceShare;
 
-/* Device implementation */
-typedef struct DS8Primary DS8Primary;
-typedef struct DS8Buffer DS8Buffer;
-
-typedef struct DS8Impl {
-    IDirectSound8 IDirectSound8_iface;
-    IDirectSound IDirectSound_iface;
-
-    LONG ref;
-    BOOL is_8;
-
-    DeviceShare *share;
-
-    /* Taken from the share */
-    ALCdevice *device;
-
-    DS8Primary *primary;
-
-    DWORD speaker_config;
-    DWORD prio_level;
-} DS8Impl;
 
 struct DS8Primary {
     IDirectSoundBuffer IDirectSoundBuffer_iface;
@@ -474,6 +458,26 @@ struct DS8Primary {
 };
 
 
+/* Device implementation */
+struct DS8Impl {
+    IDirectSound8 IDirectSound8_iface;
+    IDirectSound IDirectSound_iface;
+
+    LONG ref;
+    BOOL is_8;
+
+    DeviceShare *share;
+
+    /* Taken from the share */
+    ALCdevice *device;
+
+    DS8Primary primary;
+
+    DWORD speaker_config;
+    DWORD prio_level;
+};
+
+
 typedef struct DS8Data {
     LONG ref;
 
@@ -496,8 +500,7 @@ typedef struct DS8Data {
  * bufferdatastatic and buffersubdata are not available */
 #define QBUFFERS 3
 
-struct DS8Buffer
-{
+struct DS8Buffer {
     IDirectSoundBuffer8 IDirectSoundBuffer8_iface;
     IDirectSoundBuffer IDirectSoundBuffer_iface;
     IDirectSound3DBuffer IDirectSound3DBuffer_iface;
@@ -536,7 +539,7 @@ struct DS8Buffer
     DSBPOSITIONNOTIFY *notify;
 };
 
-extern HRESULT DS8Primary_Create(DS8Primary **prim, DS8Impl *parent);
+extern HRESULT DS8Primary_Create(DS8Primary *prim, DS8Impl *parent);
 extern void DS8Primary_Destroy(DS8Primary *prim);
 
 extern HRESULT DS8Buffer_Create(DS8Buffer **ppv, DS8Primary *parent, IDirectSoundBuffer *orig);

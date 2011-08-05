@@ -217,21 +217,17 @@ static DWORD CALLBACK ThreadProc(void *dwUser)
 }
 
 
-HRESULT DS8Primary_Create(DS8Primary **ppv, DS8Impl *parent)
+HRESULT DS8Primary_Create(DS8Primary *This, DS8Impl *parent)
 {
-    DS8Primary *This = NULL;
     DS3DLISTENER *listener;
     WAVEFORMATEX *wfx;
     HRESULT hr;
-
-    *ppv = NULL;
-    This = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(*This));
-    if(!This) return DSERR_OUTOFMEMORY;
 
     This->IDirectSoundBuffer_iface.lpVtbl = (IDirectSoundBufferVtbl*)&DS8Primary_Vtbl;
     This->IDirectSound3DListener_iface.lpVtbl = (IDirectSound3DListenerVtbl*)&DS8Primary3D_Vtbl;
     This->IKsPropertySet_iface.lpVtbl = (IKsPropertySetVtbl*)&DS8PrimaryProp_Vtbl;
 
+    This->parent = parent;
     This->crst = &parent->share->crst;
     This->ctx = parent->share->ctx;
     This->SupportedExt = parent->share->SupportedExt;
@@ -254,7 +250,7 @@ HRESULT DS8Primary_Create(DS8Primary **ppv, DS8Impl *parent)
     wfx->cbSize = 0;
 
     This->stopped = TRUE;
-    This->parent = parent;
+
     /* Apparently primary buffer size is always 32k,
      * tested on windows with 192k 24 bits sound @ 6 channels
      * where it will run out in 60 ms and it isn't pointer aligned
@@ -306,7 +302,6 @@ HRESULT DS8Primary_Create(DS8Primary **ppv, DS8Impl *parent)
     if(This->thread_hdl == NULL)
         goto fail;
 
-    *ppv = This;
     return S_OK;
 
 fail:
@@ -317,6 +312,9 @@ fail:
 void DS8Primary_Destroy(DS8Primary *This)
 {
     TRACE("Destroying primary %p\n", This);
+
+    if(!This->parent)
+        return;
 
     if(This->timer_id)
     {
@@ -339,7 +337,7 @@ void DS8Primary_Destroy(DS8Primary *This)
 
     HeapFree(GetProcessHeap(), 0, This->notifies);
     HeapFree(GetProcessHeap(), 0, This->buffers);
-    HeapFree(GetProcessHeap(), 0, This);
+    memset(This, 0, sizeof(*This));
 }
 
 static inline DS8Primary *impl_from_IDirectSoundBuffer(IDirectSoundBuffer *iface)

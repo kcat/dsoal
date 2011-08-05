@@ -363,9 +363,7 @@ HRESULT DSOUND_Create8(REFIID riid, LPVOID *ds)
 
 static void DS8Impl_Destroy(DS8Impl *This)
 {
-    if(This->primary)
-        DS8Primary_Destroy(This->primary);
-    This->primary = NULL;
+    DS8Primary_Destroy(&This->primary);
     if(This->share)
         DSShare_Release(This->share);
     This->share = NULL;
@@ -450,7 +448,7 @@ static HRESULT WINAPI DS8_CreateSoundBuffer(IDirectSound8 *iface, LPCDSBUFFERDES
         return DSERR_INVALIDPARAM;
     }
 
-    if(!This->primary)
+    if(!This->share)
     {
         WARN("Device not initialized\n");
         return DSERR_UNINITIALIZED;
@@ -486,10 +484,10 @@ static HRESULT WINAPI DS8_CreateSoundBuffer(IDirectSound8 *iface, LPCDSBUFFERDES
         return DSERR_INVALIDPARAM;
     }
 
-    EnterCriticalSection(This->primary->crst);
+    EnterCriticalSection(This->primary.crst);
     if((desc->dwFlags&DSBCAPS_PRIMARYBUFFER))
     {
-        IDirectSoundBuffer *prim = &This->primary->IDirectSoundBuffer_iface;
+        IDirectSoundBuffer *prim = &This->primary.IDirectSoundBuffer_iface;
 
         hr = S_OK;
         if(IDirectSoundBuffer_AddRef(prim) == 1)
@@ -507,7 +505,7 @@ static HRESULT WINAPI DS8_CreateSoundBuffer(IDirectSound8 *iface, LPCDSBUFFERDES
     {
         DS8Buffer *dsb;
 
-        hr = DS8Buffer_Create(&dsb, This->primary, NULL);
+        hr = DS8Buffer_Create(&dsb, &This->primary, NULL);
         if(SUCCEEDED(hr))
         {
             hr = IDirectSoundBuffer8_Initialize(&dsb->IDirectSoundBuffer8_iface, &This->IDirectSound_iface, desc);
@@ -520,7 +518,7 @@ static HRESULT WINAPI DS8_CreateSoundBuffer(IDirectSound8 *iface, LPCDSBUFFERDES
             }
         }
     }
-    LeaveCriticalSection(This->primary->crst);
+    LeaveCriticalSection(This->primary.crst);
 
     TRACE("%08"LONGFMT"x\n", hr);
     return hr;
@@ -532,7 +530,7 @@ static HRESULT WINAPI DS8_GetCaps(IDirectSound8 *iface, LPDSCAPS caps)
 
     TRACE("(%p)->(%p)\n", iface, caps);
 
-    if(!This->primary)
+    if(!This->share)
     {
         WARN("Device not initialized\n");
         return DSERR_UNINITIALIZED;
@@ -611,7 +609,7 @@ static HRESULT WINAPI DS8_DuplicateSoundBuffer(IDirectSound8 *iface, IDirectSoun
         hr = DSERR_INVALIDPARAM;
     }
     if(SUCCEEDED(hr))
-        hr = DS8Buffer_Create(&buf, This->primary, in);
+        hr = DS8Buffer_Create(&buf, &This->primary, in);
     if(SUCCEEDED(hr))
     {
         *out = &buf->IDirectSoundBuffer_iface;
@@ -683,14 +681,14 @@ static HRESULT WINAPI DS8_SetCooperativeLevel(IDirectSound8 *iface, HWND hwnd, D
         return DSERR_INVALIDPARAM;
     }
 
-    EnterCriticalSection(This->primary->crst);
+    EnterCriticalSection(This->primary.crst);
     if(level == DSSCL_WRITEPRIMARY && (This->prio_level != DSSCL_WRITEPRIMARY))
     {
         DWORD i, state;
 
-        for(i = 0; i < This->primary->nbuffers; ++i)
+        for(i = 0; i < This->primary.nbuffers; ++i)
         {
-            DS8Buffer *buf = This->primary->buffers[i];
+            DS8Buffer *buf = This->primary.buffers[i];
             if(FAILED(IDirectSoundBuffer_GetStatus(&buf->IDirectSoundBuffer8_iface, &state)) ||
                (state&DSBSTATUS_PLAYING))
             {
@@ -701,14 +699,14 @@ static HRESULT WINAPI DS8_SetCooperativeLevel(IDirectSound8 *iface, HWND hwnd, D
             /* Mark buffer as lost */
             buf->bufferlost = 1;
         }
-        if(This->primary->write_emu)
+        if(This->primary.write_emu)
         {
             ERR("Why was there a write_emu?\n");
             /* Delete it */
-            IDirectSoundBuffer8_Release(This->primary->write_emu);
-            This->primary->write_emu = NULL;
+            IDirectSoundBuffer8_Release(This->primary.write_emu);
+            This->primary.write_emu = NULL;
         }
-        if(This->primary->flags)
+        if(This->primary.flags)
         {
             /* Primary has open references.. create write_emu */
             DSBUFFERDESC desc;
@@ -716,34 +714,34 @@ static HRESULT WINAPI DS8_SetCooperativeLevel(IDirectSound8 *iface, HWND hwnd, D
 
             memset(&desc, 0, sizeof(desc));
             desc.dwSize = sizeof(desc);
-            desc.dwFlags = DSBCAPS_LOCHARDWARE | (This->primary->flags&DSBCAPS_CTRLPAN);
-            desc.dwBufferBytes = This->primary->buf_size;
-            desc.lpwfxFormat = &This->primary->format.Format;
+            desc.dwFlags = DSBCAPS_LOCHARDWARE | (This->primary.flags&DSBCAPS_CTRLPAN);
+            desc.dwBufferBytes = This->primary.buf_size;
+            desc.lpwfxFormat = &This->primary.format.Format;
 
-            hr = DS8Buffer_Create(&emu, This->primary, NULL);
+            hr = DS8Buffer_Create(&emu, &This->primary, NULL);
             if(SUCCEEDED(hr))
             {
-                This->primary->write_emu = &emu->IDirectSoundBuffer8_iface;
-                hr = IDirectSoundBuffer8_Initialize(This->primary->write_emu, &This->IDirectSound_iface, &desc);
+                This->primary.write_emu = &emu->IDirectSoundBuffer8_iface;
+                hr = IDirectSoundBuffer8_Initialize(This->primary.write_emu, &This->IDirectSound_iface, &desc);
                 if(FAILED(hr))
                 {
-                    IDirectSoundBuffer8_Release(This->primary->write_emu);
-                    This->primary->write_emu = NULL;
+                    IDirectSoundBuffer8_Release(This->primary.write_emu);
+                    This->primary.write_emu = NULL;
                 }
             }
         }
     }
-    else if(This->prio_level == DSSCL_WRITEPRIMARY && level != DSSCL_WRITEPRIMARY && This->primary->write_emu)
+    else if(This->prio_level == DSSCL_WRITEPRIMARY && level != DSSCL_WRITEPRIMARY && This->primary.write_emu)
     {
         TRACE("Nuking write_emu\n");
         /* Delete it */
-        IDirectSoundBuffer8_Release(This->primary->write_emu);
-        This->primary->write_emu = NULL;
+        IDirectSoundBuffer8_Release(This->primary.write_emu);
+        This->primary.write_emu = NULL;
     }
     if(SUCCEEDED(hr))
         This->prio_level = level;
 out:
-    LeaveCriticalSection(This->primary->crst);
+    LeaveCriticalSection(This->primary.crst);
 
     return hr;
 }
@@ -783,7 +781,7 @@ static HRESULT WINAPI DS8_GetSpeakerConfig(IDirectSound8 *iface, DWORD *config)
         return DSERR_INVALIDPARAM;
     *config = 0;
 
-    if(!This->primary)
+    if(!This->share)
     {
         WARN("Device not initialized\n");
         return DSERR_UNINITIALIZED;
@@ -852,7 +850,7 @@ static HRESULT WINAPI DS8_Initialize(IDirectSound8 *iface, const GUID *devguid)
     if(!openal_loaded)
         return DSERR_NODRIVER;
 
-    if(This->primary)
+    if(This->share)
     {
         WARN("Device already initialized\n");
         return DSERR_ALREADYINITIALIZED;
@@ -910,7 +908,7 @@ static HRESULT WINAPI DS8_VerifyCertification(IDirectSound8 *iface, DWORD *certi
         return DSERR_INVALIDPARAM;
     *certified = 0;
 
-    if(!This->primary)
+    if(!This->share)
     {
         WARN("Device not initialized\n");
         return DSERR_UNINITIALIZED;
