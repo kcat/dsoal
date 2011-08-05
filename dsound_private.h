@@ -605,6 +605,7 @@ HRESULT DSOUND_Create8(REFIID riid, void **ppDS);
 HRESULT DSOUND_FullDuplexCreate(REFIID riid, void **ppDSFD);
 HRESULT IKsPrivatePropertySetImpl_Create(REFIID riid, void **piks);
 HRESULT DSOUND_CaptureCreate(REFIID riid, void **ppDSC);
+HRESULT DSOUND_CaptureCreate8(REFIID riid, void **ppDSC);
 
 extern const GUID DSOUND_renderer_guid;
 extern const GUID DSOUND_capture_guid;

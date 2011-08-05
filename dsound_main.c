@@ -841,7 +841,7 @@ DirectSoundCaptureCreate8(LPCGUID lpcGUID, IDirectSoundCapture8 **ppDSC8, IUnkno
         return DSERR_NOAGGREGATION;
     }
 
-    hr = DSOUND_CaptureCreate(&IID_IDirectSoundCapture8, &pDSC8);
+    hr = DSOUND_CaptureCreate8(&IID_IDirectSoundCapture, &pDSC8);
     if(SUCCEEDED(hr))
     {
         *ppDSC8 = pDSC8;
@@ -947,7 +947,7 @@ static IClassFactoryImpl DSOUND_CF[] = {
     { {(IClassFactoryVtbl*)&DSCF_Vtbl}, 1, &CLSID_DirectSound, DSOUND_Create },
     { {(IClassFactoryVtbl*)&DSCF_Vtbl}, 1, &CLSID_DirectSound8, DSOUND_Create8 },
     { {(IClassFactoryVtbl*)&DSCF_Vtbl}, 1, &CLSID_DirectSoundCapture, DSOUND_CaptureCreate },
-    { {(IClassFactoryVtbl*)&DSCF_Vtbl}, 1, &CLSID_DirectSoundCapture8, DSOUND_CaptureCreate },
+    { {(IClassFactoryVtbl*)&DSCF_Vtbl}, 1, &CLSID_DirectSoundCapture8, DSOUND_CaptureCreate8 },
     { {(IClassFactoryVtbl*)&DSCF_Vtbl}, 1, &CLSID_DirectSoundFullDuplex, DSOUND_FullDuplexCreate },
     { {(IClassFactoryVtbl*)&DSCF_Vtbl}, 1, &CLSID_DirectSoundPrivate, IKsPrivatePropertySetImpl_Create },
     { {NULL}, 0, NULL, NULL }

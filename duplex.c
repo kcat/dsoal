@@ -442,7 +442,7 @@ static HRESULT WINAPI IDirectSoundFullDuplexImpl_Initialize(
     }
     *lplpDirectSoundBuffer8 = ptr;
 
-    hr = DSOUND_CaptureCreate(&IID_IDirectSoundCapture, &ptr);
+    hr = DSOUND_CaptureCreate8(&IID_IDirectSoundCapture, &ptr);
     if(SUCCEEDED(hr))
     {
         This->capture_device = ptr;

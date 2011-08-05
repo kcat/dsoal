@@ -66,6 +66,8 @@ struct DSCImpl {
     IDirectSoundCapture IDirectSoundCapture_iface;
     LONG ref;
 
+    BOOL is_8;
+
     ALCchar *device;
     DSCBuffer *buf;
 
@@ -289,14 +291,20 @@ static HRESULT WINAPI DSCBuffer_QueryInterface(IDirectSoundCaptureBuffer8 *iface
         return E_POINTER;
     *ppv = NULL;
 
-    if (IsEqualIID(riid, &IID_IDirectSoundNotify))
-        *ppv = &This->IDirectSoundNotify_iface;
-    else if (IsEqualIID(riid, &IID_IUnknown) ||
-             IsEqualIID(riid, &IID_IDirectSoundCaptureBuffer) ||
-             IsEqualIID(riid, &IID_IDirectSoundCaptureBuffer8))
+    if(IsEqualIID(riid, &IID_IUnknown) ||
+       IsEqualIID(riid, &IID_IDirectSoundCaptureBuffer))
         *ppv = &This->IDirectSoundCaptureBuffer8_iface;
+    else if(IsEqualIID(riid, &IID_IDirectSoundCaptureBuffer8))
+    {
+        if(This->parent->is_8)
+            *ppv = &This->IDirectSoundCaptureBuffer8_iface;
+    }
+    else if(IsEqualIID(riid, &IID_IDirectSoundNotify))
+        *ppv = &This->IDirectSoundNotify_iface;
+    else
+        FIXME("Unhandled GUID: %s\n", debugstr_guid(riid));
 
-    if (!*ppv)
+    if(!*ppv)
         return E_NOINTERFACE;
     IUnknown_AddRef((IUnknown*)*ppv);
     return S_OK;
@@ -807,6 +815,22 @@ static inline DSCImpl *impl_from_IDirectSoundCapture(IDirectSoundCapture *iface)
 
 HRESULT DSOUND_CaptureCreate(REFIID riid, void **cap)
 {
+    HRESULT hr;
+
+    hr = DSOUND_CaptureCreate8(&IID_IDirectSoundCapture, cap);
+    if(SUCCEEDED(hr))
+    {
+        DSCImpl *impl = impl_from_IDirectSoundCapture(*cap);
+        impl->is_8 = FALSE;
+
+        hr = IDirectSoundCapture_QueryInterface(&impl->IDirectSoundCapture_iface, riid, cap);
+        IDirectSoundCapture_Release(&impl->IDirectSoundCapture_iface);
+    }
+    return hr;
+}
+
+HRESULT DSOUND_CaptureCreate8(REFIID riid, void **cap)
+{
     DSCImpl *This;
 
     *cap = NULL;
@@ -815,6 +839,8 @@ HRESULT DSOUND_CaptureCreate(REFIID riid, void **cap)
     if(!This) return DSERR_OUTOFMEMORY;
 
     This->IDirectSoundCapture_iface.lpVtbl = (IDirectSoundCaptureVtbl*)&DSC_Vtbl;
+
+    This->is_8 = TRUE;
 
     InitializeCriticalSection(&This->crst);
     This->crst.DebugInfo->Spare[0] = (DWORD_PTR)(__FILE__ ": DSCImpl.crst");
