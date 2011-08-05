@@ -56,8 +56,228 @@ WINE_DEFAULT_DEBUG_CHANNEL(dsound);
 
 #endif
 
-static DS8Impl **devicelist;
-static UINT devicelistsize;
+static DeviceShare **sharelist;
+static UINT sharelistsize;
+
+static void DSShare_Destroy(DeviceShare *share)
+{
+    UINT i;
+
+    EnterCriticalSection(&openal_crst);
+    for(i = 0;i < sharelistsize;i++)
+    {
+        if(sharelist[i] == share)
+        {
+            sharelist[i] = sharelist[--sharelistsize];
+            if(sharelistsize == 0)
+            {
+                HeapFree(GetProcessHeap(), 0, sharelist);
+                sharelist = NULL;
+            }
+            break;
+        }
+    }
+    LeaveCriticalSection(&openal_crst);
+
+    if(share->ctx)
+    {
+        /* Calling setALContext is not appropriate here,
+         * since we *have* to unset the context before destroying it
+         */
+        ALCcontext *old_ctx;
+
+        EnterCriticalSection(&openal_crst);
+        old_ctx = get_context();
+        if(old_ctx != share->ctx)
+            set_context(share->ctx);
+        else
+            old_ctx = NULL;
+
+        if(share->nsources)
+            alDeleteSources(share->nsources, share->sources);
+
+        if(share->effect)
+            share->ExtAL.DeleteEffects(1, &share->effect);
+        if(share->auxslot)
+            share->ExtAL.DeleteAuxiliaryEffectSlots(1, &share->auxslot);
+
+        set_context(old_ctx);
+        alcDestroyContext(share->ctx);
+        LeaveCriticalSection(&openal_crst);
+    }
+
+    if(share->device)
+        alcCloseDevice(share->device);
+    share->device = NULL;
+
+    share->crst.DebugInfo->Spare[0] = 0;
+    DeleteCriticalSection(&share->crst);
+
+    HeapFree(GetProcessHeap(), 0, share);
+}
+
+static HRESULT DSShare_Create(REFIID guid, DeviceShare **out)
+{
+    const ALCchar *drv_name;
+    DeviceShare *share;
+    void *temp;
+    HRESULT hr;
+    DWORD n;
+
+    share = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(*share));
+    if(!share) return DSERR_OUTOFMEMORY;
+    share->ref = 1;
+
+    InitializeCriticalSection(&share->crst);
+    share->crst.DebugInfo->Spare[0] = (DWORD_PTR)(__FILE__ ": Device.crst");
+
+    hr = DSERR_NODRIVER;
+    if(!(drv_name=DSOUND_getdevicestrings()) ||
+       memcmp(guid, &DSOUND_renderer_guid, sizeof(GUID)-1) != 0)
+    {
+        WARN("No device found\n");
+        goto fail;
+    }
+
+    n = guid->Data4[7];
+    while(*drv_name && n--)
+        drv_name += strlen(drv_name) + 1;
+    if(!*drv_name)
+    {
+        WARN("No device string found\n");
+        goto fail;
+    }
+    memcpy(&share->guid, guid, sizeof(GUID));
+
+    share->device = alcOpenDevice(drv_name);
+    if(!share->device)
+    {
+        alcGetError(NULL);
+        WARN("Couldn't open device \"%s\"\n", drv_name);
+        goto fail;
+    }
+    TRACE("Opened device: %s\n", alcGetString(share->device, ALC_DEVICE_SPECIFIER));
+
+    hr = DSERR_NODRIVER;
+    share->ctx = alcCreateContext(share->device, NULL);
+    if(!share->ctx)
+    {
+        ALCenum err = alcGetError(share->device);
+        ERR("Could not create context (0x%x)!\n", err);
+        goto fail;
+    }
+
+    setALContext(share->ctx);
+    if(alIsExtensionPresent("AL_EXT_FLOAT32"))
+    {
+        TRACE("Found AL_EXT_FLOAT32\n");
+        share->SupportedExt[EXT_FLOAT32] = AL_TRUE;
+    }
+    if(alIsExtensionPresent("AL_EXT_MCFORMATS"))
+    {
+        TRACE("Found AL_EXT_MCFORMATS\n");
+        share->SupportedExt[EXT_MCFORMATS] = AL_TRUE;
+    }
+    if(alIsExtensionPresent("AL_EXT_STATIC_BUFFER"))
+    {
+        TRACE("Found AL_EXT_STATIC_BUFFER\n");
+        share->ExtAL.BufferDataStatic = alGetProcAddress("alBufferDataStatic");
+        share->SupportedExt[EXT_STATIC_BUFFER] = AL_TRUE;
+    }
+    if(alIsExtensionPresent("AL_SOFTX_buffer_samples"))
+    {
+        TRACE("Found AL_SOFTX_buffer_samples\n");
+        share->ExtAL.BufferSamplesSOFT = alGetProcAddress("alBufferSamplesSOFT");
+        share->ExtAL.BufferSubSamplesSOFT = alGetProcAddress("alBufferSubSamplesSOFT");
+        share->ExtAL.GetBufferSamplesSOFT = alGetProcAddress("alGetBufferSamplesSOFT");
+        share->ExtAL.IsBufferFormatSupportedSOFT = alGetProcAddress("alIsBufferFormatSupportedSOFT");
+        share->SupportedExt[SOFT_BUFFER_SAMPLES] = AL_TRUE;
+    }
+    if(alIsExtensionPresent("AL_SOFT_buffer_sub_data"))
+    {
+        TRACE("Found AL_SOFT_buffer_sub_data\n");
+        share->ExtAL.BufferSubData = alGetProcAddress("alBufferSubDataSOFT");
+        share->SupportedExt[SOFT_BUFFER_SUB_DATA] = AL_TRUE;
+    }
+    if(alIsExtensionPresent("AL_SOFTX_deferred_updates"))
+    {
+        TRACE("Found AL_SOFTX_deferred_updates\n");
+        share->ExtAL.DeferUpdatesSOFT = alGetProcAddress("alDeferUpdatesSOFT");
+        share->ExtAL.ProcessUpdatesSOFT = alGetProcAddress("alProcessUpdatesSOFT");
+        share->SupportedExt[SOFT_DEFERRED_UPDATES] = AL_TRUE;
+    }
+
+    if(alcIsExtensionPresent(share->device, "ALC_EXT_EFX"))
+    {
+#define LOAD_FUNC(x) (share->ExtAL.x = alGetProcAddress("al"#x))
+        LOAD_FUNC(GenEffects);
+        LOAD_FUNC(DeleteEffects);
+        LOAD_FUNC(Effecti);
+        LOAD_FUNC(Effectf);
+
+        LOAD_FUNC(GenAuxiliaryEffectSlots);
+        LOAD_FUNC(DeleteAuxiliaryEffectSlots);
+        LOAD_FUNC(AuxiliaryEffectSloti);
+#undef LOAD_FUNC
+        share->SupportedExt[EXT_EFX] = AL_TRUE;
+
+        share->ExtAL.GenEffects(1, &share->effect);
+        share->ExtAL.Effecti(share->effect, AL_EFFECT_TYPE, AL_EFFECT_REVERB);
+
+        share->ExtAL.GenAuxiliaryEffectSlots(1, &share->auxslot);
+    }
+
+    if(!share->SupportedExt[SOFT_BUFFER_SUB_DATA] &&
+       !share->SupportedExt[SOFT_BUFFER_SAMPLES] &&
+       !share->SupportedExt[EXT_STATIC_BUFFER])
+    {
+        ERR("Missing alBufferSubDataSOFT, alBufferSamplesSOFT , and alBufferDataStatic on device '%s', sound playback quality may be degraded\n",
+             alcGetString(share->device, ALC_DEVICE_SPECIFIER));
+        ERR("Please consider using OpenAL-Soft\n");
+    }
+
+    share->max_sources = 0;
+    while(share->max_sources < MAX_SOURCES)
+    {
+        alGenSources(1, &share->sources[share->max_sources]);
+        if(alGetError() != AL_NO_ERROR)
+            break;
+        share->max_sources++;
+    }
+    share->nsources = share->max_sources;
+    popALContext();
+
+    if(sharelist)
+        temp = HeapReAlloc(GetProcessHeap(), 0, sharelist, sizeof(*sharelist)*(sharelistsize+1));
+    else
+        temp = HeapAlloc(GetProcessHeap(), 0, sizeof(*sharelist)*(sharelistsize+1));
+    if(temp)
+    {
+        sharelist = temp;
+        sharelist[sharelistsize++] = share;
+    }
+
+    *out = share;
+    return DS_OK;
+
+fail:
+    DSShare_Destroy(share);
+    return hr;
+}
+
+static ULONG DSShare_AddRef(DeviceShare *share)
+{
+    ULONG ref = InterlockedIncrement(&share->ref);
+    return ref;
+}
+
+static ULONG DSShare_Release(DeviceShare *share)
+{
+    ULONG ref = InterlockedDecrement(&share->ref);
+    if(ref == 0) DSShare_Destroy(share);
+    return ref;
+}
+
 
 static const IDirectSound8Vtbl DS8_Vtbl;
 static const IDirectSoundVtbl DS_Vtbl;
@@ -113,8 +333,8 @@ HRESULT DSOUND_Create8(REFIID riid, LPVOID *ds)
 
     *ds = NULL;
     This = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(*This));
-    if(!This)
-        return E_OUTOFMEMORY;
+    if(!This) return DSERR_OUTOFMEMORY;
+
     This->IDirectSound8_iface.lpVtbl = (IDirectSound8Vtbl*)&DS8_Vtbl;
     This->IDirectSound_iface.lpVtbl = (IDirectSoundVtbl*)&DS_Vtbl;
 
@@ -138,72 +358,17 @@ HRESULT DSOUND_Create8(REFIID riid, LPVOID *ds)
     hr = IDirectSound8_QueryInterface(&This->IDirectSound8_iface, riid, ds);
     if(FAILED(hr))
         DS8Impl_Destroy(This);
-    else
-    {
-        void *temp;
-
-        EnterCriticalSection(&openal_crst);
-        if(devicelist)
-            temp = HeapReAlloc(GetProcessHeap(), 0, devicelist, sizeof(*devicelist)*(devicelistsize+1));
-        else
-            temp = HeapAlloc(GetProcessHeap(), 0, sizeof(*devicelist)*(devicelistsize+1));
-        if(temp)
-        {
-            devicelist = temp;
-            devicelist[devicelistsize++] = This;
-        }
-        LeaveCriticalSection(&openal_crst);
-    }
     return hr;
 }
 
 static void DS8Impl_Destroy(DS8Impl *This)
 {
-    UINT i;
-
-    EnterCriticalSection(&openal_crst);
-    for(i = 0;i < devicelistsize;i++)
-    {
-        if(devicelist[i] == This)
-        {
-            devicelist[i] = devicelist[--devicelistsize];
-            if(devicelistsize == 0)
-            {
-                HeapFree(GetProcessHeap(), 0, devicelist);
-                devicelist = NULL;
-            }
-            break;
-        }
-    }
-    LeaveCriticalSection(&openal_crst);
-
-    if(This->deviceref && InterlockedDecrement(This->deviceref) == 0)
-    {
-        if(This->primary)
-            DS8Primary_Destroy(This->primary);
-        if(This->device)
-            alcCloseDevice(This->device);
-
-        HeapFree(GetProcessHeap(), 0, This->deviceref);
-    }
-    else
-    {
-        EnterCriticalSection(&openal_crst);
-        if(This->primary && This->primary->parent == This)
-        {
-            /* If the primary is referencing this as its parent, update it to
-             * reference another handle for the device */
-            for(i = 0;i < devicelistsize;i++)
-            {
-                if(devicelist[i]->primary == This->primary)
-                {
-                    This->primary->parent = devicelist[i];
-                    break;
-                }
-            }
-        }
-        LeaveCriticalSection(&openal_crst);
-    }
+    if(This->primary)
+        DS8Primary_Destroy(This->primary);
+    This->primary = NULL;
+    if(This->share)
+        DSShare_Release(This->share);
+    This->share = NULL;
 
     HeapFree(GetProcessHeap(), 0, This);
 }
@@ -321,7 +486,7 @@ static HRESULT WINAPI DS8_CreateSoundBuffer(IDirectSound8 *iface, LPCDSBUFFERDES
         return DSERR_INVALIDPARAM;
     }
 
-    EnterCriticalSection(&This->primary->crst);
+    EnterCriticalSection(This->primary->crst);
     if((desc->dwFlags&DSBCAPS_PRIMARYBUFFER))
     {
         IDirectSoundBuffer *prim = &This->primary->IDirectSoundBuffer_iface;
@@ -355,7 +520,7 @@ static HRESULT WINAPI DS8_CreateSoundBuffer(IDirectSound8 *iface, LPCDSBUFFERDES
             }
         }
     }
-    LeaveCriticalSection(&This->primary->crst);
+    LeaveCriticalSection(This->primary->crst);
 
     TRACE("%08"LONGFMT"x\n", hr);
     return hr;
@@ -364,7 +529,6 @@ static HRESULT WINAPI DS8_CreateSoundBuffer(IDirectSound8 *iface, LPCDSBUFFERDES
 static HRESULT WINAPI DS8_GetCaps(IDirectSound8 *iface, LPDSCAPS caps)
 {
     DS8Impl *This = impl_from_IDirectSound8(iface);
-    LONG count;
 
     TRACE("(%p)->(%p)\n", iface, caps);
 
@@ -380,10 +544,8 @@ static HRESULT WINAPI DS8_GetCaps(IDirectSound8 *iface, LPDSCAPS caps)
         return DSERR_INVALIDPARAM;
     }
 
-    EnterCriticalSection(&This->primary->crst);
-    count = This->primary->max_sources;
+    EnterCriticalSection(&This->share->crst);
 
-    setALContext(This->primary->ctx);
     caps->dwFlags = DSCAPS_CONTINUOUSRATE |
                     DSCAPS_PRIMARY16BIT | DSCAPS_PRIMARYSTEREO |
                     DSCAPS_PRIMARY8BIT | DSCAPS_PRIMARYMONO |
@@ -397,27 +559,20 @@ static HRESULT WINAPI DS8_GetCaps(IDirectSound8 *iface, LPDSCAPS caps)
         caps->dwMaxHwMixingStreamingBuffers =
         caps->dwMaxHw3DAllBuffers =
         caps->dwMaxHw3DStaticBuffers =
-        caps->dwMaxHw3DStreamingBuffers = count;
-    count -= This->primary->nbuffers;
-    if(count < 0)
-    {
-        ERR("How did the count drop below 0?\n");
-        count = 0;
-    }
+        caps->dwMaxHw3DStreamingBuffers = This->share->max_sources;
     caps->dwFreeHwMixingAllBuffers =
         caps->dwFreeHwMixingStaticBuffers =
         caps->dwFreeHwMixingStreamingBuffers =
         caps->dwFreeHw3DAllBuffers =
         caps->dwFreeHw3DStaticBuffers =
-        caps->dwFreeHw3DStreamingBuffers = count;
+        caps->dwFreeHw3DStreamingBuffers = This->share->nsources;
     caps->dwTotalHwMemBytes =
         caps->dwFreeHwMemBytes = 64 * 1024 * 1024;
     caps->dwMaxContigFreeHwMemBytes = caps->dwFreeHwMemBytes;
     caps->dwUnlockTransferRateHwBuffers = 4096;
     caps->dwPlayCpuOverheadSwBuffers = 0;
-    popALContext();
 
-    LeaveCriticalSection(&This->primary->crst);
+    LeaveCriticalSection(&This->share->crst);
 
     return DS_OK;
 }
@@ -430,7 +585,7 @@ static HRESULT WINAPI DS8_DuplicateSoundBuffer(IDirectSound8 *iface, IDirectSoun
 
     TRACE("(%p)->(%p, %p)\n", iface, in, out);
 
-    if(!This->primary)
+    if(!This->share)
     {
         WARN("Device not initialized\n");
         return DSERR_UNINITIALIZED;
@@ -442,8 +597,6 @@ static HRESULT WINAPI DS8_DuplicateSoundBuffer(IDirectSound8 *iface, IDirectSoun
         return DSERR_INVALIDPARAM;
     }
     *out = NULL;
-
-    EnterCriticalSection(&This->primary->crst);
 
     caps.dwSize = sizeof(caps);
     hr = IDirectSoundBuffer_GetCaps(in, &caps);
@@ -508,7 +661,6 @@ static HRESULT WINAPI DS8_DuplicateSoundBuffer(IDirectSound8 *iface, IDirectSoun
         *out = NULL;
     }
 
-    LeaveCriticalSection(&This->primary->crst);
     return hr;
 }
 
@@ -519,7 +671,7 @@ static HRESULT WINAPI DS8_SetCooperativeLevel(IDirectSound8 *iface, HWND hwnd, D
 
     TRACE("(%p)->(%p, %"LONGFMT"u)\n", iface, hwnd, level);
 
-    if(!This->primary)
+    if(!This->share)
     {
         WARN("Device not initialized\n");
         return DSERR_UNINITIALIZED;
@@ -531,7 +683,7 @@ static HRESULT WINAPI DS8_SetCooperativeLevel(IDirectSound8 *iface, HWND hwnd, D
         return DSERR_INVALIDPARAM;
     }
 
-    EnterCriticalSection(&This->primary->crst);
+    EnterCriticalSection(This->primary->crst);
     if(level == DSSCL_WRITEPRIMARY && (This->prio_level != DSSCL_WRITEPRIMARY))
     {
         DWORD i, state;
@@ -591,7 +743,7 @@ static HRESULT WINAPI DS8_SetCooperativeLevel(IDirectSound8 *iface, HWND hwnd, D
     if(SUCCEEDED(hr))
         This->prio_level = level;
 out:
-    LeaveCriticalSection(&This->primary->crst);
+    LeaveCriticalSection(This->primary->crst);
 
     return hr;
 }
@@ -603,19 +755,19 @@ static HRESULT WINAPI DS8_Compact(IDirectSound8 *iface)
 
     TRACE("(%p)->()\n", iface);
 
-    if(!This->primary)
+    if(!This->share)
     {
         WARN("Device not initialized\n");
         return DSERR_UNINITIALIZED;
     }
 
-    EnterCriticalSection(&This->primary->crst);
+    EnterCriticalSection(&This->share->crst);
     if(This->prio_level < DSSCL_PRIORITY)
     {
         WARN("Coop level not high enough (%"LONGFMT"u)\n", This->prio_level);
         hr = DSERR_PRIOLEVELNEEDED;
     }
-    LeaveCriticalSection(&This->primary->crst);
+    LeaveCriticalSection(&This->share->crst);
 
     return hr;
 }
@@ -637,9 +789,9 @@ static HRESULT WINAPI DS8_GetSpeakerConfig(IDirectSound8 *iface, DWORD *config)
         return DSERR_UNINITIALIZED;
     }
 
-    EnterCriticalSection(&This->primary->crst);
+    EnterCriticalSection(&This->share->crst);
     *config = This->speaker_config;
-    LeaveCriticalSection(&This->primary->crst);
+    LeaveCriticalSection(&This->share->crst);
 
     return hr;
 }
@@ -653,28 +805,27 @@ static HRESULT WINAPI DS8_SetSpeakerConfig(IDirectSound8 *iface, DWORD config)
 
     TRACE("(%p)->(0x%08"LONGFMT"x)\n", iface, config);
 
-    if(!This->primary)
+    if(!This->share)
     {
         WARN("Device not initialized\n");
         return DSERR_UNINITIALIZED;
     }
 
-    EnterCriticalSection(&This->primary->crst);
-
     geo = DSSPEAKER_GEOMETRY(config);
     speaker = DSSPEAKER_CONFIG(config);
 
-    hr = DSERR_INVALIDPARAM;
     if(geo && (geo < DSSPEAKER_GEOMETRY_MIN || geo > DSSPEAKER_GEOMETRY_MAX))
     {
         WARN("Invalid speaker angle %"LONGFMT"u\n", geo);
-        goto out;
+        return DSERR_INVALIDPARAM;
     }
     if(speaker < DSSPEAKER_HEADPHONE || speaker > DSSPEAKER_7POINT1)
     {
         WARN("Invalid speaker config %"LONGFMT"u\n", speaker);
-        goto out;
+        return DSERR_INVALIDPARAM;
     }
+
+    EnterCriticalSection(&This->share->crst);
 
     hr = DSERR_GENERIC;
     if(!RegCreateKeyExW(HKEY_LOCAL_MACHINE, speakerconfigkey, 0, NULL, 0, KEY_WRITE, NULL, &key, NULL))
@@ -684,17 +835,16 @@ static HRESULT WINAPI DS8_SetSpeakerConfig(IDirectSound8 *iface, DWORD config)
         RegCloseKey(key);
         hr = S_OK;
     }
-out:
-    LeaveCriticalSection(&This->primary->crst);
 
+    LeaveCriticalSection(&This->share->crst);
     return hr;
 }
 
 static HRESULT WINAPI DS8_Initialize(IDirectSound8 *iface, const GUID *devguid)
 {
     DS8Impl *This = impl_from_IDirectSound8(iface);
-    const ALCchar *drv_name;
     HRESULT hr;
+    GUID guid;
     UINT n;
 
     TRACE("(%p)->(%s)\n", iface, debugstr_guid(devguid));
@@ -710,73 +860,40 @@ static HRESULT WINAPI DS8_Initialize(IDirectSound8 *iface, const GUID *devguid)
 
     if(!devguid)
         devguid = &DSDEVID_DefaultPlayback;
-    hr = GetDeviceID(devguid, &This->guid);
+    hr = GetDeviceID(devguid, &guid);
     if(FAILED(hr))
         return hr;
 
     EnterCriticalSection(&openal_crst);
 
-    for(n = 0;n < devicelistsize;n++)
+    for(n = 0;n < sharelistsize;n++)
     {
-        if(devicelist[n]->device && devicelist[n]->is_8 == This->is_8 &&
-           IsEqualGUID(&devicelist[n]->guid, &This->guid))
+        if(IsEqualGUID(&sharelist[n]->guid, &guid))
         {
-            TRACE("Matched already open device %p\n", devicelist[n]);
+            TRACE("Matched already open device %p\n", sharelist[n]->device);
 
-            This->device = devicelist[n]->device;
-            This->primary = devicelist[n]->primary;
-            This->deviceref = devicelist[n]->deviceref;
-            InterlockedIncrement(This->deviceref);
-
-            hr = DS_OK;
-            goto out;
+            This->share = sharelist[n];
+            DSShare_AddRef(This->share);
+            break;
         }
     }
 
-    if(!This->deviceref)
+    if(!This->share)
+        hr = DSShare_Create(&guid, &This->share);
+    if(SUCCEEDED(hr))
     {
-        hr = DSERR_OUTOFMEMORY;
-        if(!(This->deviceref=HeapAlloc(GetProcessHeap(), 0, sizeof(LONG))))
-            goto out;
-        This->deviceref[0] = 1;
+        This->device = This->share->device;
+        hr = DS8Primary_Create(&This->primary, This);
     }
 
-    hr = DSERR_NODRIVER;
-    if(!(drv_name=DSOUND_getdevicestrings()) ||
-       memcmp(&This->guid, &DSOUND_renderer_guid, sizeof(GUID)-1) != 0)
-    {
-        WARN("No device found\n");
-        goto out;
-    }
-
-    n = This->guid.Data4[7];
-    while(*drv_name && n--)
-        drv_name += strlen(drv_name) + 1;
-    if(!*drv_name)
-    {
-        WARN("No device string found\n");
-        goto out;
-    }
-
-    This->device = alcOpenDevice(drv_name);
-    if(!This->device)
-    {
-        alcGetError(NULL);
-        WARN("Couldn't open device \"%s\"\n", drv_name);
-        goto out;
-    }
-    TRACE("Opened device: %s\n", alcGetString(This->device, ALC_DEVICE_SPECIFIER));
-
-    hr = DS8Primary_Create(&This->primary, This);
     if(FAILED(hr))
     {
-        alcCloseDevice(This->device);
-        This->device = NULL;
+        if(This->share)
+            DSShare_Release(This->share);
+        This->share = NULL;
     }
 
-out:
     LeaveCriticalSection(&openal_crst);
-
     return hr;
 }
 

@@ -294,26 +294,6 @@ extern LPALCMAKECONTEXTCURRENT set_context;
 extern LPALCGETCURRENTCONTEXT get_context;
 extern BOOL local_contexts;
 
-/* Device implementation */
-typedef struct DS8Primary DS8Primary;
-typedef struct DS8Buffer DS8Buffer;
-
-typedef struct DS8Impl
-{
-    IDirectSound8 IDirectSound8_iface;
-    IDirectSound IDirectSound_iface;
-
-    LONG ref;
-    BOOL is_8;
-
-    LONG *deviceref;
-    ALCdevice *device;
-    DS8Primary *primary;
-
-    DWORD speaker_config;
-    DWORD prio_level;
-    GUID guid;
-} DS8Impl;
 
 /* Sample types */
 #define AL_BYTE                                  0x1400
@@ -373,8 +353,7 @@ enum {
     MAX_EXTENSIONS
 };
 
-typedef struct ExtALFuncs
-{
+typedef struct {
     PFNALBUFFERSUBDATASOFTPROC BufferSubData;
     PFNALBUFFERDATASTATICPROC BufferDataStatic;
 
@@ -396,8 +375,51 @@ typedef struct ExtALFuncs
     void (AL_APIENTRY*ProcessUpdatesSOFT)(void);
 } ExtALFuncs;
 
-struct DS8Primary
-{
+#define MAX_SOURCES 256
+typedef struct {
+    LONG ref;
+
+    ALCdevice *device;
+    ALCcontext *ctx;
+
+    ALboolean SupportedExt[MAX_EXTENSIONS];
+
+    ExtALFuncs ExtAL;
+
+    CRITICAL_SECTION crst;
+
+    ALuint sources[MAX_SOURCES];
+    DWORD nsources, max_sources;
+
+    ALuint auxslot;
+    ALuint effect;
+
+    GUID guid;
+} DeviceShare;
+
+/* Device implementation */
+typedef struct DS8Primary DS8Primary;
+typedef struct DS8Buffer DS8Buffer;
+
+typedef struct DS8Impl {
+    IDirectSound8 IDirectSound8_iface;
+    IDirectSound IDirectSound_iface;
+
+    LONG ref;
+    BOOL is_8;
+
+    DeviceShare *share;
+
+    /* Taken from the share */
+    ALCdevice *device;
+
+    DS8Primary *primary;
+
+    DWORD speaker_config;
+    DWORD prio_level;
+} DS8Impl;
+
+struct DS8Primary {
     IDirectSoundBuffer IDirectSoundBuffer_iface;
     IDirectSound3DListener IDirectSound3DListener_iface;
     IKsPropertySet IKsPropertySet_iface;
@@ -406,34 +428,30 @@ struct DS8Primary
     IDirectSoundBuffer8 *write_emu;
     DS8Impl *parent;
 
-    CRITICAL_SECTION crst;
+    /* Taken from the share */
+    ALCcontext *ctx;
+    ALboolean *SupportedExt;
+    ExtALFuncs *ExtAL;
+    CRITICAL_SECTION *crst;
+    ALuint *sources;
+    ALuint auxslot;
+    ALuint effect;
 
     DWORD buf_size;
     BOOL stopped;
     DWORD flags;
     WAVEFORMATEXTENSIBLE format;
-    ALCcontext *ctx;
-
-    ALboolean SupportedExt[MAX_EXTENSIONS];
-
-    ALuint *sources;
-    DWORD nsources, sizesources;
-    DWORD max_sources;
-    DS8Buffer **buffers;
-    DWORD nbuffers, sizebuffers;
-    DS8Buffer **notifies;
-    DWORD nnotifies, sizenotifies;
 
     UINT timer_id;
     DWORD timer_res;
     HANDLE thread_hdl;
     DWORD thread_id;
 
-    ALuint auxslot;
-    ALuint effect;
-    EAXLISTENERPROPERTIES eax_prop;
+    DS8Buffer **buffers;
+    DWORD nbuffers, sizebuffers;
+    DS8Buffer **notifies;
+    DWORD nnotifies, sizenotifies;
 
-    ExtALFuncs ExtAL;
     union {
         struct {
             BOOL pos : 1;
@@ -448,6 +466,8 @@ struct DS8Primary
     } dirty;
     ALfloat rollofffactor;
     DS3DLISTENER listen;
+
+    EAXLISTENERPROPERTIES eax_prop;
 
     void (AL_APIENTRY*DeferUpdates)(void);
     void (AL_APIENTRY*ProcessUpdates)(void);

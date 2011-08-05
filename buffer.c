@@ -703,7 +703,8 @@ static HRESULT DS8Data_Create(DS8Data **ppv, const DSBUFFERDESC *desc, DS8Primar
     {
         const char *fmt_str = NULL;
 
-        if(!(pBuffer->dsbflags&DSBCAPS_STATIC) && !prim->SupportedExt[SOFT_BUFFER_SUB_DATA] &&
+        if(!(pBuffer->dsbflags&DSBCAPS_STATIC) &&
+           !prim->SupportedExt[SOFT_BUFFER_SUB_DATA] &&
            !prim->SupportedExt[EXT_STATIC_BUFFER])
         {
             ALCint refresh = FAKE_REFRESH_COUNT;
@@ -796,7 +797,7 @@ static HRESULT DS8Data_Create(DS8Data **ppv, const DSBUFFERDESC *desc, DS8Primar
             ERR("Unhandled formattag 0x%04x\n", format->wFormatTag);
 
         hr = DSERR_INVALIDCALL;
-        if(prim->ExtAL.IsBufferFormatSupportedSOFT(pBuffer->buf_format) == AL_FALSE)
+        if(prim->ExtAL->IsBufferFormatSupportedSOFT(pBuffer->buf_format) == AL_FALSE)
         {
             WARN("Unsupported OpenAL format: 0x%x\n", pBuffer->buf_format);
             goto fail;
@@ -858,8 +859,8 @@ HRESULT DS8Buffer_Create(DS8Buffer **ppv, DS8Primary *prim, IDirectSoundBuffer *
 
     This->primary = prim;
     This->ctx = prim->ctx;
-    This->ExtAL = &prim->ExtAL;
-    This->crst = &prim->crst;
+    This->ExtAL = prim->ExtAL;
+    This->crst = prim->crst;
     This->ref = This->all_ref = 1;
 
     if(orig)
@@ -904,7 +905,7 @@ void DS8Buffer_Destroy(DS8Buffer *This)
 
     TRACE("Destroying %p\n", This);
 
-    EnterCriticalSection(&prim->crst);
+    EnterCriticalSection(prim->crst);
     /* Remove from list, if in list */
     for(idx = 0;idx < prim->nnotifies;++idx)
     {
@@ -926,29 +927,14 @@ void DS8Buffer_Destroy(DS8Buffer *This)
     setALContext(This->ctx);
     if(This->source)
     {
-        ALuint *sources;
-
         alSourceStop(This->source);
         alSourcei(This->source, AL_BUFFER, 0);
         checkALError();
 
-        sources = prim->sources;
-        if(prim->nsources == prim->sizesources)
-        {
-            sources = HeapReAlloc(GetProcessHeap(), 0, sources, sizeof(*sources)*(prim->nsources+1));
-            if(!sources)
-                alDeleteSources(1, &This->source);
-            else
-                prim->sizesources++;
-        }
-        if(sources)
-        {
-            sources[prim->nsources++] = This->source;
-            prim->sources = sources;
-        }
+        prim->sources[prim->parent->share->nsources++] = This->source;
         This->source = 0;
     }
-    LeaveCriticalSection(&prim->crst);
+    LeaveCriticalSection(prim->crst);
 
     if(This->buffer)
         DS8Data_Release(This->buffer);
@@ -1351,19 +1337,15 @@ static HRESULT WINAPI DS8Buffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSo
     }
 
     hr = DSERR_GENERIC;
-    if(This->primary->nsources)
+    if(This->primary->parent->share->nsources)
     {
-        This->source = This->primary->sources[--This->primary->nsources];
+        This->source = This->primary->sources[--(This->primary->parent->share->nsources)];
         alSourcef(This->source, AL_GAIN, 1.0f);
         alSourcef(This->source, AL_PITCH, 1.0f);
         checkALError();
     }
     else
-    {
-        alGenSources(1, &This->source);
-        if(alGetError() != AL_NO_ERROR)
-            goto out;
-    }
+        goto out;
 
     ds3dbuffer = &This->ds3dbuffer;
     ds3dbuffer->dwSize = sizeof(*ds3dbuffer);
