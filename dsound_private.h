@@ -510,15 +510,18 @@ struct DS8Buffer {
     LONG ref, ds3d_ref, not_ref, prop_ref;
     LONG all_ref;
 
-    DWORD ds3dmode;
     DS8Primary *primary;
+
+    /* From the primary */
+    ALCcontext *ctx;
+    const ExtALFuncs *ExtAL;
+    CRITICAL_SECTION *crst;
+
     DS8Data *buffer;
     ALuint source;
     ALuint curidx;
     BOOL isplaying, islooping, bufferlost;
-    ALCcontext *ctx;
-    const ExtALFuncs *ExtAL;
-    CRITICAL_SECTION *crst;
+    DWORD ds3dmode;
 
     DS3DBUFFER ds3dbuffer;
     union {
