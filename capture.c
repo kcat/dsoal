@@ -532,7 +532,7 @@ static HRESULT WINAPI DSCBuffer_Initialize(IDirectSoundCaptureBuffer8 *iface, ID
         return DSERR_INVALIDPARAM;
     }
 
-    This->dev = alcCaptureOpenDevice(This->parent->device, This->format.Format.nSamplesPerSec, buf_format, This->buf_size / This->format.Format.nBlockAlign);
+    This->dev = alcCaptureOpenDevice(This->parent->device, This->format.Format.nSamplesPerSec, buf_format, This->format.Format.nSamplesPerSec / FAKE_REFRESH_COUNT * 2);
     if(!This->dev)
     {
         ERR("Couldn't open device %s 0x%x@%"LONGFMT"u, reason: %04x\n", This->parent->device, buf_format, This->format.Format.nSamplesPerSec, alcGetError(NULL));
