@@ -2004,6 +2004,8 @@ static HRESULT WINAPI DS8PrimaryProp_Set(IKsPropertySet *iface,
                 This->dirty.bit.effect = 1;
                 res = DS_OK;
             }
+            break;
+
         default:
             FIXME("Unhandled propid: 0x%08"LONGFMT"x\n", propid);
             break;
