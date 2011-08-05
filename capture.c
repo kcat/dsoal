@@ -84,6 +84,8 @@ struct DSCBuffer {
     DWORD buf_size;
     BYTE *buf;
 
+    LONG locked;
+
     WAVEFORMATEXTENSIBLE format;
 
     DSBPOSITIONNOTIFY *notify;
@@ -543,38 +545,42 @@ static HRESULT WINAPI DSCBuffer_Initialize(IDirectSoundCaptureBuffer8 *iface, ID
 static HRESULT WINAPI DSCBuffer_Lock(IDirectSoundCaptureBuffer8 *iface, DWORD ofs, DWORD bytes, void **ptr1, DWORD *len1, void **ptr2, DWORD *len2, DWORD flags)
 {
     DSCBuffer *This = impl_from_IDirectSoundCaptureBuffer8(iface);
-    HRESULT hr;
     DWORD remain;
 
     TRACE("(%p)->(%"LONGFMT"u, %"LONGFMT"u, %p, %p, %p, %p, %#"LONGFMT"x)\n", iface, ofs, bytes, ptr1, len1, ptr2, len2, flags);
 
-    EnterCriticalSection(&This->parent->crst);
-    hr = DSERR_INVALIDPARAM;
+    if(!ptr1 || !len1)
+    {
+        WARN("Invalid pointer/len %p %p\n", ptr1, len1);
+        return DSERR_INVALIDPARAM;
+    }
 
-    if(ptr1) *ptr1 = NULL;
-    if(len1) *len1 = 0;
+    *ptr1 = NULL;
+    *len1 = 0;
     if(ptr2) *ptr2 = NULL;
     if(len2) *len2 = 0;
 
-    if (ofs >= This->buf_size)
+    if(ofs >= This->buf_size)
     {
         WARN("Invalid ofs %"LONGFMT"u\n", ofs);
-        goto out;
+        return DSERR_INVALIDPARAM;
     }
-    if (!ptr1 || !len1)
-    {
-        WARN("Invalid pointer/len %p %p\n", ptr1, len1);
-        goto out;
-    }
+
     if((flags&DSCBLOCK_ENTIREBUFFER))
         bytes = This->buf_size;
     else if(bytes > This->buf_size)
     {
         WARN("Invalid size %"LONGFMT"u\n", bytes);
-        goto out;
+        return DSERR_INVALIDPARAM;
     }
 
-    if (ofs + bytes >= This->buf_size)
+    if(InterlockedExchange(&This->locked, TRUE) == TRUE)
+    {
+        WARN("Already locked\n");
+        return DSERR_INVALIDPARAM;
+    }
+
+    if(ofs + bytes >= This->buf_size)
     {
         *len1 = This->buf_size - ofs;
         remain = bytes - *len1;
@@ -586,16 +592,13 @@ static HRESULT WINAPI DSCBuffer_Lock(IDirectSoundCaptureBuffer8 *iface, DWORD of
     }
     *ptr1 = This->buf + ofs;
 
-    if (ptr2 && len2 && remain)
+    if(ptr2 && len2 && remain)
     {
         *ptr2 = This->buf;
         *len2 = remain;
     }
-    hr = S_OK;
 
-out:
-    LeaveCriticalSection(&This->parent->crst);
-    return hr;
+    return DS_OK;
 }
 
 static HRESULT WINAPI DSCBuffer_Start(IDirectSoundCaptureBuffer8 *iface, DWORD flags)
@@ -641,11 +644,32 @@ static HRESULT WINAPI DSCBuffer_Stop(IDirectSoundCaptureBuffer8 *iface)
 
 static HRESULT WINAPI DSCBuffer_Unlock(IDirectSoundCaptureBuffer8 *iface, void *ptr1, DWORD len1, void *ptr2, DWORD len2)
 {
+    DSCBuffer *This = impl_from_IDirectSoundCaptureBuffer8(iface);
+    DWORD_PTR ofs1, ofs2;
+    DWORD_PTR boundary = (DWORD_PTR)This->buf;
+
     TRACE("(%p)->(%p, %"LONGFMT"u, %p, %"LONGFMT"u)\n", iface, ptr1, len1, ptr2, len2);
 
-    if (!ptr1)
+    if(InterlockedExchange(&This->locked, FALSE) == FALSE)
+    {
+        WARN("Not locked\n");
         return DSERR_INVALIDPARAM;
-    return S_OK;
+    }
+
+    /* Make sure offset is between boundary and boundary + bufsize */
+    ofs1 = (DWORD_PTR)ptr1;
+    ofs2 = (DWORD_PTR)ptr2;
+    if(ofs1 < boundary)
+        return DSERR_INVALIDPARAM;
+    if(ofs2 && ofs2 != boundary)
+        return DSERR_INVALIDPARAM;
+
+    ofs1 -= boundary;
+    ofs2 = 0;
+    if(This->buf_size-ofs1 < len1 || len2 > ofs1)
+        return DSERR_INVALIDPARAM;
+
+    return DS_OK;
 }
 
 static HRESULT WINAPI DSCBuffer_GetObjectInPath(IDirectSoundCaptureBuffer8 *iface, REFGUID guid, DWORD num, REFGUID riid, void **ppv)
