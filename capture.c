@@ -823,8 +823,11 @@ HRESULT DSOUND_CaptureCreate(REFIID riid, void **cap)
         DSCImpl *impl = impl_from_IDirectSoundCapture(*cap);
         impl->is_8 = FALSE;
 
-        hr = IDirectSoundCapture_QueryInterface(&impl->IDirectSoundCapture_iface, riid, cap);
-        IDirectSoundCapture_Release(&impl->IDirectSoundCapture_iface);
+        if(!IsEqualIID(riid, &IID_IDirectSoundCapture))
+        {
+            hr = IDirectSoundCapture_QueryInterface(&impl->IDirectSoundCapture_iface, riid, cap);
+            IDirectSoundCapture_Release(&impl->IDirectSoundCapture_iface);
+        }
     }
     return hr;
 }

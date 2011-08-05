@@ -296,16 +296,17 @@ HRESULT DSOUND_Create(REFIID riid, void **ds)
 {
     HRESULT hr;
 
-    if(IsEqualIID(riid, &IID_IDirectSound8))
-        return E_NOINTERFACE;
-    hr = DSOUND_Create8(&IID_IDirectSound8, ds);
-    if(hr == S_OK)
+    hr = DSOUND_Create8(&IID_IDirectSound, ds);
+    if(SUCCEEDED(hr))
     {
-        DS8Impl *impl = impl_from_IDirectSound8(*ds);
+        DS8Impl *impl = impl_from_IDirectSound(*ds);
         impl->is_8 = FALSE;
 
-        hr = IDirectSound8_QueryInterface(&impl->IDirectSound8_iface, riid, ds);
-        IDirectSound8_Release(&impl->IDirectSound8_iface);
+        if(!IsEqualIID(riid, &IID_IDirectSound))
+        {
+            hr = IDirectSound_QueryInterface(&impl->IDirectSound_iface, riid, ds);
+            IDirectSound_Release(&impl->IDirectSound_iface);
+        }
     }
     return hr;
 }
