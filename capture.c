@@ -84,7 +84,7 @@ struct DSCBuffer {
     DWORD buf_size;
     BYTE *buf;
 
-    WAVEFORMATEX *format;
+    WAVEFORMATEXTENSIBLE format;
 
     DSBPOSITIONNOTIFY *notify;
     DWORD nnotify;
@@ -162,11 +162,11 @@ static DWORD CALLBACK DSCBuffer_thread(void *param)
 
         EnterCriticalSection(&This->crst);
     more_samples:
-        avail *= buf->format->nBlockAlign;
+        avail *= buf->format.Format.nBlockAlign;
         if(avail + buf->pos > buf->buf_size)
             avail = buf->buf_size - buf->pos;
 
-        alcCaptureSamples(buf->dev, buf->buf + buf->pos, avail/buf->format->nBlockAlign);
+        alcCaptureSamples(buf->dev, buf->buf + buf->pos, avail/buf->format.Format.nBlockAlign);
         trigger_notifies(buf, buf->pos, buf->pos + avail);
         buf->pos += avail;
 
@@ -268,7 +268,6 @@ static void DSCBuffer_Destroy(DSCBuffer *This)
     This->parent->buf = NULL;
 
     HeapFree(GetProcessHeap(), 0, This->notify);
-    HeapFree(GetProcessHeap(), 0, This->format);
     HeapFree(GetProcessHeap(), 0, This->buf);
     HeapFree(GetProcessHeap(), 0, This);
 }
@@ -345,10 +344,10 @@ static HRESULT WINAPI DSCBuffer_GetCurrentPosition(IDirectSoundCaptureBuffer8 *i
 
     EnterCriticalSection(&This->parent->crst);
     pos1 = This->pos;
-    if (This->playing)
+    if(This->playing)
     {
-        pos2 = This->format->nSamplesPerSec / 100;
-        pos2 *= This->format->nBlockAlign;
+        pos2 = This->format.Format.nSamplesPerSec / 100;
+        pos2 *= This->format.Format.nBlockAlign;
         pos2 += pos1;
         if (!This->looping && pos2 >= This->buf_size)
             pos2 = 0;
@@ -365,27 +364,32 @@ static HRESULT WINAPI DSCBuffer_GetCurrentPosition(IDirectSoundCaptureBuffer8 *i
     return S_OK;
 }
 
-static HRESULT WINAPI DSCBuffer_GetFormat(IDirectSoundCaptureBuffer8 *iface, WAVEFORMATEX *wfx, DWORD size, DWORD *written)
+static HRESULT WINAPI DSCBuffer_GetFormat(IDirectSoundCaptureBuffer8 *iface, WAVEFORMATEX *wfx, DWORD allocated, DWORD *written)
 {
     DSCBuffer *This = impl_from_IDirectSoundCaptureBuffer8(iface);
+    HRESULT hr = DS_OK;
+    UINT size;
 
-    TRACE("(%p)->(%p, %"LONGFMT"u, %p)\n", iface, wfx, size, written);
+    TRACE("(%p)->(%p, %"LONGFMT"u, %p)\n", iface, wfx, allocated, written);
 
-    if (size > sizeof(WAVEFORMATEX) + This->format->cbSize)
-        size = sizeof(WAVEFORMATEX) + This->format->cbSize;
-
-    if (wfx)
+    if(!wfx && !written)
     {
-        CopyMemory(wfx, This->format, size);
-        if (written)
-            *written = size;
-    }
-    else if (written)
-        *written = sizeof(WAVEFORMATEX) + This->format->cbSize;
-    else
+        WARN("Cannot report format or format size\n");
         return DSERR_INVALIDPARAM;
+    }
 
-    return S_OK;
+    size = sizeof(This->format.Format) + This->format.Format.cbSize;
+    if(wfx)
+    {
+        if(allocated < size)
+            hr = DSERR_INVALIDPARAM;
+        else
+            memcpy(wfx, &This->format.Format, size);
+    }
+    if(written)
+        *written = size;
+
+    return hr;
 }
 
 static HRESULT WINAPI DSCBuffer_GetStatus(IDirectSoundCaptureBuffer8 *iface, DWORD *status)
@@ -424,35 +428,17 @@ static HRESULT WINAPI DSCBuffer_Initialize(IDirectSoundCaptureBuffer8 *iface, ID
         return DSERR_INVALIDPARAM;
 
     format = desc->lpwfxFormat;
-    if (format->nChannels > 2)
+    if(format->nChannels > 2)
     {
         WARN("nChannels > 2 not supported for recording\n");
         return DSERR_INVALIDPARAM;
     }
 
-    if (!This->format)
-        This->format = HeapAlloc(GetProcessHeap(), 0, sizeof(WAVEFORMATEXTENSIBLE));
-    if (!This->format)
-        return DSERR_OUTOFMEMORY;
-
-    if (format->wFormatTag == WAVE_FORMAT_PCM ||
-        format->wFormatTag == WAVE_FORMAT_EXTENSIBLE)
+    if(format->wFormatTag == WAVE_FORMAT_PCM)
     {
-        if (format->wFormatTag == WAVE_FORMAT_EXTENSIBLE)
+        if(format->nChannels == 1)
         {
-            WAVEFORMATEXTENSIBLE *wfe = (WAVEFORMATEXTENSIBLE*)format;
-            if (format->cbSize < sizeof(WAVEFORMATEXTENSIBLE)-sizeof(WAVEFORMATEX))
-                return DSERR_INVALIDPARAM;
-            else if (format->cbSize > sizeof(WAVEFORMATEXTENSIBLE)-sizeof(WAVEFORMATEX)
-                && format->cbSize != sizeof(WAVEFORMATEXTENSIBLE))
-                return DSERR_CONTROLUNAVAIL;
-            else if (!IsEqualGUID(&wfe->SubFormat, &KSDATAFORMAT_SUBTYPE_PCM))
-                return DSERR_BADFORMAT;
-        }
-
-        if (format->nChannels == 1)
-        {
-            switch (format->wBitsPerSample)
+            switch(format->wBitsPerSample)
             {
                 case 8: buf_format = AL_FORMAT_MONO8; break;
                 case 16: buf_format = AL_FORMAT_MONO16; break;
@@ -461,9 +447,9 @@ static HRESULT WINAPI DSCBuffer_Initialize(IDirectSoundCaptureBuffer8 *iface, ID
                     return DSERR_BADFORMAT;
             }
         }
-        else if (format->nChannels == 2)
+        else if(format->nChannels == 2)
         {
-            switch (format->wBitsPerSample)
+            switch(format->wBitsPerSample)
             {
                 case 8: buf_format = AL_FORMAT_STEREO8; break;
                 case 16: buf_format = AL_FORMAT_STEREO16; break;
@@ -472,36 +458,82 @@ static HRESULT WINAPI DSCBuffer_Initialize(IDirectSoundCaptureBuffer8 *iface, ID
                     return DSERR_BADFORMAT;
             }
         }
-        memcpy(This->format, format, sizeof(*format) + format->cbSize);
-        if (format->wFormatTag == WAVE_FORMAT_EXTENSIBLE)
-            This->format->cbSize = sizeof(WAVEFORMATEXTENSIBLE) - sizeof(WAVEFORMATEX);
         else
-            This->format->cbSize = 0;
-        This->format->nBlockAlign = This->format->wBitsPerSample * This->format->nChannels / 8;
-        This->format->nAvgBytesPerSec = This->format->nSamplesPerSec * This->format->nBlockAlign;
+            WARN("Unsupported channels: %d\n", format->nChannels);
+
+        memcpy(&This->format.Format, format, sizeof(This->format.Format));
+        This->format.Format.nBlockAlign = This->format.Format.wBitsPerSample * This->format.Format.nChannels / 8;
+        This->format.Format.nAvgBytesPerSec = This->format.Format.nSamplesPerSec * This->format.Format.nBlockAlign;
+        This->format.Format.cbSize = 0;
     }
-    else if (format->wFormatTag)
+    else if(format->wFormatTag == WAVE_FORMAT_EXTENSIBLE)
+    {
+        WAVEFORMATEXTENSIBLE *wfe;
+
+        if(format->cbSize < sizeof(WAVEFORMATEXTENSIBLE)-sizeof(WAVEFORMATEX))
+            return DSERR_INVALIDPARAM;
+        else if(format->cbSize > sizeof(WAVEFORMATEXTENSIBLE)-sizeof(WAVEFORMATEX) &&
+                format->cbSize != sizeof(WAVEFORMATEXTENSIBLE))
+            return DSERR_CONTROLUNAVAIL;
+
+        wfe = CONTAINING_RECORD(format, WAVEFORMATEXTENSIBLE, Format);
+        if(!IsEqualGUID(&wfe->SubFormat, &KSDATAFORMAT_SUBTYPE_PCM))
+            return DSERR_BADFORMAT;
+        if(wfe->Samples.wValidBitsPerSample &&
+           wfe->Samples.wValidBitsPerSample != wfe->Format.wBitsPerSample)
+            return DSERR_BADFORMAT;
+
+        if(wfe->Format.nChannels == 1 && wfe->dwChannelMask == SPEAKER_FRONT_CENTER)
+        {
+            switch(wfe->Format.wBitsPerSample)
+            {
+                case 8: buf_format = AL_FORMAT_MONO8; break;
+                case 16: buf_format = AL_FORMAT_MONO16; break;
+                default:
+                    WARN("Unsupported bpp %u\n", wfe->Format.wBitsPerSample);
+                    return DSERR_BADFORMAT;
+            }
+        }
+        else if(wfe->Format.nChannels == 2 && wfe->dwChannelMask == (SPEAKER_FRONT_LEFT|SPEAKER_FRONT_RIGHT))
+        {
+            switch(wfe->Format.wBitsPerSample)
+            {
+                case 8: buf_format = AL_FORMAT_STEREO8; break;
+                case 16: buf_format = AL_FORMAT_STEREO16; break;
+                default:
+                    WARN("Unsupported bpp %u\n", wfe->Format.wBitsPerSample);
+                    return DSERR_BADFORMAT;
+            }
+        }
+        else
+            WARN("Unsupported channels: %d -- 0x%08"LONGFMT"u\n", wfe->Format.nChannels, wfe->dwChannelMask);
+
+        memcpy(&This->format, wfe, sizeof(This->format));
+        This->format.Format.cbSize = sizeof(This->format) - sizeof(This->format.Format);
+        This->format.Format.nBlockAlign = This->format.Format.wBitsPerSample * This->format.Format.nChannels / 8;
+        This->format.Format.nAvgBytesPerSec = This->format.Format.nSamplesPerSec * This->format.Format.nBlockAlign;
+    }
+    else
         WARN("Unhandled formattag %x\n", format->wFormatTag);
 
-    This->buf_size = desc->dwBufferBytes;
     if(buf_format <= 0)
     {
         WARN("Could not get OpenAL format\n");
         return DSERR_INVALIDPARAM;
     }
 
-    This->dev = alcCaptureOpenDevice(This->parent->device, This->format->nSamplesPerSec, buf_format, This->buf_size / This->format->nBlockAlign);
-    if (!This->dev)
+    This->buf_size = desc->dwBufferBytes;
+    This->buf = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, This->buf_size);
+    if(!This->buf)
     {
-        ERR("couldn't open device %s %x@%"LONGFMT"u, reason: %04x\n", This->parent->device, buf_format, This->format->nSamplesPerSec, alcGetError(NULL));
+        WARN("Out of memory\n");
         return DSERR_INVALIDPARAM;
     }
 
-    This->buf = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, This->buf_size);
-    if (!This->buf)
+    This->dev = alcCaptureOpenDevice(This->parent->device, This->format.Format.nSamplesPerSec, buf_format, This->buf_size / This->format.Format.nBlockAlign);
+    if(!This->dev)
     {
-        alcCaptureCloseDevice(This->dev);
-        WARN("Out of memory\n");
+        ERR("Couldn't open device %s 0x%x@%"LONGFMT"u, reason: %04x\n", This->parent->device, buf_format, This->format.Format.nSamplesPerSec, alcGetError(NULL));
         return DSERR_INVALIDPARAM;
     }
 
