@@ -161,7 +161,7 @@ static DWORD CALLBACK DSCBuffer_thread(void *param)
         avail = 0;
         buf = This->buf;
         alcGetIntegerv(buf->dev, ALC_CAPTURE_SAMPLES, 1, &avail);
-        if(avail == 0)
+        if(avail == 0 || !buf->playing)
             continue;
 
         EnterCriticalSection(&This->crst);
