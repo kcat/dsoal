@@ -108,10 +108,10 @@ static void trigger_notifies(DSCBuffer *buf, DWORD lastpos, DWORD curpos)
 {
     DWORD i;
 
-    if (lastpos == curpos)
+    if(lastpos == curpos)
         return;
 
-    for (i = 0; i < buf->nnotify; ++i)
+    for(i = 0;i < buf->nnotify;++i)
     {
         DSBPOSITIONNOTIFY *not = &buf->notify[i];
         HANDLE event = not->hEventNotify;
@@ -121,16 +121,22 @@ static void trigger_notifies(DSCBuffer *buf, DWORD lastpos, DWORD curpos)
             continue;
 
         /* Wraparound case */
-        if (curpos < lastpos)
+        if(curpos < lastpos)
         {
-            if (ofs < curpos || ofs >= lastpos)
+            if(ofs < curpos || ofs >= lastpos)
+            {
+                TRACE("Triggering notification %"LONGFMT"u (%"LONGFMT"u) from buffer %p\n", i, ofs, buf);
                 SetEvent(event);
+            }
             continue;
         }
 
         /* Normal case */
-        if (ofs >= lastpos && ofs < curpos)
+        if(ofs >= lastpos && ofs < curpos)
+        {
+            TRACE("Triggering notification %"LONGFMT"u (%"LONGFMT"u) from buffer %p\n", i, ofs, buf);
             SetEvent(event);
+        }
     }
 }
 
@@ -276,7 +282,7 @@ static HRESULT WINAPI DSCBuffer_QueryInterface(IDirectSoundCaptureBuffer8 *iface
 {
     DSCBuffer *This = impl_from_IDirectSoundCaptureBuffer8(iface);
 
-    TRACE("(%p)->(%s,%p)\n", This, debugstr_guid(riid), ppv);
+    TRACE("(%p)->(%s, %p)\n", iface, debugstr_guid(riid), ppv);
 
     if(!ppv)
         return E_POINTER;
@@ -362,7 +368,8 @@ static HRESULT WINAPI DSCBuffer_GetCurrentPosition(IDirectSoundCaptureBuffer8 *i
 static HRESULT WINAPI DSCBuffer_GetFormat(IDirectSoundCaptureBuffer8 *iface, WAVEFORMATEX *wfx, DWORD size, DWORD *written)
 {
     DSCBuffer *This = impl_from_IDirectSoundCaptureBuffer8(iface);
-    TRACE("(%p,%p,%"LONGFMT"u,%p)\n", This, wfx, size, written);
+
+    TRACE("(%p)->(%p, %"LONGFMT"u, %p)\n", iface, wfx, size, written);
 
     if (size > sizeof(WAVEFORMATEX) + This->format->cbSize)
         size = sizeof(WAVEFORMATEX) + This->format->cbSize;
@@ -384,7 +391,8 @@ static HRESULT WINAPI DSCBuffer_GetFormat(IDirectSoundCaptureBuffer8 *iface, WAV
 static HRESULT WINAPI DSCBuffer_GetStatus(IDirectSoundCaptureBuffer8 *iface, DWORD *status)
 {
     DSCBuffer *This = impl_from_IDirectSoundCaptureBuffer8(iface);
-    TRACE("(%p)->(%p)\n", This, status);
+
+    TRACE("(%p)->(%p)\n", iface, status);
 
     if (!status)
         return DSERR_INVALIDPARAM;
@@ -505,7 +513,8 @@ static HRESULT WINAPI DSCBuffer_Lock(IDirectSoundCaptureBuffer8 *iface, DWORD of
     DSCBuffer *This = impl_from_IDirectSoundCaptureBuffer8(iface);
     HRESULT hr;
     DWORD remain;
-    TRACE("(%p)->(%"LONGFMT"u, %"LONGFMT"u, %p, %p, %p, %p, %#"LONGFMT"x)\n", This, ofs, bytes, ptr1, len1, ptr2, len2, flags);
+
+    TRACE("(%p)->(%"LONGFMT"u, %"LONGFMT"u, %p, %p, %p, %p, %#"LONGFMT"x)\n", iface, ofs, bytes, ptr1, len1, ptr2, len2, flags);
 
     EnterCriticalSection(&This->parent->crst);
     hr = DSERR_INVALIDPARAM;
@@ -560,7 +569,8 @@ out:
 static HRESULT WINAPI DSCBuffer_Start(IDirectSoundCaptureBuffer8 *iface, DWORD flags)
 {
     DSCBuffer *This = impl_from_IDirectSoundCaptureBuffer8(iface);
-    TRACE("(%p)->(%08"LONGFMT"x)\n", This, flags);
+
+    TRACE("(%p)->(%08"LONGFMT"x)\n", iface, flags);
 
     EnterCriticalSection(&This->parent->crst);
     if(!This->playing)
@@ -577,7 +587,8 @@ static HRESULT WINAPI DSCBuffer_Start(IDirectSoundCaptureBuffer8 *iface, DWORD f
 static HRESULT WINAPI DSCBuffer_Stop(IDirectSoundCaptureBuffer8 *iface)
 {
     DSCBuffer *This = impl_from_IDirectSoundCaptureBuffer8(iface);
-    TRACE("(%p)\n", This);
+
+    TRACE("(%p)->()\n", iface);
 
     EnterCriticalSection(&This->parent->crst);
     if(This->playing)
@@ -598,8 +609,7 @@ static HRESULT WINAPI DSCBuffer_Stop(IDirectSoundCaptureBuffer8 *iface)
 
 static HRESULT WINAPI DSCBuffer_Unlock(IDirectSoundCaptureBuffer8 *iface, void *ptr1, DWORD len1, void *ptr2, DWORD len2)
 {
-    DSCBuffer *This = impl_from_IDirectSoundCaptureBuffer8(iface);
-    TRACE("(%p)->(%p,%"LONGFMT"u,%p,%"LONGFMT"u)\n", This, ptr1, len1, ptr2, len2);
+    TRACE("(%p)->(%p, %"LONGFMT"u, %p, %"LONGFMT"u)\n", iface, ptr1, len1, ptr2, len2);
 
     if (!ptr1)
         return DSERR_INVALIDPARAM;
@@ -608,15 +618,13 @@ static HRESULT WINAPI DSCBuffer_Unlock(IDirectSoundCaptureBuffer8 *iface, void *
 
 static HRESULT WINAPI DSCBuffer_GetObjectInPath(IDirectSoundCaptureBuffer8 *iface, REFGUID guid, DWORD num, REFGUID riid, void **ppv)
 {
-    DSCBuffer *This = impl_from_IDirectSoundCaptureBuffer8(iface);
-    FIXME("(%p)->(%s %"LONGFMT"u %s %p) stub\n", This, debugstr_guid(guid), num, debugstr_guid(riid), ppv);
+    FIXME("(%p)->(%s, %"LONGFMT"u, %s, %p) stub\n", iface, debugstr_guid(guid), num, debugstr_guid(riid), ppv);
     return E_NOTIMPL;
 }
 
 static HRESULT WINAPI DSCBuffer_GetFXStatus(IDirectSoundCaptureBuffer8 *iface, DWORD count, DWORD *status)
 {
-    DSCBuffer *This = impl_from_IDirectSoundCaptureBuffer8(iface);
-    FIXME("(%p)->(%"LONGFMT"u %p) stub\n", This, count, status);
+    FIXME("(%p)->(%"LONGFMT"u, %p) stub\n", iface, count, status);
     return E_NOTIMPL;
 }
 
@@ -679,6 +687,8 @@ static HRESULT WINAPI DSCBufferNot_SetNotificationPositions(IDirectSoundNotify *
     DSBPOSITIONNOTIFY *nots;
     HRESULT hr;
     DWORD state;
+
+    TRACE("(%p)->(%"LONGFMT"u, %p))\n", iface, count, notifications);
 
     EnterCriticalSection(&This->parent->crst);
     hr = DSERR_INVALIDPARAM;
@@ -827,7 +837,7 @@ static HRESULT WINAPI DSCImpl_CreateCaptureBuffer(IDirectSoundCapture *iface, co
     DSCImpl *This = impl_from_IDirectSoundCapture(iface);
     HRESULT hr;
 
-    TRACE("(%p)->(%p, %p, %p)\n", This, desc, ppv, unk);
+    TRACE("(%p)->(%p, %p, %p)\n", iface, desc, ppv, unk);
 
     if(unk)
     {
