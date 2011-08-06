@@ -2465,13 +2465,14 @@ static HRESULT WINAPI DS8Buffer3D_SetConeOrientation(IDirectSound3DBuffer *iface
 
     TRACE("(%p)->(%f, %f, %f, %"LONGFMT"u)\n", This, x, y, z, apply);
 
-    EnterCriticalSection(This->crst);
     if(apply == DS3D_DEFERRED)
     {
+        EnterCriticalSection(This->crst);
         This->ds3dbuffer.vConeOrientation.x = x;
         This->ds3dbuffer.vConeOrientation.y = y;
         This->ds3dbuffer.vConeOrientation.z = z;
         This->dirty.bit.cone_orient = 1;
+        LeaveCriticalSection(This->crst);
     }
     else
     {
@@ -2480,7 +2481,6 @@ static HRESULT WINAPI DS8Buffer3D_SetConeOrientation(IDirectSound3DBuffer *iface
         checkALError();
         popALContext();
     }
-    LeaveCriticalSection(This->crst);
 
     return S_OK;
 }
@@ -2496,11 +2496,12 @@ static HRESULT WINAPI DS8Buffer3D_SetConeOutsideVolume(IDirectSound3DBuffer *ifa
         return DSERR_INVALIDPARAM;
     }
 
-    EnterCriticalSection(This->crst);
     if(apply == DS3D_DEFERRED)
     {
+        EnterCriticalSection(This->crst);
         This->ds3dbuffer.lConeOutsideVolume = vol;
         This->dirty.bit.cone_outsidevolume = 1;
+        LeaveCriticalSection(This->crst);
     }
     else
     {
@@ -2509,7 +2510,6 @@ static HRESULT WINAPI DS8Buffer3D_SetConeOutsideVolume(IDirectSound3DBuffer *ifa
         checkALError();
         popALContext();
     }
-    LeaveCriticalSection(This->crst);
 
     return S_OK;
 }
@@ -2525,11 +2525,12 @@ static HRESULT WINAPI DS8Buffer3D_SetMaxDistance(IDirectSound3DBuffer *iface, D3
         return DSERR_INVALIDPARAM;
     }
 
-    EnterCriticalSection(This->crst);
     if(apply == DS3D_DEFERRED)
     {
+        EnterCriticalSection(This->crst);
         This->ds3dbuffer.flMaxDistance = maxdist;
         This->dirty.bit.max_distance = 1;
+        LeaveCriticalSection(This->crst);
     }
     else
     {
@@ -2538,7 +2539,6 @@ static HRESULT WINAPI DS8Buffer3D_SetMaxDistance(IDirectSound3DBuffer *iface, D3
         checkALError();
         popALContext();
     }
-    LeaveCriticalSection(This->crst);
 
     return S_OK;
 }
@@ -2554,11 +2554,12 @@ static HRESULT WINAPI DS8Buffer3D_SetMinDistance(IDirectSound3DBuffer *iface, D3
         return DSERR_INVALIDPARAM;
     }
 
-    EnterCriticalSection(This->crst);
     if(apply == DS3D_DEFERRED)
     {
+        EnterCriticalSection(This->crst);
         This->ds3dbuffer.flMinDistance = mindist;
         This->dirty.bit.min_distance = 1;
+        LeaveCriticalSection(This->crst);
     }
     else
     {
@@ -2567,7 +2568,6 @@ static HRESULT WINAPI DS8Buffer3D_SetMinDistance(IDirectSound3DBuffer *iface, D3
         checkALError();
         popALContext();
     }
-    LeaveCriticalSection(This->crst);
 
     return S_OK;
 }
@@ -2612,13 +2612,14 @@ static HRESULT WINAPI DS8Buffer3D_SetPosition(IDirectSound3DBuffer *iface, D3DVA
 
     TRACE("(%p)->(%f, %f, %f, %"LONGFMT"u)\n", This, x, y, z, apply);
 
-    EnterCriticalSection(This->crst);
     if(apply == DS3D_DEFERRED)
     {
+        EnterCriticalSection(This->crst);
         This->ds3dbuffer.vPosition.x = x;
         This->ds3dbuffer.vPosition.y = y;
         This->ds3dbuffer.vPosition.z = z;
         This->dirty.bit.pos = 1;
+        LeaveCriticalSection(This->crst);
     }
     else
     {
@@ -2627,7 +2628,6 @@ static HRESULT WINAPI DS8Buffer3D_SetPosition(IDirectSound3DBuffer *iface, D3DVA
         checkALError();
         popALContext();
     }
-    LeaveCriticalSection(This->crst);
 
     return S_OK;
 }
@@ -2638,13 +2638,14 @@ static HRESULT WINAPI DS8Buffer3D_SetVelocity(IDirectSound3DBuffer *iface, D3DVA
 
     TRACE("(%p)->(%f, %f, %f, %"LONGFMT"u)\n", This, x, y, z, apply);
 
-    EnterCriticalSection(This->crst);
     if(apply == DS3D_DEFERRED)
     {
+        EnterCriticalSection(This->crst);
         This->ds3dbuffer.vVelocity.x = x;
         This->ds3dbuffer.vVelocity.y = y;
         This->ds3dbuffer.vVelocity.z = z;
         This->dirty.bit.vel = 1;
+        LeaveCriticalSection(This->crst);
     }
     else
     {
@@ -2653,7 +2654,6 @@ static HRESULT WINAPI DS8Buffer3D_SetVelocity(IDirectSound3DBuffer *iface, D3DVA
         checkALError();
         popALContext();
     }
-    LeaveCriticalSection(This->crst);
 
     return S_OK;
 }

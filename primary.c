@@ -1236,11 +1236,12 @@ static HRESULT WINAPI DS8Primary3D_SetDistanceFactor(IDirectSound3DListener *ifa
         return DSERR_INVALIDPARAM;
     }
 
-    EnterCriticalSection(This->crst);
     if(apply == DS3D_DEFERRED)
     {
+        EnterCriticalSection(This->crst);
         This->listen.flDistanceFactor = factor;
         This->dirty.bit.distancefactor = 1;
+        LeaveCriticalSection(This->crst);
     }
     else
     {
@@ -1251,7 +1252,6 @@ static HRESULT WINAPI DS8Primary3D_SetDistanceFactor(IDirectSound3DListener *ifa
         checkALError();
         popALContext();
     }
-    LeaveCriticalSection(This->crst);
 
     return S_OK;
 }
@@ -1269,11 +1269,12 @@ static HRESULT WINAPI DS8Primary3D_SetDopplerFactor(IDirectSound3DListener *ifac
         return DSERR_INVALIDPARAM;
     }
 
-    EnterCriticalSection(This->crst);
     if(apply == DS3D_DEFERRED)
     {
+        EnterCriticalSection(This->crst);
         This->listen.flDopplerFactor = factor;
         This->dirty.bit.dopplerfactor = 1;
+        LeaveCriticalSection(This->crst);
     }
     else
     {
@@ -1282,7 +1283,6 @@ static HRESULT WINAPI DS8Primary3D_SetDopplerFactor(IDirectSound3DListener *ifac
         checkALError();
         popALContext();
     }
-    LeaveCriticalSection(This->crst);
 
     return S_OK;
 }
@@ -1293,9 +1293,9 @@ static HRESULT WINAPI DS8Primary3D_SetOrientation(IDirectSound3DListener *iface,
 
     TRACE("(%p)->(%f, %f, %f, %f, %f, %f, %"LONGFMT"u)\n", iface, xFront, yFront, zFront, xTop, yTop, zTop, apply);
 
-    EnterCriticalSection(This->crst);
     if(apply == DS3D_DEFERRED)
     {
+        EnterCriticalSection(This->crst);
         This->listen.vOrientFront.x = xFront;
         This->listen.vOrientFront.y = yFront;
         This->listen.vOrientFront.z = zFront;
@@ -1303,6 +1303,7 @@ static HRESULT WINAPI DS8Primary3D_SetOrientation(IDirectSound3DListener *iface,
         This->listen.vOrientTop.y = yTop;
         This->listen.vOrientTop.z = zTop;
         This->dirty.bit.orientation = 1;
+        LeaveCriticalSection(This->crst);
     }
     else
     {
@@ -1315,7 +1316,6 @@ static HRESULT WINAPI DS8Primary3D_SetOrientation(IDirectSound3DListener *iface,
         checkALError();
         popALContext();
     }
-    LeaveCriticalSection(This->crst);
 
     return S_OK;
 }
@@ -1326,13 +1326,14 @@ static HRESULT WINAPI DS8Primary3D_SetPosition(IDirectSound3DListener *iface, D3
 
     TRACE("(%p)->(%f, %f, %f, %"LONGFMT"u)\n", iface, x, y, z, apply);
 
-    EnterCriticalSection(This->crst);
     if(apply == DS3D_DEFERRED)
     {
+        EnterCriticalSection(This->crst);
         This->listen.vPosition.x = x;
         This->listen.vPosition.y = y;
         This->listen.vPosition.z = z;
         This->dirty.bit.pos = 1;
+        LeaveCriticalSection(This->crst);
     }
     else
     {
@@ -1341,7 +1342,6 @@ static HRESULT WINAPI DS8Primary3D_SetPosition(IDirectSound3DListener *iface, D3
         checkALError();
         popALContext();
     }
-    LeaveCriticalSection(This->crst);
 
     return S_OK;
 }
@@ -1391,13 +1391,14 @@ static HRESULT WINAPI DS8Primary3D_SetVelocity(IDirectSound3DListener *iface, D3
 
     TRACE("(%p)->(%f, %f, %f, %"LONGFMT"u)\n", iface, x, y, z, apply);
 
-    EnterCriticalSection(This->crst);
     if(apply == DS3D_DEFERRED)
     {
+        EnterCriticalSection(This->crst);
         This->listen.vVelocity.x = x;
         This->listen.vVelocity.y = y;
         This->listen.vVelocity.z = z;
         This->dirty.bit.vel = 1;
+        LeaveCriticalSection(This->crst);
     }
     else
     {
@@ -1406,7 +1407,6 @@ static HRESULT WINAPI DS8Primary3D_SetVelocity(IDirectSound3DListener *iface, D3
         checkALError();
         popALContext();
     }
-    LeaveCriticalSection(This->crst);
 
     return S_OK;
 }
