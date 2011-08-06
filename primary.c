@@ -1011,7 +1011,7 @@ static HRESULT WINAPI DS8Primary3D_GetAllParameters(IDirectSound3DListener *ifac
     IDirectSound3DListener_GetOrientation(iface, &listener->vOrientFront, &listener->vOrientTop);
     IDirectSound3DListener_GetDistanceFactor(iface, &listener->flDistanceFactor);
     IDirectSound3DListener_GetRolloffFactor(iface, &listener->flRolloffFactor);
-    IDirectSound3DListener_GetRolloffFactor(iface, &listener->flDopplerFactor);
+    IDirectSound3DListener_GetDopplerFactor(iface, &listener->flDopplerFactor);
     popALContext();
     LeaveCriticalSection(This->crst);
 
