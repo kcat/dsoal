@@ -69,6 +69,22 @@ static const IDirectSound3DListenerVtbl DS8Primary3D_Vtbl;
 static const IKsPropertySetVtbl DS8PrimaryProp_Vtbl;
 
 
+static inline DS8Primary *impl_from_IDirectSoundBuffer(IDirectSoundBuffer *iface)
+{
+    return CONTAINING_RECORD(iface, DS8Primary, IDirectSoundBuffer_iface);
+}
+
+static inline DS8Primary *impl_from_IDirectSound3DListener(IDirectSound3DListener *iface)
+{
+    return CONTAINING_RECORD(iface, DS8Primary, IDirectSound3DListener_iface);
+}
+
+static inline DS8Primary *impl_from_IKsPropertySet(IKsPropertySet *iface)
+{
+    return CONTAINING_RECORD(iface, DS8Primary, IKsPropertySet_iface);
+}
+
+
 static void AL_APIENTRY wrap_DeferUpdates(void)
 { alcSuspendContext(alcGetCurrentContext()); }
 static void AL_APIENTRY wrap_ProcessUpdates(void)
@@ -350,11 +366,6 @@ void DS8Primary_Clear(DS8Primary *This)
     HeapFree(GetProcessHeap(), 0, This->notifies);
     HeapFree(GetProcessHeap(), 0, This->buffers);
     memset(This, 0, sizeof(*This));
-}
-
-static inline DS8Primary *impl_from_IDirectSoundBuffer(IDirectSoundBuffer *iface)
-{
-    return CONTAINING_RECORD(iface, DS8Primary, IDirectSoundBuffer_iface);
 }
 
 static HRESULT WINAPI DS8Primary_QueryInterface(IDirectSoundBuffer *iface, REFIID riid, LPVOID *ppv)
@@ -954,10 +965,6 @@ static const IDirectSoundBufferVtbl DS8Primary_Vtbl =
     DS8Primary_Restore
 };
 
-static inline DS8Primary *impl_from_IDirectSound3DListener(IDirectSound3DListener *iface)
-{
-    return CONTAINING_RECORD(iface, DS8Primary, IDirectSound3DListener_iface);
-}
 
 static HRESULT WINAPI DS8Primary3D_QueryInterface(IDirectSound3DListener *iface, REFIID riid, void **ppv)
 {
@@ -976,10 +983,6 @@ static ULONG WINAPI DS8Primary3D_AddRef(IDirectSound3DListener *iface)
     return ret;
 }
 
-
-/* Considering the primary buffer doesn't get destroyed
- * it doesn't make sense to destroy ds3d here
- */
 static ULONG WINAPI DS8Primary3D_Release(IDirectSound3DListener *iface)
 {
     DS8Primary *This = impl_from_IDirectSound3DListener(iface);
@@ -1520,11 +1523,6 @@ static const IDirectSound3DListenerVtbl DS8Primary3D_Vtbl =
 /* NOTE: Although the app handles listener properties through secondary buffers,
  * we pass the requests to the primary buffer though a propertyset interface.
  * These methods are not exposed to the app. */
-static inline DS8Primary *impl_from_IKsPropertySet(IKsPropertySet *iface)
-{
-    return CONTAINING_RECORD(iface, DS8Primary, IKsPropertySet_iface);
-}
-
 static HRESULT WINAPI DS8PrimaryProp_QueryInterface(IKsPropertySet *iface, REFIID riid, void **ppv)
 {
     DS8Primary *This = impl_from_IKsPropertySet(iface);
