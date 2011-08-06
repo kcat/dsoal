@@ -1030,14 +1030,10 @@ static HRESULT WINAPI DS8Primary3D_GetDistanceFactor(IDirectSound3DListener *ifa
         return DSERR_INVALIDPARAM;
     }
 
-    EnterCriticalSection(This->crst);
     setALContext(This->ctx);
-
     *distancefactor = 343.3f/alGetFloat(AL_SPEED_OF_SOUND);
     checkALError();
-
     popALContext();
-    LeaveCriticalSection(This->crst);
 
     return S_OK;
 }
@@ -1054,14 +1050,10 @@ static HRESULT WINAPI DS8Primary3D_GetDopplerFactor(IDirectSound3DListener *ifac
         return DSERR_INVALIDPARAM;
     }
 
-    EnterCriticalSection(This->crst);
     setALContext(This->ctx);
-
     *dopplerfactor = alGetFloat(AL_DOPPLER_FACTOR);
     checkALError();
-
     popALContext();
-    LeaveCriticalSection(This->crst);
 
     return S_OK;
 }
@@ -1079,11 +1071,10 @@ static HRESULT WINAPI DS8Primary3D_GetOrientation(IDirectSound3DListener *iface,
         return DSERR_INVALIDPARAM;
     }
 
-    EnterCriticalSection(This->crst);
     setALContext(This->ctx);
-
     alGetListenerfv(AL_ORIENTATION, orient);
     checkALError();
+    popALContext();
 
     front->x =  orient[0];
     front->y =  orient[1];
@@ -1091,10 +1082,6 @@ static HRESULT WINAPI DS8Primary3D_GetOrientation(IDirectSound3DListener *iface,
     top->x =  orient[3];
     top->y =  orient[4];
     top->z = -orient[5];
-
-    popALContext();
-    LeaveCriticalSection(This->crst);
-
     return S_OK;
 }
 
@@ -1111,19 +1098,14 @@ static HRESULT WINAPI DS8Primary3D_GetPosition(IDirectSound3DListener *iface, D3
         return DSERR_INVALIDPARAM;
     }
 
-    EnterCriticalSection(This->crst);
     setALContext(This->ctx);
-
     alGetListenerfv(AL_POSITION, alpos);
     checkALError();
+    popALContext();
 
     pos->x =  alpos[0];
     pos->y =  alpos[1];
     pos->z = -alpos[2];
-
-    popALContext();
-    LeaveCriticalSection(This->crst);
-
     return S_OK;
 }
 
@@ -1159,19 +1141,14 @@ static HRESULT WINAPI DS8Primary3D_GetVelocity(IDirectSound3DListener *iface, D3
         return DSERR_INVALIDPARAM;
     }
 
-    EnterCriticalSection(This->crst);
     setALContext(This->ctx);
-
     alGetListenerfv(AL_VELOCITY, vel);
     checkALError();
+    popALContext();
 
     velocity->x =  vel[0];
     velocity->y =  vel[1];
     velocity->z = -vel[2];
-
-    popALContext();
-    LeaveCriticalSection(This->crst);
-
     return S_OK;
 }
 

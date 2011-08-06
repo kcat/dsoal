@@ -2182,12 +2182,12 @@ static HRESULT WINAPI DS8Buffer3D_GetConeAngles(IDirectSound3DBuffer *iface, DWO
     alGetSourcei(This->source, AL_CONE_INNER_ANGLE, &inangle);
     alGetSourcei(This->source, AL_CONE_OUTER_ANGLE, &outangle);
     checkALError();
-    *pdwInsideConeAngle = inangle;
-    *pdwOutsideConeAngle = outangle;
 
     popALContext();
     LeaveCriticalSection(This->crst);
 
+    *pdwInsideConeAngle = inangle;
+    *pdwOutsideConeAngle = outangle;
     return S_OK;
 }
 
@@ -2203,18 +2203,14 @@ static HRESULT WINAPI DS8Buffer3D_GetConeOrientation(IDirectSound3DBuffer *iface
         return DSERR_INVALIDPARAM;
     }
 
-    EnterCriticalSection(This->crst);
     setALContext(This->ctx);
-
     alGetSourcefv(This->source, AL_DIRECTION, dir);
     checkALError();
+    popALContext();
+
     orient->x =  dir[0];
     orient->y =  dir[1];
     orient->z = -dir[2];
-
-    popALContext();
-    LeaveCriticalSection(This->crst);
-
     return S_OK;
 }
 
@@ -2230,14 +2226,10 @@ static HRESULT WINAPI DS8Buffer3D_GetConeOutsideVolume(IDirectSound3DBuffer *ifa
         return DSERR_INVALIDPARAM;
     }
 
-    EnterCriticalSection(This->crst);
     setALContext(This->ctx);
-
     alGetSourcef(This->source, AL_CONE_OUTER_GAIN, &gain);
     checkALError();
-
     popALContext();
-    LeaveCriticalSection(This->crst);
 
     *vol = clampI(gain_to_mB(gain), DSBVOLUME_MIN, DSBVOLUME_MAX);
     return S_OK;
@@ -2255,14 +2247,10 @@ static HRESULT WINAPI DS8Buffer3D_GetMaxDistance(IDirectSound3DBuffer *iface, D3
         return DSERR_INVALIDPARAM;
     }
 
-    EnterCriticalSection(This->crst);
     setALContext(This->ctx);
-
     alGetSourcef(This->source, AL_MAX_DISTANCE, &dist);
     checkALError();
-
     popALContext();
-    LeaveCriticalSection(This->crst);
 
     *maxdist = dist;
     return S_OK;
@@ -2280,16 +2268,12 @@ static HRESULT WINAPI DS8Buffer3D_GetMinDistance(IDirectSound3DBuffer *iface, D3
         return DSERR_INVALIDPARAM;
     }
 
-    EnterCriticalSection(This->crst);
     setALContext(This->ctx);
-
     alGetSourcef(This->source, AL_REFERENCE_DISTANCE, &dist);
     checkALError();
-    *mindist = dist;
-
     popALContext();
-    LeaveCriticalSection(This->crst);
 
+    *mindist = dist;
     return S_OK;
 }
 
@@ -2323,18 +2307,14 @@ static HRESULT WINAPI DS8Buffer3D_GetPosition(IDirectSound3DBuffer *iface, D3DVE
         return DSERR_INVALIDPARAM;
     }
 
-    EnterCriticalSection(This->crst);
     setALContext(This->ctx);
-
     alGetSourcefv(This->source, AL_POSITION, alpos);
     checkALError();
+    popALContext();
+
     pos->x =  alpos[0];
     pos->y =  alpos[1];
     pos->z = -alpos[2];
-
-    popALContext();
-    LeaveCriticalSection(This->crst);
-
     return S_OK;
 }
 
@@ -2350,18 +2330,14 @@ static HRESULT WINAPI DS8Buffer3D_GetVelocity(IDirectSound3DBuffer *iface, D3DVE
         return DSERR_INVALIDPARAM;
     }
 
-    EnterCriticalSection(This->crst);
     setALContext(This->ctx);
-
     alGetSourcefv(This->source, AL_VELOCITY, alvel);
     checkALError();
+    popALContext();
+
     vel->x =  alvel[0];
     vel->y =  alvel[1];
     vel->z = -alvel[2];
-
-    popALContext();
-    LeaveCriticalSection(This->crst);
-
     return S_OK;
 }
 
