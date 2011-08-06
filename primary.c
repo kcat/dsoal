@@ -131,11 +131,12 @@ static void trigger_stop_notifies(DS8Buffer *buf)
 static DWORD CALLBACK ThreadProc(void *dwUser)
 {
     DS8Primary *prim = (DS8Primary*)dwUser;
-    DWORD i;
+    DWORD i, active_notifies;
     MSG msg;
 
     SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_TIME_CRITICAL);
 
+    TRACE("Primary buffer (%p) message loop start\n", prim);
     while(GetMessageA(&msg, NULL, 0, 0))
     {
         if(msg.message != WM_USER)
@@ -143,6 +144,32 @@ static DWORD CALLBACK ThreadProc(void *dwUser)
 
         EnterCriticalSection(prim->crst);
         setALContext(prim->ctx);
+
+        for(i = 0;i < prim->nnotifies;)
+        {
+            DS8Buffer *buf = prim->notifies[i];
+            IDirectSoundBuffer8 *dsb = &buf->IDirectSoundBuffer8_iface;
+            DWORD status=0, curpos=buf->lastpos;
+
+            IDirectSoundBuffer8_GetStatus(dsb, &status);
+            IDirectSoundBuffer8_GetCurrentPosition(dsb, &curpos, NULL);
+            if(buf->lastpos != curpos)
+            {
+                trigger_elapsed_notifies(buf, buf->lastpos, curpos);
+                buf->lastpos = curpos;
+            }
+            if(!(status&DSBSTATUS_PLAYING))
+            {
+                /* Remove this buffer from list and put another at the
+                 * current position; don't increment i
+                 */
+                trigger_stop_notifies(buf);
+                prim->notifies[i] = prim->notifies[--prim->nnotifies];
+                continue;
+            }
+            i++;
+        }
+        active_notifies = i;
 
         /* OpenAL doesn't support our lovely buffer extensions
          * so just make sure enough buffers are queued
@@ -202,36 +229,68 @@ static DWORD CALLBACK ThreadProc(void *dwUser)
             }
             checkALError();
         }
-
-        for(i = 0;i < prim->nnotifies;)
+        else if(active_notifies == 0 && prim->timer_id)
         {
-            DS8Buffer *buf = prim->notifies[i];
-            IDirectSoundBuffer8 *dsb = &buf->IDirectSoundBuffer8_iface;
-            DWORD status=0, curpos=buf->lastpos;
-
-            IDirectSoundBuffer8_GetStatus(dsb, &status);
-            IDirectSoundBuffer8_GetCurrentPosition(dsb, &curpos, NULL);
-            if(buf->lastpos != curpos)
-            {
-                trigger_elapsed_notifies(buf, buf->lastpos, curpos);
-                buf->lastpos = curpos;
-            }
-            if(!(status&DSBSTATUS_PLAYING))
-            {
-                /* Remove this buffer from list and put another at the
-                 * current position; don't increment i
-                 */
-                trigger_stop_notifies(buf);
-                prim->notifies[i] = prim->notifies[--prim->nnotifies];
-                continue;
-            }
-            i++;
+            TRACE("No more notifies, killing timer\n");
+            timeKillEvent(prim->timer_id);
+            prim->timer_id = 0;
+            timeEndPeriod(prim->timer_res);
         }
+
         popALContext();
         LeaveCriticalSection(prim->crst);
     }
+    TRACE("Primary buffer (%p) message loop quit\n", prim);
+
+    if(prim->timer_id)
+    {
+        timeKillEvent(prim->timer_id);
+        prim->timer_id = 0;
+        timeEndPeriod(prim->timer_res);
+        TRACE("Killed timer\n");
+    }
+
     return 0;
 }
+
+static void CALLBACK DS8Primary_timer(UINT timerID, UINT msg, DWORD_PTR dwUser,
+                                      DWORD_PTR dw1, DWORD_PTR dw2)
+{
+    (void)timerID;
+    (void)msg;
+    (void)dw1;
+    (void)dw2;
+    PostThreadMessageA(dwUser, WM_USER, 0, 0);
+}
+
+void DS8Primary_starttimer(DS8Primary *prim)
+{
+    DWORD triggertime, res = DS_TIME_RES;
+    ALint refresh = FAKE_REFRESH_COUNT;
+    TIMECAPS time;
+
+    if(prim->timer_id)
+        return;
+
+    timeGetDevCaps(&time, sizeof(TIMECAPS));
+
+    alcGetIntegerv(prim->parent->device, ALC_REFRESH, 1, &refresh);
+    checkALCError(prim->parent->device);
+
+    triggertime = 1000 / refresh / 2;
+    if(triggertime < time.wPeriodMin)
+        triggertime = time.wPeriodMin;
+    TRACE("Calling timer every %"LONGFMT"u ms for %i refreshes per second\n", triggertime, refresh);
+
+    if (res < time.wPeriodMin)
+        res = time.wPeriodMin;
+    if (timeBeginPeriod(res) == TIMERR_NOCANDO)
+        WARN("Could not set minimum resolution, don't expect sound\n");
+
+    prim->timer_res = res;
+    prim->timer_id = timeSetEvent(triggertime, res, DS8Primary_timer, prim->thread_id, TIME_PERIODIC|TIME_KILL_SYNCHRONOUS);
+}
+
 
 
 HRESULT DS8Primary_PreInit(DS8Primary *This, DS8Impl *parent)
@@ -342,12 +401,6 @@ void DS8Primary_Clear(DS8Primary *This)
     if(!This->parent)
         return;
 
-    if(This->timer_id)
-    {
-        timeKillEvent(This->timer_id);
-        timeEndPeriod(This->timer_res);
-        TRACE("Killed timer\n");
-    }
     if(This->thread_hdl)
     {
         PostThreadMessageA(This->thread_id, WM_QUIT, 0, 0);

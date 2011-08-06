@@ -544,6 +544,7 @@ struct DS8Buffer {
 
 extern HRESULT DS8Primary_PreInit(DS8Primary *prim, DS8Impl *parent);
 extern void DS8Primary_Clear(DS8Primary *prim);
+extern void DS8Primary_starttimer(DS8Primary *prim);
 
 extern HRESULT DS8Buffer_Create(DS8Buffer **ppv, DS8Primary *parent, IDirectSoundBuffer *orig);
 extern void DS8Buffer_Destroy(DS8Buffer *buf);

@@ -108,44 +108,6 @@ static inline DS8Buffer *impl_from_IKsPropertySet(IKsPropertySet *iface)
 }
 
 
-static void CALLBACK DS8Buffer_timer(UINT timerID, UINT msg, DWORD_PTR dwUser,
-                                     DWORD_PTR dw1, DWORD_PTR dw2)
-{
-    (void)timerID;
-    (void)msg;
-    (void)dw1;
-    (void)dw2;
-    PostThreadMessageA(dwUser, WM_USER, 0, 0);
-}
-
-static void DS8Buffer_starttimer(DS8Primary *prim)
-{
-    DWORD triggertime, res = DS_TIME_RES;
-    ALint refresh = FAKE_REFRESH_COUNT;
-    TIMECAPS time;
-
-    if(prim->timer_id)
-        return;
-
-    timeGetDevCaps(&time, sizeof(TIMECAPS));
-
-    alcGetIntegerv(prim->parent->device, ALC_REFRESH, 1, &refresh);
-    checkALCError(prim->parent->device);
-
-    triggertime = 1000 / refresh / 2;
-    if(triggertime < time.wPeriodMin)
-        triggertime = time.wPeriodMin;
-    TRACE("Calling timer every %"LONGFMT"u ms for %i refreshes per second\n", triggertime, refresh);
-
-    if (res < time.wPeriodMin)
-        res = time.wPeriodMin;
-    if (timeBeginPeriod(res) == TIMERR_NOCANDO)
-        WARN("Could not set minimum resolution, don't expect sound\n");
-
-    prim->timer_res = res;
-    prim->timer_id = timeSetEvent(triggertime, res, DS8Buffer_timer, prim->thread_id, TIME_PERIODIC|TIME_KILL_SYNCHRONOUS);
-}
-
 /* Should be called with critsect held and context set.. */
 static void DS8Buffer_addnotify(DS8Buffer *buf)
 {
@@ -1548,10 +1510,10 @@ static HRESULT WINAPI DS8Buffer_Play(IDirectSoundBuffer8 *iface, DWORD res1, DWO
     if(This->nnotify)
     {
         DS8Buffer_addnotify(This);
-        DS8Buffer_starttimer(This->primary);
+        DS8Primary_starttimer(This->primary);
     }
     else if(This->buffer->numsegs > 1)
-        DS8Buffer_starttimer(This->primary);
+        DS8Primary_starttimer(This->primary);
 
 out:
     popALContext();
