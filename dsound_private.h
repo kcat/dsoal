@@ -287,9 +287,6 @@ extern LPALSPEEDOFSOUND palSpeedOfSound;
 /* OpenAL only allows for 1 single access to the device at the same time */
 extern CRITICAL_SECTION openal_crst;
 
-extern const ALCchar *DSOUND_getdevicestrings(void);
-extern const ALCchar *DSOUND_getcapturedevicestrings(void);
-
 extern LPALCMAKECONTEXTCURRENT set_context;
 extern LPALCGETCURRENTCONTEXT get_context;
 extern BOOL local_contexts;
@@ -542,12 +539,15 @@ struct DS8Buffer {
     DSBPOSITIONNOTIFY *notify;
 };
 
-extern HRESULT DS8Primary_PreInit(DS8Primary *prim, DS8Impl *parent);
-extern void DS8Primary_Clear(DS8Primary *prim);
-extern void DS8Primary_starttimer(DS8Primary *prim);
+const ALCchar *DSOUND_getdevicestrings(void);
+const ALCchar *DSOUND_getcapturedevicestrings(void);
 
-extern HRESULT DS8Buffer_Create(DS8Buffer **ppv, DS8Primary *parent, IDirectSoundBuffer *orig);
-extern void DS8Buffer_Destroy(DS8Buffer *buf);
+HRESULT DS8Primary_PreInit(DS8Primary *prim, DS8Impl *parent);
+void DS8Primary_Clear(DS8Primary *prim);
+void DS8Primary_starttimer(DS8Primary *prim);
+
+HRESULT DS8Buffer_Create(DS8Buffer **ppv, DS8Primary *parent, IDirectSoundBuffer *orig);
+void DS8Buffer_Destroy(DS8Buffer *buf);
 
 static inline ALdouble gain_to_mB(ALdouble gain)
 {
