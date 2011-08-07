@@ -405,7 +405,7 @@ void DS8Primary_Clear(DS8Primary *This)
     {
         PostThreadMessageA(This->thread_id, WM_QUIT, 0, 0);
         if(WaitForSingleObject(This->thread_hdl, 1000) != WAIT_OBJECT_0)
-            ERR("Thread wait timed out");
+            ERR("Thread wait timed out\n");
         CloseHandle(This->thread_hdl);
     }
 
