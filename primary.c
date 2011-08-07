@@ -405,7 +405,17 @@ void DS8Primary_Clear(DS8Primary *This)
     {
         PostThreadMessageA(This->thread_id, WM_QUIT, 0, 0);
         if(WaitForSingleObject(This->thread_hdl, 1000) != WAIT_OBJECT_0)
-            ERR("Thread wait timed out\n");
+        {
+            /* HACK: Apparently, if the device is initialized (thus the primary
+             * buffer has PreInit called) then immediately deleted (the primary
+             * buffer has Clear called), the WM_QUIT message gets sent before
+             * the thread has a chance to run which apparently prevents it from
+             * receiving the message.
+             * If the wait attempt fails, try sending the message again. */
+            PostThreadMessageA(This->thread_id, WM_QUIT, 0, 0);
+            if(WaitForSingleObject(This->thread_hdl, 1000) != WAIT_OBJECT_0)
+                ERR("Thread wait timed out\n");
+        }
         CloseHandle(This->thread_hdl);
     }
 
