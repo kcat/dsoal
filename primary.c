@@ -128,7 +128,7 @@ static void trigger_stop_notifies(DS8Buffer *buf)
     }
 }
 
-static DWORD CALLBACK ThreadProc(void *dwUser)
+static DWORD CALLBACK DS8Primary_thread(void *dwUser)
 {
     DS8Primary *prim = (DS8Primary*)dwUser;
     DWORD i, active_notifies;
@@ -383,7 +383,7 @@ HRESULT DS8Primary_PreInit(DS8Primary *This, DS8Impl *parent)
     if(!This->buffers || !This->notifies)
         goto fail;
 
-    This->thread_hdl = CreateThread(NULL, 0, ThreadProc, This, 0, &This->thread_id);
+    This->thread_hdl = CreateThread(NULL, 0, DS8Primary_thread, This, 0, &This->thread_id);
     if(This->thread_hdl == NULL)
         goto fail;
 
