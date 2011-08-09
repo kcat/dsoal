@@ -545,36 +545,30 @@ static HRESULT WINAPI DS8Primary_GetFormat(IDirectSoundBuffer *iface, WAVEFORMAT
 static HRESULT WINAPI DS8Primary_GetVolume(IDirectSoundBuffer *iface, LONG *volume)
 {
     DS8Primary *This = impl_from_IDirectSoundBuffer(iface);
-    HRESULT hr = S_OK;
+    ALfloat gain;
 
     TRACE("(%p)->(%p)\n", iface, volume);
 
     if(!volume)
         return DSERR_INVALIDPARAM;
+    *volume = 0;
 
-    EnterCriticalSection(This->crst);
-    if(!(This->flags & DSBCAPS_CTRLVOLUME))
-        hr = DSERR_CONTROLUNAVAIL;
-    else
-    {
-        ALfloat gain;
+    if(!(This->flags&DSBCAPS_CTRLVOLUME))
+        return DSERR_CONTROLUNAVAIL;
 
-        setALContext(This->ctx);
-        alGetListenerf(AL_GAIN, &gain);
-        checkALError();
-        popALContext();
+    setALContext(This->ctx);
+    alGetListenerf(AL_GAIN, &gain);
+    checkALError();
+    popALContext();
 
-        *volume = clampI(gain_to_mB(gain), DSBVOLUME_MIN, DSBVOLUME_MAX);
-    }
-    LeaveCriticalSection(This->crst);
-
-    return hr;
+    *volume = clampI(gain_to_mB(gain), DSBVOLUME_MIN, DSBVOLUME_MAX);
+    return DS_OK;
 }
 
 static HRESULT WINAPI DS8Primary_GetPan(IDirectSoundBuffer *iface, LONG *pan)
 {
     DS8Primary *This = impl_from_IDirectSoundBuffer(iface);
-    HRESULT hr = S_OK;
+    HRESULT hr = DS_OK;
 
     WARN("(%p)->(%p): semi-stub\n", iface, pan);
 
@@ -596,18 +590,18 @@ static HRESULT WINAPI DS8Primary_GetPan(IDirectSoundBuffer *iface, LONG *pan)
 static HRESULT WINAPI DS8Primary_GetFrequency(IDirectSoundBuffer *iface, DWORD *freq)
 {
     DS8Primary *This = impl_from_IDirectSoundBuffer(iface);
-    HRESULT hr = S_OK;
+    HRESULT hr = DS_OK;
 
     WARN("(%p)->(%p): semi-stub\n", iface, freq);
 
     if(!freq)
         return DSERR_INVALIDPARAM;
 
+    if(!(This->flags&DSBCAPS_CTRLFREQUENCY))
+        return DSERR_CONTROLUNAVAIL;
+
     EnterCriticalSection(This->crst);
-    if(!(This->flags & DSBCAPS_CTRLFREQUENCY))
-        hr = DSERR_CONTROLUNAVAIL;
-    else
-        *freq = This->format.Format.nSamplesPerSec;
+    *freq = This->format.Format.nSamplesPerSec;
     LeaveCriticalSection(This->crst);
 
     return hr;
@@ -623,7 +617,6 @@ static HRESULT WINAPI DS8Primary_GetStatus(IDirectSoundBuffer *iface, DWORD *sta
         return DSERR_INVALIDPARAM;
 
     EnterCriticalSection(This->crst);
-
     *status = DSBSTATUS_PLAYING|DSBSTATUS_LOOPING;
     if((This->flags&DSBCAPS_LOCDEFER))
         *status |= DSBSTATUS_LOCHARDWARE;
@@ -645,16 +638,15 @@ static HRESULT WINAPI DS8Primary_GetStatus(IDirectSoundBuffer *iface, DWORD *sta
             *status = 0;
         }
     }
-
     LeaveCriticalSection(This->crst);
 
-    return S_OK;
+    return DS_OK;
 }
 
 static HRESULT WINAPI DS8Primary_Initialize(IDirectSoundBuffer *iface, IDirectSound *ds, const DSBUFFERDESC *desc)
 {
     DS8Primary *This = impl_from_IDirectSoundBuffer(iface);
-    HRESULT hr = S_OK;
+    HRESULT hr;
 
     TRACE("(%p)->(%p, %p)\n", iface, ds, desc);
 
@@ -671,14 +663,11 @@ static HRESULT WINAPI DS8Primary_Initialize(IDirectSoundBuffer *iface, IDirectSo
         return DSERR_INVALIDPARAM;
     }
 
-    EnterCriticalSection(This->crst);
     /* Should be 0 if not initialized */
     if(This->flags)
-    {
-        hr = DSERR_ALREADYINITIALIZED;
-        goto out;
-    }
+        return DSERR_ALREADYINITIALIZED;
 
+    hr = DS_OK;
     if(This->parent->prio_level == DSSCL_WRITEPRIMARY)
     {
         DSBUFFERDESC emudesc;
@@ -713,8 +702,6 @@ static HRESULT WINAPI DS8Primary_Initialize(IDirectSoundBuffer *iface, IDirectSo
 
     if(SUCCEEDED(hr))
         This->flags = desc->dwFlags | DSBCAPS_LOCHARDWARE;
-out:
-    LeaveCriticalSection(This->crst);
     return hr;
 }
 
@@ -895,7 +882,6 @@ out:
 static HRESULT WINAPI DS8Primary_SetVolume(IDirectSoundBuffer *iface, LONG vol)
 {
     DS8Primary *This = impl_from_IDirectSoundBuffer(iface);
-    HRESULT hr = S_OK;
 
     TRACE("(%p)->(%"LONGFMT"d)\n", iface, vol);
 
@@ -905,18 +891,14 @@ static HRESULT WINAPI DS8Primary_SetVolume(IDirectSoundBuffer *iface, LONG vol)
         return DSERR_INVALIDPARAM;
     }
 
-    EnterCriticalSection(This->crst);
     if(!(This->flags&DSBCAPS_CTRLVOLUME))
-        hr = DSERR_CONTROLUNAVAIL;
-    if(SUCCEEDED(hr))
-    {
-        setALContext(This->ctx);
-        alListenerf(AL_GAIN, mB_to_gain(vol));
-        popALContext();
-    }
-    LeaveCriticalSection(This->crst);
+        return DSERR_CONTROLUNAVAIL;
 
-    return hr;
+    setALContext(This->ctx);
+    alListenerf(AL_GAIN, mB_to_gain(vol));
+    popALContext();
+
+    return DS_OK;
 }
 
 static HRESULT WINAPI DS8Primary_SetPan(IDirectSoundBuffer *iface, LONG pan)
