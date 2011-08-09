@@ -1458,6 +1458,7 @@ static HRESULT WINAPI DS8Primary3D_CommitDeferredSettings(IDirectSound3DListener
         };
         alListenerfv(AL_ORIENTATION, orient);
     }
+
     if(This->dirty.bit.distancefactor)
     {
         alSpeedOfSound(343.3f/listen->flDistanceFactor);
@@ -1467,13 +1468,14 @@ static HRESULT WINAPI DS8Primary3D_CommitDeferredSettings(IDirectSound3DListener
 
     if(This->dirty.bit.rollofffactor)
     {
-        ALfloat rolloff = This->rollofffactor;
+        ALfloat rolloff = listen->flRolloffFactor;
         for(i = 0;i < This->nbuffers;++i)
         {
             DS8Buffer *buf = This->buffers[i];
             if(buf->ds3dmode != DS3DMODE_DISABLE)
                 alSourcef(buf->source, AL_ROLLOFF_FACTOR, rolloff);
         }
+        This->rollofffactor = rolloff;
     }
 
     if(This->dirty.bit.dopplerfactor)
