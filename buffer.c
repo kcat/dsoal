@@ -2723,6 +2723,8 @@ static HRESULT WINAPI DS8BufferNot_SetNotificationPositions(IDirectSoundNotify *
     DWORD state;
     HRESULT hr;
 
+    TRACE("(%p)->(%"LONGFMT"u, %p))\n", iface, count, notifications);
+
     EnterCriticalSection(This->crst);
     hr = DSERR_INVALIDPARAM;
     if(count && !notifications)

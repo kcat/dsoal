@@ -107,13 +107,19 @@ static void trigger_elapsed_notifies(DS8Buffer *buf, DWORD lastpos, DWORD curpos
         if(curpos < lastpos)
         {
             if(ofs < curpos || ofs >= lastpos)
+            {
+                TRACE("Triggering notification %"LONGFMT"u (%"LONGFMT"u) from buffer %p\n", i, ofs, buf);
                 SetEvent(event);
+            }
             continue;
         }
 
         /* Normal case */
         if(ofs >= lastpos && ofs < curpos)
+        {
+            TRACE("Triggering notification %"LONGFMT"u (%"LONGFMT"u) from buffer %p\n", i, ofs, buf);
             SetEvent(event);
+        }
     }
 }
 
@@ -124,7 +130,10 @@ static void trigger_stop_notifies(DS8Buffer *buf)
     {
         DSBPOSITIONNOTIFY *not = &buf->notify[i];
         if(not->dwOffset == (DWORD)DSBPN_OFFSETSTOP)
+        {
+            TRACE("Triggering notification %"LONGFMT"u from buffer %p\n", i, buf);
             SetEvent(not->hEventNotify);
+        }
     }
 }
 
