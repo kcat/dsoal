@@ -1493,48 +1493,12 @@ static HRESULT WINAPI DS8Primary3D_CommitDeferredSettings(IDirectSound3DListener
     for(i = 0;i < This->nbuffers;++i)
     {
         DS8Buffer *buf = This->buffers[i];
+        LONG flags;
 
-        if(!buf->dirty.flags)
+        if((flags=InterlockedExchange(&buf->dirty.flags, 0)) == 0)
             continue;
 
-        if(buf->dirty.bit.pos)
-            alSource3f(buf->source, AL_POSITION,
-                       buf->ds3dbuffer.vPosition.x,
-                       buf->ds3dbuffer.vPosition.y,
-                      -buf->ds3dbuffer.vPosition.z);
-        if(buf->dirty.bit.vel)
-            alSource3f(buf->source, AL_VELOCITY,
-                       buf->ds3dbuffer.vVelocity.x,
-                       buf->ds3dbuffer.vVelocity.y,
-                      -buf->ds3dbuffer.vVelocity.z);
-        if(buf->dirty.bit.cone_angles)
-        {
-            alSourcei(buf->source, AL_CONE_INNER_ANGLE,
-                      buf->ds3dbuffer.dwInsideConeAngle);
-            alSourcei(buf->source, AL_CONE_OUTER_ANGLE,
-                      buf->ds3dbuffer.dwOutsideConeAngle);
-        }
-        if(buf->dirty.bit.cone_orient)
-            alSource3f(buf->source, AL_DIRECTION,
-                       buf->ds3dbuffer.vConeOrientation.x,
-                       buf->ds3dbuffer.vConeOrientation.y,
-                      -buf->ds3dbuffer.vConeOrientation.z);
-        if(buf->dirty.bit.cone_outsidevolume)
-            alSourcef(buf->source, AL_CONE_OUTER_GAIN,
-                      mB_to_gain(buf->ds3dbuffer.lConeOutsideVolume));
-        if(buf->dirty.bit.min_distance)
-            alSourcef(buf->source, AL_REFERENCE_DISTANCE, buf->ds3dbuffer.flMinDistance);
-        if(buf->dirty.bit.max_distance)
-            alSourcef(buf->source, AL_MAX_DISTANCE, buf->ds3dbuffer.flMaxDistance);
-        if(buf->dirty.bit.mode)
-        {
-            buf->ds3dmode = buf->ds3dbuffer.dwMode;
-            alSourcei(buf->source, AL_SOURCE_RELATIVE,
-                      (buf->ds3dmode!=DS3DMODE_NORMAL) ? AL_TRUE : AL_FALSE);
-            alSourcef(buf->source, AL_ROLLOFF_FACTOR,
-                      (buf->ds3dmode==DS3DMODE_DISABLE) ? 0.0f : This->rollofffactor);
-        }
-        buf->dirty.flags = 0;
+        DS8Buffer_SetParams(buf, &buf->ds3dbuffer, flags);
     }
     checkALError();
 

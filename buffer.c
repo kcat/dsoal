@@ -2053,6 +2053,42 @@ static const IDirectSoundBufferVtbl DSBuffer_Vtbl = {
 };
 
 
+void DS8Buffer_SetParams(DS8Buffer *This, const DS3DBUFFER *params, LONG flags)
+{
+    const ALuint source = This->source;
+    union BufferParamFlags dirty = { flags };
+
+    if(dirty.bit.pos)
+        alSource3f(source, AL_POSITION, params->vPosition.x, params->vPosition.y,
+                                       -params->vPosition.z);
+    if(dirty.bit.vel)
+        alSource3f(source, AL_VELOCITY, params->vVelocity.x, params->vVelocity.y,
+                                       -params->vVelocity.z);
+    if(dirty.bit.cone_angles)
+    {
+        alSourcei(source, AL_CONE_INNER_ANGLE, params->dwInsideConeAngle);
+        alSourcei(source, AL_CONE_OUTER_ANGLE, params->dwOutsideConeAngle);
+    }
+    if(dirty.bit.cone_orient)
+        alSource3f(source, AL_DIRECTION, params->vConeOrientation.x,
+                                         params->vConeOrientation.y,
+                                        -params->vConeOrientation.z);
+    if(dirty.bit.cone_outsidevolume)
+        alSourcef(source, AL_CONE_OUTER_GAIN, mB_to_gain(params->lConeOutsideVolume));
+    if(dirty.bit.min_distance)
+        alSourcef(source, AL_REFERENCE_DISTANCE, params->flMinDistance);
+    if(dirty.bit.max_distance)
+        alSourcef(source, AL_MAX_DISTANCE, params->flMaxDistance);
+    if(dirty.bit.mode)
+    {
+        This->ds3dmode = params->dwMode;
+        alSourcei(source, AL_SOURCE_RELATIVE, (params->dwMode!=DS3DMODE_NORMAL) ?
+                                              AL_TRUE : AL_FALSE);
+        alSourcef(source, AL_ROLLOFF_FACTOR, (params->dwMode==DS3DMODE_DISABLE) ?
+                                             0.0f : This->primary->rollofffactor);
+    }
+}
+
 static HRESULT WINAPI DS8Buffer3D_QueryInterface(IDirectSound3DBuffer *iface, REFIID riid, void **ppv)
 {
     DS8Buffer *This = impl_from_IDirectSound3DBuffer(iface);
@@ -2337,18 +2373,29 @@ static HRESULT WINAPI DS8Buffer3D_SetAllParameters(IDirectSound3DBuffer *iface, 
         return DSERR_INVALIDPARAM;
     }
 
-    EnterCriticalSection(This->crst);
-    setALContext(This->ctx);
-    IDirectSound3DBuffer_SetPosition(iface, ds3dbuffer->vPosition.x, ds3dbuffer->vPosition.y, ds3dbuffer->vPosition.z, apply);
-    IDirectSound3DBuffer_SetVelocity(iface, ds3dbuffer->vVelocity.x, ds3dbuffer->vVelocity.y, ds3dbuffer->vVelocity.z, apply);
-    IDirectSound3DBuffer_SetConeAngles(iface, ds3dbuffer->dwInsideConeAngle, ds3dbuffer->dwOutsideConeAngle, apply);
-    IDirectSound3DBuffer_SetConeOrientation(iface, ds3dbuffer->vConeOrientation.x, ds3dbuffer->vConeOrientation.y, ds3dbuffer->vConeOrientation.z, apply);
-    IDirectSound3DBuffer_SetConeOutsideVolume(iface, ds3dbuffer->lConeOutsideVolume, apply);
-    IDirectSound3DBuffer_SetMinDistance(iface, ds3dbuffer->flMinDistance, apply);
-    IDirectSound3DBuffer_SetMaxDistance(iface, ds3dbuffer->flMaxDistance, apply);
-    IDirectSound3DBuffer_SetMode(iface, ds3dbuffer->dwMode, apply);
-    popALContext();
-    LeaveCriticalSection(This->crst);
+    if(apply == DS3D_DEFERRED)
+    {
+        EnterCriticalSection(This->crst);
+        This->ds3dbuffer = *ds3dbuffer;
+        This->ds3dbuffer.dwSize = sizeof(This->ds3dbuffer);
+        This->dirty.bit.pos = 1;
+        This->dirty.bit.vel = 1;
+        This->dirty.bit.cone_angles = 1;
+        This->dirty.bit.cone_orient = 1;
+        This->dirty.bit.cone_outsidevolume = 1;
+        This->dirty.bit.min_distance = 1;
+        This->dirty.bit.max_distance = 1;
+        This->dirty.bit.mode = 1;
+        LeaveCriticalSection(This->crst);
+    }
+    else
+    {
+        EnterCriticalSection(This->crst);
+        setALContext(This->ctx);
+        DS8Buffer_SetParams(This, ds3dbuffer, ~0l);
+        popALContext();
+        LeaveCriticalSection(This->crst);
+    }
 
     return S_OK;
 }

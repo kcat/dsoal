@@ -497,6 +497,20 @@ typedef struct DS8Data {
  * bufferdatastatic and buffersubdata are not available */
 #define QBUFFERS 3
 
+union BufferParamFlags {
+    LONG flags;
+    struct {
+        BOOL pos : 1;
+        BOOL vel : 1;
+        BOOL cone_angles : 1;
+        BOOL cone_orient : 1;
+        BOOL cone_outsidevolume : 1;
+        BOOL min_distance : 1;
+        BOOL max_distance : 1;
+        BOOL mode : 1;
+    } bit;
+};
+
 struct DS8Buffer {
     IDirectSoundBuffer8 IDirectSoundBuffer8_iface;
     IDirectSoundBuffer IDirectSoundBuffer_iface;
@@ -521,19 +535,7 @@ struct DS8Buffer {
     DWORD ds3dmode;
 
     DS3DBUFFER ds3dbuffer;
-    union {
-        struct {
-            BOOL pos : 1;
-            BOOL vel : 1;
-            BOOL cone_angles : 1;
-            BOOL cone_orient : 1;
-            BOOL cone_outsidevolume : 1;
-            BOOL min_distance : 1;
-            BOOL max_distance : 1;
-            BOOL mode : 1;
-        } bit;
-        int flags;
-    } dirty;
+    union BufferParamFlags dirty;
 
     DWORD nnotify, lastpos;
     DSBPOSITIONNOTIFY *notify;
@@ -548,6 +550,7 @@ void DS8Primary_starttimer(DS8Primary *prim);
 
 HRESULT DS8Buffer_Create(DS8Buffer **ppv, DS8Primary *parent, IDirectSoundBuffer *orig);
 void DS8Buffer_Destroy(DS8Buffer *buf);
+void DS8Buffer_SetParams(DS8Buffer *buffer, const DS3DBUFFER *params, LONG flags);
 
 static inline ALdouble gain_to_mB(ALdouble gain)
 {
