@@ -375,22 +375,14 @@ static void load_libopenal(void)
 
 const ALCchar *DSOUND_getdevicestrings(void)
 {
-    const ALCchar *str = NULL;
-    int multiple;
-
-    multiple = alcIsExtensionPresent(NULL, "ALC_ENUMERATE_ALL_EXT");
-    if (multiple)
-        str = alcGetString(NULL, ALC_ALL_DEVICES_SPECIFIER);
-    else
-        str = alcGetString(NULL, ALC_DEVICE_SPECIFIER);
-    return str;
+    if(alcIsExtensionPresent(NULL, "ALC_ENUMERATE_ALL_EXT"))
+        return alcGetString(NULL, ALC_ALL_DEVICES_SPECIFIER);
+    return alcGetString(NULL, ALC_DEVICE_SPECIFIER);
 }
 
 const ALCchar *DSOUND_getcapturedevicestrings(void)
 {
-    const ALCchar *str = NULL;
-    str = alcGetString(NULL, ALC_CAPTURE_DEVICE_SPECIFIER);
-    return str;
+    return alcGetString(NULL, ALC_CAPTURE_DEVICE_SPECIFIER);
 }
 
 /***************************************************************************
