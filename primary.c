@@ -1769,7 +1769,7 @@ static HRESULT WINAPI DS8PrimaryProp_Set(IKsPropertySet *iface,
             res = E_PROP_ID_UNSUPPORTED;
         else switch(propid)
         {
-        case 0: /* 0 = not setting any property, just apply */
+        case DSPROPERTY_EAXLISTENER_NONE: /* not setting any property, just applying */
             res = DS_OK;
             break;
 
