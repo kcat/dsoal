@@ -415,35 +415,30 @@ const ALCchar *DSOUND_getcapturedevicestrings(void)
  */
 HRESULT WINAPI GetDeviceID(LPCGUID pGuidSrc, LPGUID pGuidDest)
 {
-    TRACE("(%s,%p)\n", debugstr_guid(pGuidSrc),pGuidDest);
+    TRACE("(%s, %p)\n", debugstr_guid(pGuidSrc), pGuidDest);
 
-    if ( pGuidSrc == NULL) {
+    if(pGuidSrc == NULL)
+    {
         WARN("invalid parameter: pGuidSrc == NULL\n");
         return DSERR_INVALIDPARAM;
     }
 
-    if ( pGuidDest == NULL ) {
+    if(pGuidDest == NULL)
+    {
         WARN("invalid parameter: pGuidDest == NULL\n");
         return DSERR_INVALIDPARAM;
     }
 
-    if ( IsEqualGUID( &DSDEVID_DefaultPlayback, pGuidSrc ) ||
-         IsEqualGUID( &DSDEVID_DefaultVoicePlayback, pGuidSrc ) ) {
+    if(IsEqualGUID(&DSDEVID_DefaultPlayback, pGuidSrc) ||
+       IsEqualGUID(&DSDEVID_DefaultVoicePlayback, pGuidSrc))
         *pGuidDest = DSOUND_renderer_guid;
-        TRACE("returns %s\n", debugstr_guid(pGuidDest));
-        return DS_OK;
-    }
-
-    if ( IsEqualGUID( &DSDEVID_DefaultCapture, pGuidSrc ) ||
-         IsEqualGUID( &DSDEVID_DefaultVoiceCapture, pGuidSrc ) ) {
+    else if(IsEqualGUID(&DSDEVID_DefaultCapture, pGuidSrc) ||
+            IsEqualGUID(&DSDEVID_DefaultVoiceCapture, pGuidSrc))
         *pGuidDest = DSOUND_capture_guid;
-        TRACE("returns %s\n", debugstr_guid(pGuidDest));
-        return DS_OK;
-    }
+    else
+        *pGuidDest = *pGuidSrc;
 
-    *pGuidDest = *pGuidSrc;
     TRACE("returns %s\n", debugstr_guid(pGuidDest));
-
     return DS_OK;
 }
 
