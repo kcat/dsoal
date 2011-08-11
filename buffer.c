@@ -2087,43 +2087,31 @@ static ULONG WINAPI DS8Buffer3D_Release(IDirectSound3DBuffer *iface)
 static HRESULT WINAPI DS8Buffer3D_GetAllParameters(IDirectSound3DBuffer *iface, DS3DBUFFER *ds3dbuffer)
 {
     DS8Buffer *This = impl_from_IDirectSound3DBuffer(iface);
-    DS3DBUFFER ds3dbuf;
-    HRESULT hr;
 
-    TRACE("%p\n", This);
+    TRACE("(%p)->(%p)\n", iface, ds3dbuffer);
 
     if(!ds3dbuffer || ds3dbuffer->dwSize < sizeof(*ds3dbuffer))
     {
         WARN("Invalid parameters %p %"LONGFMT"u\n", ds3dbuffer, ds3dbuffer ? ds3dbuffer->dwSize : 0);
         return DSERR_INVALIDPARAM;
     }
-    ds3dbuf.dwSize = sizeof(ds3dbuf);
 
     EnterCriticalSection(This->crst);
     setALContext(This->ctx);
 
-    hr = IDirectSound3DBuffer_GetPosition(iface, &ds3dbuf.vPosition);
-    if(SUCCEEDED(hr))
-        hr = IDirectSound3DBuffer_GetVelocity(iface, &ds3dbuf.vVelocity);
-    if(SUCCEEDED(hr))
-        hr = IDirectSound3DBuffer_GetConeAngles(iface, &ds3dbuf.dwInsideConeAngle, &ds3dbuf.dwOutsideConeAngle);
-    if(SUCCEEDED(hr))
-        hr = IDirectSound3DBuffer_GetConeOrientation(iface, &ds3dbuf.vConeOrientation);
-    if(SUCCEEDED(hr))
-        hr = IDirectSound3DBuffer_GetConeOutsideVolume(iface, &ds3dbuf.lConeOutsideVolume);
-    if(SUCCEEDED(hr))
-        hr = IDirectSound3DBuffer_GetMinDistance(iface, &ds3dbuf.flMinDistance);
-    if(SUCCEEDED(hr))
-        hr = IDirectSound3DBuffer_GetMaxDistance(iface, &ds3dbuf.flMaxDistance);
-    if(SUCCEEDED(hr))
-        hr = IDirectSound3DBuffer_GetMode(iface, &ds3dbuf.dwMode);
-    if(SUCCEEDED(hr))
-        memcpy(ds3dbuffer, &ds3dbuf, sizeof(ds3dbuf));
+    IDirectSound3DBuffer_GetPosition(iface, &ds3dbuffer->vPosition);
+    IDirectSound3DBuffer_GetVelocity(iface, &ds3dbuffer->vVelocity);
+    IDirectSound3DBuffer_GetConeAngles(iface, &ds3dbuffer->dwInsideConeAngle, &ds3dbuffer->dwOutsideConeAngle);
+    IDirectSound3DBuffer_GetConeOrientation(iface, &ds3dbuffer->vConeOrientation);
+    IDirectSound3DBuffer_GetConeOutsideVolume(iface, &ds3dbuffer->lConeOutsideVolume);
+    IDirectSound3DBuffer_GetMinDistance(iface, &ds3dbuffer->flMinDistance);
+    IDirectSound3DBuffer_GetMaxDistance(iface, &ds3dbuffer->flMaxDistance);
+    IDirectSound3DBuffer_GetMode(iface, &ds3dbuffer->dwMode);
 
     popALContext();
     LeaveCriticalSection(This->crst);
 
-    return hr;
+    return DS_OK;
 }
 
 static HRESULT WINAPI DS8Buffer3D_GetConeAngles(IDirectSound3DBuffer *iface, DWORD *pdwInsideConeAngle, DWORD *pdwOutsideConeAngle)
