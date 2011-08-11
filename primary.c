@@ -491,12 +491,10 @@ static HRESULT WINAPI DS8Primary_GetCaps(IDirectSoundBuffer *iface, DSBCAPS *cap
         return DSERR_INVALIDPARAM;
     }
 
-    EnterCriticalSection(This->crst);
     caps->dwFlags = This->flags;
     caps->dwBufferBytes = This->buf_size;
     caps->dwUnlockTransferRate = 0;
     caps->dwPlayCpuOverhead = 0;
-    LeaveCriticalSection(This->crst);
 
     return DS_OK;
 }
