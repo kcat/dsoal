@@ -995,7 +995,6 @@ static HRESULT WINAPI DS8Buffer_GetCaps(IDirectSoundBuffer8 *iface, DSBCAPS *cap
 static HRESULT WINAPI DS8Buffer_GetCurrentPosition(IDirectSoundBuffer8 *iface, DWORD *playpos, DWORD *curpos)
 {
     DS8Buffer *This = impl_from_IDirectSoundBuffer8(iface);
-    WAVEFORMATEX *format = &This->buffer->format.Format;
     UINT writecursor, pos;
 
     TRACE("(%p)->(%p, %p)\n", iface, playpos, curpos);
@@ -1032,6 +1031,7 @@ static HRESULT WINAPI DS8Buffer_GetCurrentPosition(IDirectSoundBuffer8 *iface, D
     }
     else
     {
+        const WAVEFORMATEX *format = &This->buffer->format.Format;
         ALint status = 0;
         ALint ofs = 0;
 
