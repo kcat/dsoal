@@ -1011,6 +1011,48 @@ static const IDirectSoundBufferVtbl DS8Primary_Vtbl =
 };
 
 
+static void DS8Primary_SetParams(DS8Primary *This, const DS3DLISTENER *params, LONG flags)
+{
+    union PrimaryParamFlags dirty = { flags };
+    DWORD i;
+
+    if(dirty.bit.pos)
+        alListener3f(AL_POSITION, params->vPosition.x, params->vPosition.y,
+                                 -params->vPosition.z);
+    if(dirty.bit.vel)
+        alListener3f(AL_VELOCITY, params->vVelocity.x, params->vVelocity.y,
+                                 -params->vVelocity.z);
+    if(dirty.bit.orientation)
+    {
+        ALfloat orient[6] = {
+            params->vOrientFront.x, params->vOrientFront.y, -params->vOrientFront.z,
+            params->vOrientTop.x, params->vOrientTop.y, -params->vOrientTop.z
+        };
+        alListenerfv(AL_ORIENTATION, orient);
+    }
+    if(dirty.bit.distancefactor)
+    {
+        alSpeedOfSound(343.3f/params->flDistanceFactor);
+        if(This->SupportedExt[EXT_EFX])
+            alListenerf(AL_METERS_PER_UNIT, params->flDistanceFactor);
+    }
+    if(dirty.bit.rollofffactor)
+    {
+        ALfloat rolloff = params->flRolloffFactor;
+        This->rollofffactor = rolloff;
+        for(i = 0;i < This->nbuffers;++i)
+        {
+            const DS8Buffer *buf = This->buffers[i];
+            if(buf->ds3dmode != DS3DMODE_DISABLE)
+                alSourcef(buf->source, AL_ROLLOFF_FACTOR, rolloff);
+        }
+    }
+    if(dirty.bit.dopplerfactor)
+        alDopplerFactor(params->flDopplerFactor);
+    if(dirty.bit.effect)
+        This->ExtAL->AuxiliaryEffectSloti(This->auxslot, AL_EFFECTSLOT_EFFECT, This->effect);
+}
+
 static HRESULT WINAPI DS8Primary3D_QueryInterface(IDirectSound3DListener *iface, REFIID riid, void **ppv)
 {
     DS8Primary *This = impl_from_IDirectSound3DListener(iface);
@@ -1233,17 +1275,35 @@ static HRESULT WINAPI DS8Primary3D_SetAllParameters(IDirectSound3DListener *ifac
         return DSERR_INVALIDPARAM;
     }
 
-    EnterCriticalSection(This->crst);
-    setALContext(This->ctx);
-    IDirectSound3DListener_SetPosition(iface, listen->vPosition.x, listen->vPosition.y, listen->vPosition.z, apply);
-    IDirectSound3DListener_SetVelocity(iface, listen->vVelocity.x, listen->vVelocity.y, listen->vVelocity.z, apply);
-    IDirectSound3DListener_SetOrientation(iface, listen->vOrientFront.x, listen->vOrientFront.y, listen->vOrientFront.z,
-                                          listen->vOrientTop.x, listen->vOrientTop.y, listen->vOrientTop.z, apply);
-    IDirectSound3DListener_SetDistanceFactor(iface, listen->flDistanceFactor, apply);
-    IDirectSound3DListener_SetRolloffFactor(iface, listen->flRolloffFactor, apply);
-    IDirectSound3DListener_SetDopplerFactor(iface, listen->flDopplerFactor, apply);
-    popALContext();
-    LeaveCriticalSection(This->crst);
+    if(apply == DS3D_DEFERRED)
+    {
+        EnterCriticalSection(This->crst);
+        This->listen = *listen;
+        This->listen.dwSize = sizeof(This->listen);
+        This->dirty.bit.pos = 1;
+        This->dirty.bit.vel = 1;
+        This->dirty.bit.orientation = 1;
+        This->dirty.bit.distancefactor = 1;
+        This->dirty.bit.rollofffactor = 1;
+        This->dirty.bit.dopplerfactor = 1;
+        LeaveCriticalSection(This->crst);
+    }
+    else
+    {
+        union PrimaryParamFlags dirty = { 0l };
+        dirty.bit.pos = 1;
+        dirty.bit.vel = 1;
+        dirty.bit.orientation = 1;
+        dirty.bit.distancefactor = 1;
+        dirty.bit.rollofffactor = 1;
+        dirty.bit.dopplerfactor = 1;
+
+        EnterCriticalSection(This->crst);
+        setALContext(This->ctx);
+        DS8Primary_SetParams(This, listen, dirty.flags);
+        popALContext();
+        LeaveCriticalSection(This->crst);
+    }
 
     return S_OK;
 }
@@ -1439,66 +1499,27 @@ static HRESULT WINAPI DS8Primary3D_SetVelocity(IDirectSound3DListener *iface, D3
 static HRESULT WINAPI DS8Primary3D_CommitDeferredSettings(IDirectSound3DListener *iface)
 {
     DS8Primary *This = impl_from_IDirectSound3DListener(iface);
-    const DS3DLISTENER *listen = &This->listen;
+    LONG flags;
     DWORD i;
 
     EnterCriticalSection(This->crst);
     setALContext(This->ctx);
     This->DeferUpdates();
 
-    if(This->dirty.bit.pos)
-        alListener3f(AL_POSITION, listen->vPosition.x, listen->vPosition.y, -listen->vPosition.z);
-    if(This->dirty.bit.vel)
-        alListener3f(AL_VELOCITY, listen->vVelocity.x, listen->vVelocity.y, -listen->vVelocity.z);
-    if(This->dirty.bit.orientation)
+    if((flags=InterlockedExchange(&This->dirty.flags, 0)) != 0)
     {
-        ALfloat orient[6] = {
-            listen->vOrientFront.x, listen->vOrientFront.y, -listen->vOrientFront.z,
-            listen->vOrientTop.x, listen->vOrientTop.y, -listen->vOrientTop.z
-        };
-        alListenerfv(AL_ORIENTATION, orient);
+        DS8Primary_SetParams(This, &This->listen, flags);
+        /* checkALError is here for debugging */
+        checkALError();
     }
-
-    if(This->dirty.bit.distancefactor)
-    {
-        alSpeedOfSound(343.3f/listen->flDistanceFactor);
-        if(This->SupportedExt[EXT_EFX])
-            alListenerf(AL_METERS_PER_UNIT, listen->flDistanceFactor);
-    }
-
-    if(This->dirty.bit.rollofffactor)
-    {
-        ALfloat rolloff = listen->flRolloffFactor;
-        for(i = 0;i < This->nbuffers;++i)
-        {
-            DS8Buffer *buf = This->buffers[i];
-            if(buf->ds3dmode != DS3DMODE_DISABLE)
-                alSourcef(buf->source, AL_ROLLOFF_FACTOR, rolloff);
-        }
-        This->rollofffactor = rolloff;
-    }
-
-    if(This->dirty.bit.dopplerfactor)
-        alDopplerFactor(listen->flDopplerFactor);
-
-    if(This->dirty.bit.effect)
-        This->ExtAL->AuxiliaryEffectSloti(This->auxslot, AL_EFFECTSLOT_EFFECT, This->effect);
-
-    /* checkALError is here for debugging */
-    checkALError();
-
-    TRACE("Dirty flags was: 0x%02x\n", This->dirty.flags);
-    This->dirty.flags = 0;
+    TRACE("Dirty flags was: 0x%02x\n", flags);
 
     for(i = 0;i < This->nbuffers;++i)
     {
         DS8Buffer *buf = This->buffers[i];
-        LONG flags;
 
-        if((flags=InterlockedExchange(&buf->dirty.flags, 0)) == 0)
-            continue;
-
-        DS8Buffer_SetParams(buf, &buf->ds3dbuffer, flags);
+        if((flags=InterlockedExchange(&buf->dirty.flags, 0)) != 0)
+            DS8Buffer_SetParams(buf, &buf->ds3dbuffer, flags);
     }
     checkALError();
 
@@ -1506,7 +1527,7 @@ static HRESULT WINAPI DS8Primary3D_CommitDeferredSettings(IDirectSound3DListener
     popALContext();
     LeaveCriticalSection(This->crst);
 
-    return S_OK;
+    return DS_OK;
 }
 
 static const IDirectSound3DListenerVtbl DS8Primary3D_Vtbl =

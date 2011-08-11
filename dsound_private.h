@@ -399,6 +399,19 @@ typedef struct DeviceShare {
 } DeviceShare;
 
 
+union PrimaryParamFlags {
+    LONG flags;
+    struct {
+        BOOL pos : 1;
+        BOOL vel : 1;
+        BOOL orientation : 1;
+        BOOL distancefactor : 1;
+        BOOL rollofffactor : 1;
+        BOOL dopplerfactor : 1;
+        BOOL effect : 1;
+    } bit;
+};
+
 struct DS8Primary {
     IDirectSoundBuffer IDirectSoundBuffer_iface;
     IDirectSound3DListener IDirectSound3DListener_iface;
@@ -434,19 +447,8 @@ struct DS8Primary {
     ALuint effect;
     ALfloat rollofffactor;
 
-    union {
-        struct {
-            BOOL pos : 1;
-            BOOL vel : 1;
-            BOOL orientation : 1;
-            BOOL distancefactor : 1;
-            BOOL rollofffactor : 1;
-            BOOL dopplerfactor : 1;
-            BOOL effect : 1;
-        } bit;
-        int flags;
-    } dirty;
     DS3DLISTENER listen;
+    union PrimaryParamFlags dirty;
 
     EAXLISTENERPROPERTIES eax_prop;
 
