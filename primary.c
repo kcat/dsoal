@@ -354,8 +354,8 @@ HRESULT DS8Primary_PreInit(DS8Primary *This, DS8Impl *parent)
     }
 
     /* Make sure DS3DListener defaults are applied to OpenAL */
-    listener = &This->listen;
-    listener->dwSize = sizeof(*listener);
+    listener = &This->params;
+    listener->dwSize = sizeof(This->params);
     listener->vPosition.x = 0.0;
     listener->vPosition.y = 0.0;
     listener->vPosition.z = 0.0;
@@ -1278,8 +1278,8 @@ static HRESULT WINAPI DS8Primary3D_SetAllParameters(IDirectSound3DListener *ifac
     if(apply == DS3D_DEFERRED)
     {
         EnterCriticalSection(This->crst);
-        This->listen = *listen;
-        This->listen.dwSize = sizeof(This->listen);
+        This->params = *listen;
+        This->params.dwSize = sizeof(This->params);
         This->dirty.bit.pos = 1;
         This->dirty.bit.vel = 1;
         This->dirty.bit.orientation = 1;
@@ -1324,7 +1324,7 @@ static HRESULT WINAPI DS8Primary3D_SetDistanceFactor(IDirectSound3DListener *ifa
     if(apply == DS3D_DEFERRED)
     {
         EnterCriticalSection(This->crst);
-        This->listen.flDistanceFactor = factor;
+        This->params.flDistanceFactor = factor;
         This->dirty.bit.distancefactor = 1;
         LeaveCriticalSection(This->crst);
     }
@@ -1357,7 +1357,7 @@ static HRESULT WINAPI DS8Primary3D_SetDopplerFactor(IDirectSound3DListener *ifac
     if(apply == DS3D_DEFERRED)
     {
         EnterCriticalSection(This->crst);
-        This->listen.flDopplerFactor = factor;
+        This->params.flDopplerFactor = factor;
         This->dirty.bit.dopplerfactor = 1;
         LeaveCriticalSection(This->crst);
     }
@@ -1381,12 +1381,12 @@ static HRESULT WINAPI DS8Primary3D_SetOrientation(IDirectSound3DListener *iface,
     if(apply == DS3D_DEFERRED)
     {
         EnterCriticalSection(This->crst);
-        This->listen.vOrientFront.x = xFront;
-        This->listen.vOrientFront.y = yFront;
-        This->listen.vOrientFront.z = zFront;
-        This->listen.vOrientTop.x = xTop;
-        This->listen.vOrientTop.y = yTop;
-        This->listen.vOrientTop.z = zTop;
+        This->params.vOrientFront.x = xFront;
+        This->params.vOrientFront.y = yFront;
+        This->params.vOrientFront.z = zFront;
+        This->params.vOrientTop.x = xTop;
+        This->params.vOrientTop.y = yTop;
+        This->params.vOrientTop.z = zTop;
         This->dirty.bit.orientation = 1;
         LeaveCriticalSection(This->crst);
     }
@@ -1414,9 +1414,9 @@ static HRESULT WINAPI DS8Primary3D_SetPosition(IDirectSound3DListener *iface, D3
     if(apply == DS3D_DEFERRED)
     {
         EnterCriticalSection(This->crst);
-        This->listen.vPosition.x = x;
-        This->listen.vPosition.y = y;
-        This->listen.vPosition.z = z;
+        This->params.vPosition.x = x;
+        This->params.vPosition.y = y;
+        This->params.vPosition.z = z;
         This->dirty.bit.pos = 1;
         LeaveCriticalSection(This->crst);
     }
@@ -1447,7 +1447,7 @@ static HRESULT WINAPI DS8Primary3D_SetRolloffFactor(IDirectSound3DListener *ifac
     EnterCriticalSection(This->crst);
     if(apply == DS3D_DEFERRED)
     {
-        This->listen.flRolloffFactor = factor;
+        This->params.flRolloffFactor = factor;
         This->dirty.bit.rollofffactor = 1;
     }
     else
@@ -1479,9 +1479,9 @@ static HRESULT WINAPI DS8Primary3D_SetVelocity(IDirectSound3DListener *iface, D3
     if(apply == DS3D_DEFERRED)
     {
         EnterCriticalSection(This->crst);
-        This->listen.vVelocity.x = x;
-        This->listen.vVelocity.y = y;
-        This->listen.vVelocity.z = z;
+        This->params.vVelocity.x = x;
+        This->params.vVelocity.y = y;
+        This->params.vVelocity.z = z;
         This->dirty.bit.vel = 1;
         LeaveCriticalSection(This->crst);
     }
@@ -1508,7 +1508,7 @@ static HRESULT WINAPI DS8Primary3D_CommitDeferredSettings(IDirectSound3DListener
 
     if((flags=InterlockedExchange(&This->dirty.flags, 0)) != 0)
     {
-        DS8Primary_SetParams(This, &This->listen, flags);
+        DS8Primary_SetParams(This, &This->params, flags);
         /* checkALError is here for debugging */
         checkALError();
     }
@@ -1519,7 +1519,7 @@ static HRESULT WINAPI DS8Primary3D_CommitDeferredSettings(IDirectSound3DListener
         DS8Buffer *buf = This->buffers[i];
 
         if((flags=InterlockedExchange(&buf->dirty.flags, 0)) != 0)
-            DS8Buffer_SetParams(buf, &buf->ds3dbuffer, flags);
+            DS8Buffer_SetParams(buf, &buf->params, flags);
     }
     checkALError();
 

@@ -1309,8 +1309,8 @@ static HRESULT WINAPI DS8Buffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSo
     else
         goto out;
 
-    ds3dbuffer = &This->ds3dbuffer;
-    ds3dbuffer->dwSize = sizeof(*ds3dbuffer);
+    ds3dbuffer = &This->params;
+    ds3dbuffer->dwSize = sizeof(This->params);
     ds3dbuffer->vPosition.x = 0.0;
     ds3dbuffer->vPosition.y = 0.0;
     ds3dbuffer->vPosition.z = 0.0;
@@ -2341,8 +2341,8 @@ static HRESULT WINAPI DS8Buffer3D_SetAllParameters(IDirectSound3DBuffer *iface, 
     if(ds3dbuffer->dwInsideConeAngle > DS3D_MAXCONEANGLE ||
        ds3dbuffer->dwOutsideConeAngle > DS3D_MAXCONEANGLE)
     {
-        WARN("Invalid cone angles (%"LONGFMT"u, %"LONGFMT"u)\n", ds3dbuffer->dwInsideConeAngle,
-                                                                     ds3dbuffer->dwOutsideConeAngle);
+        WARN("Invalid cone angles (%"LONGFMT"u, %"LONGFMT"u)\n",
+             ds3dbuffer->dwInsideConeAngle, ds3dbuffer->dwOutsideConeAngle);
         return DSERR_INVALIDPARAM;
     }
 
@@ -2376,8 +2376,8 @@ static HRESULT WINAPI DS8Buffer3D_SetAllParameters(IDirectSound3DBuffer *iface, 
     if(apply == DS3D_DEFERRED)
     {
         EnterCriticalSection(This->crst);
-        This->ds3dbuffer = *ds3dbuffer;
-        This->ds3dbuffer.dwSize = sizeof(This->ds3dbuffer);
+        This->params = *ds3dbuffer;
+        This->params.dwSize = sizeof(This->params);
         This->dirty.bit.pos = 1;
         This->dirty.bit.vel = 1;
         This->dirty.bit.cone_angles = 1;
@@ -2425,8 +2425,8 @@ static HRESULT WINAPI DS8Buffer3D_SetConeAngles(IDirectSound3DBuffer *iface, DWO
     EnterCriticalSection(This->crst);
     if(apply == DS3D_DEFERRED)
     {
-        This->ds3dbuffer.dwInsideConeAngle = dwInsideConeAngle;
-        This->ds3dbuffer.dwOutsideConeAngle = dwOutsideConeAngle;
+        This->params.dwInsideConeAngle = dwInsideConeAngle;
+        This->params.dwOutsideConeAngle = dwOutsideConeAngle;
         This->dirty.bit.cone_angles = 1;
     }
     else
@@ -2451,9 +2451,9 @@ static HRESULT WINAPI DS8Buffer3D_SetConeOrientation(IDirectSound3DBuffer *iface
     if(apply == DS3D_DEFERRED)
     {
         EnterCriticalSection(This->crst);
-        This->ds3dbuffer.vConeOrientation.x = x;
-        This->ds3dbuffer.vConeOrientation.y = y;
-        This->ds3dbuffer.vConeOrientation.z = z;
+        This->params.vConeOrientation.x = x;
+        This->params.vConeOrientation.y = y;
+        This->params.vConeOrientation.z = z;
         This->dirty.bit.cone_orient = 1;
         LeaveCriticalSection(This->crst);
     }
@@ -2482,7 +2482,7 @@ static HRESULT WINAPI DS8Buffer3D_SetConeOutsideVolume(IDirectSound3DBuffer *ifa
     if(apply == DS3D_DEFERRED)
     {
         EnterCriticalSection(This->crst);
-        This->ds3dbuffer.lConeOutsideVolume = vol;
+        This->params.lConeOutsideVolume = vol;
         This->dirty.bit.cone_outsidevolume = 1;
         LeaveCriticalSection(This->crst);
     }
@@ -2511,7 +2511,7 @@ static HRESULT WINAPI DS8Buffer3D_SetMaxDistance(IDirectSound3DBuffer *iface, D3
     if(apply == DS3D_DEFERRED)
     {
         EnterCriticalSection(This->crst);
-        This->ds3dbuffer.flMaxDistance = maxdist;
+        This->params.flMaxDistance = maxdist;
         This->dirty.bit.max_distance = 1;
         LeaveCriticalSection(This->crst);
     }
@@ -2540,7 +2540,7 @@ static HRESULT WINAPI DS8Buffer3D_SetMinDistance(IDirectSound3DBuffer *iface, D3
     if(apply == DS3D_DEFERRED)
     {
         EnterCriticalSection(This->crst);
-        This->ds3dbuffer.flMinDistance = mindist;
+        This->params.flMinDistance = mindist;
         This->dirty.bit.min_distance = 1;
         LeaveCriticalSection(This->crst);
     }
@@ -2570,7 +2570,7 @@ static HRESULT WINAPI DS8Buffer3D_SetMode(IDirectSound3DBuffer *iface, DWORD mod
     EnterCriticalSection(This->crst);
     if(apply == DS3D_DEFERRED)
     {
-        This->ds3dbuffer.dwMode = mode;
+        This->params.dwMode = mode;
         This->dirty.bit.mode = 1;
     }
     else
@@ -2598,9 +2598,9 @@ static HRESULT WINAPI DS8Buffer3D_SetPosition(IDirectSound3DBuffer *iface, D3DVA
     if(apply == DS3D_DEFERRED)
     {
         EnterCriticalSection(This->crst);
-        This->ds3dbuffer.vPosition.x = x;
-        This->ds3dbuffer.vPosition.y = y;
-        This->ds3dbuffer.vPosition.z = z;
+        This->params.vPosition.x = x;
+        This->params.vPosition.y = y;
+        This->params.vPosition.z = z;
         This->dirty.bit.pos = 1;
         LeaveCriticalSection(This->crst);
     }
@@ -2624,9 +2624,9 @@ static HRESULT WINAPI DS8Buffer3D_SetVelocity(IDirectSound3DBuffer *iface, D3DVA
     if(apply == DS3D_DEFERRED)
     {
         EnterCriticalSection(This->crst);
-        This->ds3dbuffer.vVelocity.x = x;
-        This->ds3dbuffer.vVelocity.y = y;
-        This->ds3dbuffer.vVelocity.z = z;
+        This->params.vVelocity.x = x;
+        This->params.vVelocity.y = y;
+        This->params.vVelocity.z = z;
         This->dirty.bit.vel = 1;
         LeaveCriticalSection(This->crst);
     }

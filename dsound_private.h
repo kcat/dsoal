@@ -447,7 +447,7 @@ struct DS8Primary {
     ALuint effect;
     ALfloat rollofffactor;
 
-    DS3DLISTENER listen;
+    DS3DLISTENER params;
     union PrimaryParamFlags dirty;
 
     EAXLISTENERPROPERTIES eax_prop;
@@ -536,7 +536,7 @@ struct DS8Buffer {
     BOOL isplaying, islooping, bufferlost;
     DWORD ds3dmode;
 
-    DS3DBUFFER ds3dbuffer;
+    DS3DBUFFER params;
     union BufferParamFlags dirty;
 
     DWORD nnotify, lastpos;
