@@ -1052,6 +1052,7 @@ static HRESULT WINAPI DS8Buffer_GetCurrentPosition(IDirectSoundBuffer8 *iface, D
         writecursor = (writecursor + pos) % This->buffer->buf_size;
     }
     TRACE("%p Play pos = %u, write pos = %u\n", This, pos, writecursor);
+
     if(pos >= This->buffer->buf_size)
     {
         ERR("playpos >= buf_size\n");
@@ -1205,6 +1206,7 @@ static HRESULT WINAPI DS8Buffer_GetStatus(IDirectSoundBuffer8 *iface, DWORD *sta
         WARN("Invalid pointer\n");
         return DSERR_INVALIDPARAM;
     }
+    *status = 0;
 
     if(This->buffer->numsegs == 1)
     {
@@ -1230,7 +1232,6 @@ static HRESULT WINAPI DS8Buffer_GetStatus(IDirectSoundBuffer8 *iface, DWORD *sta
         LeaveCriticalSection(This->crst);
     }
 
-    *status = 0;
     if((This->buffer->dsbflags&DSBCAPS_LOCDEFER))
     {
         if((This->buffer->dsbflags&DSBCAPS_LOCSOFTWARE))
@@ -1241,6 +1242,7 @@ static HRESULT WINAPI DS8Buffer_GetStatus(IDirectSoundBuffer8 *iface, DWORD *sta
     if(state == AL_PLAYING)
         *status |= DSBSTATUS_PLAYING | (looping ? DSBSTATUS_LOOPING : 0);
 
+    TRACE("%p status = 0x%08"LONGFMT"x\n", This, *status);
     return S_OK;
 }
 
