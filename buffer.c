@@ -1000,26 +1000,32 @@ static HRESULT WINAPI DS8Buffer_GetCurrentPosition(IDirectSoundBuffer8 *iface, D
 
     TRACE("(%p)->(%p, %p)\n", iface, playpos, curpos);
 
-    EnterCriticalSection(This->crst);
-    setALContext(This->ctx);
-
     if(This->buffer->numsegs > 1)
     {
         ALint queued = QBUFFERS;
+
+        EnterCriticalSection(This->crst);
+
+        setALContext(This->ctx);
         alGetSourcei(This->source, AL_BUFFERS_QUEUED, &queued);
         checkALError();
+        popALContext();
 
         pos = (This->curidx+This->buffer->numsegs-queued)%This->buffer->numsegs;
         pos *= This->buffer->segsize;
         writecursor = This->curidx * This->buffer->segsize;
+
+        LeaveCriticalSection(This->crst);
     }
     else if(This->primary->SupportedExt[SOFT_BUFFER_SUB_DATA] ||
             This->primary->SupportedExt[SOFT_BUFFER_SAMPLES])
     {
         ALint rwpos[2] = { 0, 0 };
 
+        setALContext(This->ctx);
         alGetSourceiv(This->source, AL_BYTE_RW_OFFSETS_SOFT, rwpos);
         checkALError();
+        popALContext();
 
         pos = rwpos[0];
         writecursor = rwpos[1];
@@ -1029,9 +1035,11 @@ static HRESULT WINAPI DS8Buffer_GetCurrentPosition(IDirectSoundBuffer8 *iface, D
         ALint status = 0;
         ALint ofs = 0;
 
+        setALContext(This->ctx);
         alGetSourcei(This->source, AL_BYTE_OFFSET, &ofs);
         alGetSourcei(This->source, AL_SOURCE_STATE, &status);
         checkALError();
+        popALContext();
 
         pos = ofs;
         if(status == AL_PLAYING)
@@ -1057,9 +1065,6 @@ static HRESULT WINAPI DS8Buffer_GetCurrentPosition(IDirectSoundBuffer8 *iface, D
 
     if(playpos) *playpos = pos;
     if(curpos)  *curpos = writecursor;
-
-    popALContext();
-    LeaveCriticalSection(This->crst);
 
     return S_OK;
 }
@@ -1201,19 +1206,29 @@ static HRESULT WINAPI DS8Buffer_GetStatus(IDirectSoundBuffer8 *iface, DWORD *sta
         return DSERR_INVALIDPARAM;
     }
 
-    EnterCriticalSection(This->crst);
-
-    setALContext(This->ctx);
-    alGetSourcei(This->source, AL_SOURCE_STATE, &state);
-    looping = This->islooping;
     if(This->buffer->numsegs == 1)
+    {
+        setALContext(This->ctx);
+        alGetSourcei(This->source, AL_SOURCE_STATE, &state);
         alGetSourcei(This->source, AL_LOOPING, &looping);
-    else if(state != AL_PLAYING)
-        state = This->isplaying ? AL_PLAYING : AL_PAUSED;
-    checkALError();
-    popALContext();
+        checkALError();
+        popALContext();
+    }
+    else
+    {
+        EnterCriticalSection(This->crst);
 
-    LeaveCriticalSection(This->crst);
+        setALContext(This->ctx);
+        alGetSourcei(This->source, AL_SOURCE_STATE, &state);
+        checkALError();
+        popALContext();
+
+        if(state != AL_PLAYING)
+            state = This->isplaying ? AL_PLAYING : AL_PAUSED;
+        looping = This->islooping;
+
+        LeaveCriticalSection(This->crst);
+    }
 
     *status = 0;
     if((This->buffer->dsbflags&DSBCAPS_LOCDEFER))
