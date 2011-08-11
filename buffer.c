@@ -2403,6 +2403,7 @@ static HRESULT WINAPI DS8Buffer3D_SetAllParameters(IDirectSound3DBuffer *iface, 
         EnterCriticalSection(This->crst);
         setALContext(This->ctx);
         DS8Buffer_SetParams(This, ds3dbuffer, dirty.flags);
+        checkALError();
         popALContext();
         LeaveCriticalSection(This->crst);
     }

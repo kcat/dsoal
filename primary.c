@@ -1299,6 +1299,7 @@ static HRESULT WINAPI DS8Primary3D_SetAllParameters(IDirectSound3DListener *ifac
         EnterCriticalSection(This->crst);
         setALContext(This->ctx);
         DS8Primary_SetParams(This, listen, dirty.flags);
+        checkALError();
         popALContext();
         LeaveCriticalSection(This->crst);
     }
