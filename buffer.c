@@ -2390,9 +2390,19 @@ static HRESULT WINAPI DS8Buffer3D_SetAllParameters(IDirectSound3DBuffer *iface, 
     }
     else
     {
+        union BufferParamFlags dirty = { 0 };
+        dirty.bit.pos = 1;
+        dirty.bit.vel = 1;
+        dirty.bit.cone_angles = 1;
+        dirty.bit.cone_orient = 1;
+        dirty.bit.cone_outsidevolume = 1;
+        dirty.bit.min_distance = 1;
+        dirty.bit.max_distance = 1;
+        dirty.bit.mode = 1;
+
         EnterCriticalSection(This->crst);
         setALContext(This->ctx);
-        DS8Buffer_SetParams(This, ds3dbuffer, ~0l);
+        DS8Buffer_SetParams(This, ds3dbuffer, dirty.flags);
         popALContext();
         LeaveCriticalSection(This->crst);
     }
