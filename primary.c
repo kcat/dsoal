@@ -1902,7 +1902,7 @@ static HRESULT WINAPI DS8PrimaryProp_Set(IKsPropertySet *iface,
                     const DWORD *dw;
                 } data = { pPropData };
 
-                if(*data.dw < EAX_ENVIRONMENT_COUNT)
+                if(*data.dw <= EAX_MAX_ENVIRONMENT)
                 {
                     /* Get the environment index's default and pass it down to
                      * ALLPARAMETERS */
