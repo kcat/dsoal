@@ -1520,7 +1520,7 @@ static HRESULT WINAPI DS8Primary3D_CommitDeferredSettings(IDirectSound3DListener
         /* checkALError is here for debugging */
         checkALError();
     }
-    TRACE("Dirty flags was: 0x%02x\n", flags);
+    TRACE("Dirty flags was: 0x%02"LONGFMT"x\n", flags);
 
     for(i = 0;i < This->nbuffers;++i)
     {
