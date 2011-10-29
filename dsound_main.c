@@ -1017,17 +1017,26 @@ BOOL WINAPI DllMain(HINSTANCE hInstDLL, DWORD fdwReason, LPVOID lpvReserved)
         TRACE("DLL_PROCESS_ATTACH\n");
         instance = hInstDLL;
         load_libopenal();
-        DisableThreadLibraryCalls(hInstDLL);
         /* Increase refcount on dsound by 1 */
         GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, (LPCWSTR)hInstDLL, &hInstDLL);
         break;
+
+    case DLL_THREAD_DETACH:
+        TRACE("DLL_THREAD_DETACH\n");
+#if !ALLOW_CONCURRENT_AL
+        if(local_contexts)
+           set_context(NULL);
+#endif
+        break;
+
     case DLL_PROCESS_DETACH:
         TRACE("DLL_PROCESS_DETACH\n");
 #ifdef SONAME_LIBOPENAL
         if(openal_handle)
             wine_dlclose(openal_handle, NULL, 0);
-#endif /*SONAME_LIBOPENAL*/
+#endif
         break;
+
     default:
         TRACE("UNKNOWN REASON\n");
         break;
