@@ -297,52 +297,6 @@ typedef struct DS8Primary DS8Primary;
 typedef struct DS8Buffer DS8Buffer;
 
 
-/* Sample types */
-#define AL_BYTE                                  0x1400
-#define AL_UNSIGNED_BYTE                         0x1401
-#define AL_SHORT                                 0x1402
-#define AL_UNSIGNED_SHORT                        0x1403
-#define AL_INT                                   0x1404
-#define AL_UNSIGNED_INT                          0x1405
-#define AL_FLOAT                                 0x1406
-#define AL_DOUBLE                                0x1407
-#define AL_BYTE3                                 0x1408
-#define AL_UNSIGNED_BYTE3                        0x1409
-#define AL_MULAW                                 0x1410
-#define AL_IMA4                                  0x1411
-
-/* Channel configurations */
-#define AL_MONO                                  0x1500
-#define AL_STEREO                                0x1501
-#define AL_REAR                                  0x1502
-#define AL_QUAD                                  0x1503
-#define AL_5POINT1                               0x1504 /* (WFX order) */
-#define AL_6POINT1                               0x1505 /* (WFX order) */
-#define AL_7POINT1                               0x1506 /* (WFX order) */
-
-/* Storage formats */
-#define AL_MONO8                                 0x1100
-#define AL_MONO16                                0x1101
-#define AL_MONO32F                               0x10010
-#define AL_STEREO8                               0x1102
-#define AL_STEREO16                              0x1103
-#define AL_STEREO32F                             0x10011
-#define AL_QUAD8                                 0x1204
-#define AL_QUAD16                                0x1205
-#define AL_QUAD32F                               0x1206
-#define AL_REAR8                                 0x1207
-#define AL_REAR16                                0x1208
-#define AL_REAR32F                               0x1209
-#define AL_5POINT1_8                             0x120A
-#define AL_5POINT1_16                            0x120B
-#define AL_5POINT1_32F                           0x120C
-#define AL_6POINT1_8                             0x120D
-#define AL_6POINT1_16                            0x120E
-#define AL_6POINT1_32F                           0x120F
-#define AL_7POINT1_8                             0x1210
-#define AL_7POINT1_16                            0x1211
-#define AL_7POINT1_32F                           0x1212
-
 enum {
     EXT_EFX,
     EXT_FLOAT32,
@@ -368,10 +322,10 @@ typedef struct ExtALFuncs {
     LPALDELETEAUXILIARYEFFECTSLOTS DeleteAuxiliaryEffectSlots;
     LPALAUXILIARYEFFECTSLOTI AuxiliaryEffectSloti;
 
-    void (AL_APIENTRY*BufferSamplesSOFT)(ALuint,ALuint,ALenum,ALsizei,ALenum,ALenum,const ALvoid*);
-    void (AL_APIENTRY*BufferSubSamplesSOFT)(ALuint,ALsizei,ALsizei,ALenum,ALenum,const ALvoid*);
-    void (AL_APIENTRY*GetBufferSamplesSOFT)(ALuint,ALsizei,ALsizei,ALenum,ALenum,ALvoid*);
-    ALboolean (AL_APIENTRY*IsBufferFormatSupportedSOFT)(ALenum);
+    LPALBUFFERSAMPLESSOFT BufferSamplesSOFT;
+    LPALBUFFERSUBSAMPLESSOFT BufferSubSamplesSOFT;
+    LPALGETBUFFERSAMPLESSOFT GetBufferSamplesSOFT;
+    LPALISBUFFERFORMATSUPPORTEDSOFT IsBufferFormatSupportedSOFT;
 
     void (AL_APIENTRY*DeferUpdatesSOFT)(void);
     void (AL_APIENTRY*ProcessUpdatesSOFT)(void);

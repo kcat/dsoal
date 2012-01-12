@@ -183,80 +183,80 @@ static ALenum get_fmt_PCM(const WAVEFORMATEX *format, WAVEFORMATEXTENSIBLE *out,
 
     if(format->wBitsPerSample == 8)
     {
-        *in_type = AL_UNSIGNED_BYTE;
+        *in_type = AL_UNSIGNED_BYTE_SOFT;
         switch(format->nChannels)
         {
-        case 1: *in_chans = AL_MONO;
-                return AL_MONO8;
-        case 2: *in_chans = AL_STEREO;
-                return AL_STEREO8;
-        case 4: *in_chans = AL_QUAD;
-                return AL_QUAD8;
-        case 6: *in_chans = AL_5POINT1;
-                return AL_5POINT1_8;
-        case 7: *in_chans = AL_6POINT1;
-                return AL_6POINT1_8;
-        case 8: *in_chans = AL_7POINT1;
-                return AL_7POINT1_8;
+        case 1: *in_chans = AL_MONO_SOFT;
+                return AL_MONO8_SOFT;
+        case 2: *in_chans = AL_STEREO_SOFT;
+                return AL_STEREO8_SOFT;
+        case 4: *in_chans = AL_QUAD_SOFT;
+                return AL_QUAD8_SOFT;
+        case 6: *in_chans = AL_5POINT1_SOFT;
+                return AL_5POINT1_8_SOFT;
+        case 7: *in_chans = AL_6POINT1_SOFT;
+                return AL_6POINT1_8_SOFT;
+        case 8: *in_chans = AL_7POINT1_SOFT;
+                return AL_7POINT1_8_SOFT;
         }
     }
     else if(format->wBitsPerSample == 16)
     {
-        *in_type = AL_SHORT;
+        *in_type = AL_SHORT_SOFT;
         switch(format->nChannels)
         {
-        case 1: *in_chans = AL_MONO;
-                return AL_MONO16;
-        case 2: *in_chans = AL_STEREO;
-                return AL_STEREO16;
-        case 4: *in_chans = AL_QUAD;
-                return AL_QUAD16;
-        case 6: *in_chans = AL_5POINT1;
-                return AL_5POINT1_16;
-        case 7: *in_chans = AL_6POINT1;
-                return AL_6POINT1_16;
-        case 8: *in_chans = AL_7POINT1;
-                return AL_7POINT1_16;
+        case 1: *in_chans = AL_MONO_SOFT;
+                return AL_MONO16_SOFT;
+        case 2: *in_chans = AL_STEREO_SOFT;
+                return AL_STEREO16_SOFT;
+        case 4: *in_chans = AL_QUAD_SOFT;
+                return AL_QUAD16_SOFT;
+        case 6: *in_chans = AL_5POINT1_SOFT;
+                return AL_5POINT1_16_SOFT;
+        case 7: *in_chans = AL_6POINT1_SOFT;
+                return AL_6POINT1_16_SOFT;
+        case 8: *in_chans = AL_7POINT1_SOFT;
+                return AL_7POINT1_16_SOFT;
         }
     }
 #if 0 /* Will cause incorrect byte offsets */
     else if(format->wBitsPerSample == 24)
     {
-        *in_type = AL_BYTE3;
+        *in_type = AL_BYTE3_SOFT;
         switch(format->nChannels)
         {
-        case 1: *in_chans = AL_MONO;
-                return AL_MONO32F;
-        case 2: *in_chans = AL_STEREO;
-                return AL_STEREO32F;
-        case 4: *in_chans = AL_QUAD;
-                return AL_QUAD32F;
-        case 6: *in_chans = AL_5POINT1;
-                return AL_5POINT1_32F;
-        case 7: *in_chans = AL_6POINT1;
-                return AL_6POINT1_32F;
-        case 8: *in_chans = AL_7POINT1;
-                return AL_7POINT1_32F;
+        case 1: *in_chans = AL_MONO_SOFT;
+                return AL_MONO32F_SOFT;
+        case 2: *in_chans = AL_STEREO_SOFT;
+                return AL_STEREO32F_SOFT;
+        case 4: *in_chans = AL_QUAD_SOFT;
+                return AL_QUAD32F_SOFT;
+        case 6: *in_chans = AL_5POINT1_SOFT;
+                return AL_5POINT1_32F_SOFT;
+        case 7: *in_chans = AL_6POINT1_SOFT;
+                return AL_6POINT1_32F_SOFT;
+        case 8: *in_chans = AL_7POINT1_SOFT;
+                return AL_7POINT1_32F_SOFT;
         }
     }
 #endif
     else if(format->wBitsPerSample == 32)
     {
-        *in_type = AL_INT;
+        *in_type = AL_INT_SOFT;
         switch(format->nChannels)
         {
-        case 1: *in_chans = AL_MONO;
-                return AL_MONO32F;
-        case 2: *in_chans = AL_STEREO;
-                return AL_STEREO32F;
-        case 4: *in_chans = AL_QUAD;
-                return AL_QUAD32F;
-        case 6: *in_chans = AL_5POINT1;
-                return AL_5POINT1_32F;
-        case 7: *in_chans = AL_6POINT1;
-                return AL_6POINT1_32F;
-        case 8: *in_chans = AL_7POINT1;
-                return AL_7POINT1_32F;
+        case 1: *in_chans = AL_MONO_SOFT;
+                return AL_MONO32F_SOFT;
+        case 2: *in_chans = AL_STEREO_SOFT;
+                return AL_STEREO32F_SOFT;
+        case 4: *in_chans = AL_QUAD_SOFT;
+                return AL_QUAD32F_SOFT;
+        case 6: *in_chans = AL_5POINT1_SOFT;
+                return AL_5POINT1_32F_SOFT;
+        case 7: *in_chans = AL_6POINT1_SOFT;
+                return AL_6POINT1_32F_SOFT;
+        case 8: *in_chans = AL_7POINT1_SOFT;
+                return AL_7POINT1_32F_SOFT;
         }
     }
 
@@ -301,41 +301,41 @@ static ALenum get_fmt_FLOAT(const WAVEFORMATEX *format, WAVEFORMATEXTENSIBLE *ou
 
     if(format->wBitsPerSample == 32)
     {
-        *in_type = AL_FLOAT;
+        *in_type = AL_FLOAT_SOFT;
         switch(format->nChannels)
         {
-        case 1: *in_chans = AL_MONO;
-                return AL_MONO32F;
-        case 2: *in_chans = AL_STEREO;
-                return AL_STEREO32F;
-        case 4: *in_chans = AL_QUAD;
-                return AL_QUAD32F;
-        case 6: *in_chans = AL_5POINT1;
-                return AL_5POINT1_32F;
-        case 7: *in_chans = AL_6POINT1;
-                return AL_6POINT1_32F;
-        case 8: *in_chans = AL_7POINT1;
-                return AL_7POINT1_32F;
+        case 1: *in_chans = AL_MONO_SOFT;
+                return AL_MONO32F_SOFT;
+        case 2: *in_chans = AL_STEREO_SOFT;
+                return AL_STEREO32F_SOFT;
+        case 4: *in_chans = AL_QUAD_SOFT;
+                return AL_QUAD32F_SOFT;
+        case 6: *in_chans = AL_5POINT1_SOFT;
+                return AL_5POINT1_32F_SOFT;
+        case 7: *in_chans = AL_6POINT1_SOFT;
+                return AL_6POINT1_32F_SOFT;
+        case 8: *in_chans = AL_7POINT1_SOFT;
+                return AL_7POINT1_32F_SOFT;
         }
     }
 #if 0 /* Will cause incorrect byte offsets */
     else if(format->wBitsPerSample == 64)
     {
-        *in_type = AL_DOUBLE;
+        *in_type = AL_DOUBLE_SOFT;
         switch(format->nChannels)
         {
-        case 1: *in_chans = AL_MONO;
-                return AL_MONO32F;
-        case 2: *in_chans = AL_STEREO;
-                return AL_STEREO32F;
-        case 4: *in_chans = AL_QUAD;
-                return AL_QUAD32F;
-        case 6: *in_chans = AL_5POINT1;
-                return AL_5POINT1_32F;
-        case 7: *in_chans = AL_6POINT1;
-                return AL_6POINT1_32F;
-        case 8: *in_chans = AL_7POINT1;
-                return AL_7POINT1_32F;
+        case 1: *in_chans = AL_MONO_SOFT;
+                return AL_MONO32F_SOFT;
+        case 2: *in_chans = AL_STEREO_SOFT;
+                return AL_STEREO32F_SOFT;
+        case 4: *in_chans = AL_QUAD_SOFT;
+                return AL_QUAD32F_SOFT;
+        case 6: *in_chans = AL_5POINT1_SOFT;
+                return AL_5POINT1_32F_SOFT;
+        case 7: *in_chans = AL_6POINT1_SOFT;
+                return AL_6POINT1_32F_SOFT;
+        case 8: *in_chans = AL_7POINT1_SOFT;
+                return AL_7POINT1_32F_SOFT;
         }
     }
 #endif
@@ -454,88 +454,88 @@ static ALenum get_fmt_EXT(const WAVEFORMATEX *format, WAVEFORMATEXTENSIBLE *out,
     {
         if(out->Samples.wValidBitsPerSample == 8)
         {
-            *in_type = AL_UNSIGNED_BYTE;
+            *in_type = AL_UNSIGNED_BYTE_SOFT;
             switch(out->dwChannelMask)
             {
-            case   MONO: *in_chans = AL_MONO;
-                         return AL_MONO8;
-            case STEREO: *in_chans = AL_STEREO;
-                         return AL_STEREO8;
-            case   REAR: *in_chans = AL_REAR;
-                         return AL_REAR8;
-            case   QUAD: *in_chans = AL_QUAD;
-                         return AL_QUAD8;
-            case X5DOT1: *in_chans = AL_5POINT1;
-                         return AL_5POINT1_8;
-            case X6DOT1: *in_chans = AL_6POINT1;
-                         return AL_6POINT1_8;
-            case X7DOT1: *in_chans = AL_7POINT1;
-                         return AL_7POINT1_8;
+            case   MONO: *in_chans = AL_MONO_SOFT;
+                         return AL_MONO8_SOFT;
+            case STEREO: *in_chans = AL_STEREO_SOFT;
+                         return AL_STEREO8_SOFT;
+            case   REAR: *in_chans = AL_REAR_SOFT;
+                         return AL_REAR8_SOFT;
+            case   QUAD: *in_chans = AL_QUAD_SOFT;
+                         return AL_QUAD8_SOFT;
+            case X5DOT1: *in_chans = AL_5POINT1_SOFT;
+                         return AL_5POINT1_8_SOFT;
+            case X6DOT1: *in_chans = AL_6POINT1_SOFT;
+                         return AL_6POINT1_8_SOFT;
+            case X7DOT1: *in_chans = AL_7POINT1_SOFT;
+                         return AL_7POINT1_8_SOFT;
             }
         }
         else if(out->Samples.wValidBitsPerSample == 16)
         {
-            *in_type = AL_SHORT;
+            *in_type = AL_SHORT_SOFT;
             switch(out->dwChannelMask)
             {
-            case   MONO: *in_chans = AL_MONO;
-                         return AL_MONO16;
-            case STEREO: *in_chans = AL_STEREO;
-                         return AL_STEREO16;
-            case   REAR: *in_chans = AL_REAR;
-                         return AL_REAR16;
-            case   QUAD: *in_chans = AL_QUAD;
-                         return AL_QUAD16;
-            case X5DOT1: *in_chans = AL_5POINT1;
-                         return AL_5POINT1_16;
-            case X6DOT1: *in_chans = AL_6POINT1;
-                         return AL_6POINT1_16;
-            case X7DOT1: *in_chans = AL_7POINT1;
-                         return AL_7POINT1_16;
+            case   MONO: *in_chans = AL_MONO_SOFT;
+                         return AL_MONO16_SOFT;
+            case STEREO: *in_chans = AL_STEREO_SOFT;
+                         return AL_STEREO16_SOFT;
+            case   REAR: *in_chans = AL_REAR_SOFT;
+                         return AL_REAR16_SOFT;
+            case   QUAD: *in_chans = AL_QUAD_SOFT;
+                         return AL_QUAD16_SOFT;
+            case X5DOT1: *in_chans = AL_5POINT1_SOFT;
+                         return AL_5POINT1_16_SOFT;
+            case X6DOT1: *in_chans = AL_6POINT1_SOFT;
+                         return AL_6POINT1_16_SOFT;
+            case X7DOT1: *in_chans = AL_7POINT1_SOFT;
+                         return AL_7POINT1_16_SOFT;
             }
         }
 #if 0
         else if(out->Samples.wValidBitsPerSample == 24)
         {
-            *in_type = AL_BYTE3;
+            *in_type = AL_BYTE3_SOFT;
             switch(out->dwChannelMask)
             {
-            case   MONO: *in_chans = AL_MONO;
-                         return AL_MONO32F;
-            case STEREO: *in_chans = AL_STEREO;
-                         return AL_STEREO32F;
-            case   REAR: *in_chans = AL_REAR;
-                         return AL_REAR32F;
-            case   QUAD: *in_chans = AL_QUAD;
-                         return AL_QUAD32F;
-            case X5DOT1: *in_chans = AL_5POINT1;
-                         return AL_5POINT1_32F;
-            case X6DOT1: *in_chans = AL_6POINT1;
-                         return AL_6POINT1_32F;
-            case X7DOT1: *in_chans = AL_7POINT1;
-                         return AL_7POINT1_32F;
+            case   MONO: *in_chans = AL_MONO_SOFT;
+                         return AL_MONO32F_SOFT;
+            case STEREO: *in_chans = AL_STEREO_SOFT;
+                         return AL_STEREO32F_SOFT;
+            case   REAR: *in_chans = AL_REAR_SOFT;
+                         return AL_REAR32F_SOFT;
+            case   QUAD: *in_chans = AL_QUAD_SOFT;
+                         return AL_QUAD32F_SOFT;
+            case X5DOT1: *in_chans = AL_5POINT1_SOFT;
+                         return AL_5POINT1_32F_SOFT;
+            case X6DOT1: *in_chans = AL_6POINT1_SOFT;
+                         return AL_6POINT1_32F_SOFT;
+            case X7DOT1: *in_chans = AL_7POINT1_SOFT;
+                         return AL_7POINT1_32F_SOFT;
             }
         }
 #endif
         else if(out->Samples.wValidBitsPerSample == 32)
         {
-            *in_type = AL_INT;
+            *in_type = AL_INT_SOFT;
             switch(out->dwChannelMask)
             {
-            case   MONO: *in_chans = AL_MONO;
-                         return AL_MONO32F;
-            case STEREO: *in_chans = AL_STEREO;
-                         return AL_STEREO32F;
-            case   REAR: *in_chans = AL_REAR;
-                         return AL_REAR32F;
-            case   QUAD: *in_chans = AL_QUAD;
-                         return AL_QUAD32F;
-            case X5DOT1: *in_chans = AL_5POINT1;
-                         return AL_5POINT1_32F;
-            case X6DOT1: *in_chans = AL_6POINT1;
-                         return AL_6POINT1_32F;
-            case X7DOT1: *in_chans = AL_7POINT1;
-                         return AL_7POINT1_32F;
+            case   MONO: *in_chans = AL_MONO_SOFT;
+                         return AL_MONO32F_SOFT;
+            case STEREO: *in_chans = AL_STEREO_SOFT;
+                         return AL_STEREO32F_SOFT;
+            case   REAR: *in_chans = AL_REAR_SOFT;
+                         return AL_REAR32F_SOFT;
+            case   QUAD: *in_chans = AL_QUAD_SOFT;
+                         return AL_QUAD32F_SOFT;
+            case X5DOT1: *in_chans = AL_5POINT1_SOFT;
+                         return AL_5POINT1_32F_SOFT;
+            case X6DOT1: *in_chans = AL_6POINT1_SOFT;
+                         return AL_6POINT1_32F_SOFT;
+            case X7DOT1: *in_chans = AL_7POINT1_SOFT;
+                         return AL_7POINT1_32F_SOFT;
             }
         }
 
@@ -547,45 +547,45 @@ static ALenum get_fmt_EXT(const WAVEFORMATEX *format, WAVEFORMATEXTENSIBLE *out,
     {
         if(out->Samples.wValidBitsPerSample == 32)
         {
-            *in_type = AL_FLOAT;
+            *in_type = AL_FLOAT_SOFT;
             switch(out->dwChannelMask)
             {
-            case   MONO: *in_chans = AL_MONO;
-                         return AL_MONO32F;
-            case STEREO: *in_chans = AL_STEREO;
-                         return AL_STEREO32F;
-            case   REAR: *in_chans = AL_REAR;
-                         return AL_REAR32F;
-            case   QUAD: *in_chans = AL_QUAD;
-                         return AL_QUAD32F;
-            case X5DOT1: *in_chans = AL_5POINT1;
-                         return AL_5POINT1_32F;
-            case X6DOT1: *in_chans = AL_6POINT1;
-                         return AL_6POINT1_32F;
-            case X7DOT1: *in_chans = AL_7POINT1;
-                         return AL_7POINT1_32F;
+            case   MONO: *in_chans = AL_MONO_SOFT;
+                         return AL_MONO32F_SOFT;
+            case STEREO: *in_chans = AL_STEREO_SOFT;
+                         return AL_STEREO32F_SOFT;
+            case   REAR: *in_chans = AL_REAR_SOFT;
+                         return AL_REAR32F_SOFT;
+            case   QUAD: *in_chans = AL_QUAD_SOFT;
+                         return AL_QUAD32F_SOFT;
+            case X5DOT1: *in_chans = AL_5POINT1_SOFT;
+                         return AL_5POINT1_32F_SOFT;
+            case X6DOT1: *in_chans = AL_6POINT1_SOFT;
+                         return AL_6POINT1_32F_SOFT;
+            case X7DOT1: *in_chans = AL_7POINT1_SOFT;
+                         return AL_7POINT1_32F_SOFT;
             }
         }
 #if 0
         else if(out->Samples.wValidBitsPerSample == 64)
         {
-            *in_type = AL_DOUBLE;
+            *in_type = AL_DOUBLE_SOFT;
             switch(out->dwChannelMask)
             {
-            case   MONO: *in_chans = AL_MONO;
-                         return AL_MONO32F;
-            case STEREO: *in_chans = AL_STEREO;
-                         return AL_STEREO32F;
-            case   REAR: *in_chans = AL_REAR;
-                         return AL_REAR32F;
-            case   QUAD: *in_chans = AL_QUAD;
-                         return AL_QUAD32F;
-            case X5DOT1: *in_chans = AL_5POINT1;
-                         return AL_5POINT1_32F;
-            case X6DOT1: *in_chans = AL_6POINT1;
-                         return AL_6POINT1_32F;
-            case X7DOT1: *in_chans = AL_7POINT1;
-                         return AL_7POINT1_32F;
+            case   MONO: *in_chans = AL_MONO_SOFT;
+                         return AL_MONO32F_SOFT;
+            case STEREO: *in_chans = AL_STEREO_SOFT;
+                         return AL_STEREO32F_SOFT;
+            case   REAR: *in_chans = AL_REAR_SOFT;
+                         return AL_REAR32F_SOFT;
+            case   QUAD: *in_chans = AL_QUAD_SOFT;
+                         return AL_QUAD32F_SOFT;
+            case X5DOT1: *in_chans = AL_5POINT1_SOFT;
+                         return AL_5POINT1_32F_SOFT;
+            case X6DOT1: *in_chans = AL_6POINT1_SOFT;
+                         return AL_6POINT1_32F_SOFT;
+            case X7DOT1: *in_chans = AL_7POINT1_SOFT;
+                         return AL_7POINT1_32F_SOFT;
             }
         }
 #endif

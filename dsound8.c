@@ -182,9 +182,9 @@ static HRESULT DSShare_Create(REFIID guid, DeviceShare **out)
         share->ExtAL.BufferDataStatic = alGetProcAddress("alBufferDataStatic");
         share->SupportedExt[EXT_STATIC_BUFFER] = AL_TRUE;
     }
-    if(alIsExtensionPresent("AL_SOFTX_buffer_samples"))
+    if(alIsExtensionPresent("AL_SOFT_buffer_samples"))
     {
-        TRACE("Found AL_SOFTX_buffer_samples\n");
+        TRACE("Found AL_SOFT_buffer_samples\n");
         share->ExtAL.BufferSamplesSOFT = alGetProcAddress("alBufferSamplesSOFT");
         share->ExtAL.BufferSubSamplesSOFT = alGetProcAddress("alBufferSubSamplesSOFT");
         share->ExtAL.GetBufferSamplesSOFT = alGetProcAddress("alGetBufferSamplesSOFT");
