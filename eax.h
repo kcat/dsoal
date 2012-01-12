@@ -164,3 +164,53 @@ enum {
 };
 
 extern const EAXLISTENERPROPERTIES EnvironmentDefaults[EAX_ENVIRONMENT_COUNT];
+
+
+extern const IID DSPROPSETID_EAX20_BufferProperties;
+typedef enum {
+    DSPROPERTY_EAXBUFFER_NONE,
+    DSPROPERTY_EAXBUFFER_ALLPARAMETERS,
+    DSPROPERTY_EAXBUFFER_DIRECT,
+    DSPROPERTY_EAXBUFFER_DIRECTHF,
+    DSPROPERTY_EAXBUFFER_ROOM,
+    DSPROPERTY_EAXBUFFER_ROOMHF,
+    DSPROPERTY_EAXBUFFER_ROOMROLLOFFFACTOR,
+    DSPROPERTY_EAXBUFFER_OBSTRUCTION,
+    DSPROPERTY_EAXBUFFER_OBSTRUCTIONLFRATIO,
+    DSPROPERTY_EAXBUFFER_OCCLUSION,
+    DSPROPERTY_EAXBUFFER_OCCLUSIONLFRATIO,
+    DSPROPERTY_EAXBUFFER_OCCLUSIONROOMRATIO,
+    DSPROPERTY_EAXBUFFER_OUTSIDEVOLUMEHF,
+    DSPROPERTY_EAXBUFFER_AIRABSORPTIONFACTOR,
+    DSPROPERTY_EAXBUFFER_FLAGS
+} DSPROPERTY_EAX_BUFFERPROPERTY;
+
+/* Stores the value being set, but does not apply it */
+#define DSPROPERTY_EAXBUFFER_IMMEDIATE              0x00000000
+/* The lack of the deferred flag forces a call to CommitDeferredSettings(),
+ * applying *all* deferred settings, including the EAX property being set */
+#define DSPROPERTY_EAXBUFFER_DEFERRED               0x80000000
+/* Same as IMMEDIATE; causes a commit of deferred properties but implies no
+ * extra property being set */
+#define DSPROPERTY_EAXBUFFER_COMMITDEFERREDSETTINGS 0x00000000
+
+typedef struct _EAX20BUFFERPROPERTIES {
+    LONG lDirect;
+    LONG lDirectHF;
+    LONG lRoom;
+    LONG lRoomHF;
+    FLOAT flRoomRolloffFactor;
+    LONG lObstruction;
+    FLOAT flObstructionLFRatio;
+    LONG lOcclusion;
+    FLOAT flOcclusionLFRatio;
+    FLOAT flOcclusionRoomRatio;
+    LONG lOutsideVolumeHF;
+    FLOAT flAirAbsorptionFactor;
+    DWORD dwFlags;
+} EAX20BUFFERPROPERTIES, *LPEAX20BUFFERPROPERTIES;
+
+/* Flags that affect lDirectHF, lRoom, and lRoomHF */
+#define EAXBUFFERFLAGS_DIRECTHFAUTO 0x00000001
+#define EAXBUFFERFLAGS_ROOMAUTO     0x00000002
+#define EAXBUFFERFLAGS_ROOMHFAUTO   0x00000004
