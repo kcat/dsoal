@@ -23,7 +23,9 @@ set(DSOAL_OBJS buffer.c
                capture.c
                dsound8.c
                dsound_main.c
+               dsound_private.h
                duplex.c
+               eax.h
                primary.c
                propset.c)
 

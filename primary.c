@@ -24,6 +24,7 @@
 
 #include <windows.h>
 #include <dsound.h>
+#include <mmsystem.h>
 
 #include "dsound_private.h"
 

@@ -27,9 +27,13 @@
 
 
 #include <stdio.h>
+#include <dsound.h>
 
 #include "alc.h"
 #include "al.h"
+#include "alext.h"
+
+#include "eax.h"
 
 extern int LogLevel;
 
@@ -63,9 +67,6 @@ const char *debugstr_guid( const GUID *id );
 
 static inline const char *debugstr_w( const WCHAR *s ) { return wine_dbgstr_wn( s, -1 ); }
 
-
-#include "alext.h"
-#include "eax.h"
 
 /* Set to 1 to build a DLL that can be used in an app that uses OpenAL itself.
  * Thread-local contexts are needed for true concurrency, however. Disallowing

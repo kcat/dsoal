@@ -7,6 +7,7 @@
 #include <stdlib.h>
 
 #include <windows.h>
+#include "dsound.h"
 
 /* allocate some tmp string space */
 /* FIXME: this is not 100% thread-safe */
