@@ -37,28 +37,51 @@
 
 extern int LogLevel;
 
-#ifdef DEBUG_INFO
-#define TRACE(fmt,args...) do {                                                                      \
-    if(LogLevel >= 3)                                                                                \
-        fprintf(stderr, "%04x:trace:dsound:%s " fmt, (UINT)GetCurrentThreadId(), __FUNCTION__, ##args);  \
+#define DO_PRINT(a, ...) fprintf(stderr, a, __VA_ARGS__)
+#ifdef _MSC_VER
+#define TRACE(fmt, ...) do {                                              \
+    if(LogLevel >= 3)                                                     \
+        DO_PRINT("%04x:trace:dsound:%s " fmt, (UINT)GetCurrentThreadId(), \
+                 __FUNCTION__, __VA_ARGS__);                              \
 } while(0)
-#define WARN(fmt,args...) do {                                                                       \
-    if(LogLevel >= 2)                                                                                \
-        fprintf(stderr, "%04x:warn:dsound:%s " fmt, (UINT)GetCurrentThreadId(), __FUNCTION__, ##args);   \
+#define WARN(fmt, ...) do {                                              \
+    if(LogLevel >= 2)                                                    \
+        DO_PRINT("%04x:warn:dsound:%s " fmt, (UINT)GetCurrentThreadId(), \
+                 __FUNCTION__, __VA_ARGS__);                             \
 } while(0)
-#define FIXME(fmt,args...) do {                                                                      \
-    if(LogLevel >= 1)                                                                                \
-        fprintf(stderr, "%04x:fixme:dsound:%s " fmt, (UINT)GetCurrentThreadId(), __FUNCTION__, ##args);  \
+#define FIXME(fmt, ...) do {                                              \
+    if(LogLevel >= 1)                                                     \
+        DO_PRINT("%04x:fixme:dsound:%s " fmt, (UINT)GetCurrentThreadId(), \
+                 __FUNCTION__, __VA_ARGS__);                              \
 } while(0)
-#define ERR(fmt,args...) do {                                                                        \
-    if(LogLevel >= 0)                                                                                \
-        fprintf(stderr, "%04x:err:dsound:%s " fmt, (UINT)GetCurrentThreadId(), __FUNCTION__, ##args);    \
+#define ERR(fmt, ...) do {                                              \
+    if(LogLevel >= 0)                                                   \
+        DO_PRINT("%04x:err:dsound:%s " fmt, (UINT)GetCurrentThreadId(), \
+                 __FUNCTION__, __VA_ARGS__);                            \
 } while(0)
+
 #else
-#define TRACE(args...)
-#define WARN(args...)
-#define FIXME(args...)
-#define ERR(args...)
+
+#define TRACE(fmt, ...) do {                                              \
+    if(LogLevel >= 3)                                                     \
+        DO_PRINT("%04x:trace:dsound:%s " fmt, (UINT)GetCurrentThreadId(), \
+                 __FUNCTION__, ## __VA_ARGS__);                           \
+} while(0)
+#define WARN(fmt, ...) do {                                              \
+    if(LogLevel >= 2)                                                    \
+        DO_PRINT("%04x:warn:dsound:%s " fmt, (UINT)GetCurrentThreadId(), \
+                 __FUNCTION__, ## __VA_ARGS__);                          \
+} while(0)
+#define FIXME(fmt, ...) do {                                              \
+    if(LogLevel >= 1)                                                     \
+        DO_PRINT("%04x:fixme:dsound:%s " fmt, (UINT)GetCurrentThreadId(), \
+                 __FUNCTION__, ## __VA_ARGS__);                           \
+} while(0)
+#define ERR(fmt, ...) do {                                              \
+    if(LogLevel >= 0)                                                   \
+        DO_PRINT("%04x:err:dsound:%s " fmt, (UINT)GetCurrentThreadId(), \
+                 __FUNCTION__, ## __VA_ARGS__);                         \
+} while(0)
 #endif
 
 const char *wine_dbg_sprintf( const char *format, ... );
