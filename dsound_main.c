@@ -34,36 +34,6 @@
 
 #include <stdarg.h>
 
-#ifdef __WINESRC__
-
-#include "wine/library.h"
-
-#define COBJMACROS
-#define NONAMELESSSTRUCT
-#define NONAMELESSUNION
-#include "windef.h"
-#include "winbase.h"
-#include "winuser.h"
-#include "winnls.h"
-#include "winreg.h"
-#include "mmsystem.h"
-#include "winternl.h"
-#include "mmddk.h"
-#include "wine/debug.h"
-#include "dsound.h"
-#include "dsconf.h"
-#include "ks.h"
-#include "initguid.h"
-#include "ksmedia.h"
-#include "rpcproxy.h"
-
-#include "dsound_private.h"
-
-WINE_DEFAULT_DEBUG_CHANNEL(dsound);
-
-#else
-
-#define WINVER 0x0600
 #include <windows.h>
 #include <dsound.h>
 
@@ -77,7 +47,6 @@ DEFINE_GUID(CLSID_DirectSoundPrivate,0x11ab3ec0,0x25ec,0x11d1,0xa4,0xd8,0x00,0xc
 
 int LogLevel = 1;
 
-#endif
 
 static HINSTANCE instance;
 

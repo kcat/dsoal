@@ -22,35 +22,11 @@
 
 #include <stdarg.h>
 
-#ifdef __WINESRC__
-
-#define NONAMELESSSTRUCT
-#define NONAMELESSUNION
-#define CINTERFACE
-#define COBJMACROS
-#include "windef.h"
-#include "winbase.h"
-#include "winuser.h"
-#include "mmsystem.h"
-#include "mmddk.h"
-#include "winternl.h"
-#include "wine/debug.h"
-#include "dsound.h"
-#include "dsdriver.h"
-
-#include "dsound_private.h"
-
-WINE_DEFAULT_DEBUG_CHANNEL(dsound);
-
-#else
-
-#define WINVER 0x0600
 #include <windows.h>
 #include <dsound.h>
 
 #include "dsound_private.h"
 
-#endif
 
 /*****************************************************************************
  * IDirectSoundFullDuplex implementation structure

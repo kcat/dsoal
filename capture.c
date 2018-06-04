@@ -19,32 +19,6 @@
 
 #include <stdarg.h>
 
-#ifdef __WINESRC__
-
-#define COBJMACROS
-#define NONAMELESSSTRUCT
-#define NONAMELESSUNION
-#include "windef.h"
-#include "winbase.h"
-#include "winuser.h"
-#include "winnls.h"
-#include "winreg.h"
-#include "mmsystem.h"
-#include "winternl.h"
-#include "mmddk.h"
-#include "wine/debug.h"
-#include "dsound.h"
-
-#include "dsound_private.h"
-
-#include "ks.h"
-#include "ksmedia.h"
-
-WINE_DEFAULT_DEBUG_CHANNEL(dsound);
-
-#else
-
-#define WINVER 0x0600
 #include <windows.h>
 #include <dsound.h>
 
@@ -56,7 +30,6 @@ WINE_DEFAULT_DEBUG_CHANNEL(dsound);
 
 DEFINE_GUID(KSDATAFORMAT_SUBTYPE_PCM, 0x00000001, 0x0000, 0x0010, 0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71);
 
-#endif
 
 typedef struct DSCImpl DSCImpl;
 typedef struct DSCBuffer DSCBuffer;
@@ -846,7 +819,6 @@ HRESULT DSOUND_CaptureCreate8(REFIID riid, void **cap)
     This->is_8 = TRUE;
 
     InitializeCriticalSection(&This->crst);
-    This->crst.DebugInfo->Spare[0] = (DWORD_PTR)(__FILE__ ": DSCImpl.crst");
 
     if(FAILED(IDirectSoundCapture_QueryInterface(&This->IDirectSoundCapture_iface, riid, cap)))
     {
@@ -865,7 +837,6 @@ static void DSCImpl_Destroy(DSCImpl *This)
 
     HeapFree(GetProcessHeap(), 0, This->device);
 
-    This->crst.DebugInfo->Spare[0] = 0;
     DeleteCriticalSection(&This->crst);
 
     HeapFree(GetProcessHeap(), 0, This);

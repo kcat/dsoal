@@ -22,29 +22,6 @@
 
 #include <stdarg.h>
 
-#ifdef __WINESRC__
-
-#define COBJMACROS
-#define NONAMELESSSTRUCT
-#define NONAMELESSUNION
-#include "windef.h"
-#include "winbase.h"
-#include "winuser.h"
-#include "winnls.h"
-#include "winreg.h"
-#include "mmsystem.h"
-#include "winternl.h"
-#include "mmddk.h"
-#include "wine/debug.h"
-#include "dsound.h"
-
-#include "dsound_private.h"
-
-WINE_DEFAULT_DEBUG_CHANNEL(dsound);
-
-#else
-
-#define WINVER 0x0600
 #include <windows.h>
 #include <dsound.h>
 
@@ -54,7 +31,6 @@ WINE_DEFAULT_DEBUG_CHANNEL(dsound);
 #define DSSPEAKER_7POINT1       7
 #endif
 
-#endif
 
 static DeviceShare **sharelist;
 static UINT sharelistsize;
@@ -108,7 +84,6 @@ static void DSShare_Destroy(DeviceShare *share)
         alcCloseDevice(share->device);
     share->device = NULL;
 
-    share->crst.DebugInfo->Spare[0] = 0;
     DeleteCriticalSection(&share->crst);
 
     HeapFree(GetProcessHeap(), 0, share);
@@ -127,7 +102,6 @@ static HRESULT DSShare_Create(REFIID guid, DeviceShare **out)
     share->ref = 1;
 
     InitializeCriticalSection(&share->crst);
-    share->crst.DebugInfo->Spare[0] = (DWORD_PTR)(__FILE__ ": Device.crst");
 
     hr = DSERR_NODRIVER;
     if(!(drv_name=DSOUND_getdevicestrings()) ||

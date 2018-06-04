@@ -22,34 +22,6 @@
 
 #include <stdarg.h>
 
-#ifdef __WINESRC__
-
-#define COBJMACROS
-#define NONAMELESSSTRUCT
-#define NONAMELESSUNION
-#include "windef.h"
-#include "winbase.h"
-#include "winuser.h"
-#include "winnls.h"
-#include "winreg.h"
-#include "vfwmsgs.h"
-#include "mmsystem.h"
-#include "winternl.h"
-#include "mmddk.h"
-#include "wine/debug.h"
-#include "dsound.h"
-
-#include "dsound_private.h"
-
-#include "mmreg.h"
-#include "ks.h"
-#include "ksmedia.h"
-
-WINE_DEFAULT_DEBUG_CHANNEL(dsound);
-
-#else
-
-#define WINVER 0x0600
 #include <windows.h>
 #include <dsound.h>
 
@@ -62,7 +34,6 @@ DEFINE_GUID(KSDATAFORMAT_SUBTYPE_IEEE_FLOAT, 0x00000003, 0x0000, 0x0010, 0x80, 0
 #define E_PROP_ID_UNSUPPORTED            ((HRESULT)0x80070490)
 #endif
 
-#endif
 
 static const IDirectSoundBufferVtbl DS8Primary_Vtbl;
 static const IDirectSound3DListenerVtbl DS8Primary3D_Vtbl;

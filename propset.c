@@ -21,30 +21,6 @@
 
 #include <stdarg.h>
 
-#ifdef __WINESRC__
-
-#define COBJMACROS
-
-#include "windef.h"
-#include "winbase.h"
-#include "winuser.h"
-#include "mmsystem.h"
-#include "winternl.h"
-#include "winnls.h"
-#include "vfwmsgs.h"
-#include "mmddk.h"
-#include "wine/debug.h"
-#include "dsound.h"
-#include "dsdriver.h"
-
-#include "dsound_private.h"
-#include "dsconf.h"
-
-WINE_DEFAULT_DEBUG_CHANNEL(dsound);
-
-#else
-
-#define WINVER 0x0600
 #include <windows.h>
 #include <dsound.h>
 
@@ -169,7 +145,6 @@ typedef enum {
 #define UlongToHandle(ul)       ULongToHandle(ul)
 #endif
 
-#endif
 
 typedef struct IKsPrivatePropertySetImpl {
     IKsPropertySet IKsPropertySet_iface;
