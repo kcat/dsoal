@@ -995,6 +995,9 @@ BOOL WINAPI DllMain(HINSTANCE hInstDLL, DWORD fdwReason, LPVOID lpvReserved)
         GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, (LPCWSTR)hInstDLL, &hInstDLL);
         break;
 
+    case DLL_THREAD_ATTACH:
+        break;
+
     case DLL_THREAD_DETACH:
         TRACE("DLL_THREAD_DETACH\n");
 #if !ALLOW_CONCURRENT_AL
