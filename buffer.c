@@ -331,7 +331,9 @@ static HRESULT DS8Data_Create(DS8Data **ppv, const DSBUFFERDESC *desc, DS8Primar
     if(!(pBuffer->dsbflags&DSBCAPS_STATIC))
     {
         pBuffer->segsize = (format->nAvgBytesPerSec+prim->refresh-1) / prim->refresh;
-        pBuffer->segsize = clampI(pBuffer->segsize, 1, 2048);
+        pBuffer->segsize = clampI(pBuffer->segsize, format->nBlockAlign, 2048);
+        pBuffer->segsize += format->nBlockAlign - 1;
+        pBuffer->segsize -= pBuffer->segsize%format->nBlockAlign;
     }
 
     if(format->wFormatTag == WAVE_FORMAT_PCM)
