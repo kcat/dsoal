@@ -377,6 +377,7 @@ struct DS8Primary {
     const ALboolean *SupportedExt;
     const ExtALFuncs *ExtAL;
     CRITICAL_SECTION *crst;
+    ALCint refresh;
     ALuint *sources;
     ALuint auxslot;
 
@@ -436,15 +437,12 @@ typedef struct DS8Data {
 
     WAVEFORMATEXTENSIBLE format;
 
-    ALuint buf_size;
+    ALsizei segsize;
+    ALsizei buf_size;
     ALenum buf_format;
-    ALenum in_type, in_chans;
     DWORD dsbflags;
     BYTE *data;
-    ALuint *buffers;
-    ALuint numsegs;
-    ALuint segsize;
-    ALuint lastsegsize;
+    ALuint bid;
 } DS8Data;
 /* Amount of buffers that have to be queued when
  * bufferdatastatic and buffersubdata are not available */
@@ -483,8 +481,16 @@ struct DS8Buffer {
 
     DS8Data *buffer;
     ALuint source;
-    ALuint curidx;
-    BOOL isplaying, islooping, bufferlost;
+
+    ALuint stream_bids[QBUFFERS];
+    ALsizei curidx;
+    ALsizei data_offset;
+    ALsizei queue_base;
+
+    DWORD isplaying : 1;
+    DWORD islooping : 1;
+    DWORD bufferlost : 1;
+    DWORD playflags : 29;
     DWORD ds3dmode;
 
     DS3DBUFFER params;
@@ -493,6 +499,8 @@ struct DS8Buffer {
     DWORD nnotify, lastpos;
     DSBPOSITIONNOTIFY *notify;
 };
+#define DSBEXT_PLAYING 0x80000000
+#define DSBEXT_LIST 0x80000000
 
 const ALCchar *DSOUND_getdevicestrings(void);
 const ALCchar *DSOUND_getcapturedevicestrings(void);

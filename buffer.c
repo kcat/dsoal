@@ -25,6 +25,7 @@
 #define INITGUID
 #include "windows.h"
 #include "dsound.h"
+#include "mmsystem.h"
 #include "ks.h"
 
 #include "dsound_private.h"
@@ -278,6 +279,7 @@ static HRESULT DS8Data_Create(DS8Data **ppv, const DSBUFFERDESC *desc, DS8Primar
 {
     HRESULT hr = DSERR_INVALIDPARAM;
     const WAVEFORMATEX *format;
+    const char *fmt_str = NULL;
     DS8Data *pBuffer;
 
     format = desc->lpwfxFormat;
@@ -326,84 +328,55 @@ static HRESULT DS8Data_Create(DS8Data **ppv, const DSBUFFERDESC *desc, DS8Primar
     if(pBuffer->buf_size > DSBSIZE_MAX)
         goto fail;
 
-    pBuffer->numsegs = 1;
-    pBuffer->segsize = pBuffer->buf_size;
-    pBuffer->lastsegsize = pBuffer->buf_size;
-
+    if(!(pBuffer->dsbflags&DSBCAPS_STATIC))
     {
-        const char *fmt_str = NULL;
+        pBuffer->segsize = (format->nAvgBytesPerSec+prim->refresh-1) / prim->refresh;
+        pBuffer->segsize = clampI(pBuffer->segsize, 1, 2048);
+    }
 
-        if(!(pBuffer->dsbflags&DSBCAPS_STATIC))
-        {
-            ALCint refresh = FAKE_REFRESH_COUNT;
-            ALuint newSize;
+    if(format->wFormatTag == WAVE_FORMAT_PCM)
+        fmt_str = get_fmtstr_PCM(prim, format, &pBuffer->format);
+    else if(format->wFormatTag == WAVE_FORMAT_IEEE_FLOAT)
+        fmt_str = get_fmtstr_FLOAT(prim, format, &pBuffer->format);
+    else if(format->wFormatTag == WAVE_FORMAT_EXTENSIBLE)
+    {
+        const WAVEFORMATEXTENSIBLE *wfe;
 
-            alcGetIntegerv(prim->parent->device, ALC_REFRESH, 1, &refresh);
-            checkALCError(prim->parent->device);
-
-            newSize  = format->nAvgBytesPerSec/refresh + format->nBlockAlign - 1;
-            newSize -= newSize%format->nBlockAlign;
-
-            /* Make sure enough buffers are available */
-            if(newSize > pBuffer->buf_size/(QBUFFERS+2))
-                ERR("Buffer segments too large to stream (%u for %u)!\n",
-                    newSize, pBuffer->buf_size);
-            else
-            {
-                pBuffer->numsegs = pBuffer->buf_size/newSize;
-                pBuffer->segsize = newSize;
-                pBuffer->lastsegsize = pBuffer->buf_size - (newSize*(pBuffer->numsegs-1));
-                TRACE("New streaming buffer (%u chunks, %u : %u sizes)\n",
-                      pBuffer->numsegs, pBuffer->segsize, pBuffer->lastsegsize);
-            }
-        }
-
-        if(format->wFormatTag == WAVE_FORMAT_PCM)
-            fmt_str = get_fmtstr_PCM(prim, format, &pBuffer->format);
-        else if(format->wFormatTag == WAVE_FORMAT_IEEE_FLOAT)
-            fmt_str = get_fmtstr_FLOAT(prim, format, &pBuffer->format);
-        else if(format->wFormatTag == WAVE_FORMAT_EXTENSIBLE)
-        {
-            const WAVEFORMATEXTENSIBLE *wfe;
-
-            hr = DSERR_CONTROLUNAVAIL;
-            if(format->cbSize != sizeof(WAVEFORMATEXTENSIBLE)-sizeof(WAVEFORMATEX) &&
-               format->cbSize != sizeof(WAVEFORMATEXTENSIBLE))
-                goto fail;
-
-            wfe = CONTAINING_RECORD(format, const WAVEFORMATEXTENSIBLE, Format);
-            TRACE("Extensible values:\n"
-                  "    Samples     = %d\n"
-                  "    ChannelMask = 0x%lx\n"
-                  "    SubFormat   = %s\n",
-                  wfe->Samples.wReserved, wfe->dwChannelMask,
-                  debugstr_guid(&wfe->SubFormat));
-
-            fmt_str = get_fmtstr_EXT(prim, format, &pBuffer->format);
-        }
-        else
-            ERR("Unhandled formattag 0x%04x\n", format->wFormatTag);
-
-        hr = DSERR_INVALIDCALL;
-        if(!fmt_str)
+        hr = DSERR_CONTROLUNAVAIL;
+        if(format->cbSize != sizeof(WAVEFORMATEXTENSIBLE)-sizeof(WAVEFORMATEX) &&
+            format->cbSize != sizeof(WAVEFORMATEXTENSIBLE))
             goto fail;
 
-        pBuffer->buf_format = alGetEnumValue(fmt_str);
-        if(alGetError() != AL_NO_ERROR || pBuffer->buf_format == 0 ||
-           pBuffer->buf_format == -1)
-        {
-            WARN("Could not get OpenAL format from %s\n", fmt_str);
-            goto fail;
-        }
+        wfe = CONTAINING_RECORD(format, const WAVEFORMATEXTENSIBLE, Format);
+        TRACE("Extensible values:\n"
+                "    Samples     = %d\n"
+                "    ChannelMask = 0x%lx\n"
+                "    SubFormat   = %s\n",
+                wfe->Samples.wReserved, wfe->dwChannelMask,
+                debugstr_guid(&wfe->SubFormat));
+
+        fmt_str = get_fmtstr_EXT(prim, format, &pBuffer->format);
+    }
+    else
+        ERR("Unhandled formattag 0x%04x\n", format->wFormatTag);
+
+    hr = DSERR_INVALIDCALL;
+    if(!fmt_str)
+        goto fail;
+
+    pBuffer->buf_format = alGetEnumValue(fmt_str);
+    if(alGetError() != AL_NO_ERROR || pBuffer->buf_format == 0 ||
+        pBuffer->buf_format == -1)
+    {
+        WARN("Could not get OpenAL format from %s\n", fmt_str);
+        goto fail;
     }
 
     hr = E_OUTOFMEMORY;
-    pBuffer->buffers = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(*pBuffer->buffers)*pBuffer->numsegs);
     pBuffer->data = HeapAlloc(GetProcessHeap(), 0, pBuffer->buf_size);
-    if(!pBuffer->buffers || !pBuffer->data)
-        goto fail;
+    if(!pBuffer->data) goto fail;
 
-    alGenBuffers(pBuffer->numsegs, pBuffer->buffers);
+    alGenBuffers(1, &pBuffer->bid);
     checkALError();
 
     *ppv = pBuffer;
@@ -425,12 +398,11 @@ static void DS8Data_Release(DS8Data *This)
     if(InterlockedDecrement(&This->ref)) return;
 
     TRACE("Deleting %p\n", This);
-    if (This->buffers && This->buffers[0])
+    if(This->bid)
     {
-        alDeleteBuffers(This->numsegs, This->buffers);
+        alDeleteBuffers(1, &This->bid);
         checkALError();
     }
-    HeapFree(GetProcessHeap(), 0, This->buffers);
     HeapFree(GetProcessHeap(), 0, This->data);
     HeapFree(GetProcessHeap(), 0, This);
 }
@@ -527,6 +499,9 @@ void DS8Buffer_Destroy(DS8Buffer *This)
         prim->sources[prim->parent->share->nsources++] = This->source;
         This->source = 0;
     }
+    if(This->stream_bids[0])
+        alDeleteBuffers(QBUFFERS, This->stream_bids);
+
     LeaveCriticalSection(prim->crst);
 
     if(This->buffer)
@@ -626,24 +601,26 @@ static HRESULT WINAPI DS8Buffer_GetCaps(IDirectSoundBuffer8 *iface, DSBCAPS *cap
 static HRESULT WINAPI DS8Buffer_GetCurrentPosition(IDirectSoundBuffer8 *iface, DWORD *playpos, DWORD *curpos)
 {
     DS8Buffer *This = impl_from_IDirectSoundBuffer8(iface);
-    UINT writecursor, pos;
+    ALsizei writecursor, pos;
 
     TRACE("(%p)->(%p, %p)\n", iface, playpos, curpos);
 
-    if(This->buffer->numsegs > 1)
+    if(!(This->buffer->dsbflags&DSBCAPS_STATIC))
     {
-        ALint queued = QBUFFERS;
+        ALint ofs = 0;
 
         EnterCriticalSection(This->crst);
 
         setALContext(This->ctx);
-        alGetSourcei(This->source, AL_BUFFERS_QUEUED, &queued);
+        alGetSourcei(This->source, AL_BYTE_OFFSET, &ofs);
         checkALError();
         popALContext();
 
-        pos = (This->curidx+This->buffer->numsegs-queued)%This->buffer->numsegs;
-        pos *= This->buffer->segsize;
-        writecursor = This->curidx * This->buffer->segsize;
+        pos = ofs + This->queue_base;
+        if(This->isplaying)
+            writecursor = (This->buffer->segsize+pos) % This->buffer->buf_size;
+        else
+            writecursor = pos;
 
         LeaveCriticalSection(This->crst);
     }
@@ -826,7 +803,7 @@ static HRESULT WINAPI DS8Buffer_GetStatus(IDirectSoundBuffer8 *iface, DWORD *sta
     }
     *status = 0;
 
-    if(This->buffer->numsegs == 1)
+    if((This->buffer->dsbflags&DSBCAPS_STATIC))
     {
         setALContext(This->ctx);
         alGetSourcei(This->source, AL_SOURCE_STATE, &state);
@@ -916,6 +893,11 @@ static HRESULT WINAPI DS8Buffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSo
             else
                 memset(buf->data, 0x00, buf->buf_size);
         }
+    }
+
+    if(!(This->buffer->dsbflags&DSBCAPS_STATIC))
+    {
+        alGenBuffers(QBUFFERS, This->stream_bids);
         checkALError();
     }
 
@@ -1017,14 +999,14 @@ static HRESULT WINAPI DS8Buffer_Lock(IDirectSoundBuffer8 *iface, DWORD ofs, DWOR
 
     if((flags&DSBLOCK_FROMWRITECURSOR))
         DS8Buffer_GetCurrentPosition(iface, NULL, &ofs);
-    else if(ofs >= This->buffer->buf_size)
+    else if(ofs >= (DWORD)This->buffer->buf_size)
     {
         WARN("Invalid ofs %lu\n", ofs);
         return DSERR_INVALIDPARAM;
     }
     if((flags&DSBLOCK_ENTIREBUFFER))
         bytes = This->buffer->buf_size;
-    else if(bytes > This->buffer->buf_size)
+    else if(bytes > (DWORD)This->buffer->buf_size)
     {
         WARN("Invalid size %lu\n", bytes);
         return DSERR_INVALIDPARAM;
@@ -1037,7 +1019,7 @@ static HRESULT WINAPI DS8Buffer_Lock(IDirectSoundBuffer8 *iface, DWORD ofs, DWOR
     }
 
     *ptr1 = This->buffer->data + ofs;
-    if(ofs+bytes >= This->buffer->buf_size)
+    if(bytes >= (DWORD)This->buffer->buf_size-ofs)
     {
         *len1 = This->buffer->buf_size - ofs;
         remain = bytes - *len1;
@@ -1061,6 +1043,7 @@ static HRESULT WINAPI DS8Buffer_Play(IDirectSoundBuffer8 *iface, DWORD res1, DWO
 {
     DS8Buffer *This = impl_from_IDirectSoundBuffer8(iface);
     ALint type, state = AL_STOPPED;
+    DS8Data *data;
     HRESULT hr;
 
     TRACE("(%p)->(%lu, %lu, %lu)\n", iface, res1, prio, flags);
@@ -1075,14 +1058,15 @@ static HRESULT WINAPI DS8Buffer_Play(IDirectSoundBuffer8 *iface, DWORD res1, DWO
         goto out;
     }
 
-    if((This->buffer->dsbflags&DSBCAPS_LOCDEFER))
+    data = This->buffer;
+    if((data->dsbflags&DSBCAPS_LOCDEFER))
     {
-        if(!(This->buffer->dsbflags&(DSBCAPS_LOCHARDWARE|DSBCAPS_LOCSOFTWARE)))
+        if(!(data->dsbflags&(DSBCAPS_LOCHARDWARE|DSBCAPS_LOCSOFTWARE)))
         {
             if(flags & DSBPLAY_LOCSOFTWARE)
-                This->buffer->dsbflags |= DSBCAPS_LOCSOFTWARE;
+                data->dsbflags |= DSBCAPS_LOCSOFTWARE;
             else
-                This->buffer->dsbflags |= DSBCAPS_LOCHARDWARE;
+                data->dsbflags |= DSBCAPS_LOCHARDWARE;
         }
     }
     else if(prio)
@@ -1093,7 +1077,7 @@ static HRESULT WINAPI DS8Buffer_Play(IDirectSoundBuffer8 *iface, DWORD res1, DWO
     }
 
     alGetSourcei(This->source, AL_SOURCE_STATE, &state);
-    if(This->buffer->numsegs > 1)
+    if(!(data->dsbflags&DSBCAPS_STATIC))
     {
         This->islooping = !!(flags&DSBPLAY_LOOPING);
         if(state != AL_PLAYING && This->isplaying)
@@ -1111,29 +1095,29 @@ static HRESULT WINAPI DS8Buffer_Play(IDirectSoundBuffer8 *iface, DWORD res1, DWO
         goto out;
 
     /* alSourceQueueBuffers will implicitly set type to streaming */
-    if(This->buffer->numsegs == 1)
+    if((data->dsbflags&DSBCAPS_STATIC))
     {
         if(type != AL_STATIC)
-            alSourcei(This->source, AL_BUFFER, This->buffer->buffers[0]);
+            alSourcei(This->source, AL_BUFFER, This->buffer->bid);
         alSourcePlay(This->source);
     }
     if(alGetError() != AL_NO_ERROR)
     {
         ERR("Couldn't start source\n");
-        This->curidx = (This->buffer->numsegs-1+This->curidx)%This->buffer->numsegs;
         alSourcei(This->source, AL_BUFFER, 0);
         checkALError();
         hr = DSERR_GENERIC;
         goto out;
     }
     This->isplaying = TRUE;
+    This->playflags = flags;
 
     if(This->nnotify)
     {
         DS8Buffer_addnotify(This);
         DS8Primary_starttimer(This->primary);
     }
-    else if(This->buffer->numsegs > 1)
+    else if(!(data->dsbflags&DSBCAPS_STATIC))
         DS8Primary_starttimer(This->primary);
 
 out:
@@ -1145,20 +1129,18 @@ out:
 static HRESULT WINAPI DS8Buffer_SetCurrentPosition(IDirectSoundBuffer8 *iface, DWORD pos)
 {
     DS8Buffer *This = impl_from_IDirectSoundBuffer8(iface);
+    DS8Data *data;
 
     TRACE("(%p)->(%lu)\n", iface, pos);
 
-    if(pos >= This->buffer->buf_size)
+    data = This->buffer;
+    if(pos >= (DWORD)data->buf_size)
         return DSERR_INVALIDPARAM;
 
     EnterCriticalSection(This->crst);
 
-    if(This->buffer->numsegs > 1)
+    if(!(data->dsbflags&DSBCAPS_STATIC))
     {
-        DS8Data *buf = This->buffer;
-        This->curidx = pos/buf->segsize;
-        if(This->curidx >= buf->numsegs)
-            This->curidx = buf->numsegs - 1;
         if(This->isplaying)
         {
             setALContext(This->ctx);
@@ -1169,6 +1151,8 @@ static HRESULT WINAPI DS8Buffer_SetCurrentPosition(IDirectSoundBuffer8 *iface, D
             checkALError();
             popALContext();
         }
+        This->queue_base = This->data_offset = pos;
+        This->curidx = 0;
     }
     else
     {
@@ -1233,12 +1217,12 @@ static HRESULT WINAPI DS8Buffer_SetPan(IDirectSoundBuffer8 *iface, LONG pan)
     else
     {
         ALfloat pos[3];
-        pos[0] = (pan-DSBPAN_LEFT) * 2.0 / (ALfloat)(DSBPAN_RIGHT-DSBPAN_LEFT) - 1.0;
+        pos[0] = (pan-DSBPAN_LEFT)/(ALfloat)(DSBPAN_RIGHT-DSBPAN_LEFT) - 0.5f;
+        pos[1] = 0.0f;
         /* NOTE: Strict movement along the X plane can cause the sound to jump
          * between left and right sharply. Using a curved path helps smooth it
          * out */
-        pos[1] = sqrt(1.0 - pos[0]*pos[0]);
-        pos[2] = 0.0;
+        pos[2] = -sqrt(1.0 - pos[0]*pos[0]);
 
         setALContext(This->ctx);
         alSourcefv(This->source, AL_POSITION, pos);
@@ -1351,9 +1335,9 @@ static HRESULT WINAPI DS8Buffer_Unlock(IDirectSoundBuffer8 *iface, void *ptr1, D
         goto out;
 
     setALContext(This->ctx);
-    alBufferData(buf->buffers[0], buf->buf_format,
-                 buf->data, buf->buf_size,
-                 buf->format.Format.nSamplesPerSec);
+    if((buf->dsbflags&DSBCAPS_STATIC))
+        alBufferData(buf->bid, buf->buf_format, buf->data, buf->buf_size,
+                     buf->format.Format.nSamplesPerSec);
     checkALError();
     popALContext();
 
@@ -2319,7 +2303,7 @@ static HRESULT WINAPI DS8BufferNot_SetNotificationPositions(IDirectSoundNotify *
         hr = DSERR_INVALIDPARAM;
         for(i = 0;i < count;++i)
         {
-            if(notifications[i].dwOffset >= This->buffer->buf_size &&
+            if(notifications[i].dwOffset >= (DWORD)This->buffer->buf_size &&
                notifications[i].dwOffset != (DWORD)DSBPN_OFFSETSTOP)
                 goto out;
         }

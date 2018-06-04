@@ -112,6 +112,7 @@ static void trigger_stop_notifies(DS8Buffer *buf)
 static DWORD CALLBACK DS8Primary_thread(void *dwUser)
 {
     DS8Primary *prim = (DS8Primary*)dwUser;
+    BYTE *scratch_mem = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, 2048);
     MSG msg;
     DWORD i;
 
@@ -157,10 +158,11 @@ static DWORD CALLBACK DS8Primary_thread(void *dwUser)
         for(i = 0;i < prim->nbuffers;++i)
         {
             DS8Buffer *buf = prim->buffers[i];
-            ALint done = 0, queued = QBUFFERS, state = AL_PLAYING;
-            ALuint which, ofs;
+            DS8Data *data = buf->buffer;
+            ALint ofs, done = 0, queued = QBUFFERS, state = AL_PLAYING;
+            ALuint which;
 
-            if(buf->buffer->numsegs == 1 || !buf->isplaying)
+            if((data->dsbflags&DSBCAPS_STATIC) || !buf->isplaying)
                 continue;
 
             alGetSourcei(buf->source, AL_SOURCE_STATE, &state);
@@ -169,39 +171,58 @@ static DWORD CALLBACK DS8Primary_thread(void *dwUser)
 
             queued -= done;
             while(done--)
+            {
                 alSourceUnqueueBuffers(buf->source, 1, &which);
+                buf->queue_base = (buf->queue_base+data->segsize) % data->buf_size;
+            }
             while(queued < QBUFFERS)
             {
-                which = buf->buffer->buffers[buf->curidx];
-                ofs = buf->curidx*buf->buffer->segsize;
-                if(buf->curidx < buf->buffer->numsegs-1)
-                    alBufferData(which, buf->buffer->buf_format,
-                                    buf->buffer->data + ofs, buf->buffer->segsize,
-                                    buf->buffer->format.Format.nSamplesPerSec);
+                which = buf->stream_bids[buf->curidx];
+                ofs = buf->data_offset;
+
+                if(data->segsize < data->buf_size - ofs)
+                {
+                    alBufferData(which, data->buf_format, data->data + ofs, data->segsize,
+                                 data->format.Format.nSamplesPerSec);
+                    buf->data_offset = ofs + data->segsize;
+                }
+                else if(buf->islooping)
+                {
+                    ALsizei rem = data->buf_size - ofs;
+                    if(rem > 2048) rem = 2048;
+
+                    memcpy(scratch_mem, data->data + ofs, rem);
+                    memcpy(scratch_mem + rem, data->data, data->segsize - rem);
+                    alBufferData(which, data->buf_format, data->data + ofs, data->segsize,
+                                 data->format.Format.nSamplesPerSec);
+                    buf->data_offset = (ofs+data->segsize) % data->buf_size;
+                }
                 else
-                    alBufferData(which, buf->buffer->buf_format,
-                                    buf->buffer->data + ofs, buf->buffer->lastsegsize,
-                                    buf->buffer->format.Format.nSamplesPerSec);
+                {
+                    ALsizei rem = data->buf_size - ofs;
+                    if(rem > 2048) rem = 2048;
+                    if(rem == 0) break;
+
+                    memcpy(scratch_mem, data->data + ofs, rem);
+                    memset(scratch_mem+rem, (data->format.Format.wBitsPerSample == 8) ? 0x80 : 0,
+                           data->segsize - rem);
+                    alBufferData(which, data->buf_format, data->data + ofs, data->segsize,
+                                 data->format.Format.nSamplesPerSec);
+                    buf->data_offset = data->buf_size;
+                }
 
                 alSourceQueueBuffers(buf->source, 1, &which);
-                buf->curidx = (buf->curidx+1)%buf->buffer->numsegs;
+                buf->curidx = (buf->curidx+1)%QBUFFERS;
                 queued++;
+            }
 
-                if(!buf->curidx && !buf->islooping)
-                {
-                    buf->isplaying = FALSE;
-                    break;
-                }
-            }
-            if(state != AL_PLAYING)
+            if(!queued)
             {
-                if(!queued)
-                {
-                    IDirectSoundBuffer8_Stop(&buf->IDirectSoundBuffer8_iface);
-                    continue;
-                }
-                alSourcePlay(buf->source);
+                IDirectSoundBuffer8_Stop(&buf->IDirectSoundBuffer8_iface);
+                continue;
             }
+            else if(state != AL_PLAYING)
+                alSourcePlay(buf->source);
         }
         checkALError();
 
@@ -217,6 +238,9 @@ static DWORD CALLBACK DS8Primary_thread(void *dwUser)
         timeEndPeriod(prim->timer_res);
         TRACE("Killed timer\n");
     }
+
+    HeapFree(GetProcessHeap(), 0, scratch_mem);
+    scratch_mem = NULL;
 
     return 0;
 }
@@ -234,7 +258,6 @@ static void CALLBACK DS8Primary_timer(UINT timerID, UINT msg, DWORD_PTR dwUser,
 void DS8Primary_starttimer(DS8Primary *prim)
 {
     DWORD triggertime, res = DS_TIME_RES;
-    ALint refresh = FAKE_REFRESH_COUNT;
     TIMECAPS time;
 
     if(prim->timer_id)
@@ -242,13 +265,10 @@ void DS8Primary_starttimer(DS8Primary *prim)
 
     timeGetDevCaps(&time, sizeof(TIMECAPS));
 
-    alcGetIntegerv(prim->parent->device, ALC_REFRESH, 1, &refresh);
-    checkALCError(prim->parent->device);
-
-    triggertime = 1000 / refresh / 2;
+    triggertime = 1000 / prim->refresh / 2;
     if(triggertime < time.wPeriodMin)
         triggertime = time.wPeriodMin;
-    TRACE("Calling timer every %lu ms for %i refreshes per second\n", triggertime, refresh);
+    TRACE("Calling timer every %lu ms for %i refreshes per second\n", triggertime, prim->refresh);
 
     if (res < time.wPeriodMin)
         res = time.wPeriodMin;
@@ -265,6 +285,7 @@ HRESULT DS8Primary_PreInit(DS8Primary *This, DS8Impl *parent)
 {
     DS3DLISTENER *listener;
     WAVEFORMATEX *wfx;
+    ALCint refresh;
     HRESULT hr;
 
     This->IDirectSoundBuffer_iface.lpVtbl = (IDirectSoundBufferVtbl*)&DS8Primary_Vtbl;
@@ -278,6 +299,10 @@ HRESULT DS8Primary_PreInit(DS8Primary *This, DS8Impl *parent)
     This->ExtAL = &parent->share->ExtAL;
     This->sources = parent->share->sources;
     This->auxslot = parent->share->auxslot;
+
+    alcGetIntegerv(parent->device, ALC_REFRESH, 1, &refresh);
+    checkALCError(parent->device);
+    This->refresh = refresh;
 
     /* Allocate enough for a WAVEFORMATEXTENSIBLE */
     wfx = &This->format.Format;
