@@ -28,7 +28,7 @@ set(DSOAL_OBJS buffer.c
                propset.c)
 
 find_package(OpenAL REQUIRED)
-set(DSOAL_INC ${DSOAL_INC} ${DSOAL_BINARY_DIR} ${OPENAL_INCLUDE_DIR})
+set(DSOAL_INC ${DSOAL_INC} ${DSOAL_BINARY_DIR} ${DSOAL_SOURCE_DIR}/include/AL)
 
 if(NOT MSVC)
     set(DSOAL_FLAGS ${DSOAL_FLAGS} -Winline -Wall)
