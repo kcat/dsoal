@@ -79,7 +79,7 @@ static void trigger_elapsed_notifies(DS8Buffer *buf, DWORD lastpos, DWORD curpos
         {
             if(ofs < curpos || ofs >= lastpos)
             {
-                TRACE("Triggering notification %"LONGFMT"u (%"LONGFMT"u) from buffer %p\n", i, ofs, buf);
+                TRACE("Triggering notification %lu (%lu) from buffer %p\n", i, ofs, buf);
                 SetEvent(event);
             }
             continue;
@@ -88,7 +88,7 @@ static void trigger_elapsed_notifies(DS8Buffer *buf, DWORD lastpos, DWORD curpos
         /* Normal case */
         if(ofs >= lastpos && ofs < curpos)
         {
-            TRACE("Triggering notification %"LONGFMT"u (%"LONGFMT"u) from buffer %p\n", i, ofs, buf);
+            TRACE("Triggering notification %lu (%lu) from buffer %p\n", i, ofs, buf);
             SetEvent(event);
         }
     }
@@ -102,7 +102,7 @@ static void trigger_stop_notifies(DS8Buffer *buf)
         DSBPOSITIONNOTIFY *not = &buf->notify[i];
         if(not->dwOffset == (DWORD)DSBPN_OFFSETSTOP)
         {
-            TRACE("Triggering notification %"LONGFMT"u from buffer %p\n", i, buf);
+            TRACE("Triggering notification %lu from buffer %p\n", i, buf);
             SetEvent(not->hEventNotify);
         }
     }
@@ -111,8 +111,8 @@ static void trigger_stop_notifies(DS8Buffer *buf)
 static DWORD CALLBACK DS8Primary_thread(void *dwUser)
 {
     DS8Primary *prim = (DS8Primary*)dwUser;
-    DWORD i, active_notifies;
     MSG msg;
+    DWORD i;
 
     SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_TIME_CRITICAL);
 
@@ -149,73 +149,60 @@ static DWORD CALLBACK DS8Primary_thread(void *dwUser)
             }
             i++;
         }
-        active_notifies = i;
 
         /* OpenAL doesn't support our lovely buffer extensions
          * so just make sure enough buffers are queued
          */
-        if(!prim->SupportedExt[SOFT_BUFFER_SAMPLES] &&
-           !prim->SupportedExt[SOFT_BUFFER_SUB_DATA] &&
-           !prim->SupportedExt[EXT_STATIC_BUFFER])
+        for(i = 0;i < prim->nbuffers;++i)
         {
-            for(i = 0;i < prim->nbuffers;++i)
+            DS8Buffer *buf = prim->buffers[i];
+            ALint done = 0, queued = QBUFFERS, state = AL_PLAYING;
+            ALuint which, ofs;
+
+            if(buf->buffer->numsegs == 1 || !buf->isplaying)
+                continue;
+
+            alGetSourcei(buf->source, AL_SOURCE_STATE, &state);
+            alGetSourcei(buf->source, AL_BUFFERS_QUEUED, &queued);
+            alGetSourcei(buf->source, AL_BUFFERS_PROCESSED, &done);
+
+            queued -= done;
+            while(done--)
+                alSourceUnqueueBuffers(buf->source, 1, &which);
+            while(queued < QBUFFERS)
             {
-                DS8Buffer *buf = prim->buffers[i];
-                ALint done = 0, queued = QBUFFERS, state = AL_PLAYING;
-                ALuint which, ofs;
+                which = buf->buffer->buffers[buf->curidx];
+                ofs = buf->curidx*buf->buffer->segsize;
+                if(buf->curidx < buf->buffer->numsegs-1)
+                    alBufferData(which, buf->buffer->buf_format,
+                                    buf->buffer->data + ofs, buf->buffer->segsize,
+                                    buf->buffer->format.Format.nSamplesPerSec);
+                else
+                    alBufferData(which, buf->buffer->buf_format,
+                                    buf->buffer->data + ofs, buf->buffer->lastsegsize,
+                                    buf->buffer->format.Format.nSamplesPerSec);
 
-                if(buf->buffer->numsegs == 1 || !buf->isplaying)
-                    continue;
+                alSourceQueueBuffers(buf->source, 1, &which);
+                buf->curidx = (buf->curidx+1)%buf->buffer->numsegs;
+                queued++;
 
-                alGetSourcei(buf->source, AL_SOURCE_STATE, &state);
-                alGetSourcei(buf->source, AL_BUFFERS_QUEUED, &queued);
-                alGetSourcei(buf->source, AL_BUFFERS_PROCESSED, &done);
-
-                queued -= done;
-                while(done--)
-                    alSourceUnqueueBuffers(buf->source, 1, &which);
-                while(queued < QBUFFERS)
+                if(!buf->curidx && !buf->islooping)
                 {
-                    which = buf->buffer->buffers[buf->curidx];
-                    ofs = buf->curidx*buf->buffer->segsize;
-                    if(buf->curidx < buf->buffer->numsegs-1)
-                        alBufferData(which, buf->buffer->buf_format,
-                                     buf->buffer->data + ofs, buf->buffer->segsize,
-                                     buf->buffer->format.Format.nSamplesPerSec);
-                    else
-                        alBufferData(which, buf->buffer->buf_format,
-                                     buf->buffer->data + ofs, buf->buffer->lastsegsize,
-                                     buf->buffer->format.Format.nSamplesPerSec);
-
-                    alSourceQueueBuffers(buf->source, 1, &which);
-                    buf->curidx = (buf->curidx+1)%buf->buffer->numsegs;
-                    queued++;
-
-                    if(!buf->curidx && !buf->islooping)
-                    {
-                        buf->isplaying = FALSE;
-                        break;
-                    }
-                }
-                if(state != AL_PLAYING)
-                {
-                    if(!queued)
-                    {
-                        IDirectSoundBuffer8_Stop(&buf->IDirectSoundBuffer8_iface);
-                        continue;
-                    }
-                    alSourcePlay(buf->source);
+                    buf->isplaying = FALSE;
+                    break;
                 }
             }
-            checkALError();
+            if(state != AL_PLAYING)
+            {
+                if(!queued)
+                {
+                    IDirectSoundBuffer8_Stop(&buf->IDirectSoundBuffer8_iface);
+                    continue;
+                }
+                alSourcePlay(buf->source);
+            }
         }
-        else if(active_notifies == 0 && prim->timer_id)
-        {
-            TRACE("No more notifies, killing timer\n");
-            timeKillEvent(prim->timer_id);
-            prim->timer_id = 0;
-            timeEndPeriod(prim->timer_res);
-        }
+        checkALError();
 
         popALContext();
         LeaveCriticalSection(prim->crst);
@@ -260,7 +247,7 @@ void DS8Primary_starttimer(DS8Primary *prim)
     triggertime = 1000 / refresh / 2;
     if(triggertime < time.wPeriodMin)
         triggertime = time.wPeriodMin;
-    TRACE("Calling timer every %"LONGFMT"u ms for %i refreshes per second\n", triggertime, refresh);
+    TRACE("Calling timer every %lu ms for %i refreshes per second\n", triggertime, refresh);
 
     if (res < time.wPeriodMin)
         res = time.wPeriodMin;
@@ -353,7 +340,7 @@ HRESULT DS8Primary_PreInit(DS8Primary *This, DS8Impl *parent)
     listener->flDopplerFactor = DS3D_DEFAULTDOPPLERFACTOR;
     hr = IDirectSound3DListener_SetAllParameters(&This->IDirectSound3DListener_iface, listener, DS3D_IMMEDIATE);
     if(FAILED(hr))
-        ERR("Could not set 3d parameters: %08"LONGFMT"x\n", hr);
+        ERR("Could not set 3d parameters: %08lx\n", hr);
 
     This->sizenotifies = This->sizebuffers = parent->share->max_sources;
 
@@ -467,7 +454,7 @@ static HRESULT WINAPI DS8Primary_GetCaps(IDirectSoundBuffer *iface, DSBCAPS *cap
 
     if(!caps || caps->dwSize < sizeof(*caps))
     {
-        WARN("Invalid DSBCAPS (%p, %"LONGFMT"u)\n", caps, caps ? caps->dwSize : 0);
+        WARN("Invalid DSBCAPS (%p, %lu)\n", caps, caps ? caps->dwSize : 0);
         return DSERR_INVALIDPARAM;
     }
 
@@ -637,7 +624,7 @@ static HRESULT WINAPI DS8Primary_Initialize(IDirectSoundBuffer *iface, IDirectSo
        (desc->dwFlags&DSBCAPS_CTRLPOSITIONNOTIFY) ||
        (desc->dwFlags&DSBCAPS_LOCSOFTWARE))
     {
-        WARN("Bad dwFlags %08"LONGFMT"x\n", desc->dwFlags);
+        WARN("Bad dwFlags %08lx\n", desc->dwFlags);
         return DSERR_INVALIDPARAM;
     }
 
@@ -688,7 +675,7 @@ static HRESULT WINAPI DS8Primary_Lock(IDirectSoundBuffer *iface, DWORD ofs, DWOR
     DS8Primary *This = impl_from_IDirectSoundBuffer(iface);
     HRESULT hr = DSERR_PRIOLEVELNEEDED;
 
-    TRACE("(%p)->(%"LONGFMT"u, %"LONGFMT"u, %p, %p, %p, %p, %"LONGFMT"u)\n", iface, ofs, bytes, ptr1, len1, ptr2, len2, flags);
+    TRACE("(%p)->(%lu, %lu, %p, %p, %p, %p, %lu)\n", iface, ofs, bytes, ptr1, len1, ptr2, len2, flags);
 
     EnterCriticalSection(This->crst);
     if(This->write_emu)
@@ -703,11 +690,11 @@ static HRESULT WINAPI DS8Primary_Play(IDirectSoundBuffer *iface, DWORD res1, DWO
     DS8Primary *This = impl_from_IDirectSoundBuffer(iface);
     HRESULT hr;
 
-    TRACE("(%p)->(%"LONGFMT"u, %"LONGFMT"u, %"LONGFMT"u)\n", iface, res1, res2, flags);
+    TRACE("(%p)->(%lu, %lu, %lu)\n", iface, res1, res2, flags);
 
     if(!(flags & DSBPLAY_LOOPING))
     {
-        WARN("Flags (%08"LONGFMT"x) not set to DSBPLAY_LOOPING\n", flags);
+        WARN("Flags (%08lx) not set to DSBPLAY_LOOPING\n", flags);
         return DSERR_INVALIDPARAM;
     }
 
@@ -724,7 +711,7 @@ static HRESULT WINAPI DS8Primary_Play(IDirectSoundBuffer *iface, DWORD res1, DWO
 
 static HRESULT WINAPI DS8Primary_SetCurrentPosition(IDirectSoundBuffer *iface, DWORD pos)
 {
-    WARN("(%p)->(%"LONGFMT"u)\n", iface, pos);
+    WARN("(%p)->(%lu)\n", iface, pos);
     return DSERR_INVALIDCALL;
 }
 
@@ -809,8 +796,8 @@ static HRESULT WINAPI DS8Primary_SetFormat(IDirectSoundBuffer *iface, const WAVE
     TRACE("Requested primary format:\n"
           "    FormatTag      = %04x\n"
           "    Channels       = %u\n"
-          "    SamplesPerSec  = %"LONGFMT"u\n"
-          "    AvgBytesPerSec = %"LONGFMT"u\n"
+          "    SamplesPerSec  = %lu\n"
+          "    AvgBytesPerSec = %lu\n"
           "    BlockAlign     = %u\n"
           "    BitsPerSample  = %u\n",
           wfx->wFormatTag, wfx->nChannels,
@@ -861,11 +848,11 @@ static HRESULT WINAPI DS8Primary_SetVolume(IDirectSoundBuffer *iface, LONG vol)
 {
     DS8Primary *This = impl_from_IDirectSoundBuffer(iface);
 
-    TRACE("(%p)->(%"LONGFMT"d)\n", iface, vol);
+    TRACE("(%p)->(%ld)\n", iface, vol);
 
     if(vol > DSBVOLUME_MAX || vol < DSBVOLUME_MIN)
     {
-        WARN("Invalid volume (%"LONGFMT"d)\n", vol);
+        WARN("Invalid volume (%ld)\n", vol);
         return DSERR_INVALIDPARAM;
     }
 
@@ -884,11 +871,11 @@ static HRESULT WINAPI DS8Primary_SetPan(IDirectSoundBuffer *iface, LONG pan)
     DS8Primary *This = impl_from_IDirectSoundBuffer(iface);
     HRESULT hr;
 
-    TRACE("(%p)->(%"LONGFMT"d)\n", iface, pan);
+    TRACE("(%p)->(%ld)\n", iface, pan);
 
     if(pan > DSBPAN_RIGHT || pan < DSBPAN_LEFT)
     {
-        WARN("invalid parameter: pan = %"LONGFMT"d\n", pan);
+        WARN("invalid parameter: pan = %ld\n", pan);
         return DSERR_INVALIDPARAM;
     }
 
@@ -912,7 +899,7 @@ static HRESULT WINAPI DS8Primary_SetPan(IDirectSoundBuffer *iface, LONG pan)
 
 static HRESULT WINAPI DS8Primary_SetFrequency(IDirectSoundBuffer *iface, DWORD freq)
 {
-    WARN("(%p)->(%"LONGFMT"u)\n", iface, freq);
+    WARN("(%p)->(%lu)\n", iface, freq);
     return DSERR_CONTROLUNAVAIL;
 }
 
@@ -938,7 +925,7 @@ static HRESULT WINAPI DS8Primary_Unlock(IDirectSoundBuffer *iface, void *ptr1, D
     DS8Primary *This = impl_from_IDirectSoundBuffer(iface);
     HRESULT hr = DSERR_INVALIDCALL;
 
-    TRACE("(%p)->(%p, %"LONGFMT"u, %p, %"LONGFMT"u)\n", iface, ptr1, len1, ptr2, len2);
+    TRACE("(%p)->(%p, %lu, %p, %lu)\n", iface, ptr1, len1, ptr2, len2);
 
     EnterCriticalSection(This->crst);
     if(This->write_emu)
@@ -1043,7 +1030,7 @@ static ULONG WINAPI DS8Primary3D_AddRef(IDirectSound3DListener *iface)
     LONG ret;
 
     ret = InterlockedIncrement(&This->ds3d_ref);
-    TRACE("new refcount %"LONGFMT"d\n", ret);
+    TRACE("new refcount %ld\n", ret);
 
     return ret;
 }
@@ -1054,7 +1041,7 @@ static ULONG WINAPI DS8Primary3D_Release(IDirectSound3DListener *iface)
     LONG ret;
 
     ret = InterlockedDecrement(&This->ds3d_ref);
-    TRACE("new refcount %"LONGFMT"d\n", ret);
+    TRACE("new refcount %ld\n", ret);
 
     return ret;
 }
@@ -1068,7 +1055,7 @@ static HRESULT WINAPI DS8Primary3D_GetAllParameters(IDirectSound3DListener *ifac
 
     if(!listener || listener->dwSize < sizeof(*listener))
     {
-        WARN("Invalid DS3DLISTENER %p %"LONGFMT"u\n", listener, listener ? listener->dwSize : 0);
+        WARN("Invalid DS3DLISTENER %p %lu\n", listener, listener ? listener->dwSize : 0);
         return DSERR_INVALIDPARAM;
     }
 
@@ -1224,11 +1211,11 @@ static HRESULT WINAPI DS8Primary3D_SetAllParameters(IDirectSound3DListener *ifac
 {
     DS8Primary *This = impl_from_IDirectSound3DListener(iface);
 
-    TRACE("(%p)->(%p, %"LONGFMT"u)\n", iface, listen, apply);
+    TRACE("(%p)->(%p, %lu)\n", iface, listen, apply);
 
     if(!listen || listen->dwSize < sizeof(*listen))
     {
-        WARN("Invalid parameter %p %"LONGFMT"u\n", listen, listen ? listen->dwSize : 0);
+        WARN("Invalid parameter %p %lu\n", listen, listen ? listen->dwSize : 0);
         return DSERR_INVALIDPARAM;
     }
 
@@ -1291,7 +1278,7 @@ static HRESULT WINAPI DS8Primary3D_SetDistanceFactor(IDirectSound3DListener *ifa
 {
     DS8Primary *This = impl_from_IDirectSound3DListener(iface);
 
-    TRACE("(%p)->(%f, %"LONGFMT"u)\n", iface, factor, apply);
+    TRACE("(%p)->(%f, %lu)\n", iface, factor, apply);
 
     if(factor < DS3D_MINDISTANCEFACTOR ||
        factor > DS3D_MAXDISTANCEFACTOR)
@@ -1324,7 +1311,7 @@ static HRESULT WINAPI DS8Primary3D_SetDopplerFactor(IDirectSound3DListener *ifac
 {
     DS8Primary *This = impl_from_IDirectSound3DListener(iface);
 
-    TRACE("(%p)->(%f, %"LONGFMT"u)\n", iface, factor, apply);
+    TRACE("(%p)->(%f, %lu)\n", iface, factor, apply);
 
     if(factor < DS3D_MINDOPPLERFACTOR ||
        factor > DS3D_MAXDOPPLERFACTOR)
@@ -1355,7 +1342,7 @@ static HRESULT WINAPI DS8Primary3D_SetOrientation(IDirectSound3DListener *iface,
 {
     DS8Primary *This = impl_from_IDirectSound3DListener(iface);
 
-    TRACE("(%p)->(%f, %f, %f, %f, %f, %f, %"LONGFMT"u)\n", iface, xFront, yFront, zFront, xTop, yTop, zTop, apply);
+    TRACE("(%p)->(%f, %f, %f, %f, %f, %f, %lu)\n", iface, xFront, yFront, zFront, xTop, yTop, zTop, apply);
 
     if(apply == DS3D_DEFERRED)
     {
@@ -1388,7 +1375,7 @@ static HRESULT WINAPI DS8Primary3D_SetPosition(IDirectSound3DListener *iface, D3
 {
     DS8Primary *This = impl_from_IDirectSound3DListener(iface);
 
-    TRACE("(%p)->(%f, %f, %f, %"LONGFMT"u)\n", iface, x, y, z, apply);
+    TRACE("(%p)->(%f, %f, %f, %lu)\n", iface, x, y, z, apply);
 
     if(apply == DS3D_DEFERRED)
     {
@@ -1414,7 +1401,7 @@ static HRESULT WINAPI DS8Primary3D_SetRolloffFactor(IDirectSound3DListener *ifac
 {
     DS8Primary *This = impl_from_IDirectSound3DListener(iface);
 
-    TRACE("(%p)->(%f, %"LONGFMT"u)\n", iface, factor, apply);
+    TRACE("(%p)->(%f, %lu)\n", iface, factor, apply);
 
     if(factor < DS3D_MINROLLOFFFACTOR ||
        factor > DS3D_MAXROLLOFFFACTOR)
@@ -1453,7 +1440,7 @@ static HRESULT WINAPI DS8Primary3D_SetVelocity(IDirectSound3DListener *iface, D3
 {
     DS8Primary *This = impl_from_IDirectSound3DListener(iface);
 
-    TRACE("(%p)->(%f, %f, %f, %"LONGFMT"u)\n", iface, x, y, z, apply);
+    TRACE("(%p)->(%f, %f, %f, %lu)\n", iface, x, y, z, apply);
 
     if(apply == DS3D_DEFERRED)
     {
@@ -1491,7 +1478,7 @@ static HRESULT WINAPI DS8Primary3D_CommitDeferredSettings(IDirectSound3DListener
         /* checkALError is here for debugging */
         checkALError();
     }
-    TRACE("Dirty flags was: 0x%02"LONGFMT"x\n", flags);
+    TRACE("Dirty flags was: 0x%02lx\n", flags);
 
     for(i = 0;i < This->nbuffers;++i)
     {
@@ -1546,7 +1533,7 @@ static ULONG WINAPI DS8PrimaryProp_AddRef(IKsPropertySet *iface)
     LONG ret;
 
     ret = InterlockedIncrement(&This->prop_ref);
-    TRACE("new refcount %"LONGFMT"d\n", ret);
+    TRACE("new refcount %ld\n", ret);
 
     return ret;
 }
@@ -1557,7 +1544,7 @@ static ULONG WINAPI DS8PrimaryProp_Release(IKsPropertySet *iface)
     LONG ret;
 
     ret = InterlockedDecrement(&This->prop_ref);
-    TRACE("new refcount %"LONGFMT"d\n", ret);
+    TRACE("new refcount %ld\n", ret);
 
     return ret;
 }
@@ -1715,7 +1702,7 @@ static HRESULT WINAPI DS8PrimaryProp_Get(IKsPropertySet *iface,
             break;
 
         default:
-            FIXME("Unhandled propid: 0x%08"LONGFMT"x\n", dwPropID);
+            FIXME("Unhandled propid: 0x%08lx\n", dwPropID);
             break;
         }
 
@@ -1993,7 +1980,7 @@ static HRESULT WINAPI DS8PrimaryProp_Set(IKsPropertySet *iface,
             break;
 
         default:
-            FIXME("Unhandled propid: 0x%08"LONGFMT"x\n", propid);
+            FIXME("Unhandled propid: 0x%08lx\n", propid);
             break;
         }
 
@@ -2036,7 +2023,7 @@ static HRESULT WINAPI DS8PrimaryProp_QuerySupport(IKsPropertySet *iface,
             res = DS_OK;
         }
         else
-            FIXME("Unhandled propid: 0x%08"LONGFMT"x\n", dwPropID);
+            FIXME("Unhandled propid: 0x%08lx\n", dwPropID);
 
         LeaveCriticalSection(This->crst);
     }

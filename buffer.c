@@ -23,9 +23,9 @@
 #include <stdarg.h>
 
 #define INITGUID
-#include <windows.h>
-#include <dsound.h>
-#include <ks.h>
+#include "windows.h"
+#include "dsound.h"
+#include "ks.h"
 
 #include "dsound_private.h"
 
@@ -149,94 +149,6 @@ static const char *get_fmtstr_PCM(const DS8Primary *prim, const WAVEFORMATEX *fo
           format->wBitsPerSample, format->nChannels);
     return NULL;
 }
-static ALenum get_fmt_PCM(const WAVEFORMATEX *format, WAVEFORMATEXTENSIBLE *out, ALenum *in_chans, ALenum *in_type)
-{
-    out->Format = *format;
-    out->Format.cbSize = 0;
-
-    if(format->wBitsPerSample == 8)
-    {
-        *in_type = AL_UNSIGNED_BYTE_SOFT;
-        switch(format->nChannels)
-        {
-        case 1: *in_chans = AL_MONO_SOFT;
-                return AL_MONO8_SOFT;
-        case 2: *in_chans = AL_STEREO_SOFT;
-                return AL_STEREO8_SOFT;
-        case 4: *in_chans = AL_QUAD_SOFT;
-                return AL_QUAD8_SOFT;
-        case 6: *in_chans = AL_5POINT1_SOFT;
-                return AL_5POINT1_8_SOFT;
-        case 7: *in_chans = AL_6POINT1_SOFT;
-                return AL_6POINT1_8_SOFT;
-        case 8: *in_chans = AL_7POINT1_SOFT;
-                return AL_7POINT1_8_SOFT;
-        }
-    }
-    else if(format->wBitsPerSample == 16)
-    {
-        *in_type = AL_SHORT_SOFT;
-        switch(format->nChannels)
-        {
-        case 1: *in_chans = AL_MONO_SOFT;
-                return AL_MONO16_SOFT;
-        case 2: *in_chans = AL_STEREO_SOFT;
-                return AL_STEREO16_SOFT;
-        case 4: *in_chans = AL_QUAD_SOFT;
-                return AL_QUAD16_SOFT;
-        case 6: *in_chans = AL_5POINT1_SOFT;
-                return AL_5POINT1_16_SOFT;
-        case 7: *in_chans = AL_6POINT1_SOFT;
-                return AL_6POINT1_16_SOFT;
-        case 8: *in_chans = AL_7POINT1_SOFT;
-                return AL_7POINT1_16_SOFT;
-        }
-    }
-#if 0 /* Will cause incorrect byte offsets */
-    else if(format->wBitsPerSample == 24)
-    {
-        *in_type = AL_BYTE3_SOFT;
-        switch(format->nChannels)
-        {
-        case 1: *in_chans = AL_MONO_SOFT;
-                return AL_MONO32F_SOFT;
-        case 2: *in_chans = AL_STEREO_SOFT;
-                return AL_STEREO32F_SOFT;
-        case 4: *in_chans = AL_QUAD_SOFT;
-                return AL_QUAD32F_SOFT;
-        case 6: *in_chans = AL_5POINT1_SOFT;
-                return AL_5POINT1_32F_SOFT;
-        case 7: *in_chans = AL_6POINT1_SOFT;
-                return AL_6POINT1_32F_SOFT;
-        case 8: *in_chans = AL_7POINT1_SOFT;
-                return AL_7POINT1_32F_SOFT;
-        }
-    }
-#endif
-    else if(format->wBitsPerSample == 32)
-    {
-        *in_type = AL_INT_SOFT;
-        switch(format->nChannels)
-        {
-        case 1: *in_chans = AL_MONO_SOFT;
-                return AL_MONO32F_SOFT;
-        case 2: *in_chans = AL_STEREO_SOFT;
-                return AL_STEREO32F_SOFT;
-        case 4: *in_chans = AL_QUAD_SOFT;
-                return AL_QUAD32F_SOFT;
-        case 6: *in_chans = AL_5POINT1_SOFT;
-                return AL_5POINT1_32F_SOFT;
-        case 7: *in_chans = AL_6POINT1_SOFT;
-                return AL_6POINT1_32F_SOFT;
-        case 8: *in_chans = AL_7POINT1_SOFT;
-                return AL_7POINT1_32F_SOFT;
-        }
-    }
-
-    FIXME("Could not get OpenAL format (%d-bit, %d channels)\n",
-          format->wBitsPerSample, format->nChannels);
-    return AL_NONE;
-}
 
 static const char *get_fmtstr_FLOAT(const DS8Primary *prim, const WAVEFORMATEX *format, WAVEFORMATEXTENSIBLE *out)
 {
@@ -266,56 +178,6 @@ static const char *get_fmtstr_FLOAT(const DS8Primary *prim, const WAVEFORMATEX *
     FIXME("Could not get OpenAL format (%d-bit, %d channels)\n",
           format->wBitsPerSample, format->nChannels);
     return NULL;
-}
-static ALenum get_fmt_FLOAT(const WAVEFORMATEX *format, WAVEFORMATEXTENSIBLE *out, ALenum *in_chans, ALenum *in_type)
-{
-    out->Format = *format;
-    out->Format.cbSize = 0;
-
-    if(format->wBitsPerSample == 32)
-    {
-        *in_type = AL_FLOAT_SOFT;
-        switch(format->nChannels)
-        {
-        case 1: *in_chans = AL_MONO_SOFT;
-                return AL_MONO32F_SOFT;
-        case 2: *in_chans = AL_STEREO_SOFT;
-                return AL_STEREO32F_SOFT;
-        case 4: *in_chans = AL_QUAD_SOFT;
-                return AL_QUAD32F_SOFT;
-        case 6: *in_chans = AL_5POINT1_SOFT;
-                return AL_5POINT1_32F_SOFT;
-        case 7: *in_chans = AL_6POINT1_SOFT;
-                return AL_6POINT1_32F_SOFT;
-        case 8: *in_chans = AL_7POINT1_SOFT;
-                return AL_7POINT1_32F_SOFT;
-        }
-    }
-#if 0 /* Will cause incorrect byte offsets */
-    else if(format->wBitsPerSample == 64)
-    {
-        *in_type = AL_DOUBLE_SOFT;
-        switch(format->nChannels)
-        {
-        case 1: *in_chans = AL_MONO_SOFT;
-                return AL_MONO32F_SOFT;
-        case 2: *in_chans = AL_STEREO_SOFT;
-                return AL_STEREO32F_SOFT;
-        case 4: *in_chans = AL_QUAD_SOFT;
-                return AL_QUAD32F_SOFT;
-        case 6: *in_chans = AL_5POINT1_SOFT;
-                return AL_5POINT1_32F_SOFT;
-        case 7: *in_chans = AL_6POINT1_SOFT;
-                return AL_6POINT1_32F_SOFT;
-        case 8: *in_chans = AL_7POINT1_SOFT;
-                return AL_7POINT1_32F_SOFT;
-        }
-    }
-#endif
-
-    FIXME("Could not get OpenAL format (%d-bit, %d channels)\n",
-          format->wBitsPerSample, format->nChannels);
-    return AL_NONE;
 }
 
 /* Speaker configs */
@@ -376,7 +238,7 @@ static const char *get_fmtstr_EXT(const DS8Primary *prim, const WAVEFORMATEX *fo
             }
         }
 
-        FIXME("Could not get OpenAL PCM format (%d-bit, channelmask %#"LONGFMT"x)\n",
+        FIXME("Could not get OpenAL PCM format (%d-bit, channelmask %#lx)\n",
               out->Samples.wValidBitsPerSample, out->dwChannelMask);
         return NULL;
     }
@@ -402,179 +264,13 @@ static const char *get_fmtstr_EXT(const DS8Primary *prim, const WAVEFORMATEX *fo
             return NULL;
         }
 
-        FIXME("Could not get OpenAL float format (%d-bit, channelmask %#"LONGFMT"x)\n",
+        FIXME("Could not get OpenAL float format (%d-bit, channelmask %#lx)\n",
               out->Samples.wValidBitsPerSample, out->dwChannelMask);
         return NULL;
     }
     else if(!IsEqualGUID(&out->SubFormat, &GUID_NULL))
         ERR("Unhandled extensible format: %s\n", debugstr_guid(&out->SubFormat));
     return NULL;
-}
-static ALenum get_fmt_EXT(const WAVEFORMATEX *format, WAVEFORMATEXTENSIBLE *out, ALenum *in_chans, ALenum *in_type)
-{
-    *out = *CONTAINING_RECORD(format, const WAVEFORMATEXTENSIBLE, Format);
-    out->Format.cbSize = sizeof(*out) - sizeof(out->Format);
-
-    if(!out->Samples.wValidBitsPerSample)
-        out->Samples.wValidBitsPerSample = out->Format.wBitsPerSample;
-    else if(out->Samples.wValidBitsPerSample != out->Format.wBitsPerSample)
-    {
-        FIXME("Padded samples not supported (%u of %u)\n", out->Samples.wValidBitsPerSample, out->Format.wBitsPerSample);
-        return AL_NONE;
-    }
-
-    if(IsEqualGUID(&out->SubFormat, &KSDATAFORMAT_SUBTYPE_PCM))
-    {
-        if(out->Samples.wValidBitsPerSample == 8)
-        {
-            *in_type = AL_UNSIGNED_BYTE_SOFT;
-            switch(out->dwChannelMask)
-            {
-            case   MONO: *in_chans = AL_MONO_SOFT;
-                         return AL_MONO8_SOFT;
-            case STEREO: *in_chans = AL_STEREO_SOFT;
-                         return AL_STEREO8_SOFT;
-            case   REAR: *in_chans = AL_REAR_SOFT;
-                         return AL_REAR8_SOFT;
-            case   QUAD: *in_chans = AL_QUAD_SOFT;
-                         return AL_QUAD8_SOFT;
-            case X5DOT1: *in_chans = AL_5POINT1_SOFT;
-                         return AL_5POINT1_8_SOFT;
-            case X6DOT1: *in_chans = AL_6POINT1_SOFT;
-                         return AL_6POINT1_8_SOFT;
-            case X7DOT1: *in_chans = AL_7POINT1_SOFT;
-                         return AL_7POINT1_8_SOFT;
-            }
-        }
-        else if(out->Samples.wValidBitsPerSample == 16)
-        {
-            *in_type = AL_SHORT_SOFT;
-            switch(out->dwChannelMask)
-            {
-            case   MONO: *in_chans = AL_MONO_SOFT;
-                         return AL_MONO16_SOFT;
-            case STEREO: *in_chans = AL_STEREO_SOFT;
-                         return AL_STEREO16_SOFT;
-            case   REAR: *in_chans = AL_REAR_SOFT;
-                         return AL_REAR16_SOFT;
-            case   QUAD: *in_chans = AL_QUAD_SOFT;
-                         return AL_QUAD16_SOFT;
-            case X5DOT1: *in_chans = AL_5POINT1_SOFT;
-                         return AL_5POINT1_16_SOFT;
-            case X6DOT1: *in_chans = AL_6POINT1_SOFT;
-                         return AL_6POINT1_16_SOFT;
-            case X7DOT1: *in_chans = AL_7POINT1_SOFT;
-                         return AL_7POINT1_16_SOFT;
-            }
-        }
-#if 0
-        else if(out->Samples.wValidBitsPerSample == 24)
-        {
-            *in_type = AL_BYTE3_SOFT;
-            switch(out->dwChannelMask)
-            {
-            case   MONO: *in_chans = AL_MONO_SOFT;
-                         return AL_MONO32F_SOFT;
-            case STEREO: *in_chans = AL_STEREO_SOFT;
-                         return AL_STEREO32F_SOFT;
-            case   REAR: *in_chans = AL_REAR_SOFT;
-                         return AL_REAR32F_SOFT;
-            case   QUAD: *in_chans = AL_QUAD_SOFT;
-                         return AL_QUAD32F_SOFT;
-            case X5DOT1: *in_chans = AL_5POINT1_SOFT;
-                         return AL_5POINT1_32F_SOFT;
-            case X6DOT1: *in_chans = AL_6POINT1_SOFT;
-                         return AL_6POINT1_32F_SOFT;
-            case X7DOT1: *in_chans = AL_7POINT1_SOFT;
-                         return AL_7POINT1_32F_SOFT;
-            }
-        }
-#endif
-        else if(out->Samples.wValidBitsPerSample == 32)
-        {
-            *in_type = AL_INT_SOFT;
-            switch(out->dwChannelMask)
-            {
-            case   MONO: *in_chans = AL_MONO_SOFT;
-                         return AL_MONO32F_SOFT;
-            case STEREO: *in_chans = AL_STEREO_SOFT;
-                         return AL_STEREO32F_SOFT;
-            case   REAR: *in_chans = AL_REAR_SOFT;
-                         return AL_REAR32F_SOFT;
-            case   QUAD: *in_chans = AL_QUAD_SOFT;
-                         return AL_QUAD32F_SOFT;
-            case X5DOT1: *in_chans = AL_5POINT1_SOFT;
-                         return AL_5POINT1_32F_SOFT;
-            case X6DOT1: *in_chans = AL_6POINT1_SOFT;
-                         return AL_6POINT1_32F_SOFT;
-            case X7DOT1: *in_chans = AL_7POINT1_SOFT;
-                         return AL_7POINT1_32F_SOFT;
-            }
-        }
-
-        FIXME("Could not get OpenAL PCM format (%d-bit, channelmask %#"LONGFMT"x)\n",
-              out->Samples.wValidBitsPerSample, out->dwChannelMask);
-        return AL_NONE;
-    }
-    else if(IsEqualGUID(&out->SubFormat, &KSDATAFORMAT_SUBTYPE_IEEE_FLOAT))
-    {
-        if(out->Samples.wValidBitsPerSample == 32)
-        {
-            *in_type = AL_FLOAT_SOFT;
-            switch(out->dwChannelMask)
-            {
-            case   MONO: *in_chans = AL_MONO_SOFT;
-                         return AL_MONO32F_SOFT;
-            case STEREO: *in_chans = AL_STEREO_SOFT;
-                         return AL_STEREO32F_SOFT;
-            case   REAR: *in_chans = AL_REAR_SOFT;
-                         return AL_REAR32F_SOFT;
-            case   QUAD: *in_chans = AL_QUAD_SOFT;
-                         return AL_QUAD32F_SOFT;
-            case X5DOT1: *in_chans = AL_5POINT1_SOFT;
-                         return AL_5POINT1_32F_SOFT;
-            case X6DOT1: *in_chans = AL_6POINT1_SOFT;
-                         return AL_6POINT1_32F_SOFT;
-            case X7DOT1: *in_chans = AL_7POINT1_SOFT;
-                         return AL_7POINT1_32F_SOFT;
-            }
-        }
-#if 0
-        else if(out->Samples.wValidBitsPerSample == 64)
-        {
-            *in_type = AL_DOUBLE_SOFT;
-            switch(out->dwChannelMask)
-            {
-            case   MONO: *in_chans = AL_MONO_SOFT;
-                         return AL_MONO32F_SOFT;
-            case STEREO: *in_chans = AL_STEREO_SOFT;
-                         return AL_STEREO32F_SOFT;
-            case   REAR: *in_chans = AL_REAR_SOFT;
-                         return AL_REAR32F_SOFT;
-            case   QUAD: *in_chans = AL_QUAD_SOFT;
-                         return AL_QUAD32F_SOFT;
-            case X5DOT1: *in_chans = AL_5POINT1_SOFT;
-                         return AL_5POINT1_32F_SOFT;
-            case X6DOT1: *in_chans = AL_6POINT1_SOFT;
-                         return AL_6POINT1_32F_SOFT;
-            case X7DOT1: *in_chans = AL_7POINT1_SOFT;
-                         return AL_7POINT1_32F_SOFT;
-            }
-        }
-#endif
-        else
-        {
-            WARN("Invalid float bits: %u\n", out->Samples.wValidBitsPerSample);
-            return AL_NONE;
-        }
-
-        FIXME("Could not get OpenAL float format (%d-bit, channelmask %#"LONGFMT"x)\n",
-              out->Samples.wValidBitsPerSample, out->dwChannelMask);
-        return AL_NONE;
-    }
-    else if(!IsEqualGUID(&out->SubFormat, &GUID_NULL))
-        ERR("Unhandled extensible format: %s\n", debugstr_guid(&out->SubFormat));
-    return AL_NONE;
 }
 
 static void DS8Data_Release(DS8Data *This);
@@ -588,8 +284,8 @@ static HRESULT DS8Data_Create(DS8Data **ppv, const DSBUFFERDESC *desc, DS8Primar
     TRACE("Requested buffer format:\n"
           "    FormatTag      = 0x%04x\n"
           "    Channels       = %d\n"
-          "    SamplesPerSec  = %"LONGFMT"u\n"
-          "    AvgBytesPerSec = %"LONGFMT"u\n"
+          "    SamplesPerSec  = %lu\n"
+          "    AvgBytesPerSec = %lu\n"
           "    BlockAlign     = %d\n"
           "    BitsPerSample  = %d\n",
           format->wFormatTag, format->nChannels,
@@ -634,13 +330,10 @@ static HRESULT DS8Data_Create(DS8Data **ppv, const DSBUFFERDESC *desc, DS8Primar
     pBuffer->segsize = pBuffer->buf_size;
     pBuffer->lastsegsize = pBuffer->buf_size;
 
-    if(!prim->SupportedExt[SOFT_BUFFER_SAMPLES])
     {
         const char *fmt_str = NULL;
 
-        if(!(pBuffer->dsbflags&DSBCAPS_STATIC) &&
-           !prim->SupportedExt[SOFT_BUFFER_SUB_DATA] &&
-           !prim->SupportedExt[EXT_STATIC_BUFFER])
+        if(!(pBuffer->dsbflags&DSBCAPS_STATIC))
         {
             ALCint refresh = FAKE_REFRESH_COUNT;
             ALuint newSize;
@@ -681,7 +374,7 @@ static HRESULT DS8Data_Create(DS8Data **ppv, const DSBUFFERDESC *desc, DS8Primar
             wfe = CONTAINING_RECORD(format, const WAVEFORMATEXTENSIBLE, Format);
             TRACE("Extensible values:\n"
                   "    Samples     = %d\n"
-                  "    ChannelMask = 0x%"LONGFMT"x\n"
+                  "    ChannelMask = 0x%lx\n"
                   "    SubFormat   = %s\n",
                   wfe->Samples.wReserved, wfe->dwChannelMask,
                   debugstr_guid(&wfe->SubFormat));
@@ -700,41 +393,6 @@ static HRESULT DS8Data_Create(DS8Data **ppv, const DSBUFFERDESC *desc, DS8Primar
            pBuffer->buf_format == -1)
         {
             WARN("Could not get OpenAL format from %s\n", fmt_str);
-            goto fail;
-        }
-    }
-    else
-    {
-        if(format->wFormatTag == WAVE_FORMAT_PCM)
-            pBuffer->buf_format = get_fmt_PCM(format, &pBuffer->format, &pBuffer->in_chans, &pBuffer->in_type);
-        else if(format->wFormatTag == WAVE_FORMAT_IEEE_FLOAT)
-            pBuffer->buf_format = get_fmt_FLOAT(format, &pBuffer->format, &pBuffer->in_chans, &pBuffer->in_type);
-        else if(format->wFormatTag == WAVE_FORMAT_EXTENSIBLE)
-        {
-            const WAVEFORMATEXTENSIBLE *wfe;
-
-            hr = DSERR_CONTROLUNAVAIL;
-            if(format->cbSize != sizeof(WAVEFORMATEXTENSIBLE)-sizeof(WAVEFORMATEX) &&
-               format->cbSize != sizeof(WAVEFORMATEXTENSIBLE))
-                goto fail;
-
-            wfe = CONTAINING_RECORD(format, const WAVEFORMATEXTENSIBLE, Format);
-            TRACE("Extensible values:\n"
-                  "    Samples     = %d\n"
-                  "    ChannelMask = 0x%"LONGFMT"x\n"
-                  "    SubFormat   = %s\n",
-                  wfe->Samples.wReserved, wfe->dwChannelMask,
-                  debugstr_guid(&wfe->SubFormat));
-
-            pBuffer->buf_format = get_fmt_EXT(format, &pBuffer->format, &pBuffer->in_chans, &pBuffer->in_type);
-        }
-        else
-            ERR("Unhandled formattag 0x%04x\n", format->wFormatTag);
-
-        hr = DSERR_INVALIDCALL;
-        if(prim->ExtAL->IsBufferFormatSupportedSOFT(pBuffer->buf_format) == AL_FALSE)
-        {
-            WARN("Unsupported OpenAL format: 0x%x\n", pBuffer->buf_format);
             goto fail;
         }
     }
@@ -928,7 +586,7 @@ static ULONG WINAPI DS8Buffer_AddRef(IDirectSoundBuffer8 *iface)
 
     InterlockedIncrement(&This->all_ref);
     ret = InterlockedIncrement(&This->ref);
-    TRACE("new refcount %"LONGFMT"d\n", ret);
+    TRACE("new refcount %ld\n", ret);
 
     return ret;
 }
@@ -939,7 +597,7 @@ static ULONG WINAPI DS8Buffer_Release(IDirectSoundBuffer8 *iface)
     LONG ret;
 
     ret = InterlockedDecrement(&This->ref);
-    TRACE("new refcount %"LONGFMT"d\n", ret);
+    TRACE("new refcount %ld\n", ret);
     if(InterlockedDecrement(&This->all_ref) == 0)
         DS8Buffer_Destroy(This);
 
@@ -954,7 +612,7 @@ static HRESULT WINAPI DS8Buffer_GetCaps(IDirectSoundBuffer8 *iface, DSBCAPS *cap
 
     if(!caps || caps->dwSize < sizeof(*caps))
     {
-        WARN("Invalid DSBCAPS (%p, %"LONGFMT"u)\n", caps, (caps ? caps->dwSize : 0));
+        WARN("Invalid DSBCAPS (%p, %lu)\n", caps, (caps ? caps->dwSize : 0));
         return DSERR_INVALIDPARAM;
     }
 
@@ -988,19 +646,6 @@ static HRESULT WINAPI DS8Buffer_GetCurrentPosition(IDirectSoundBuffer8 *iface, D
         writecursor = This->curidx * This->buffer->segsize;
 
         LeaveCriticalSection(This->crst);
-    }
-    else if(This->primary->SupportedExt[SOFT_BUFFER_SUB_DATA] ||
-            This->primary->SupportedExt[SOFT_BUFFER_SAMPLES])
-    {
-        ALint rwpos[2] = { 0, 0 };
-
-        setALContext(This->ctx);
-        alGetSourceiv(This->source, AL_BYTE_RW_OFFSETS_SOFT, rwpos);
-        checkALError();
-        popALContext();
-
-        pos = rwpos[0];
-        writecursor = rwpos[1];
     }
     else
     {
@@ -1049,7 +694,7 @@ static HRESULT WINAPI DS8Buffer_GetFormat(IDirectSoundBuffer8 *iface, WAVEFORMAT
     HRESULT hr = S_OK;
     UINT size;
 
-    TRACE("(%p)->(%p, %"LONGFMT"u, %p)\n", iface, wfx, allocated, written);
+    TRACE("(%p)->(%p, %lu, %p)\n", iface, wfx, allocated, written);
 
     if(!wfx && !written)
     {
@@ -1215,7 +860,7 @@ static HRESULT WINAPI DS8Buffer_GetStatus(IDirectSoundBuffer8 *iface, DWORD *sta
     if(state == AL_PLAYING)
         *status |= DSBSTATUS_PLAYING | (looping ? DSBSTATUS_LOOPING : 0);
 
-    TRACE("%p status = 0x%08"LONGFMT"x\n", This, *status);
+    TRACE("%p status = 0x%08lx\n", This, *status);
     return S_OK;
 }
 
@@ -1270,20 +915,6 @@ static HRESULT WINAPI DS8Buffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSo
                 memset(buf->data, 0x80, buf->buf_size);
             else
                 memset(buf->data, 0x00, buf->buf_size);
-
-            if(This->primary->SupportedExt[EXT_STATIC_BUFFER])
-                This->ExtAL->BufferDataStatic(buf->buffers[0], buf->buf_format,
-                                              buf->data, buf->buf_size,
-                                              buf->format.Format.nSamplesPerSec);
-            else if(This->primary->SupportedExt[SOFT_BUFFER_SAMPLES])
-                This->ExtAL->BufferSamplesSOFT(buf->buffers[0],
-                         buf->format.Format.nSamplesPerSec, buf->buf_format,
-                         buf->buf_size/buf->format.Format.nBlockAlign,
-                         buf->in_chans, buf->in_type, buf->data);
-            else if(This->primary->SupportedExt[SOFT_BUFFER_SUB_DATA])
-                alBufferData(buf->buffers[0], buf->buf_format,
-                             buf->data, buf->buf_size,
-                             buf->format.Format.nSamplesPerSec);
         }
         checkALError();
     }
@@ -1371,7 +1002,7 @@ static HRESULT WINAPI DS8Buffer_Lock(IDirectSoundBuffer8 *iface, DWORD ofs, DWOR
     DS8Buffer *This = impl_from_IDirectSoundBuffer8(iface);
     DWORD remain;
 
-    TRACE("(%p)->(%"LONGFMT"u, %"LONGFMT"u, %p, %p, %p, %p, 0x%"LONGFMT"x)\n", This, ofs, bytes, ptr1, len1, ptr2, len2, flags);
+    TRACE("(%p)->(%lu, %lu, %p, %p, %p, %p, 0x%lx)\n", This, ofs, bytes, ptr1, len1, ptr2, len2, flags);
 
     if(!ptr1 || !len1)
     {
@@ -1388,14 +1019,14 @@ static HRESULT WINAPI DS8Buffer_Lock(IDirectSoundBuffer8 *iface, DWORD ofs, DWOR
         DS8Buffer_GetCurrentPosition(iface, NULL, &ofs);
     else if(ofs >= This->buffer->buf_size)
     {
-        WARN("Invalid ofs %"LONGFMT"u\n", ofs);
+        WARN("Invalid ofs %lu\n", ofs);
         return DSERR_INVALIDPARAM;
     }
     if((flags&DSBLOCK_ENTIREBUFFER))
         bytes = This->buffer->buf_size;
     else if(bytes > This->buffer->buf_size)
     {
-        WARN("Invalid size %"LONGFMT"u\n", bytes);
+        WARN("Invalid size %lu\n", bytes);
         return DSERR_INVALIDPARAM;
     }
 
@@ -1432,7 +1063,7 @@ static HRESULT WINAPI DS8Buffer_Play(IDirectSoundBuffer8 *iface, DWORD res1, DWO
     ALint type, state = AL_STOPPED;
     HRESULT hr;
 
-    TRACE("(%p)->(%"LONGFMT"u, %"LONGFMT"u, %"LONGFMT"u)\n", iface, res1, prio, flags);
+    TRACE("(%p)->(%lu, %lu, %lu)\n", iface, res1, prio, flags);
 
     EnterCriticalSection(This->crst);
     setALContext(This->ctx);
@@ -1456,7 +1087,7 @@ static HRESULT WINAPI DS8Buffer_Play(IDirectSoundBuffer8 *iface, DWORD res1, DWO
     }
     else if(prio)
     {
-        ERR("Invalid priority set for non-deferred buffer %p, %"LONGFMT"u!\n", This->buffer, prio);
+        ERR("Invalid priority set for non-deferred buffer %p, %lu!\n", This->buffer, prio);
         hr = DSERR_INVALIDPARAM;
         goto out;
     }
@@ -1515,7 +1146,7 @@ static HRESULT WINAPI DS8Buffer_SetCurrentPosition(IDirectSoundBuffer8 *iface, D
 {
     DS8Buffer *This = impl_from_IDirectSoundBuffer8(iface);
 
-    TRACE("(%p)->(%"LONGFMT"u)\n", iface, pos);
+    TRACE("(%p)->(%lu)\n", iface, pos);
 
     if(pos >= This->buffer->buf_size)
         return DSERR_INVALIDPARAM;
@@ -1563,11 +1194,11 @@ static HRESULT WINAPI DS8Buffer_SetVolume(IDirectSoundBuffer8 *iface, LONG vol)
     DS8Buffer *This = impl_from_IDirectSoundBuffer8(iface);
     HRESULT hr = S_OK;
 
-    TRACE("(%p)->(%"LONGFMT"d)\n", iface, vol);
+    TRACE("(%p)->(%ld)\n", iface, vol);
 
     if(vol > DSBVOLUME_MAX || vol < DSBVOLUME_MIN)
     {
-        WARN("Invalid volume (%"LONGFMT"d)\n", vol);
+        WARN("Invalid volume (%ld)\n", vol);
         return DSERR_INVALIDPARAM;
     }
 
@@ -1589,11 +1220,11 @@ static HRESULT WINAPI DS8Buffer_SetPan(IDirectSoundBuffer8 *iface, LONG pan)
     DS8Buffer *This = impl_from_IDirectSoundBuffer8(iface);
     HRESULT hr = S_OK;
 
-    TRACE("(%p)->(%"LONGFMT"d)\n", iface, pan);
+    TRACE("(%p)->(%ld)\n", iface, pan);
 
     if(pan > DSBPAN_RIGHT || pan < DSBPAN_LEFT)
     {
-        WARN("invalid parameter: pan = %"LONGFMT"d\n", pan);
+        WARN("invalid parameter: pan = %ld\n", pan);
         return DSERR_INVALIDPARAM;
     }
 
@@ -1626,11 +1257,11 @@ static HRESULT WINAPI DS8Buffer_SetFrequency(IDirectSoundBuffer8 *iface, DWORD f
     DS8Buffer *This = impl_from_IDirectSoundBuffer8(iface);
     HRESULT hr = S_OK;
 
-    TRACE("(%p)->(%"LONGFMT"u)\n", iface, freq);
+    TRACE("(%p)->(%lu)\n", iface, freq);
 
     if(freq < DSBFREQUENCY_MIN || freq > DSBFREQUENCY_MAX)
     {
-        WARN("invalid parameter: freq = %"LONGFMT"u\n", freq);
+        WARN("invalid parameter: freq = %lu\n", freq);
         return DSERR_INVALIDPARAM;
     }
 
@@ -1692,7 +1323,7 @@ static HRESULT WINAPI DS8Buffer_Unlock(IDirectSoundBuffer8 *iface, void *ptr1, D
     DWORD_PTR boundary = (DWORD_PTR)buf->data;
     HRESULT hr;
 
-    TRACE("(%p)->(%p, %"LONGFMT"u, %p, %"LONGFMT"u)\n", iface, ptr1, len1, ptr2, len2);
+    TRACE("(%p)->(%p, %lu, %p, %lu)\n", iface, ptr1, len1, ptr2, len2);
 
     if(InterlockedExchange(&This->buffer->locked, FALSE) == FALSE)
     {
@@ -1718,54 +1349,17 @@ static HRESULT WINAPI DS8Buffer_Unlock(IDirectSoundBuffer8 *iface, void *ptr1, D
     hr = DS_OK;
     if(!len1 && !len2)
         goto out;
-    if(This->primary->SupportedExt[EXT_STATIC_BUFFER])
-        goto out;
 
     setALContext(This->ctx);
-    if(This->primary->SupportedExt[SOFT_BUFFER_SAMPLES])
-    {
-        const WAVEFORMATEX *format = &buf->format.Format;
-
-        ptr1 = (BYTE*)ptr1 - (ofs1%format->nBlockAlign);
-        ofs1 /= format->nBlockAlign;
-        len1 /= format->nBlockAlign;
-        if(len1 > 0)
-            This->ExtAL->BufferSubSamplesSOFT(buf->buffers[0], ofs1, len1,
-                                              buf->in_chans, buf->in_type, ptr1);
-        ptr2 = (BYTE*)ptr2 - (ofs2%format->nBlockAlign);
-        ofs2 /= format->nBlockAlign;
-        len2 /= format->nBlockAlign;
-        if(len2 > 0)
-            This->ExtAL->BufferSubSamplesSOFT(buf->buffers[0], ofs2, len2,
-                                              buf->in_chans, buf->in_type, ptr2);
-        checkALError();
-    }
-    else if(This->primary->SupportedExt[SOFT_BUFFER_SUB_DATA])
-    {
-        const WAVEFORMATEX *format = &buf->format.Format;
-
-        len1 -= len1%format->nBlockAlign;
-        if(len1 > 0)
-            This->ExtAL->BufferSubData(buf->buffers[0], buf->buf_format, ptr1,
-                                       ofs1, len1);
-        len2 -= len2%format->nBlockAlign;
-        if(len2 > 0)
-            This->ExtAL->BufferSubData(buf->buffers[0], buf->buf_format, ptr2,
-                                       ofs2, len2);
-        checkALError();
-    }
-    else
-    {
-        alBufferData(buf->buffers[0], buf->buf_format,
-                     buf->data, buf->buf_size,
-                     buf->format.Format.nSamplesPerSec);
-        checkALError();
-    }
+    alBufferData(buf->buffers[0], buf->buf_format,
+                 buf->data, buf->buf_size,
+                 buf->format.Format.nSamplesPerSec);
+    checkALError();
     popALContext();
 
 out:
     if(hr != S_OK)
-        WARN("Invalid parameters (0x%lx,%"LONGFMT"u) (%p,%"LONGFMT"u,%p,%"LONGFMT"u)\n", boundary, bufsize, ptr1, len1, ptr2, len2);
+        WARN("Invalid parameters (0x%lx,%lu) (%p,%lu,%p,%lu)\n", boundary, bufsize, ptr1, len1, ptr2, len2);
     return hr;
 }
 
@@ -1795,7 +1389,7 @@ static HRESULT WINAPI DS8Buffer_SetFX(IDirectSoundBuffer8 *iface, DWORD fxcount,
     DS8Buffer *This = impl_from_IDirectSoundBuffer8(iface);
     DWORD i;
 
-    TRACE("(%p)->(%"LONGFMT"u, %p, %p)\n", This, fxcount, desc, rescodes);
+    TRACE("(%p)->(%lu, %p, %p)\n", This, fxcount, desc, rescodes);
 
     if(!(This->buffer->dsbflags&DSBCAPS_CTRLFX))
     {
@@ -1835,7 +1429,7 @@ static HRESULT WINAPI DS8Buffer_AcquireResources(IDirectSoundBuffer8 *iface, DWO
 {
     DS8Buffer *This = impl_from_IDirectSoundBuffer8(iface);
 
-    TRACE("(%p)->(%"LONGFMT"u, %"LONGFMT"u, %p)\n", This, flags, fxcount, rescodes);
+    TRACE("(%p)->(%lu, %lu, %p)\n", This, flags, fxcount, rescodes);
 
     /* effects aren't supported at the moment.. */
     if(fxcount != 0 || rescodes)
@@ -1860,7 +1454,7 @@ static HRESULT WINAPI DS8Buffer_AcquireResources(IDirectSoundBuffer8 *iface, DWO
 
 static HRESULT WINAPI DS8Buffer_GetObjectInPath(IDirectSoundBuffer8 *iface, REFGUID guid, DWORD idx, REFGUID rguidiface, void **ppv)
 {
-    FIXME("(%p)->(%s, %"LONGFMT"u, %s, %p) : stub!\n", iface, debugstr_guid(guid), idx, debugstr_guid(rguidiface), ppv);
+    FIXME("(%p)->(%s, %lu, %s, %p) : stub!\n", iface, debugstr_guid(guid), idx, debugstr_guid(rguidiface), ppv);
     return E_NOTIMPL;
 }
 
@@ -2092,7 +1686,7 @@ static ULONG WINAPI DS8Buffer3D_AddRef(IDirectSound3DBuffer *iface)
 
     InterlockedIncrement(&This->all_ref);
     ret = InterlockedIncrement(&This->ds3d_ref);
-    TRACE("new refcount %"LONGFMT"d\n", ret);
+    TRACE("new refcount %ld\n", ret);
 
     return ret;
 }
@@ -2103,7 +1697,7 @@ static ULONG WINAPI DS8Buffer3D_Release(IDirectSound3DBuffer *iface)
     LONG ret;
 
     ret = InterlockedDecrement(&This->ds3d_ref);
-    TRACE("new refcount %"LONGFMT"d\n", ret);
+    TRACE("new refcount %ld\n", ret);
     if(InterlockedDecrement(&This->all_ref) == 0)
         DS8Buffer_Destroy(This);
 
@@ -2118,7 +1712,7 @@ static HRESULT WINAPI DS8Buffer3D_GetAllParameters(IDirectSound3DBuffer *iface, 
 
     if(!ds3dbuffer || ds3dbuffer->dwSize < sizeof(*ds3dbuffer))
     {
-        WARN("Invalid parameters %p %"LONGFMT"u\n", ds3dbuffer, ds3dbuffer ? ds3dbuffer->dwSize : 0);
+        WARN("Invalid parameters %p %lu\n", ds3dbuffer, ds3dbuffer ? ds3dbuffer->dwSize : 0);
         return DSERR_INVALIDPARAM;
     }
 
@@ -2320,18 +1914,18 @@ static HRESULT WINAPI DS8Buffer3D_GetVelocity(IDirectSound3DBuffer *iface, D3DVE
 static HRESULT WINAPI DS8Buffer3D_SetAllParameters(IDirectSound3DBuffer *iface, const DS3DBUFFER *ds3dbuffer, DWORD apply)
 {
     DS8Buffer *This = impl_from_IDirectSound3DBuffer(iface);
-    TRACE("(%p)->(%p, %"LONGFMT"u)\n", This, ds3dbuffer, apply);
+    TRACE("(%p)->(%p, %lu)\n", This, ds3dbuffer, apply);
 
     if(!ds3dbuffer || ds3dbuffer->dwSize < sizeof(*ds3dbuffer))
     {
-        WARN("Invalid DS3DBUFFER (%p, %"LONGFMT"u)\n", ds3dbuffer, ds3dbuffer ? ds3dbuffer->dwSize : 0);
+        WARN("Invalid DS3DBUFFER (%p, %lu)\n", ds3dbuffer, ds3dbuffer ? ds3dbuffer->dwSize : 0);
         return DSERR_INVALIDPARAM;
     }
 
     if(ds3dbuffer->dwInsideConeAngle > DS3D_MAXCONEANGLE ||
        ds3dbuffer->dwOutsideConeAngle > DS3D_MAXCONEANGLE)
     {
-        WARN("Invalid cone angles (%"LONGFMT"u, %"LONGFMT"u)\n",
+        WARN("Invalid cone angles (%lu, %lu)\n",
              ds3dbuffer->dwInsideConeAngle, ds3dbuffer->dwOutsideConeAngle);
         return DSERR_INVALIDPARAM;
     }
@@ -2339,7 +1933,7 @@ static HRESULT WINAPI DS8Buffer3D_SetAllParameters(IDirectSound3DBuffer *iface, 
     if(ds3dbuffer->lConeOutsideVolume > DSBVOLUME_MAX ||
        ds3dbuffer->lConeOutsideVolume < DSBVOLUME_MIN)
     {
-        WARN("Invalid cone outside volume (%"LONGFMT"d)\n", ds3dbuffer->lConeOutsideVolume);
+        WARN("Invalid cone outside volume (%ld)\n", ds3dbuffer->lConeOutsideVolume);
         return DSERR_INVALIDPARAM;
     }
 
@@ -2359,7 +1953,7 @@ static HRESULT WINAPI DS8Buffer3D_SetAllParameters(IDirectSound3DBuffer *iface, 
        ds3dbuffer->dwMode != DS3DMODE_HEADRELATIVE &&
        ds3dbuffer->dwMode != DS3DMODE_DISABLE)
     {
-        WARN("Invalid mode (%"LONGFMT"u)\n", ds3dbuffer->dwMode);
+        WARN("Invalid mode (%lu)\n", ds3dbuffer->dwMode);
         return DSERR_INVALIDPARAM;
     }
 
@@ -2405,11 +1999,11 @@ static HRESULT WINAPI DS8Buffer3D_SetConeAngles(IDirectSound3DBuffer *iface, DWO
 {
     DS8Buffer *This = impl_from_IDirectSound3DBuffer(iface);
 
-    TRACE("(%p)->(%"LONGFMT"u, %"LONGFMT"u, %"LONGFMT"u)\n", This, dwInsideConeAngle, dwOutsideConeAngle, apply);
+    TRACE("(%p)->(%lu, %lu, %lu)\n", This, dwInsideConeAngle, dwOutsideConeAngle, apply);
     if(dwInsideConeAngle > DS3D_MAXCONEANGLE ||
        dwOutsideConeAngle > DS3D_MAXCONEANGLE)
     {
-        WARN("Invalid cone angles (%"LONGFMT"u, %"LONGFMT"u)\n", dwInsideConeAngle, dwOutsideConeAngle);
+        WARN("Invalid cone angles (%lu, %lu)\n", dwInsideConeAngle, dwOutsideConeAngle);
         return DSERR_INVALIDPARAM;
     }
 
@@ -2437,7 +2031,7 @@ static HRESULT WINAPI DS8Buffer3D_SetConeOrientation(IDirectSound3DBuffer *iface
 {
     DS8Buffer *This = impl_from_IDirectSound3DBuffer(iface);
 
-    TRACE("(%p)->(%f, %f, %f, %"LONGFMT"u)\n", This, x, y, z, apply);
+    TRACE("(%p)->(%f, %f, %f, %lu)\n", This, x, y, z, apply);
 
     if(apply == DS3D_DEFERRED)
     {
@@ -2463,10 +2057,10 @@ static HRESULT WINAPI DS8Buffer3D_SetConeOutsideVolume(IDirectSound3DBuffer *ifa
 {
     DS8Buffer *This = impl_from_IDirectSound3DBuffer(iface);
 
-    TRACE("(%p)->(%"LONGFMT"d, %"LONGFMT"u)\n", This, vol, apply);
+    TRACE("(%p)->(%ld, %lu)\n", This, vol, apply);
     if(vol < DSBVOLUME_MIN || vol > DSBVOLUME_MAX)
     {
-        WARN("Invalid volume (%"LONGFMT"d)\n", vol);
+        WARN("Invalid volume (%ld)\n", vol);
         return DSERR_INVALIDPARAM;
     }
 
@@ -2492,7 +2086,7 @@ static HRESULT WINAPI DS8Buffer3D_SetMaxDistance(IDirectSound3DBuffer *iface, D3
 {
     DS8Buffer *This = impl_from_IDirectSound3DBuffer(iface);
 
-    TRACE("(%p)->(%f, %"LONGFMT"u)\n", This, maxdist, apply);
+    TRACE("(%p)->(%f, %lu)\n", This, maxdist, apply);
     if(maxdist < 0.0f)
     {
         WARN("Invalid max distance (%f)\n", maxdist);
@@ -2521,7 +2115,7 @@ static HRESULT WINAPI DS8Buffer3D_SetMinDistance(IDirectSound3DBuffer *iface, D3
 {
     DS8Buffer *This = impl_from_IDirectSound3DBuffer(iface);
 
-    TRACE("(%p)->(%f, %"LONGFMT"u)\n", This, mindist, apply);
+    TRACE("(%p)->(%f, %lu)\n", This, mindist, apply);
     if(mindist < 0.0f)
     {
         WARN("Invalid min distance (%f)\n", mindist);
@@ -2550,11 +2144,11 @@ static HRESULT WINAPI DS8Buffer3D_SetMode(IDirectSound3DBuffer *iface, DWORD mod
 {
     DS8Buffer *This = impl_from_IDirectSound3DBuffer(iface);
 
-    TRACE("(%p)->(%"LONGFMT"u, %"LONGFMT"u)\n", This, mode, apply);
+    TRACE("(%p)->(%lu, %lu)\n", This, mode, apply);
     if(mode != DS3DMODE_NORMAL && mode != DS3DMODE_HEADRELATIVE &&
        mode != DS3DMODE_DISABLE)
     {
-        WARN("Invalid mode (%"LONGFMT"u)\n", mode);
+        WARN("Invalid mode (%lu)\n", mode);
         return DSERR_INVALIDPARAM;
     }
 
@@ -2584,7 +2178,7 @@ static HRESULT WINAPI DS8Buffer3D_SetPosition(IDirectSound3DBuffer *iface, D3DVA
 {
     DS8Buffer *This = impl_from_IDirectSound3DBuffer(iface);
 
-    TRACE("(%p)->(%f, %f, %f, %"LONGFMT"u)\n", This, x, y, z, apply);
+    TRACE("(%p)->(%f, %f, %f, %lu)\n", This, x, y, z, apply);
 
     if(apply == DS3D_DEFERRED)
     {
@@ -2610,7 +2204,7 @@ static HRESULT WINAPI DS8Buffer3D_SetVelocity(IDirectSound3DBuffer *iface, D3DVA
 {
     DS8Buffer *This = impl_from_IDirectSound3DBuffer(iface);
 
-    TRACE("(%p)->(%f, %f, %f, %"LONGFMT"u)\n", This, x, y, z, apply);
+    TRACE("(%p)->(%f, %f, %f, %lu)\n", This, x, y, z, apply);
 
     if(apply == DS3D_DEFERRED)
     {
@@ -2671,7 +2265,7 @@ static ULONG WINAPI DS8BufferNot_AddRef(IDirectSoundNotify *iface)
 
     InterlockedIncrement(&This->all_ref);
     ret = InterlockedIncrement(&This->not_ref);
-    TRACE("new refcount %"LONGFMT"d\n", ret);
+    TRACE("new refcount %ld\n", ret);
 
     return ret;
 }
@@ -2682,7 +2276,7 @@ static ULONG WINAPI DS8BufferNot_Release(IDirectSoundNotify *iface)
     LONG ret;
 
     ret = InterlockedDecrement(&This->not_ref);
-    TRACE("new refcount %"LONGFMT"d\n", ret);
+    TRACE("new refcount %ld\n", ret);
     if(InterlockedDecrement(&This->all_ref) == 0)
         DS8Buffer_Destroy(This);
 
@@ -2696,7 +2290,7 @@ static HRESULT WINAPI DS8BufferNot_SetNotificationPositions(IDirectSoundNotify *
     DWORD state;
     HRESULT hr;
 
-    TRACE("(%p)->(%"LONGFMT"u, %p))\n", iface, count, notifications);
+    TRACE("(%p)->(%lu, %p))\n", iface, count, notifications);
 
     EnterCriticalSection(This->crst);
     hr = DSERR_INVALIDPARAM;
@@ -2770,7 +2364,7 @@ static ULONG WINAPI DS8BufferProp_AddRef(IKsPropertySet *iface)
 
     InterlockedIncrement(&This->all_ref);
     ret = InterlockedIncrement(&This->prop_ref);
-    TRACE("new refcount %"LONGFMT"d\n", ret);
+    TRACE("new refcount %ld\n", ret);
 
     return ret;
 }
@@ -2781,7 +2375,7 @@ static ULONG WINAPI DS8BufferProp_Release(IKsPropertySet *iface)
     LONG ret;
 
     ret = InterlockedDecrement(&This->prop_ref);
-    TRACE("new refcount %"LONGFMT"d\n", ret);
+    TRACE("new refcount %ld\n", ret);
     if(InterlockedDecrement(&This->all_ref) == 0)
         DS8Buffer_Destroy(This);
 
@@ -2799,7 +2393,7 @@ static HRESULT WINAPI DS8BufferProp_Get(IKsPropertySet *iface,
     DS8Buffer *This = impl_from_IKsPropertySet(iface);
     HRESULT hr = E_PROP_ID_UNSUPPORTED;
 
-    TRACE("(%p)->(%s, %"LONGFMT"u, %p, %"LONGFMT"u, %p, %"LONGFMT"u, %p)\n", iface, debugstr_guid(guidPropSet),
+    TRACE("(%p)->(%s, %lu, %p, %lu, %p, %lu, %p)\n", iface, debugstr_guid(guidPropSet),
           dwPropID, pInstanceData, cbInstanceData, pPropData, cbPropData, pcbReturned);
 
     if(!pcbReturned)
@@ -2830,7 +2424,7 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
     DS8Buffer *This = impl_from_IKsPropertySet(iface);
     HRESULT hr = E_PROP_ID_UNSUPPORTED;
 
-    TRACE("(%p)->(%s, %"LONGFMT"u, %p, %"LONGFMT"u, %p, %"LONGFMT"u)\n", iface, debugstr_guid(guidPropSet),
+    TRACE("(%p)->(%s, %lu, %p, %lu, %p, %lu)\n", iface, debugstr_guid(guidPropSet),
           dwPropID, pInstanceData, cbInstanceData, pPropData, cbPropData);
 
 #if 0
@@ -2856,7 +2450,7 @@ static HRESULT WINAPI DS8BufferProp_QuerySupport(IKsPropertySet *iface,
     DS8Buffer *This = impl_from_IKsPropertySet(iface);
     HRESULT hr = E_PROP_ID_UNSUPPORTED;
 
-    TRACE("(%p)->(%s, %"LONGFMT"u, %p)\n", iface, debugstr_guid(guidPropSet), dwPropID, pTypeSupport);
+    TRACE("(%p)->(%s, %lu, %p)\n", iface, debugstr_guid(guidPropSet), dwPropID, pTypeSupport);
 
     if(!pTypeSupport)
         return E_POINTER;

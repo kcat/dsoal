@@ -102,7 +102,7 @@ static void trigger_notifies(DSCBuffer *buf, DWORD lastpos, DWORD curpos)
         {
             if(ofs < curpos || ofs >= lastpos)
             {
-                TRACE("Triggering notification %"LONGFMT"u (%"LONGFMT"u) from buffer %p\n", i, ofs, buf);
+                TRACE("Triggering notification %lu (%lu) from buffer %p\n", i, ofs, buf);
                 SetEvent(event);
             }
             continue;
@@ -111,7 +111,7 @@ static void trigger_notifies(DSCBuffer *buf, DWORD lastpos, DWORD curpos)
         /* Normal case */
         if(ofs >= lastpos && ofs < curpos)
         {
-            TRACE("Triggering notification %"LONGFMT"u (%"LONGFMT"u) from buffer %p\n", i, ofs, buf);
+            TRACE("Triggering notification %lu (%lu) from buffer %p\n", i, ofs, buf);
             SetEvent(event);
         }
     }
@@ -189,7 +189,7 @@ static void DSCBuffer_starttimer(DSCBuffer *This)
     triggertime = 1000 / refresh;
     if (triggertime < time.wPeriodMin)
         triggertime = time.wPeriodMin;
-    TRACE("Calling timer every %"LONGFMT"u ms for %i refreshes per second\n", triggertime, refresh);
+    TRACE("Calling timer every %lu ms for %i refreshes per second\n", triggertime, refresh);
     if (res < time.wPeriodMin)
         res = time.wPeriodMin;
     if (timeBeginPeriod(res) == TIMERR_NOCANDO)
@@ -290,7 +290,7 @@ static ULONG WINAPI DSCBuffer_AddRef(IDirectSoundCaptureBuffer8 *iface)
 
     InterlockedIncrement(&This->all_ref);
     ref = InterlockedIncrement(&This->ref);
-    TRACE("Reference count incremented to %"LONGFMT"i\n", ref);
+    TRACE("Reference count incremented to %li\n", ref);
 
     return ref;
 }
@@ -301,7 +301,7 @@ static ULONG WINAPI DSCBuffer_Release(IDirectSoundCaptureBuffer8 *iface)
     LONG ref;
 
     ref = InterlockedDecrement(&This->ref);
-    TRACE("Reference count decremented to %"LONGFMT"i\n", ref);
+    TRACE("Reference count decremented to %li\n", ref);
     if(InterlockedDecrement(&This->all_ref) == 0)
         DSCBuffer_Destroy(This);
 
@@ -353,7 +353,7 @@ static HRESULT WINAPI DSCBuffer_GetFormat(IDirectSoundCaptureBuffer8 *iface, WAV
     HRESULT hr = DS_OK;
     UINT size;
 
-    TRACE("(%p)->(%p, %"LONGFMT"u, %p)\n", iface, wfx, allocated, written);
+    TRACE("(%p)->(%p, %lu, %p)\n", iface, wfx, allocated, written);
 
     if(!wfx && !written)
     {
@@ -489,7 +489,7 @@ static HRESULT WINAPI DSCBuffer_Initialize(IDirectSoundCaptureBuffer8 *iface, ID
             }
         }
         else
-            WARN("Unsupported channels: %d -- 0x%08"LONGFMT"u\n", wfe->Format.nChannels, wfe->dwChannelMask);
+            WARN("Unsupported channels: %d -- 0x%08lu\n", wfe->Format.nChannels, wfe->dwChannelMask);
 
         memcpy(&This->format, wfe, sizeof(This->format));
         This->format.Format.cbSize = sizeof(This->format) - sizeof(This->format.Format);
@@ -516,7 +516,7 @@ static HRESULT WINAPI DSCBuffer_Initialize(IDirectSoundCaptureBuffer8 *iface, ID
     This->dev = alcCaptureOpenDevice(This->parent->device, This->format.Format.nSamplesPerSec, buf_format, This->format.Format.nSamplesPerSec / FAKE_REFRESH_COUNT * 2);
     if(!This->dev)
     {
-        ERR("Couldn't open device %s 0x%x@%"LONGFMT"u, reason: %04x\n", This->parent->device, buf_format, This->format.Format.nSamplesPerSec, alcGetError(NULL));
+        ERR("Couldn't open device %s 0x%x@%lu, reason: %04x\n", This->parent->device, buf_format, This->format.Format.nSamplesPerSec, alcGetError(NULL));
         return DSERR_INVALIDPARAM;
     }
 
@@ -528,7 +528,7 @@ static HRESULT WINAPI DSCBuffer_Lock(IDirectSoundCaptureBuffer8 *iface, DWORD of
     DSCBuffer *This = impl_from_IDirectSoundCaptureBuffer8(iface);
     DWORD remain;
 
-    TRACE("(%p)->(%"LONGFMT"u, %"LONGFMT"u, %p, %p, %p, %p, %#"LONGFMT"x)\n", iface, ofs, bytes, ptr1, len1, ptr2, len2, flags);
+    TRACE("(%p)->(%lu, %lu, %p, %p, %p, %p, %#lx)\n", iface, ofs, bytes, ptr1, len1, ptr2, len2, flags);
 
     if(!ptr1 || !len1)
     {
@@ -543,7 +543,7 @@ static HRESULT WINAPI DSCBuffer_Lock(IDirectSoundCaptureBuffer8 *iface, DWORD of
 
     if(ofs >= This->buf_size)
     {
-        WARN("Invalid ofs %"LONGFMT"u\n", ofs);
+        WARN("Invalid ofs %lu\n", ofs);
         return DSERR_INVALIDPARAM;
     }
 
@@ -551,7 +551,7 @@ static HRESULT WINAPI DSCBuffer_Lock(IDirectSoundCaptureBuffer8 *iface, DWORD of
         bytes = This->buf_size;
     else if(bytes > This->buf_size)
     {
-        WARN("Invalid size %"LONGFMT"u\n", bytes);
+        WARN("Invalid size %lu\n", bytes);
         return DSERR_INVALIDPARAM;
     }
 
@@ -586,7 +586,7 @@ static HRESULT WINAPI DSCBuffer_Start(IDirectSoundCaptureBuffer8 *iface, DWORD f
 {
     DSCBuffer *This = impl_from_IDirectSoundCaptureBuffer8(iface);
 
-    TRACE("(%p)->(%08"LONGFMT"x)\n", iface, flags);
+    TRACE("(%p)->(%08lx)\n", iface, flags);
 
     EnterCriticalSection(&This->parent->crst);
     if(!This->playing)
@@ -629,7 +629,7 @@ static HRESULT WINAPI DSCBuffer_Unlock(IDirectSoundCaptureBuffer8 *iface, void *
     DWORD_PTR ofs1, ofs2;
     DWORD_PTR boundary = (DWORD_PTR)This->buf;
 
-    TRACE("(%p)->(%p, %"LONGFMT"u, %p, %"LONGFMT"u)\n", iface, ptr1, len1, ptr2, len2);
+    TRACE("(%p)->(%p, %lu, %p, %lu)\n", iface, ptr1, len1, ptr2, len2);
 
     if(InterlockedExchange(&This->locked, FALSE) == FALSE)
     {
@@ -655,13 +655,13 @@ static HRESULT WINAPI DSCBuffer_Unlock(IDirectSoundCaptureBuffer8 *iface, void *
 
 static HRESULT WINAPI DSCBuffer_GetObjectInPath(IDirectSoundCaptureBuffer8 *iface, REFGUID guid, DWORD num, REFGUID riid, void **ppv)
 {
-    FIXME("(%p)->(%s, %"LONGFMT"u, %s, %p) stub\n", iface, debugstr_guid(guid), num, debugstr_guid(riid), ppv);
+    FIXME("(%p)->(%s, %lu, %s, %p) stub\n", iface, debugstr_guid(guid), num, debugstr_guid(riid), ppv);
     return E_NOTIMPL;
 }
 
 static HRESULT WINAPI DSCBuffer_GetFXStatus(IDirectSoundCaptureBuffer8 *iface, DWORD count, DWORD *status)
 {
-    FIXME("(%p)->(%"LONGFMT"u, %p) stub\n", iface, count, status);
+    FIXME("(%p)->(%lu, %p) stub\n", iface, count, status);
     return E_NOTIMPL;
 }
 
@@ -701,7 +701,7 @@ static ULONG WINAPI DSCBufferNot_AddRef(IDirectSoundNotify *iface)
 
     InterlockedIncrement(&This->all_ref);
     ret = InterlockedIncrement(&This->not_ref);
-    TRACE("new refcount %"LONGFMT"d\n", ret);
+    TRACE("new refcount %ld\n", ret);
     return ret;
 }
 
@@ -711,7 +711,7 @@ static ULONG WINAPI DSCBufferNot_Release(IDirectSoundNotify *iface)
     LONG ret;
 
     ret = InterlockedDecrement(&This->not_ref);
-    TRACE("new refcount %"LONGFMT"d\n", ret);
+    TRACE("new refcount %ld\n", ret);
     if(InterlockedDecrement(&This->all_ref) == 0)
         DSCBuffer_Destroy(This);
 
@@ -725,7 +725,7 @@ static HRESULT WINAPI DSCBufferNot_SetNotificationPositions(IDirectSoundNotify *
     HRESULT hr;
     DWORD state;
 
-    TRACE("(%p)->(%"LONGFMT"u, %p))\n", iface, count, notifications);
+    TRACE("(%p)->(%lu, %p))\n", iface, count, notifications);
 
     EnterCriticalSection(&This->parent->crst);
     hr = DSERR_INVALIDPARAM;
@@ -870,7 +870,7 @@ static ULONG WINAPI DSCImpl_AddRef(IDirectSoundCapture *iface)
     LONG ref;
 
     ref = InterlockedIncrement(&This->ref);
-    TRACE("Reference count incremented to %"LONGFMT"i\n", ref);
+    TRACE("Reference count incremented to %li\n", ref);
 
     return ref;
 }
@@ -881,7 +881,7 @@ static ULONG WINAPI DSCImpl_Release(IDirectSoundCapture *iface)
     LONG ref;
 
     ref = InterlockedDecrement(&This->ref);
-    TRACE("Reference count decremented to %"LONGFMT"i\n", ref);
+    TRACE("Reference count decremented to %li\n", ref);
     if(!ref)
         DSCImpl_Destroy(This);
 
@@ -903,7 +903,7 @@ static HRESULT WINAPI DSCImpl_CreateCaptureBuffer(IDirectSoundCapture *iface, co
 
     if(!desc || desc->dwSize < sizeof(DSCBUFFERDESC1))
     {
-        WARN("Passed invalid description %p %"LONGFMT"u\n", desc, desc?desc->dwSize:0);
+        WARN("Passed invalid description %p %lu\n", desc, desc?desc->dwSize:0);
         return DSERR_INVALIDPARAM;
     }
     if(!ppv)
@@ -961,7 +961,7 @@ static HRESULT WINAPI DSCImpl_GetCaps(IDirectSoundCapture *iface, DSCCAPS *caps)
         return DSERR_INVALIDPARAM;
     }
     if(caps->dwSize < sizeof(*caps)) {
-        WARN("Invalid size %"LONGFMT"d\n", caps->dwSize);
+        WARN("Invalid size %ld\n", caps->dwSize);
         return DSERR_INVALIDPARAM;
     }
 

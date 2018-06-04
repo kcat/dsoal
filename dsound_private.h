@@ -26,23 +26,10 @@
 #define FAKE_REFRESH_COUNT (1000/DS_TIME_DEL/2)
 
 
-#ifdef __WINESRC__
-
-#ifdef __APPLE__
-#include <OpenAL/al.h>
-#include <OpenAL/alc.h>
-#else
-#include <AL/al.h>
-#include <AL/alc.h>
-#endif
-
-#define LONGFMT
-#else
-
-#include <al.h>
-#include <alc.h>
-
 #include <stdio.h>
+
+#include "alc.h"
+#include "al.h"
 
 extern int LogLevel;
 
@@ -75,9 +62,6 @@ const char *wine_dbgstr_wn( const WCHAR *str, int n );
 const char *debugstr_guid( const GUID *id );
 
 static inline const char *debugstr_w( const WCHAR *s ) { return wine_dbgstr_wn( s, -1 ); }
-
-#define LONGFMT "l"
-#endif
 
 
 #include "alext.h"
@@ -301,18 +285,12 @@ enum {
     EXT_EFX,
     EXT_FLOAT32,
     EXT_MCFORMATS,
-    EXT_STATIC_BUFFER,
-    SOFT_BUFFER_SAMPLES,
-    SOFT_BUFFER_SUB_DATA,
     SOFT_DEFERRED_UPDATES,
 
     MAX_EXTENSIONS
 };
 
 typedef struct ExtALFuncs {
-    PFNALBUFFERSUBDATASOFTPROC BufferSubData;
-    PFNALBUFFERDATASTATICPROC BufferDataStatic;
-
     LPALGENEFFECTS GenEffects;
     LPALDELETEEFFECTS DeleteEffects;
     LPALEFFECTI Effecti;
@@ -321,11 +299,6 @@ typedef struct ExtALFuncs {
     LPALGENAUXILIARYEFFECTSLOTS GenAuxiliaryEffectSlots;
     LPALDELETEAUXILIARYEFFECTSLOTS DeleteAuxiliaryEffectSlots;
     LPALAUXILIARYEFFECTSLOTI AuxiliaryEffectSloti;
-
-    LPALBUFFERSAMPLESSOFT BufferSamplesSOFT;
-    LPALBUFFERSUBSAMPLESSOFT BufferSubSamplesSOFT;
-    LPALGETBUFFERSAMPLESSOFT GetBufferSamplesSOFT;
-    LPALISBUFFERFORMATSUPPORTEDSOFT IsBufferFormatSupportedSOFT;
 
     void (AL_APIENTRY*DeferUpdatesSOFT)(void);
     void (AL_APIENTRY*ProcessUpdatesSOFT)(void);

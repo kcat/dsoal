@@ -150,30 +150,9 @@ static HRESULT DSShare_Create(REFIID guid, DeviceShare **out)
         TRACE("Found AL_EXT_MCFORMATS\n");
         share->SupportedExt[EXT_MCFORMATS] = AL_TRUE;
     }
-    if(alIsExtensionPresent("AL_EXT_STATIC_BUFFER"))
+    if(alIsExtensionPresent("AL_SOFT_deferred_updates"))
     {
-        TRACE("Found AL_EXT_STATIC_BUFFER\n");
-        share->ExtAL.BufferDataStatic = alGetProcAddress("alBufferDataStatic");
-        share->SupportedExt[EXT_STATIC_BUFFER] = AL_TRUE;
-    }
-    if(alIsExtensionPresent("AL_SOFT_buffer_samples"))
-    {
-        TRACE("Found AL_SOFT_buffer_samples\n");
-        share->ExtAL.BufferSamplesSOFT = alGetProcAddress("alBufferSamplesSOFT");
-        share->ExtAL.BufferSubSamplesSOFT = alGetProcAddress("alBufferSubSamplesSOFT");
-        share->ExtAL.GetBufferSamplesSOFT = alGetProcAddress("alGetBufferSamplesSOFT");
-        share->ExtAL.IsBufferFormatSupportedSOFT = alGetProcAddress("alIsBufferFormatSupportedSOFT");
-        share->SupportedExt[SOFT_BUFFER_SAMPLES] = AL_TRUE;
-    }
-    if(alIsExtensionPresent("AL_SOFT_buffer_sub_data"))
-    {
-        TRACE("Found AL_SOFT_buffer_sub_data\n");
-        share->ExtAL.BufferSubData = alGetProcAddress("alBufferSubDataSOFT");
-        share->SupportedExt[SOFT_BUFFER_SUB_DATA] = AL_TRUE;
-    }
-    if(alIsExtensionPresent("AL_SOFTX_deferred_updates"))
-    {
-        TRACE("Found AL_SOFTX_deferred_updates\n");
+        TRACE("Found AL_SOFT_deferred_updates\n");
         share->ExtAL.DeferUpdatesSOFT = alGetProcAddress("alDeferUpdatesSOFT");
         share->ExtAL.ProcessUpdatesSOFT = alGetProcAddress("alProcessUpdatesSOFT");
         share->SupportedExt[SOFT_DEFERRED_UPDATES] = AL_TRUE;
@@ -194,15 +173,6 @@ static HRESULT DSShare_Create(REFIID guid, DeviceShare **out)
         share->SupportedExt[EXT_EFX] = AL_TRUE;
 
         share->ExtAL.GenAuxiliaryEffectSlots(1, &share->auxslot);
-    }
-
-    if(!share->SupportedExt[SOFT_BUFFER_SUB_DATA] &&
-       !share->SupportedExt[SOFT_BUFFER_SAMPLES] &&
-       !share->SupportedExt[EXT_STATIC_BUFFER])
-    {
-        ERR("Missing alBufferSubDataSOFT, alBufferSamplesSOFT , and alBufferDataStatic on device '%s', sound playback quality may be degraded\n",
-             alcGetString(share->device, ALC_DEVICE_SPECIFIER));
-        ERR("Please consider using OpenAL-Soft\n");
     }
 
     share->max_sources = 0;
@@ -376,7 +346,7 @@ static ULONG WINAPI DS8_AddRef(IDirectSound8 *iface)
     LONG ref;
 
     ref = InterlockedIncrement(&This->ref);
-    TRACE("Reference count incremented to %"LONGFMT"d\n", ref);
+    TRACE("Reference count incremented to %ld\n", ref);
 
     return ref;
 }
@@ -387,7 +357,7 @@ static ULONG WINAPI DS8_Release(IDirectSound8 *iface)
     LONG ref;
 
     ref = InterlockedDecrement(&This->ref);
-    TRACE("Reference count decremented to %"LONGFMT"d\n", ref);
+    TRACE("Reference count decremented to %ld\n", ref);
     if(ref == 0)
         DS8Impl_Destroy(This);
 
@@ -415,7 +385,7 @@ static HRESULT WINAPI DS8_CreateSoundBuffer(IDirectSound8 *iface, LPCDSBUFFERDES
     }
     if(!desc || desc->dwSize < sizeof(DSBUFFERDESC1))
     {
-        WARN("Invalid buffer %p/%"LONGFMT"u\n", desc, desc?desc->dwSize:0);
+        WARN("Invalid buffer %p/%lu\n", desc, desc?desc->dwSize:0);
         return DSERR_INVALIDPARAM;
     }
 
@@ -426,9 +396,9 @@ static HRESULT WINAPI DS8_CreateSoundBuffer(IDirectSound8 *iface, LPCDSBUFFERDES
     }
 
     TRACE("Requested buffer:\n"
-          "    Size        = %"LONGFMT"u\n"
-          "    Flags       = 0x%08"LONGFMT"x\n"
-          "    BufferBytes = %"LONGFMT"u\n",
+          "    Size        = %lu\n"
+          "    Flags       = 0x%08lx\n"
+          "    BufferBytes = %lu\n",
           desc->dwSize, desc->dwFlags, desc->dwBufferBytes);
 
     if(desc->dwSize >= sizeof(DSBUFFERDESC))
@@ -491,7 +461,7 @@ static HRESULT WINAPI DS8_CreateSoundBuffer(IDirectSound8 *iface, LPCDSBUFFERDES
     }
     LeaveCriticalSection(This->primary.crst);
 
-    TRACE("%08"LONGFMT"x\n", hr);
+    TRACE("%08lx\n", hr);
     return hr;
 }
 
@@ -509,7 +479,7 @@ static HRESULT WINAPI DS8_GetCaps(IDirectSound8 *iface, LPDSCAPS caps)
 
     if(!caps || caps->dwSize < sizeof(*caps))
     {
-        WARN("Invalid DSCAPS (%p, %"LONGFMT"u)\n", caps, (caps?caps->dwSize:0));
+        WARN("Invalid DSCAPS (%p, %lu)\n", caps, (caps?caps->dwSize:0));
         return DSERR_INVALIDPARAM;
     }
 
@@ -638,7 +608,7 @@ static HRESULT WINAPI DS8_SetCooperativeLevel(IDirectSound8 *iface, HWND hwnd, D
     DS8Impl *This = impl_from_IDirectSound8(iface);
     HRESULT hr = S_OK;
 
-    TRACE("(%p)->(%p, %"LONGFMT"u)\n", iface, hwnd, level);
+    TRACE("(%p)->(%p, %lu)\n", iface, hwnd, level);
 
     if(!This->share)
     {
@@ -648,7 +618,7 @@ static HRESULT WINAPI DS8_SetCooperativeLevel(IDirectSound8 *iface, HWND hwnd, D
 
     if(level > DSSCL_WRITEPRIMARY || level < DSSCL_NORMAL)
     {
-        WARN("Invalid coop level: %"LONGFMT"u\n", level);
+        WARN("Invalid coop level: %lu\n", level);
         return DSERR_INVALIDPARAM;
     }
 
@@ -733,7 +703,7 @@ static HRESULT WINAPI DS8_Compact(IDirectSound8 *iface)
     EnterCriticalSection(&This->share->crst);
     if(This->prio_level < DSSCL_PRIORITY)
     {
-        WARN("Coop level not high enough (%"LONGFMT"u)\n", This->prio_level);
+        WARN("Coop level not high enough (%lu)\n", This->prio_level);
         hr = DSERR_PRIOLEVELNEEDED;
     }
     LeaveCriticalSection(&This->share->crst);
@@ -772,7 +742,7 @@ static HRESULT WINAPI DS8_SetSpeakerConfig(IDirectSound8 *iface, DWORD config)
     HKEY key;
     HRESULT hr;
 
-    TRACE("(%p)->(0x%08"LONGFMT"x)\n", iface, config);
+    TRACE("(%p)->(0x%08lx)\n", iface, config);
 
     if(!This->share)
     {
@@ -785,12 +755,12 @@ static HRESULT WINAPI DS8_SetSpeakerConfig(IDirectSound8 *iface, DWORD config)
 
     if(geo && (geo < DSSPEAKER_GEOMETRY_MIN || geo > DSSPEAKER_GEOMETRY_MAX))
     {
-        WARN("Invalid speaker angle %"LONGFMT"u\n", geo);
+        WARN("Invalid speaker angle %lu\n", geo);
         return DSERR_INVALIDPARAM;
     }
     if(speaker < DSSPEAKER_HEADPHONE || speaker > DSSPEAKER_7POINT1)
     {
-        WARN("Invalid speaker config %"LONGFMT"u\n", speaker);
+        WARN("Invalid speaker config %lu\n", speaker);
         return DSERR_INVALIDPARAM;
     }
 
