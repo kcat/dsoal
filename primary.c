@@ -1059,32 +1059,6 @@ static ULONG WINAPI DS8Primary3D_Release(IDirectSound3DListener *iface)
 }
 
 
-static HRESULT WINAPI DS8Primary3D_GetAllParameters(IDirectSound3DListener *iface, DS3DLISTENER *listener)
-{
-    DS8Primary *This = impl_from_IDirectSound3DListener(iface);
-
-    TRACE("(%p)->(%p)\n", iface, listener);
-
-    if(!listener || listener->dwSize < sizeof(*listener))
-    {
-        WARN("Invalid DS3DLISTENER %p %lu\n", listener, listener ? listener->dwSize : 0);
-        return DSERR_INVALIDPARAM;
-    }
-
-    EnterCriticalSection(This->crst);
-    setALContext(This->ctx);
-    IDirectSound3DListener_GetPosition(iface, &listener->vPosition);
-    IDirectSound3DListener_GetVelocity(iface, &listener->vVelocity);
-    IDirectSound3DListener_GetOrientation(iface, &listener->vOrientFront, &listener->vOrientTop);
-    IDirectSound3DListener_GetDistanceFactor(iface, &listener->flDistanceFactor);
-    IDirectSound3DListener_GetRolloffFactor(iface, &listener->flRolloffFactor);
-    IDirectSound3DListener_GetDopplerFactor(iface, &listener->flDopplerFactor);
-    popALContext();
-    LeaveCriticalSection(This->crst);
-
-    return DS_OK;
-}
-
 static HRESULT WINAPI DS8Primary3D_GetDistanceFactor(IDirectSound3DListener *iface, D3DVALUE *distancefactor)
 {
     DS8Primary *This = impl_from_IDirectSound3DListener(iface);
@@ -1219,72 +1193,32 @@ static HRESULT WINAPI DS8Primary3D_GetVelocity(IDirectSound3DListener *iface, D3
     return S_OK;
 }
 
-static HRESULT WINAPI DS8Primary3D_SetAllParameters(IDirectSound3DListener *iface, const DS3DLISTENER *listen, DWORD apply)
+static HRESULT WINAPI DS8Primary3D_GetAllParameters(IDirectSound3DListener *iface, DS3DLISTENER *listener)
 {
     DS8Primary *This = impl_from_IDirectSound3DListener(iface);
 
-    TRACE("(%p)->(%p, %lu)\n", iface, listen, apply);
+    TRACE("(%p)->(%p)\n", iface, listener);
 
-    if(!listen || listen->dwSize < sizeof(*listen))
+    if(!listener || listener->dwSize < sizeof(*listener))
     {
-        WARN("Invalid parameter %p %lu\n", listen, listen ? listen->dwSize : 0);
+        WARN("Invalid DS3DLISTENER %p %lu\n", listener, listener ? listener->dwSize : 0);
         return DSERR_INVALIDPARAM;
     }
 
-    if(listen->flDistanceFactor > DS3D_MAXDISTANCEFACTOR ||
-       listen->flDistanceFactor < DS3D_MINDISTANCEFACTOR)
-    {
-        WARN("Invalid distance factor (%f)\n", listen->flDistanceFactor);
-        return DSERR_INVALIDPARAM;
-    }
+    EnterCriticalSection(This->crst);
+    setALContext(This->ctx);
+    DS8Primary3D_GetPosition(iface, &listener->vPosition);
+    DS8Primary3D_GetVelocity(iface, &listener->vVelocity);
+    DS8Primary3D_GetOrientation(iface, &listener->vOrientFront, &listener->vOrientTop);
+    DS8Primary3D_GetDistanceFactor(iface, &listener->flDistanceFactor);
+    DS8Primary3D_GetRolloffFactor(iface, &listener->flRolloffFactor);
+    DS8Primary3D_GetDopplerFactor(iface, &listener->flDopplerFactor);
+    popALContext();
+    LeaveCriticalSection(This->crst);
 
-    if(listen->flDopplerFactor > DS3D_MAXDOPPLERFACTOR ||
-       listen->flDopplerFactor < DS3D_MINDOPPLERFACTOR)
-    {
-        WARN("Invalid doppler factor (%f)\n", listen->flDopplerFactor);
-        return DSERR_INVALIDPARAM;
-    }
-
-    if(listen->flRolloffFactor < DS3D_MINROLLOFFFACTOR ||
-       listen->flRolloffFactor > DS3D_MAXROLLOFFFACTOR)
-    {
-        WARN("Invalid rolloff factor (%f)\n", listen->flRolloffFactor);
-        return DSERR_INVALIDPARAM;
-    }
-
-    if(apply == DS3D_DEFERRED)
-    {
-        EnterCriticalSection(This->crst);
-        This->params = *listen;
-        This->params.dwSize = sizeof(This->params);
-        This->dirty.bit.pos = 1;
-        This->dirty.bit.vel = 1;
-        This->dirty.bit.orientation = 1;
-        This->dirty.bit.distancefactor = 1;
-        This->dirty.bit.rollofffactor = 1;
-        This->dirty.bit.dopplerfactor = 1;
-        LeaveCriticalSection(This->crst);
-    }
-    else
-    {
-        union PrimaryParamFlags dirty = { 0l };
-        dirty.bit.pos = 1;
-        dirty.bit.vel = 1;
-        dirty.bit.orientation = 1;
-        dirty.bit.distancefactor = 1;
-        dirty.bit.rollofffactor = 1;
-        dirty.bit.dopplerfactor = 1;
-
-        EnterCriticalSection(This->crst);
-        setALContext(This->ctx);
-        DS8Primary_SetParams(This, listen, dirty.flags);
-        checkALError();
-        popALContext();
-        LeaveCriticalSection(This->crst);
-    }
-
-    return S_OK;
+    return DS_OK;
 }
+
 
 static HRESULT WINAPI DS8Primary3D_SetDistanceFactor(IDirectSound3DListener *iface, D3DVALUE factor, DWORD apply)
 {
@@ -1469,6 +1403,73 @@ static HRESULT WINAPI DS8Primary3D_SetVelocity(IDirectSound3DListener *iface, D3
         alListener3f(AL_VELOCITY, x, y, -z);
         checkALError();
         popALContext();
+    }
+
+    return S_OK;
+}
+
+static HRESULT WINAPI DS8Primary3D_SetAllParameters(IDirectSound3DListener *iface, const DS3DLISTENER *listen, DWORD apply)
+{
+    DS8Primary *This = impl_from_IDirectSound3DListener(iface);
+
+    TRACE("(%p)->(%p, %lu)\n", iface, listen, apply);
+
+    if(!listen || listen->dwSize < sizeof(*listen))
+    {
+        WARN("Invalid parameter %p %lu\n", listen, listen ? listen->dwSize : 0);
+        return DSERR_INVALIDPARAM;
+    }
+
+    if(listen->flDistanceFactor > DS3D_MAXDISTANCEFACTOR ||
+       listen->flDistanceFactor < DS3D_MINDISTANCEFACTOR)
+    {
+        WARN("Invalid distance factor (%f)\n", listen->flDistanceFactor);
+        return DSERR_INVALIDPARAM;
+    }
+
+    if(listen->flDopplerFactor > DS3D_MAXDOPPLERFACTOR ||
+       listen->flDopplerFactor < DS3D_MINDOPPLERFACTOR)
+    {
+        WARN("Invalid doppler factor (%f)\n", listen->flDopplerFactor);
+        return DSERR_INVALIDPARAM;
+    }
+
+    if(listen->flRolloffFactor < DS3D_MINROLLOFFFACTOR ||
+       listen->flRolloffFactor > DS3D_MAXROLLOFFFACTOR)
+    {
+        WARN("Invalid rolloff factor (%f)\n", listen->flRolloffFactor);
+        return DSERR_INVALIDPARAM;
+    }
+
+    if(apply == DS3D_DEFERRED)
+    {
+        EnterCriticalSection(This->crst);
+        This->params = *listen;
+        This->params.dwSize = sizeof(This->params);
+        This->dirty.bit.pos = 1;
+        This->dirty.bit.vel = 1;
+        This->dirty.bit.orientation = 1;
+        This->dirty.bit.distancefactor = 1;
+        This->dirty.bit.rollofffactor = 1;
+        This->dirty.bit.dopplerfactor = 1;
+        LeaveCriticalSection(This->crst);
+    }
+    else
+    {
+        union PrimaryParamFlags dirty = { 0l };
+        dirty.bit.pos = 1;
+        dirty.bit.vel = 1;
+        dirty.bit.orientation = 1;
+        dirty.bit.distancefactor = 1;
+        dirty.bit.rollofffactor = 1;
+        dirty.bit.dopplerfactor = 1;
+
+        EnterCriticalSection(This->crst);
+        setALContext(This->ctx);
+        DS8Primary_SetParams(This, listen, dirty.flags);
+        checkALError();
+        popALContext();
+        LeaveCriticalSection(This->crst);
     }
 
     return S_OK;

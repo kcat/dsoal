@@ -1677,7 +1677,7 @@ void DS8Buffer_SetParams(DS8Buffer *This, const DS3DBUFFER *params, LONG flags)
 static HRESULT WINAPI DS8Buffer3D_QueryInterface(IDirectSound3DBuffer *iface, REFIID riid, void **ppv)
 {
     DS8Buffer *This = impl_from_IDirectSound3DBuffer(iface);
-    return IDirectSoundBuffer8_QueryInterface(&This->IDirectSoundBuffer8_iface, riid, ppv);
+    return DS8Buffer_QueryInterface(&This->IDirectSoundBuffer8_iface, riid, ppv);
 }
 
 static ULONG WINAPI DS8Buffer3D_AddRef(IDirectSound3DBuffer *iface)
@@ -1703,36 +1703,6 @@ static ULONG WINAPI DS8Buffer3D_Release(IDirectSound3DBuffer *iface)
         DS8Buffer_Destroy(This);
 
     return ret;
-}
-
-static HRESULT WINAPI DS8Buffer3D_GetAllParameters(IDirectSound3DBuffer *iface, DS3DBUFFER *ds3dbuffer)
-{
-    DS8Buffer *This = impl_from_IDirectSound3DBuffer(iface);
-
-    TRACE("(%p)->(%p)\n", iface, ds3dbuffer);
-
-    if(!ds3dbuffer || ds3dbuffer->dwSize < sizeof(*ds3dbuffer))
-    {
-        WARN("Invalid parameters %p %lu\n", ds3dbuffer, ds3dbuffer ? ds3dbuffer->dwSize : 0);
-        return DSERR_INVALIDPARAM;
-    }
-
-    EnterCriticalSection(This->crst);
-    setALContext(This->ctx);
-
-    IDirectSound3DBuffer_GetPosition(iface, &ds3dbuffer->vPosition);
-    IDirectSound3DBuffer_GetVelocity(iface, &ds3dbuffer->vVelocity);
-    IDirectSound3DBuffer_GetConeAngles(iface, &ds3dbuffer->dwInsideConeAngle, &ds3dbuffer->dwOutsideConeAngle);
-    IDirectSound3DBuffer_GetConeOrientation(iface, &ds3dbuffer->vConeOrientation);
-    IDirectSound3DBuffer_GetConeOutsideVolume(iface, &ds3dbuffer->lConeOutsideVolume);
-    IDirectSound3DBuffer_GetMinDistance(iface, &ds3dbuffer->flMinDistance);
-    IDirectSound3DBuffer_GetMaxDistance(iface, &ds3dbuffer->flMaxDistance);
-    IDirectSound3DBuffer_GetMode(iface, &ds3dbuffer->dwMode);
-
-    popALContext();
-    LeaveCriticalSection(This->crst);
-
-    return DS_OK;
 }
 
 static HRESULT WINAPI DS8Buffer3D_GetConeAngles(IDirectSound3DBuffer *iface, DWORD *pdwInsideConeAngle, DWORD *pdwOutsideConeAngle)
@@ -1912,88 +1882,34 @@ static HRESULT WINAPI DS8Buffer3D_GetVelocity(IDirectSound3DBuffer *iface, D3DVE
     return S_OK;
 }
 
-static HRESULT WINAPI DS8Buffer3D_SetAllParameters(IDirectSound3DBuffer *iface, const DS3DBUFFER *ds3dbuffer, DWORD apply)
+static HRESULT WINAPI DS8Buffer3D_GetAllParameters(IDirectSound3DBuffer *iface, DS3DBUFFER *ds3dbuffer)
 {
     DS8Buffer *This = impl_from_IDirectSound3DBuffer(iface);
-    TRACE("(%p)->(%p, %lu)\n", This, ds3dbuffer, apply);
+
+    TRACE("(%p)->(%p)\n", iface, ds3dbuffer);
 
     if(!ds3dbuffer || ds3dbuffer->dwSize < sizeof(*ds3dbuffer))
     {
-        WARN("Invalid DS3DBUFFER (%p, %lu)\n", ds3dbuffer, ds3dbuffer ? ds3dbuffer->dwSize : 0);
+        WARN("Invalid parameters %p %lu\n", ds3dbuffer, ds3dbuffer ? ds3dbuffer->dwSize : 0);
         return DSERR_INVALIDPARAM;
     }
 
-    if(ds3dbuffer->dwInsideConeAngle > DS3D_MAXCONEANGLE ||
-       ds3dbuffer->dwOutsideConeAngle > DS3D_MAXCONEANGLE)
-    {
-        WARN("Invalid cone angles (%lu, %lu)\n",
-             ds3dbuffer->dwInsideConeAngle, ds3dbuffer->dwOutsideConeAngle);
-        return DSERR_INVALIDPARAM;
-    }
+    EnterCriticalSection(This->crst);
+    setALContext(This->ctx);
 
-    if(ds3dbuffer->lConeOutsideVolume > DSBVOLUME_MAX ||
-       ds3dbuffer->lConeOutsideVolume < DSBVOLUME_MIN)
-    {
-        WARN("Invalid cone outside volume (%ld)\n", ds3dbuffer->lConeOutsideVolume);
-        return DSERR_INVALIDPARAM;
-    }
+    DS8Buffer3D_GetPosition(iface, &ds3dbuffer->vPosition);
+    DS8Buffer3D_GetVelocity(iface, &ds3dbuffer->vVelocity);
+    DS8Buffer3D_GetConeAngles(iface, &ds3dbuffer->dwInsideConeAngle, &ds3dbuffer->dwOutsideConeAngle);
+    DS8Buffer3D_GetConeOrientation(iface, &ds3dbuffer->vConeOrientation);
+    DS8Buffer3D_GetConeOutsideVolume(iface, &ds3dbuffer->lConeOutsideVolume);
+    DS8Buffer3D_GetMinDistance(iface, &ds3dbuffer->flMinDistance);
+    DS8Buffer3D_GetMaxDistance(iface, &ds3dbuffer->flMaxDistance);
+    DS8Buffer3D_GetMode(iface, &ds3dbuffer->dwMode);
 
-    if(ds3dbuffer->flMaxDistance < 0.0f)
-    {
-        WARN("Invalid max distance (%f)\n", ds3dbuffer->flMaxDistance);
-        return DSERR_INVALIDPARAM;
-    }
+    popALContext();
+    LeaveCriticalSection(This->crst);
 
-    if(ds3dbuffer->flMinDistance < 0.0f)
-    {
-        WARN("Invalid min distance (%f)\n", ds3dbuffer->flMinDistance);
-        return DSERR_INVALIDPARAM;
-    }
-
-    if(ds3dbuffer->dwMode != DS3DMODE_NORMAL &&
-       ds3dbuffer->dwMode != DS3DMODE_HEADRELATIVE &&
-       ds3dbuffer->dwMode != DS3DMODE_DISABLE)
-    {
-        WARN("Invalid mode (%lu)\n", ds3dbuffer->dwMode);
-        return DSERR_INVALIDPARAM;
-    }
-
-    if(apply == DS3D_DEFERRED)
-    {
-        EnterCriticalSection(This->crst);
-        This->params = *ds3dbuffer;
-        This->params.dwSize = sizeof(This->params);
-        This->dirty.bit.pos = 1;
-        This->dirty.bit.vel = 1;
-        This->dirty.bit.cone_angles = 1;
-        This->dirty.bit.cone_orient = 1;
-        This->dirty.bit.cone_outsidevolume = 1;
-        This->dirty.bit.min_distance = 1;
-        This->dirty.bit.max_distance = 1;
-        This->dirty.bit.mode = 1;
-        LeaveCriticalSection(This->crst);
-    }
-    else
-    {
-        union BufferParamFlags dirty = { 0 };
-        dirty.bit.pos = 1;
-        dirty.bit.vel = 1;
-        dirty.bit.cone_angles = 1;
-        dirty.bit.cone_orient = 1;
-        dirty.bit.cone_outsidevolume = 1;
-        dirty.bit.min_distance = 1;
-        dirty.bit.max_distance = 1;
-        dirty.bit.mode = 1;
-
-        EnterCriticalSection(This->crst);
-        setALContext(This->ctx);
-        DS8Buffer_SetParams(This, ds3dbuffer, dirty.flags);
-        checkALError();
-        popALContext();
-        LeaveCriticalSection(This->crst);
-    }
-
-    return S_OK;
+    return DS_OK;
 }
 
 static HRESULT WINAPI DS8Buffer3D_SetConeAngles(IDirectSound3DBuffer *iface, DWORD dwInsideConeAngle, DWORD dwOutsideConeAngle, DWORD apply)
@@ -2227,6 +2143,90 @@ static HRESULT WINAPI DS8Buffer3D_SetVelocity(IDirectSound3DBuffer *iface, D3DVA
     return S_OK;
 }
 
+static HRESULT WINAPI DS8Buffer3D_SetAllParameters(IDirectSound3DBuffer *iface, const DS3DBUFFER *ds3dbuffer, DWORD apply)
+{
+    DS8Buffer *This = impl_from_IDirectSound3DBuffer(iface);
+    TRACE("(%p)->(%p, %lu)\n", This, ds3dbuffer, apply);
+
+    if(!ds3dbuffer || ds3dbuffer->dwSize < sizeof(*ds3dbuffer))
+    {
+        WARN("Invalid DS3DBUFFER (%p, %lu)\n", ds3dbuffer, ds3dbuffer ? ds3dbuffer->dwSize : 0);
+        return DSERR_INVALIDPARAM;
+    }
+
+    if(ds3dbuffer->dwInsideConeAngle > DS3D_MAXCONEANGLE ||
+       ds3dbuffer->dwOutsideConeAngle > DS3D_MAXCONEANGLE)
+    {
+        WARN("Invalid cone angles (%lu, %lu)\n",
+             ds3dbuffer->dwInsideConeAngle, ds3dbuffer->dwOutsideConeAngle);
+        return DSERR_INVALIDPARAM;
+    }
+
+    if(ds3dbuffer->lConeOutsideVolume > DSBVOLUME_MAX ||
+       ds3dbuffer->lConeOutsideVolume < DSBVOLUME_MIN)
+    {
+        WARN("Invalid cone outside volume (%ld)\n", ds3dbuffer->lConeOutsideVolume);
+        return DSERR_INVALIDPARAM;
+    }
+
+    if(ds3dbuffer->flMaxDistance < 0.0f)
+    {
+        WARN("Invalid max distance (%f)\n", ds3dbuffer->flMaxDistance);
+        return DSERR_INVALIDPARAM;
+    }
+
+    if(ds3dbuffer->flMinDistance < 0.0f)
+    {
+        WARN("Invalid min distance (%f)\n", ds3dbuffer->flMinDistance);
+        return DSERR_INVALIDPARAM;
+    }
+
+    if(ds3dbuffer->dwMode != DS3DMODE_NORMAL &&
+       ds3dbuffer->dwMode != DS3DMODE_HEADRELATIVE &&
+       ds3dbuffer->dwMode != DS3DMODE_DISABLE)
+    {
+        WARN("Invalid mode (%lu)\n", ds3dbuffer->dwMode);
+        return DSERR_INVALIDPARAM;
+    }
+
+    if(apply == DS3D_DEFERRED)
+    {
+        EnterCriticalSection(This->crst);
+        This->params = *ds3dbuffer;
+        This->params.dwSize = sizeof(This->params);
+        This->dirty.bit.pos = 1;
+        This->dirty.bit.vel = 1;
+        This->dirty.bit.cone_angles = 1;
+        This->dirty.bit.cone_orient = 1;
+        This->dirty.bit.cone_outsidevolume = 1;
+        This->dirty.bit.min_distance = 1;
+        This->dirty.bit.max_distance = 1;
+        This->dirty.bit.mode = 1;
+        LeaveCriticalSection(This->crst);
+    }
+    else
+    {
+        union BufferParamFlags dirty = { 0 };
+        dirty.bit.pos = 1;
+        dirty.bit.vel = 1;
+        dirty.bit.cone_angles = 1;
+        dirty.bit.cone_orient = 1;
+        dirty.bit.cone_outsidevolume = 1;
+        dirty.bit.min_distance = 1;
+        dirty.bit.max_distance = 1;
+        dirty.bit.mode = 1;
+
+        EnterCriticalSection(This->crst);
+        setALContext(This->ctx);
+        DS8Buffer_SetParams(This, ds3dbuffer, dirty.flags);
+        checkALError();
+        popALContext();
+        LeaveCriticalSection(This->crst);
+    }
+
+    return S_OK;
+}
+
 static const IDirectSound3DBufferVtbl DS8Buffer3d_Vtbl =
 {
     DS8Buffer3D_QueryInterface,
@@ -2256,7 +2256,7 @@ static const IDirectSound3DBufferVtbl DS8Buffer3d_Vtbl =
 static HRESULT WINAPI DS8BufferNot_QueryInterface(IDirectSoundNotify *iface, REFIID riid, void **ppv)
 {
     DS8Buffer *This = impl_from_IDirectSoundNotify(iface);
-    return IDirectSoundBuffer8_QueryInterface(&This->IDirectSoundBuffer8_iface, riid, ppv);
+    return DS8Buffer_QueryInterface(&This->IDirectSoundBuffer8_iface, riid, ppv);
 }
 
 static ULONG WINAPI DS8BufferNot_AddRef(IDirectSoundNotify *iface)
@@ -2355,7 +2355,7 @@ static const IDirectSoundNotifyVtbl DS8BufferNot_Vtbl =
 static HRESULT WINAPI DS8BufferProp_QueryInterface(IKsPropertySet *iface, REFIID riid, void **ppv)
 {
     DS8Buffer *This = impl_from_IKsPropertySet(iface);
-    return IDirectSoundBuffer8_QueryInterface(&This->IDirectSoundBuffer8_iface, riid, ppv);
+    return DS8Buffer_QueryInterface(&This->IDirectSoundBuffer8_iface, riid, ppv);
 }
 
 static ULONG WINAPI DS8BufferProp_AddRef(IKsPropertySet *iface)
