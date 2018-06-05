@@ -39,9 +39,12 @@ DEFINE_GUID(KSDATAFORMAT_SUBTYPE_PCM, 0x00000001, 0x0000, 0x0010, 0x80, 0x00, 0x
 DEFINE_GUID(KSDATAFORMAT_SUBTYPE_IEEE_FLOAT, 0x00000003, 0x0000, 0x0010, 0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71);
 
 #ifndef E_PROP_ID_UNSUPPORTED
-#define E_PROP_ID_UNSUPPORTED            ((HRESULT)0x80070490)
+#define E_PROP_ID_UNSUPPORTED           ((HRESULT)0x80070490)
 #endif
 
+#ifndef DS_INCOMPLETE
+#define DS_INCOMPLETE                   ((HRESULT)0x08780020)
+#endif
 
 #ifndef WAVE_FORMAT_IEEE_FLOAT
 #define WAVE_FORMAT_IEEE_FLOAT 3
@@ -444,7 +447,7 @@ HRESULT DS8Buffer_Create(DS8Buffer **ppv, DS8Primary *prim, IDirectSoundBuffer *
     /* Append to buffer list */
     if(prim->nbuffers == prim->sizebuffers)
     {
-        void *bufs;
+        DS8Buffer **bufs;
 
         hr = DSERR_OUTOFMEMORY;
         bufs = HeapReAlloc(GetProcessHeap(), 0, prim->buffers, sizeof(*bufs)*(prim->nbuffers+1));
@@ -769,7 +772,8 @@ static HRESULT WINAPI DS8Buffer_GetPan(IDirectSoundBuffer8 *iface, LONG *pan)
         checkALError();
         popALContext();
 
-        *pan = clampI(((pos[0]+1.0) * (DSBPAN_RIGHT-DSBPAN_LEFT) / 2.0 + 0.5) + DSBPAN_LEFT, DSBPAN_LEFT, DSBPAN_RIGHT);
+        *pan = clampI((LONG)((pos[0]+0.5f) * (DSBPAN_RIGHT-DSBPAN_LEFT)) + DSBPAN_LEFT,
+                      DSBPAN_LEFT, DSBPAN_RIGHT);
         hr = DS_OK;
     }
 
