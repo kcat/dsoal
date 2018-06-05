@@ -166,11 +166,13 @@ static DWORD CALLBACK DS8Primary_thread(void *dwUser)
             alGetSourcei(buf->source, AL_BUFFERS_QUEUED, &queued);
             alGetSourcei(buf->source, AL_BUFFERS_PROCESSED, &done);
 
-            queued -= done;
-            while(done--)
+            if(done > 0)
             {
-                alSourceUnqueueBuffers(buf->source, 1, &which);
-                buf->queue_base = (buf->queue_base+data->segsize) % data->buf_size;
+                ALuint bids[QBUFFERS];
+                queued -= done;
+
+                alSourceUnqueueBuffers(buf->source, done, bids);
+                buf->queue_base = (buf->queue_base + data->segsize*done) % data->buf_size;
             }
             while(queued < QBUFFERS)
             {
@@ -197,7 +199,7 @@ static DWORD CALLBACK DS8Primary_thread(void *dwUser)
                         memcpy(scratch_mem + rem, data->data, todo);
                         rem += todo;
                     }
-                    alBufferData(which, data->buf_format, data->data + ofs, data->segsize,
+                    alBufferData(which, data->buf_format, scratch_mem, data->segsize,
                                  data->format.Format.nSamplesPerSec);
                     buf->data_offset = (ofs+data->segsize) % data->buf_size;
                 }
@@ -210,7 +212,7 @@ static DWORD CALLBACK DS8Primary_thread(void *dwUser)
                     memcpy(scratch_mem, data->data + ofs, rem);
                     memset(scratch_mem+rem, (data->format.Format.wBitsPerSample == 8) ? 0x80 : 0,
                            data->segsize - rem);
-                    alBufferData(which, data->buf_format, data->data + ofs, data->segsize,
+                    alBufferData(which, data->buf_format, scratch_mem, data->segsize,
                                  data->format.Format.nSamplesPerSec);
                     buf->data_offset = data->buf_size;
                 }
@@ -224,6 +226,7 @@ static DWORD CALLBACK DS8Primary_thread(void *dwUser)
             {
                 alSourceRewind(buf->source);
                 buf->curidx = 0;
+                buf->queue_base = 0;
                 buf->isplaying = FALSE;
             }
             else if(state != AL_PLAYING)
