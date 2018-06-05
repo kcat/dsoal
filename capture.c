@@ -138,9 +138,14 @@ static DWORD CALLBACK DSCBuffer_thread(void *param)
             continue;
 
         EnterCriticalSection(&This->crst);
+        if(!buf->playing)
+        {
+            LeaveCriticalSection(&This->crst);
+            continue;
+        }
     more_samples:
         avail *= buf->format.Format.nBlockAlign;
-        if(avail + buf->pos > buf->buf_size)
+        if((DWORD)avail > buf->buf_size - buf->pos)
             avail = buf->buf_size - buf->pos;
 
         alcCaptureSamples(buf->dev, buf->buf + buf->pos, avail/buf->format.Format.nBlockAlign);
@@ -151,7 +156,17 @@ static DWORD CALLBACK DSCBuffer_thread(void *param)
         {
             buf->pos = 0;
             if(!buf->looping)
-                IDirectSoundCaptureBuffer8_Stop(&buf->IDirectSoundCaptureBuffer8_iface);
+            {
+                DWORD i;
+                for(i = 0;i < buf->nnotify;++i)
+                {
+                    if(buf->notify[i].dwOffset == DSCBPN_OFFSET_STOP)
+                        SetEvent(buf->notify[i].hEventNotify);
+                }
+
+                buf->playing = 0;
+                alcCaptureStop(buf->dev);
+            }
             else
             {
                 alcGetIntegerv(buf->dev, ALC_CAPTURE_SAMPLES, 1, &avail);
@@ -194,7 +209,8 @@ static void DSCBuffer_starttimer(DSCBuffer *This)
         res = time.wPeriodMin;
     if (timeBeginPeriod(res) == TIMERR_NOCANDO)
         WARN("Could not set minimum resolution, don't expect sound\n");
-    This->timer_res = res;
+    else
+        This->timer_res = res;
     This->timer_id = timeSetEvent(triggertime, res, DSCBuffer_timer, This->thread_id, TIME_PERIODIC|TIME_KILL_SYNCHRONOUS);
 }
 
