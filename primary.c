@@ -346,9 +346,6 @@ HRESULT DS8Primary_PreInit(DS8Primary *This, DS8Impl *parent)
     listener->flDistanceFactor = DS3D_DEFAULTDISTANCEFACTOR;
     listener->flRolloffFactor = DS3D_DEFAULTROLLOFFFACTOR;
     listener->flDopplerFactor = DS3D_DEFAULTDOPPLERFACTOR;
-    hr = IDirectSound3DListener_SetAllParameters(&This->IDirectSound3DListener_iface, listener, DS3D_IMMEDIATE);
-    if(FAILED(hr))
-        ERR("Could not set 3d parameters: %08lx\n", hr);
 
     This->sizenotifies = This->sizebuffers = parent->share->max_sources;
 
