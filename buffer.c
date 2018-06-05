@@ -21,6 +21,7 @@
  */
 
 #include <stdarg.h>
+#include <string.h>
 
 #define INITGUID
 #include "windows.h"
@@ -611,16 +612,21 @@ static HRESULT WINAPI DS8Buffer_GetCurrentPosition(IDirectSoundBuffer8 *iface, D
     data = This->buffer;
     if(!(data->dsbflags&DSBCAPS_STATIC))
     {
+        ALint status = 0;
         ALint ofs = 0;
 
         EnterCriticalSection(This->crst);
 
         setALContext(This->ctx);
         alGetSourcei(This->source, AL_BYTE_OFFSET, &ofs);
+        alGetSourcei(This->source, AL_SOURCE_STATE, &status);
         checkALError();
         popALContext();
 
-        pos = ofs + This->queue_base;
+        if(status == AL_STOPPED)
+            pos = data->segsize*QBUFFERS + This->queue_base;
+        else
+            pos = ofs + This->queue_base;
         if(pos >= data->buf_size)
         {
             if(This->islooping)
@@ -1114,6 +1120,12 @@ static HRESULT WINAPI DS8Buffer_Play(IDirectSoundBuffer8 *iface, DWORD res1, DWO
             alSourcei(This->source, AL_BUFFER, This->buffer->bid);
         alSourcePlay(This->source);
     }
+    else
+    {
+        alSourceRewind(This->source);
+        alSourcei(This->source, AL_BUFFER, 0);
+        This->curidx = 0;
+    }
     if(alGetError() != AL_NO_ERROR)
     {
         ERR("Couldn't start source\n");
@@ -1159,7 +1171,7 @@ static HRESULT WINAPI DS8Buffer_SetCurrentPosition(IDirectSoundBuffer8 *iface, D
             setALContext(This->ctx);
             /* Perform a flush, so the next timer update will restart at the
              * proper position */
-            alSourceStop(This->source);
+            alSourceRewind(This->source);
             alSourcei(This->source, AL_BUFFER, 0);
             checkALError();
             popALContext();
@@ -1282,7 +1294,6 @@ static HRESULT WINAPI DS8Buffer_SetFrequency(IDirectSoundBuffer8 *iface, DWORD f
 static HRESULT WINAPI DS8Buffer_Stop(IDirectSoundBuffer8 *iface)
 {
     DS8Buffer *This = impl_from_IDirectSoundBuffer8(iface);
-    ALint state;
 
     TRACE("(%p)->()\n", iface);
 
@@ -1291,17 +1302,6 @@ static HRESULT WINAPI DS8Buffer_Stop(IDirectSoundBuffer8 *iface)
 
     alSourcePause(This->source);
     checkALError();
-    /* Mac OS X doesn't immediately report state change
-     * if Play() is immediately called after Stop, this can be fatal,
-     * the buffer would never be restarted
-     */
-    do {
-        state = AL_PAUSED;
-        alGetSourcei(This->source, AL_SOURCE_STATE, &state);
-        if(state != AL_PLAYING)
-            break;
-        Sleep(1);
-    } while(1);
 
     This->isplaying = FALSE;
 

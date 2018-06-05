@@ -386,10 +386,12 @@ struct DS8Primary {
     DWORD flags;
     WAVEFORMATEXTENSIBLE format;
 
-    UINT timer_id;
-    DWORD timer_res;
     HANDLE thread_hdl;
     DWORD thread_id;
+
+    HANDLE queue_timer;
+    HANDLE timer_evt;
+    volatile LONG quit_now;
 
     DS8Buffer **buffers;
     DWORD nbuffers, sizebuffers;

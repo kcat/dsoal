@@ -114,17 +114,13 @@ static DWORD CALLBACK DS8Primary_thread(void *dwUser)
 {
     DS8Primary *prim = (DS8Primary*)dwUser;
     BYTE *scratch_mem = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, 2048);
-    MSG msg;
     DWORD i;
 
     SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_TIME_CRITICAL);
 
     TRACE("Primary buffer (%p) message loop start\n", prim);
-    while(GetMessageA(&msg, NULL, 0, 0))
+    while(WaitForSingleObject(prim->timer_evt, INFINITE) == WAIT_OBJECT_0 && !prim->quit_now)
     {
-        if(msg.message != WM_USER)
-            continue;
-
         EnterCriticalSection(prim->crst);
         setALContext(prim->ctx);
 
@@ -225,7 +221,11 @@ static DWORD CALLBACK DS8Primary_thread(void *dwUser)
             }
 
             if(!queued)
-                IDirectSoundBuffer8_Stop(&buf->IDirectSoundBuffer8_iface);
+            {
+                alSourceRewind(buf->source);
+                buf->curidx = 0;
+                buf->isplaying = FALSE;
+            }
             else if(state != AL_PLAYING)
                 alSourcePlay(buf->source);
         }
@@ -236,54 +236,31 @@ static DWORD CALLBACK DS8Primary_thread(void *dwUser)
     }
     TRACE("Primary buffer (%p) message loop quit\n", prim);
 
-    if(prim->timer_id)
-    {
-        timeKillEvent(prim->timer_id);
-        prim->timer_id = 0;
-        timeEndPeriod(prim->timer_res);
-        TRACE("Killed timer\n");
-    }
-
     HeapFree(GetProcessHeap(), 0, scratch_mem);
     scratch_mem = NULL;
 
     return 0;
 }
 
-static void CALLBACK DS8Primary_timer(UINT timerID, UINT msg, DWORD_PTR dwUser,
-                                      DWORD_PTR dw1, DWORD_PTR dw2)
+static void CALLBACK DS8Primary_timer(void *arg, BOOLEAN unused)
 {
-    (void)timerID;
-    (void)msg;
-    (void)dw1;
-    (void)dw2;
-    PostThreadMessageA(dwUser, WM_USER, 0, 0);
+    (void)unused;
+    SetEvent((HANDLE)arg);
 }
 
 void DS8Primary_starttimer(DS8Primary *prim)
 {
-    DWORD triggertime, res = DS_TIME_RES;
-    TIMECAPS time;
+    DWORD triggertime;
 
-    if(prim->timer_id)
+    if(prim->queue_timer)
         return;
 
-    timeGetDevCaps(&time, sizeof(TIMECAPS));
-
-    triggertime = 1000 / prim->refresh / 2;
-    if(triggertime < time.wPeriodMin)
-        triggertime = time.wPeriodMin;
+    triggertime = 1000 / prim->refresh * 2 / 3;
     TRACE("Calling timer every %lu ms for %i refreshes per second\n", triggertime, prim->refresh);
 
-    if (res < time.wPeriodMin)
-        res = time.wPeriodMin;
-    if (timeBeginPeriod(res) == TIMERR_NOCANDO)
-        WARN("Could not set minimum resolution, don't expect sound\n");
-
-    prim->timer_res = res;
-    prim->timer_id = timeSetEvent(triggertime, res, DS8Primary_timer, prim->thread_id, TIME_PERIODIC|TIME_KILL_SYNCHRONOUS);
+    CreateTimerQueueTimer(&prim->queue_timer, NULL, DS8Primary_timer, prim->timer_evt,
+                          triggertime, triggertime, WT_EXECUTEINTIMERTHREAD);
 }
-
 
 
 HRESULT DS8Primary_PreInit(DS8Primary *This, DS8Impl *parent)
@@ -381,9 +358,14 @@ HRESULT DS8Primary_PreInit(DS8Primary *This, DS8Impl *parent)
     if(!This->buffers || !This->notifies)
         goto fail;
 
+    This->quit_now = FALSE;
+    This->timer_evt = CreateEventA(NULL, FALSE, FALSE, NULL);
+    if(!This->timer_evt) goto fail;
+
+    This->queue_timer = NULL;
+
     This->thread_hdl = CreateThread(NULL, 0, DS8Primary_thread, This, 0, &This->thread_id);
-    if(This->thread_hdl == NULL)
-        goto fail;
+    if(!This->thread_hdl) goto fail;
 
     return S_OK;
 
@@ -399,23 +381,25 @@ void DS8Primary_Clear(DS8Primary *This)
     if(!This->parent)
         return;
 
+    if(This->queue_timer)
+        DeleteTimerQueueTimer(NULL, This->queue_timer, INVALID_HANDLE_VALUE);
+    This->queue_timer = NULL;
+
     if(This->thread_hdl)
     {
-        PostThreadMessageA(This->thread_id, WM_QUIT, 0, 0);
+        InterlockedExchange(&This->quit_now, TRUE);
+        SetEvent(This->timer_evt);
+
         if(WaitForSingleObject(This->thread_hdl, 1000) != WAIT_OBJECT_0)
-        {
-            /* HACK: Apparently, if the device is initialized (thus the primary
-             * buffer has PreInit called) then immediately deleted (the primary
-             * buffer has Clear called), the WM_QUIT message gets sent before
-             * the thread has a chance to run which apparently prevents it from
-             * receiving the message.
-             * If the wait attempt fails, try sending the message again. */
-            PostThreadMessageA(This->thread_id, WM_QUIT, 0, 0);
-            if(WaitForSingleObject(This->thread_hdl, 1000) != WAIT_OBJECT_0)
-                ERR("Thread wait timed out\n");
-        }
+            ERR("Thread wait timed out\n");
+
         CloseHandle(This->thread_hdl);
+        This->thread_hdl = NULL;
     }
+
+    if(This->timer_evt)
+        CloseHandle(This->timer_evt);
+    This->timer_evt = NULL;
 
     setALContext(This->ctx);
     if(This->effect)
