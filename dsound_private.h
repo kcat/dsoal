@@ -446,7 +446,7 @@ typedef struct DS8Data {
 } DS8Data;
 /* Amount of buffers that have to be queued when
  * bufferdatastatic and buffersubdata are not available */
-#define QBUFFERS 3
+#define QBUFFERS 4
 
 union BufferParamFlags {
     LONG flags;

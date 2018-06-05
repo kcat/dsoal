@@ -604,10 +604,12 @@ static HRESULT WINAPI DS8Buffer_GetCurrentPosition(IDirectSoundBuffer8 *iface, D
 {
     DS8Buffer *This = impl_from_IDirectSoundBuffer8(iface);
     ALsizei writecursor, pos;
+    DS8Data *data;
 
     TRACE("(%p)->(%p, %p)\n", iface, playpos, curpos);
 
-    if(!(This->buffer->dsbflags&DSBCAPS_STATIC))
+    data = This->buffer;
+    if(!(data->dsbflags&DSBCAPS_STATIC))
     {
         ALint ofs = 0;
 
@@ -619,8 +621,17 @@ static HRESULT WINAPI DS8Buffer_GetCurrentPosition(IDirectSoundBuffer8 *iface, D
         popALContext();
 
         pos = ofs + This->queue_base;
+        if(pos >= data->buf_size)
+        {
+            if(This->islooping)
+                pos %= data->buf_size;
+            else if(This->isplaying)
+                pos = data->buf_size - data->format.Format.nBlockAlign;
+            else
+                pos = 0;
+        }
         if(This->isplaying)
-            writecursor = (This->buffer->segsize+pos) % This->buffer->buf_size;
+            writecursor = (data->segsize*QBUFFERS + pos) % data->buf_size;
         else
             writecursor = pos;
 
@@ -628,7 +639,7 @@ static HRESULT WINAPI DS8Buffer_GetCurrentPosition(IDirectSoundBuffer8 *iface, D
     }
     else
     {
-        const WAVEFORMATEX *format = &This->buffer->format.Format;
+        const WAVEFORMATEX *format = &data->format.Format;
         ALint status = 0;
         ALint ofs = 0;
 
@@ -641,12 +652,12 @@ static HRESULT WINAPI DS8Buffer_GetCurrentPosition(IDirectSoundBuffer8 *iface, D
         pos = ofs;
         if(status == AL_PLAYING)
         {
-            writecursor = format->nSamplesPerSec / 100;
+            writecursor = format->nSamplesPerSec / This->primary->refresh;
             writecursor *= format->nBlockAlign;
         }
         else
             writecursor = 0;
-        writecursor = (writecursor + pos) % This->buffer->buf_size;
+        writecursor = (writecursor + pos) % data->buf_size;
     }
     TRACE("%p Play pos = %u, write pos = %u\n", This, pos, writecursor);
 
@@ -2374,7 +2385,7 @@ static HRESULT WINAPI DS8BufferProp_Get(IKsPropertySet *iface,
   REFGUID guidPropSet, ULONG dwPropID,
   LPVOID pInstanceData, ULONG cbInstanceData,
   LPVOID pPropData, ULONG cbPropData,
-  PULONG pcbReturned)
+  ULONG *pcbReturned)
 {
     DS8Buffer *This = impl_from_IKsPropertySet(iface);
     HRESULT hr = E_PROP_ID_UNSUPPORTED;
@@ -2431,7 +2442,7 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
 
 static HRESULT WINAPI DS8BufferProp_QuerySupport(IKsPropertySet *iface,
   REFGUID guidPropSet, ULONG dwPropID,
-  PULONG pTypeSupport)
+  ULONG *pTypeSupport)
 {
     DS8Buffer *This = impl_from_IKsPropertySet(iface);
     HRESULT hr = E_PROP_ID_UNSUPPORTED;

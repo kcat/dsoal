@@ -21,6 +21,7 @@
  */
 
 #include <stdarg.h>
+#include <string.h>
 
 #include <windows.h>
 #include <dsound.h>
