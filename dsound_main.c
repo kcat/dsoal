@@ -33,6 +33,7 @@
  */
 
 #include <stdarg.h>
+#include <string.h>
 
 #include <windows.h>
 #include <dsound.h>
@@ -408,21 +409,42 @@ HRESULT WINAPI GetDeviceID(LPCGUID pGuidSrc, LPGUID pGuidDest)
     return DS_OK;
 }
 
-struct morecontext
+struct ConvAcontext
 {
-    LPDSENUMCALLBACKW callW;
+    LPDSENUMCALLBACKA callA;
     LPVOID data;
+
+    CHAR *str;
+    int strlen;
 };
 
-static BOOL CALLBACK w_to_a_callback(LPGUID guid, LPCSTR descA, LPCSTR modA, LPVOID data)
+static BOOL CALLBACK w2a_callback(LPGUID guid, LPCWSTR descW, LPCWSTR modW, LPVOID data)
 {
-    struct morecontext *context = data;
-    WCHAR descW[MAXPNAMELEN], modW[MAXPNAMELEN];
+    struct ConvAcontext *context = data;
+    int desclen, modlen;
+    CHAR *descA, *modA;
 
-    MultiByteToWideChar(CP_ACP, 0, descA, -1, descW, sizeof(descW)/sizeof(descW[0]));
-    MultiByteToWideChar(CP_ACP, 0, modA, -1, modW, sizeof(modW)/sizeof(modW[0]));
+    desclen = WideCharToMultiByte(CP_ACP, 0, descW, -1, NULL, 0, NULL, NULL);
+    modlen = WideCharToMultiByte(CP_ACP, 0, modW, -1, NULL, 0, NULL, NULL);
 
-    return context->callW(guid, descW, modW, context->data);
+    if(desclen+modlen > context->strlen)
+    {
+        CHAR *newstr = realloc(context->str, desclen+modlen+2);
+        if(!newstr) return FALSE;
+
+        context->str = newstr;
+        context->strlen = desclen+modlen;
+    }
+
+    descA = context->str;
+    modA = context->str + desclen+1;
+
+    WideCharToMultiByte(CP_ACP, 0, descW, -1, descA, desclen, NULL, NULL);
+    descA[desclen] = 0;
+    WideCharToMultiByte(CP_ACP, 0, modW, -1, modA, modlen, NULL, NULL);
+    modA[modlen] = 0;
+
+    return context->callA(guid, descA, modA, context->data);
 }
 
 /***************************************************************************
@@ -442,46 +464,25 @@ HRESULT WINAPI DirectSoundEnumerateA(
     LPDSENUMCALLBACKA lpDSEnumCallback,
     LPVOID lpContext)
 {
-    TRACE("lpDSEnumCallback = %p, lpContext = %p\n",
-          lpDSEnumCallback, lpContext);
+    struct ConvAcontext context;
+    HRESULT ret;
 
-    if (lpDSEnumCallback == NULL) {
+    TRACE("lpDSEnumCallback = %p, lpContext = %p\n", lpDSEnumCallback, lpContext);
+
+    if(lpDSEnumCallback == NULL) {
         WARN("invalid parameter: lpDSEnumCallback == NULL\n");
         return DSERR_INVALIDPARAM;
     }
-    else if (openal_loaded)
-    {
-        const ALCchar *devstr;
-        GUID guid;
 
-        EnterCriticalSection(&openal_crst);
-        devstr = DSOUND_getdevicestrings();
-        if(!devstr || !*devstr)
-            goto out;
+    context.callA = lpDSEnumCallback;
+    context.data = lpContext;
+    context.str = NULL;
+    context.strlen = 0;
 
-        TRACE("calling lpDSEnumCallback(NULL,\"%s\",\"%s\",%p)\n",
-              "Primary Sound Driver","",lpContext);
-        if(lpDSEnumCallback(NULL, "Primary Sound Driver", "", lpContext) == FALSE)
-            goto out;
+    ret = DirectSoundEnumerateW(w2a_callback, &context);
 
-        guid = DSOUND_renderer_guid;
-        do {
-            TRACE("calling lpDSEnumCallback(%s,\"%s\",\"%s\",%p)\n",
-                  debugstr_guid(&guid),devstr,"wineal.drv",lpContext);
-            if(lpDSEnumCallback(&guid, devstr, "wineal.drv", lpContext) == FALSE)
-                goto out;
-            guid.Data4[7]++;
-            devstr += strlen(devstr)+1;
-        } while(*devstr);
-out:
-        LeaveCriticalSection(&openal_crst);
-    }
-    else
-    {
-        ERR("Attempting to enumerate sound cards without OpenAL support\n");
-        ERR("Please recompile wine with OpenAL for sound to work\n");
-    }
-    return DS_OK;
+    free(context.str);
+    return ret;
 }
 
 /***************************************************************************
@@ -498,20 +499,70 @@ out:
  *    Failure: DSERR_INVALIDPARAM
  */
 HRESULT WINAPI DirectSoundEnumerateW(
-	LPDSENUMCALLBACKW lpDSEnumCallback,
-	LPVOID lpContext )
+    LPDSENUMCALLBACKW lpDSEnumCallback,
+    LPVOID lpContext )
 {
-    struct morecontext context;
+    TRACE("lpDSEnumCallback = %p, lpContext = %p\n", lpDSEnumCallback, lpContext);
 
-    if(lpDSEnumCallback == NULL) {
+    if(!lpDSEnumCallback)
+    {
         WARN("invalid parameter: lpDSEnumCallback == NULL\n");
         return DSERR_INVALIDPARAM;
     }
 
-    context.callW = lpDSEnumCallback;
-    context.data = lpContext;
+    if(!openal_loaded)
+    {
+        ERR("Attempting to enumerate sound cards without OpenAL support\n");
+        ERR("Please recompile wine with OpenAL for sound to work\n");
+    }
+    else
+    {
+        WCHAR *devwstr = NULL;
+        int devwstrlen = 0;
+        const ALCchar *devstr;
+        GUID guid;
 
-    return DirectSoundEnumerateA(w_to_a_callback, &context);
+        EnterCriticalSection(&openal_crst);
+        devstr = DSOUND_getdevicestrings();
+        if(!devstr || !*devstr)
+            goto out;
+
+        TRACE("calling lpDSEnumCallback(NULL,\"%ls\",\"%ls\",%p)\n",
+              L"Primary Sound Driver", L"", lpContext);
+        if(lpDSEnumCallback(NULL, L"Primary Sound Driver", L"", lpContext) == FALSE)
+            goto out;
+
+        guid = DSOUND_renderer_guid;
+        do {
+            int len;
+
+            len = MultiByteToWideChar(CP_UTF8, 0, devstr, -1, NULL, 0);
+            if(len <= 0) break;
+
+            if(len > devwstrlen)
+            {
+                WCHAR *str = realloc(devwstr, (len+1)*sizeof(WCHAR));
+                if(!str) break;
+
+                devwstr = str;
+                devwstrlen = len;
+            }
+            MultiByteToWideChar(CP_UTF8, 0, devstr, -1, devwstr, len);
+            devwstr[len] = 0;
+
+            TRACE("calling lpDSEnumCallback(%s,\"%ls\",\"%ls\",%p)\n",
+                  debugstr_guid(&guid), devwstr, L"wineal.drv", lpContext);
+            if(lpDSEnumCallback(&guid, devwstr, L"wineal.drv", lpContext) == FALSE)
+                goto out;
+
+            guid.Data4[7]++;
+            devstr += strlen(devstr)+1;
+        } while(*devstr);
+out:
+        LeaveCriticalSection(&openal_crst);
+        free(devwstr);
+    }
+    return DS_OK;
 }
 
 /***************************************************************************
@@ -531,45 +582,25 @@ HRESULT WINAPI DirectSoundCaptureEnumerateA(
     LPDSENUMCALLBACKA lpDSEnumCallback,
     LPVOID lpContext)
 {
-    TRACE("(%p,%p)\n", lpDSEnumCallback, lpContext );
+    struct ConvAcontext context;
+    HRESULT ret;
 
-    if (lpDSEnumCallback == NULL) {
+    TRACE("lpDSEnumCallback = %p, lpContext = %p\n", lpDSEnumCallback, lpContext);
+
+    if(lpDSEnumCallback == NULL) {
         WARN("invalid parameter: lpDSEnumCallback == NULL\n");
         return DSERR_INVALIDPARAM;
     }
-    else if (openal_loaded)
-    {
-        const ALCchar *devstr;
-        GUID guid;
 
-        EnterCriticalSection(&openal_crst);
-        devstr = DSOUND_getcapturedevicestrings();
-        if(!devstr || !*devstr)
-            goto out;
+    context.callA = lpDSEnumCallback;
+    context.data = lpContext;
+    context.str = NULL;
+    context.strlen = 0;
 
-        TRACE("calling lpDSEnumCallback(NULL,\"%s\",\"%s\",%p)\n",
-              "Primary Sound Capture Driver","",lpContext);
-        if(lpDSEnumCallback(NULL, "Primary Sound Driver", "", lpContext) == FALSE)
-            goto out;
+    ret = DirectSoundCaptureEnumerateW(w2a_callback, &context);
 
-        guid = DSOUND_capture_guid;
-        do {
-            TRACE("calling lpDSEnumCallback(%s,\"%s\",\"%s\",%p)\n",
-                  debugstr_guid(&guid),devstr,"wineal.drv",lpContext);
-            if(lpDSEnumCallback(&guid, devstr, "wineal.drv", lpContext) == FALSE)
-                goto out;
-            guid.Data4[7]++;
-            devstr += strlen(devstr)+1;
-        } while(*devstr);
-out:
-        LeaveCriticalSection(&openal_crst);
-    }
-    else
-    {
-        ERR("Attempting to enumerate sound cards without OpenAL support\n");
-        ERR("Please recompile wine with OpenAL for sound to work\n");
-    }
-    return DS_OK;
+    free(context.str);
+    return ret;
 }
 
 /***************************************************************************
@@ -585,22 +616,72 @@ out:
  *    Success: DS_OK
  *    Failure: DSERR_INVALIDPARAM
  */
-HRESULT WINAPI
-DirectSoundCaptureEnumerateW(
+HRESULT WINAPI DirectSoundCaptureEnumerateW(
     LPDSENUMCALLBACKW lpDSEnumCallback,
     LPVOID lpContext)
 {
-    struct morecontext context;
+    TRACE("lpDSEnumCallback = %p, lpContext = %p\n", lpDSEnumCallback, lpContext);
 
-    if (lpDSEnumCallback == NULL) {
+    if(!lpDSEnumCallback)
+    {
         WARN("invalid parameter: lpDSEnumCallback == NULL\n");
         return DSERR_INVALIDPARAM;
     }
 
-    context.callW = lpDSEnumCallback;
-    context.data = lpContext;
+    if(!openal_loaded)
+    {
+        ERR("Attempting to enumerate sound cards without OpenAL support\n");
+        ERR("Please recompile wine with OpenAL for sound to work\n");
+    }
+    else
+    {
+        WCHAR *devwstr = NULL;
+        int devwstrlen = 0;
+        const ALCchar *devstr;
+        GUID guid;
 
-    return DirectSoundCaptureEnumerateA(w_to_a_callback, &context);
+        EnterCriticalSection(&openal_crst);
+        devstr = DSOUND_getcapturedevicestrings();
+        if(!devstr || !*devstr)
+            goto out;
+
+        TRACE("calling lpDSEnumCallback(NULL,\"%ls\",\"%ls\",%p)\n",
+              L"Primary Sound Driver", L"", lpContext);
+        if(lpDSEnumCallback(NULL, L"Primary Sound Driver", L"", lpContext) == FALSE)
+            goto out;
+
+        guid = DSOUND_capture_guid;
+        do {
+            int len;
+
+            len = MultiByteToWideChar(CP_UTF8, 0, devstr, -1, NULL, 0);
+            if(len <= 0) break;
+
+            if(len > devwstrlen)
+            {
+                WCHAR *str = realloc(devwstr, (len+1)*sizeof(WCHAR));
+                if(!str) break;
+
+                devwstr = str;
+                devwstrlen = len;
+            }
+            MultiByteToWideChar(CP_UTF8, 0, devstr, -1, devwstr, len);
+            devwstr[len] = 0;
+
+            TRACE("calling lpDSEnumCallback(%s,\"%ls\",\"%ls\",%p)\n",
+                  debugstr_guid(&guid), devwstr, L"wineal.drv", lpContext);
+            if(lpDSEnumCallback(&guid, devwstr, L"wineal.drv", lpContext) == FALSE)
+                goto out;
+
+            guid.Data4[7]++;
+            devstr += strlen(devstr)+1;
+        } while(*devstr);
+out:
+        LeaveCriticalSection(&openal_crst);
+        free(devwstr);
+    }
+
+    return DS_OK;
 }
 
 /*******************************************************************************
