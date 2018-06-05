@@ -21,6 +21,7 @@
  */
 
 #include <stdarg.h>
+#include <string.h>
 
 #include <windows.h>
 #include <dsound.h>
@@ -192,7 +193,14 @@ static DWORD CALLBACK DS8Primary_thread(void *dwUser)
                     if(rem > 2048) rem = 2048;
 
                     memcpy(scratch_mem, data->data + ofs, rem);
-                    memcpy(scratch_mem + rem, data->data, data->segsize - rem);
+                    while(rem < data->segsize)
+                    {
+                        ALsizei todo = data->segsize - rem;
+                        if(todo > data->buf_size)
+                            todo = data->buf_size;
+                        memcpy(scratch_mem + rem, data->data, todo);
+                        rem += todo;
+                    }
                     alBufferData(which, data->buf_format, data->data + ofs, data->segsize,
                                  data->format.Format.nSamplesPerSec);
                     buf->data_offset = (ofs+data->segsize) % data->buf_size;
@@ -217,10 +225,7 @@ static DWORD CALLBACK DS8Primary_thread(void *dwUser)
             }
 
             if(!queued)
-            {
                 IDirectSoundBuffer8_Stop(&buf->IDirectSoundBuffer8_iface);
-                continue;
-            }
             else if(state != AL_PLAYING)
                 alSourcePlay(buf->source);
         }
