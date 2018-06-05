@@ -1584,7 +1584,7 @@ static HRESULT WINAPI DS8PrimaryProp_Get(IKsPropertySet *iface,
   REFGUID guidPropSet, ULONG dwPropID,
   LPVOID pInstanceData, ULONG cbInstanceData,
   LPVOID pPropData, ULONG cbPropData,
-  PULONG pcbReturned)
+  ULONG *pcbReturned)
 {
     DS8Primary *This = impl_from_IKsPropertySet(iface);
     HRESULT res = E_PROP_ID_UNSUPPORTED;
@@ -1784,8 +1784,9 @@ static HRESULT WINAPI DS8PrimaryProp_Set(IKsPropertySet *iface,
                 /* FIXME: Need to validate property values... Ignore? Clamp? Error? */
                 This->eax_prop = *data.props;
                 This->ExtAL->Effectf(This->effect, AL_REVERB_DENSITY,
-                                     (data.props->flEnvironmentSize < 2.0f) ?
-                                     (data.props->flEnvironmentSize - 1.0f) : 1.0f);
+                                     clampF(powf(data.props->flEnvironmentSize, 3.0f) / 16.0f,
+                                            0.0f, 1.0f)
+                                    );
                 This->ExtAL->Effectf(This->effect, AL_REVERB_DIFFUSION,
                                      data.props->flEnvironmentDiffusion);
 
@@ -2029,7 +2030,7 @@ static HRESULT WINAPI DS8PrimaryProp_Set(IKsPropertySet *iface,
 
 static HRESULT WINAPI DS8PrimaryProp_QuerySupport(IKsPropertySet *iface,
   REFGUID guidPropSet, ULONG dwPropID,
-  PULONG pTypeSupport)
+  ULONG *pTypeSupport)
 {
     DS8Primary *This = impl_from_IKsPropertySet(iface);
     HRESULT res = E_PROP_ID_UNSUPPORTED;
