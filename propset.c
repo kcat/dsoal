@@ -20,9 +20,11 @@
  */
 
 #include <stdarg.h>
+#include <string.h>
 
 #include <windows.h>
 #include <dsound.h>
+#include <mmsystem.h>
 
 #include "dsound_private.h"
 
@@ -228,7 +230,7 @@ static HRESULT DSPROPERTY_WaveDeviceMappingW(
             if (res == MMSYSERR_NOERROR) {
                 if (lstrcmpW(capsW.szPname, ppd->DeviceName) == 0) {
                     ppd->DeviceId = DSOUND_renderer_guid;
-                    ppd->DeviceId.Data4[7] = wod;
+                    ppd->DeviceId.Data4[7] = (unsigned char)wod;
                     hr = DS_OK;
                     TRACE("found %s for %s\n", debugstr_guid(&ppd->DeviceId),
                           debugstr_w(ppd->DeviceName));
@@ -248,7 +250,7 @@ static HRESULT DSPROPERTY_WaveDeviceMappingW(
             if (res == MMSYSERR_NOERROR) {
                 if (lstrcmpW(capsW.szPname, ppd->DeviceName) == 0) {
                     ppd->DeviceId = DSOUND_capture_guid;
-                    ppd->DeviceId.Data4[7] = wid;
+                    ppd->DeviceId.Data4[7] = (unsigned char)wid;
                     hr = DS_OK;
                     TRACE("found %s for %s\n", debugstr_guid(&ppd->DeviceId),
                           debugstr_w(ppd->DeviceName));

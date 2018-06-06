@@ -746,7 +746,7 @@ static void copy_waveformat(WAVEFORMATEX *wfx, const WAVEFORMATEX *from)
     {
         WAVEFORMATEXTENSIBLE *wfe = (WAVEFORMATEXTENSIBLE*)wfx;
         const WAVEFORMATEXTENSIBLE *fromx = (const WAVEFORMATEXTENSIBLE*)from;
-        DWORD size = sizeof(WAVEFORMATEXTENSIBLE) - sizeof(WAVEFORMATEX);
+        const WORD size = sizeof(WAVEFORMATEXTENSIBLE) - sizeof(WAVEFORMATEX);
 
         /* Fail silently.. */
         if(from->cbSize < size)
@@ -1799,7 +1799,7 @@ static HRESULT WINAPI DS8PrimaryProp_Set(IKsPropertySet *iface,
                                      data.props->flReverbDelay);
 
                 This->ExtAL->Effectf(This->effect, AL_REVERB_AIR_ABSORPTION_GAINHF,
-                                     mB_to_gain(data.props->flAirAbsorptionHF));
+                                     mBF_to_gain(data.props->flAirAbsorptionHF));
 
                 This->ExtAL->Effecti(This->effect, AL_REVERB_DECAY_HFLIMIT,
                                      (data.props->dwFlags&EAXLISTENERFLAGS_DECAYHFLIMIT) ?
@@ -1900,7 +1900,7 @@ static HRESULT WINAPI DS8PrimaryProp_Set(IKsPropertySet *iface,
 
                 if(*data.fl >= 1.0f && *data.fl <= 100.0f)
                 {
-                    double scale = (*data.fl)/This->eax_prop.flEnvironmentSize;
+                    float scale = (*data.fl)/This->eax_prop.flEnvironmentSize;
 
                     This->eax_prop.flEnvironmentSize = *data.fl;
 
@@ -1968,7 +1968,7 @@ static HRESULT WINAPI DS8PrimaryProp_Set(IKsPropertySet *iface,
 
                 This->eax_prop.flAirAbsorptionHF = *data.fl;
                 This->ExtAL->Effectf(This->effect, AL_REVERB_AIR_ABSORPTION_GAINHF,
-                                     mB_to_gain(This->eax_prop.flAirAbsorptionHF));
+                                     mBF_to_gain(This->eax_prop.flAirAbsorptionHF));
                 checkALError();
 
                 This->dirty.bit.effect = 1;
