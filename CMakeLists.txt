@@ -56,12 +56,11 @@ else()
 
     set(DSOAL_DEFS ${DSOAL_DEFS} _WIN32 WINVER=0x0600 DEBUG_INFO)
 
-    set(DSOAL_LIBS ${DSOAL_LIBS} ${OPENAL_LIBRARY} winmm ole32
-        "${DSOAL_SOURCE_DIR}/dsound.def")
+    set(DSOAL_LIBS ${DSOAL_LIBS} ${OPENAL_LIBRARY} winmm ole32)
 endif()
 set(DSOAL_DEFS ${DSOAL_DEFS} COBJMACROS)
 
-add_library(dsound SHARED ${DSOAL_OBJS})
+add_library(dsound SHARED ${DSOAL_OBJS} dsound.def)
 if(WIN32)
     set_target_properties(dsound PROPERTIES PREFIX "")
 endif()
