@@ -57,7 +57,7 @@ else()
     set(DSOAL_DEFS ${DSOAL_DEFS} _WIN32 WINVER=0x0600 DEBUG_INFO)
 
     set(DSOAL_LIBS ${DSOAL_LIBS} ${OPENAL_LIBRARY} winmm ole32
-        "${DSOAL_SOURCE_DIR}/dsound-mingw.def")
+        "${DSOAL_SOURCE_DIR}/dsound.def")
 endif()
 set(DSOAL_DEFS ${DSOAL_DEFS} COBJMACROS)
 
