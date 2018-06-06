@@ -47,16 +47,16 @@ if(NOT WIN32)
 else()
     if(MINGW)
         set(CMAKE_RC_COMPILER_INIT windres)
-        enable_language(RC)
         set(CMAKE_RC_COMPILE_OBJECT
             "<CMAKE_RC_COMPILER> -O coff <DEFINES> -i <SOURCE> -o <OBJECT>")
     endif(MINGW)
+    enable_language(RC)
 
     set(DSOAL_OBJS ${DSOAL_OBJS} debug.c version.rc)
 
     set(DSOAL_DEFS ${DSOAL_DEFS} _WIN32 WINVER=0x0600 DEBUG_INFO)
 
-    set(DSOAL_LIBS ${DSOAL_LIBS} ${OPENAL_LIBRARY} dxguid uuid winmm ole32 dxerr8
+    set(DSOAL_LIBS ${DSOAL_LIBS} ${OPENAL_LIBRARY} winmm ole32
         "${DSOAL_SOURCE_DIR}/dsound-mingw.def")
 endif()
 set(DSOAL_DEFS ${DSOAL_DEFS} COBJMACROS)
