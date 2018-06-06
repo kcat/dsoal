@@ -501,8 +501,6 @@ struct DS8Buffer {
     DWORD nnotify, lastpos;
     DSBPOSITIONNOTIFY *notify;
 };
-#define DSBEXT_PLAYING 0x80000000
-#define DSBEXT_LIST 0x80000000
 
 const ALCchar *DSOUND_getdevicestrings(void);
 const ALCchar *DSOUND_getcapturedevicestrings(void);
