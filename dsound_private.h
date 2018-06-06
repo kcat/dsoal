@@ -393,6 +393,9 @@ struct DS8Primary {
     HANDLE timer_evt;
     volatile LONG quit_now;
 
+    LPALDEFERUPDATESSOFT DeferUpdates;
+    LPALPROCESSUPDATESSOFT ProcessUpdates;
+
     DS8Buffer **buffers;
     DWORD nbuffers, sizebuffers;
     DS8Buffer **notifies;
@@ -405,9 +408,6 @@ struct DS8Primary {
     union PrimaryParamFlags dirty;
 
     EAXLISTENERPROPERTIES eax_prop;
-
-    void (AL_APIENTRY*DeferUpdates)(void);
-    void (AL_APIENTRY*ProcessUpdates)(void);
 };
 
 
