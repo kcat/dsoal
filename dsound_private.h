@@ -515,13 +515,13 @@ HRESULT DS8Buffer_Create(DS8Buffer **ppv, DS8Primary *parent, IDirectSoundBuffer
 void DS8Buffer_Destroy(DS8Buffer *buf);
 void DS8Buffer_SetParams(DS8Buffer *buffer, const DS3DBUFFER *params, LONG flags);
 
-static inline ALdouble gain_to_mB(ALdouble gain)
+static inline LONG gain_to_mB(float gain)
 {
-    return log10(gain) * 2000.0;
+    return (LONG)(log10f(gain) * 2000.0f);
 }
-static inline ALdouble mB_to_gain(ALdouble millibels)
+static inline float mB_to_gain(LONG millibels)
 {
-    return pow(10.0, millibels/2000.0);
+    return powf(10.0f, (ALfloat)millibels/2000.0f);
 }
 
 static inline LONG clampI(LONG val, LONG minval, LONG maxval)

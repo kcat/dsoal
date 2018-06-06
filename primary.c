@@ -334,18 +334,18 @@ HRESULT DS8Primary_PreInit(DS8Primary *This, DS8Impl *parent)
     /* Make sure DS3DListener defaults are applied to OpenAL */
     listener = &This->params;
     listener->dwSize = sizeof(This->params);
-    listener->vPosition.x = 0.0;
-    listener->vPosition.y = 0.0;
-    listener->vPosition.z = 0.0;
-    listener->vVelocity.x = 0.0;
-    listener->vVelocity.y = 0.0;
-    listener->vVelocity.z = 0.0;
-    listener->vOrientFront.x = 0.0;
-    listener->vOrientFront.y = 0.0;
-    listener->vOrientFront.z = 1.0;
-    listener->vOrientTop.x = 0.0;
-    listener->vOrientTop.y = 1.0;
-    listener->vOrientTop.z = 0.0;
+    listener->vPosition.x = 0.0f;
+    listener->vPosition.y = 0.0f;
+    listener->vPosition.z = 0.0f;
+    listener->vVelocity.x = 0.0f;
+    listener->vVelocity.y = 0.0f;
+    listener->vVelocity.z = 0.0f;
+    listener->vOrientFront.x = 0.0f;
+    listener->vOrientFront.y = 0.0f;
+    listener->vOrientFront.z = 1.0f;
+    listener->vOrientTop.x = 0.0f;
+    listener->vOrientTop.y = 1.0f;
+    listener->vOrientTop.z = 0.0f;
     listener->flDistanceFactor = DS3D_DEFAULTDISTANCEFACTOR;
     listener->flRolloffFactor = DS3D_DEFAULTROLLOFFFACTOR;
     listener->flDopplerFactor = DS3D_DEFAULTDOPPLERFACTOR;
@@ -1911,7 +1911,7 @@ static HRESULT WINAPI DS8PrimaryProp_Set(IKsPropertySet *iface,
                     }
                     if((This->eax_prop.dwFlags&EAXLISTENERFLAGS_REFLECTIONSSCALE))
                     {
-                        This->eax_prop.lReflections += gain_to_mB(1.0/scale);
+                        This->eax_prop.lReflections -= gain_to_mB(scale);
                         This->eax_prop.lReflections = clampI(This->eax_prop.lReflections, -10000, 1000);
                     }
                     if((This->eax_prop.dwFlags&EAXLISTENERFLAGS_REFLECTIONSDELAYSCALE))
@@ -1921,7 +1921,7 @@ static HRESULT WINAPI DS8PrimaryProp_Set(IKsPropertySet *iface,
                     }
                     if((This->eax_prop.dwFlags&EAXLISTENERFLAGS_REVERBSCALE))
                     {
-                        This->eax_prop.lReverb += gain_to_mB(1.0/scale);
+                        This->eax_prop.lReverb -= gain_to_mB(scale);
                         This->eax_prop.lReverb = clampI(This->eax_prop.lReverb, -10000, 2000);
                     }
                     if((This->eax_prop.dwFlags&EAXLISTENERFLAGS_REVERBDELAYSCALE))

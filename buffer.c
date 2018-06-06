@@ -937,17 +937,17 @@ static HRESULT WINAPI DS8Buffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSo
 
     ds3dbuffer = &This->params;
     ds3dbuffer->dwSize = sizeof(This->params);
-    ds3dbuffer->vPosition.x = 0.0;
-    ds3dbuffer->vPosition.y = 0.0;
-    ds3dbuffer->vPosition.z = 0.0;
-    ds3dbuffer->vVelocity.x = 0.0;
-    ds3dbuffer->vVelocity.y = 0.0;
-    ds3dbuffer->vVelocity.z = 0.0;
+    ds3dbuffer->vPosition.x = 0.0f;
+    ds3dbuffer->vPosition.y = 0.0f;
+    ds3dbuffer->vPosition.z = 0.0f;
+    ds3dbuffer->vVelocity.x = 0.0f;
+    ds3dbuffer->vVelocity.y = 0.0f;
+    ds3dbuffer->vVelocity.z = 0.0f;
     ds3dbuffer->dwInsideConeAngle = DS3D_DEFAULTCONEANGLE;
     ds3dbuffer->dwOutsideConeAngle = DS3D_DEFAULTCONEANGLE;
-    ds3dbuffer->vConeOrientation.x = 0.0;
-    ds3dbuffer->vConeOrientation.y = 0.0;
-    ds3dbuffer->vConeOrientation.z = 1.0;
+    ds3dbuffer->vConeOrientation.x = 0.0f;
+    ds3dbuffer->vConeOrientation.y = 0.0f;
+    ds3dbuffer->vConeOrientation.z = 1.0f;
     ds3dbuffer->lConeOutsideVolume = DS3D_DEFAULTCONEOUTSIDEVOLUME;
     ds3dbuffer->flMinDistance = DS3D_DEFAULTMINDISTANCE;
     ds3dbuffer->flMaxDistance = DS3D_DEFAULTMAXDISTANCE;
@@ -981,7 +981,7 @@ static HRESULT WINAPI DS8Buffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSo
 
         /* Non-3D sources aren't distance attenuated */
         This->ds3dmode = DS3DMODE_DISABLE;
-        alSource3f(source, AL_POSITION, 0.0f, 1.0f, 0.0f);
+        alSource3f(source, AL_POSITION, 0.0f, 0.0f, -1.0f);
         alSource3f(source, AL_VELOCITY, 0.0f, 0.0f, 0.0f);
         alSource3f(source, AL_DIRECTION, 0.0f, 0.0f, 0.0f);
         alSourcef(source, AL_CONE_OUTER_GAIN, 1.0f);
@@ -1246,12 +1246,12 @@ static HRESULT WINAPI DS8Buffer_SetPan(IDirectSoundBuffer8 *iface, LONG pan)
     else
     {
         ALfloat pos[3];
-        pos[0] = (pan-DSBPAN_LEFT)/(ALfloat)(DSBPAN_RIGHT-DSBPAN_LEFT) - 0.5f;
+        pos[0] = (ALfloat)(pan-DSBPAN_LEFT)/(ALfloat)(DSBPAN_RIGHT-DSBPAN_LEFT) - 0.5f;
         pos[1] = 0.0f;
         /* NOTE: Strict movement along the X plane can cause the sound to jump
          * between left and right sharply. Using a curved path helps smooth it
          * out */
-        pos[2] = -sqrt(1.0 - pos[0]*pos[0]);
+        pos[2] = -sqrtf(1.0f - pos[0]*pos[0]);
 
         setALContext(This->ctx);
         alSourcefv(This->source, AL_POSITION, pos);
