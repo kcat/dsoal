@@ -54,8 +54,6 @@ DEFINE_GUID(CLSID_DirectSoundPrivate,0x11ab3ec0,0x25ec,0x11d1,0xa4,0xd8,0x00,0xc
 int LogLevel = 1;
 
 
-static HINSTANCE instance;
-
 const GUID DSOUND_renderer_guid = { 0xbd6dd71a, 0x3deb, 0x11d1, { 0xb1, 0x71, 0x00, 0xc0, 0x4f, 0xc2, 0x00, 0x00 } };
 const GUID DSOUND_capture_guid = { 0xbd6dd71b, 0x3deb, 0x11d1, { 0xb1, 0x71, 0x00, 0xc0, 0x4f, 0xc2, 0x00, 0x00 } };
 
@@ -206,7 +204,7 @@ LPALCMAKECONTEXTCURRENT set_context;
 LPALCGETCURRENTCONTEXT get_context;
 BOOL local_contexts;
 
-static void load_libopenal(void)
+static BOOL load_libopenal(void)
 {
     const char libname[] = "dsoal-aldrv.dll";
     BOOL failed = FALSE;
@@ -220,7 +218,7 @@ static void load_libopenal(void)
     if(!openal_handle)
     {
         ERR("Couldn't load %s: %lu\n", libname, GetLastError());
-        return;
+        return FALSE;
     }
 
 #define LOAD_FUNCPTR(f) do {                                           \
@@ -331,7 +329,7 @@ static void load_libopenal(void)
         if (openal_handle != NULL)
             FreeLibrary(openal_handle);
         openal_handle = NULL;
-        return;
+        return FALSE;
     }
 
     openal_loaded = 1;
@@ -355,6 +353,8 @@ static void load_libopenal(void)
         set_context = alcMakeContextCurrent;
         get_context = alcGetCurrentContext;
     }
+
+    return TRUE;
 }
 
 const ALCchar *DSOUND_getdevicestrings(void)
@@ -1079,8 +1079,8 @@ DECLSPEC_EXPORT BOOL WINAPI DllMain(HINSTANCE hInstDLL, DWORD fdwReason, LPVOID 
     {
     case DLL_PROCESS_ATTACH:
         TRACE("DLL_PROCESS_ATTACH\n");
-        instance = hInstDLL;
-        load_libopenal();
+        if(!load_libopenal())
+            return FALSE;
         /* Increase refcount on dsound by 1 */
         GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, (LPCWSTR)hInstDLL, &hInstDLL);
         break;
