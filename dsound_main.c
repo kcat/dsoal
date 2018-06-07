@@ -107,8 +107,7 @@ static CRITICAL_SECTION_DEBUG openal_crst_debug =
 CRITICAL_SECTION openal_crst = { &openal_crst_debug, -1, 0, 0, 0, 0 };
 
 int openal_loaded = 0;
-#ifdef SONAME_LIBOPENAL
-static void *openal_handle = NULL;
+static HANDLE openal_handle = NULL;
 LPALCCREATECONTEXT palcCreateContext = NULL;
 LPALCMAKECONTEXTCURRENT palcMakeContextCurrent = NULL;
 LPALCPROCESSCONTEXT palcProcessContext = NULL;
@@ -202,7 +201,6 @@ LPALDOPPLERFACTOR palDopplerFactor = NULL;
 LPALDOPPLERVELOCITY palDopplerVelocity = NULL;
 LPALDISTANCEMODEL palDistanceModel = NULL;
 LPALSPEEDOFSOUND palSpeedOfSound = NULL;
-#endif
 
 LPALCMAKECONTEXTCURRENT set_context;
 LPALCGETCURRENTCONTEXT get_context;
@@ -210,20 +208,24 @@ BOOL local_contexts;
 
 static void load_libopenal(void)
 {
-#ifndef __WINESRC__
-    const char *str = getenv("DSOAL_LOGLEVEL");
+    const char libname[] = "dsoal-aldrv.dll";
+    BOOL failed = FALSE;
+    const char *str;
+
+    str = getenv("DSOAL_LOGLEVEL");
     if(str && *str)
         LogLevel = atoi(str);
-#elif defined(SONAME_LIBOPENAL)
-    BOOL failed = FALSE;
-    char error[128];
 
-    openal_handle = wine_dlopen(SONAME_LIBOPENAL, RTLD_NOW, error, sizeof(error));
+    openal_handle = LoadLibraryA(libname);
     if(!openal_handle)
-        ERR("Couldn't load " SONAME_LIBOPENAL ": %s\n", error);
+    {
+        ERR("Couldn't load %s: %lu\n", libname, GetLastError());
+        return;
+    }
+
 #define LOAD_FUNCPTR(f) \
-    if((p##f = wine_dlsym(openal_handle, #f, NULL, 0)) == NULL) { \
-        ERR("Couldn't lookup %s in " SONAME_LIBOPENAL "\n", #f); \
+    if((*((void**)&p##f) = GetProcAddress(openal_handle, #f)) == NULL) { \
+        ERR("Couldn't lookup %s in dsoal-aldrv.dll\n", #f); \
         failed = TRUE; \
     }
 
@@ -324,23 +326,25 @@ static void load_libopenal(void)
     if (failed)
     {
         WARN("Unloading openal\n");
-        if (openal_handle != RTLD_DEFAULT)
-            wine_dlclose(openal_handle, NULL, 0);
+        if (openal_handle != NULL)
+            FreeLibrary(openal_handle);
         openal_handle = NULL;
     }
     else
-#endif
     {
         openal_loaded = 1;
+        TRACE("Loaded %s\n", libname);
 
         local_contexts = alcIsExtensionPresent(NULL, "ALC_EXT_thread_local_context");
         if(local_contexts)
         {
+            TRACE("Found ALC_EXT_thread_local_context\n");
+
             set_context = alcGetProcAddress(NULL, "alcSetThreadContext");
             get_context = alcGetProcAddress(NULL, "alcGetThreadContext");
             if(!set_context || !get_context)
             {
-                ERR("TLS advertised but functions not found, disabling thread local context\n");
+                ERR("TLS advertised but functions not found, disabling thread local contexts\n");
                 local_contexts = 0;
             }
         }
@@ -1093,10 +1097,8 @@ DECLSPEC_EXPORT BOOL WINAPI DllMain(HINSTANCE hInstDLL, DWORD fdwReason, LPVOID 
 
     case DLL_PROCESS_DETACH:
         TRACE("DLL_PROCESS_DETACH\n");
-#ifdef SONAME_LIBOPENAL
         if(openal_handle)
-            wine_dlclose(openal_handle, NULL, 0);
-#endif
+            FreeLibrary(openal_handle);
         break;
 
     default:

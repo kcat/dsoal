@@ -29,7 +29,6 @@ set(DSOAL_OBJS buffer.c
                primary.c
                propset.c)
 
-find_package(OpenAL REQUIRED)
 set(DSOAL_INC ${DSOAL_INC} ${DSOAL_BINARY_DIR} ${DSOAL_SOURCE_DIR}/include/AL)
 
 if(NOT MSVC)
@@ -56,7 +55,7 @@ else()
 
     set(DSOAL_DEFS ${DSOAL_DEFS} _WIN32 WINVER=0x0600 DEBUG_INFO)
 
-    set(DSOAL_LIBS ${DSOAL_LIBS} ${OPENAL_LIBRARY} winmm ole32)
+    set(DSOAL_LIBS ${DSOAL_LIBS} winmm ole32)
 endif()
 set(DSOAL_DEFS ${DSOAL_DEFS} COBJMACROS)
 

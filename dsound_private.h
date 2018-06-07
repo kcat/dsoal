@@ -98,7 +98,6 @@ static inline const char *debugstr_w( const WCHAR *s ) { return wine_dbgstr_wn( 
 
 /* All openal functions */
 extern int openal_loaded;
-#ifdef SONAME_LIBOPENAL
 extern LPALCCREATECONTEXT palcCreateContext;
 extern LPALCMAKECONTEXTCURRENT palcMakeContextCurrent;
 extern LPALCPROCESSCONTEXT palcProcessContext;
@@ -286,7 +285,6 @@ extern LPALSPEEDOFSOUND palSpeedOfSound;
 #define alDopplerVelocity palDopplerVelocity
 #define alDistanceModel palDistanceModel
 #define alSpeedOfSound palSpeedOfSound
-#endif
 
 #include <math.h>
 #include "wingdi.h"
