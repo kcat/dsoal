@@ -43,7 +43,7 @@
 
 #ifndef DECLSPEC_EXPORT
 #ifdef _WIN32
-#define DECLSPEC_EXPORT __declspec(export)
+#define DECLSPEC_EXPORT __declspec(dllexport)
 #else
 #define DECLSPEC_EXPORT
 #endif
