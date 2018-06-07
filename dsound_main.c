@@ -223,11 +223,13 @@ static void load_libopenal(void)
         return;
     }
 
-#define LOAD_FUNCPTR(f) \
-    if((*((void**)&p##f) = GetProcAddress(openal_handle, #f)) == NULL) { \
-        ERR("Couldn't lookup %s in dsoal-aldrv.dll\n", #f); \
-        failed = TRUE; \
-    }
+#define LOAD_FUNCPTR(f) do {                                           \
+    if((*((void**)&p##f) = GetProcAddress(openal_handle, #f)) == NULL) \
+    {                                                                  \
+        ERR("Couldn't lookup %s in %s\n", #f, libname);                \
+        failed = TRUE;                                                 \
+    }                                                                  \
+} while(0)
 
     LOAD_FUNCPTR(alcCreateContext);
     LOAD_FUNCPTR(alcMakeContextCurrent);
@@ -325,34 +327,33 @@ static void load_libopenal(void)
 #undef LOAD_FUNCPTR
     if (failed)
     {
-        WARN("Unloading openal\n");
+        WARN("Unloading %s\n", libname);
         if (openal_handle != NULL)
             FreeLibrary(openal_handle);
         openal_handle = NULL;
+        return;
     }
-    else
+
+    openal_loaded = 1;
+    TRACE("Loaded %s\n", libname);
+
+    local_contexts = alcIsExtensionPresent(NULL, "ALC_EXT_thread_local_context");
+    if(local_contexts)
     {
-        openal_loaded = 1;
-        TRACE("Loaded %s\n", libname);
+        TRACE("Found ALC_EXT_thread_local_context\n");
 
-        local_contexts = alcIsExtensionPresent(NULL, "ALC_EXT_thread_local_context");
-        if(local_contexts)
+        set_context = alcGetProcAddress(NULL, "alcSetThreadContext");
+        get_context = alcGetProcAddress(NULL, "alcGetThreadContext");
+        if(!set_context || !get_context)
         {
-            TRACE("Found ALC_EXT_thread_local_context\n");
-
-            set_context = alcGetProcAddress(NULL, "alcSetThreadContext");
-            get_context = alcGetProcAddress(NULL, "alcGetThreadContext");
-            if(!set_context || !get_context)
-            {
-                ERR("TLS advertised but functions not found, disabling thread local contexts\n");
-                local_contexts = 0;
-            }
+            ERR("TLS advertised but functions not found, disabling thread local contexts\n");
+            local_contexts = 0;
         }
-        if(!local_contexts)
-        {
-            set_context = alcMakeContextCurrent;
-            get_context = alcGetCurrentContext;
-        }
+    }
+    if(!local_contexts)
+    {
+        set_context = alcMakeContextCurrent;
+        get_context = alcGetCurrentContext;
     }
 }
 
