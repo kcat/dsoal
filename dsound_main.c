@@ -1086,14 +1086,13 @@ DECLSPEC_EXPORT BOOL WINAPI DllMain(HINSTANCE hInstDLL, DWORD fdwReason, LPVOID 
         break;
 
     case DLL_THREAD_ATTACH:
+        TRACE("DLL_THREAD_ATTACH\n");
         break;
 
     case DLL_THREAD_DETACH:
         TRACE("DLL_THREAD_DETACH\n");
-#if !ALLOW_CONCURRENT_AL
         if(local_contexts)
-           set_context(NULL);
-#endif
+            set_context(NULL);
         break;
 
     case DLL_PROCESS_DETACH:

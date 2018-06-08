@@ -91,11 +91,6 @@ const char *debugstr_guid( const GUID *id );
 static inline const char *debugstr_w( const WCHAR *s ) { return wine_dbgstr_wn( s, -1 ); }
 
 
-/* Set to 1 to build a DLL that can be used in an app that uses OpenAL itself.
- * Thread-local contexts are needed for true concurrency, however. Disallowing
- * concurrency can avoid a save and restore of the context. */
-#define ALLOW_CONCURRENT_AL 0
-
 /* All openal functions */
 extern int openal_loaded;
 extern LPALCCREATECONTEXT palcCreateContext;
@@ -558,27 +553,6 @@ static inline FLOAT clampF(FLOAT val, FLOAT minval, FLOAT maxval)
             err, dev, __FUNCTION__, __LINE__);                                \
 } while(0)
 
-#if ALLOW_CONCURRENT_AL
-
-#define setALContext(actx) do {                                               \
-    ALCcontext *__old_ctx, *cur_ctx = actx;                                   \
-    if(!local_contexts) EnterCriticalSection(&openal_crst);                   \
-    __old_ctx = get_context();                                                \
-    if(__old_ctx != cur_ctx && set_context(cur_ctx) == ALC_FALSE) {           \
-        ERR("Couldn't set current context!!\n");                              \
-        checkALCError(alcGetContextsDevice(cur_ctx));                         \
-    }
-/* Only restore a NULL context if using global contexts, for TLS contexts always restore */
-#define popALContext()                                                        \
-    if(__old_ctx != cur_ctx && (local_contexts || __old_ctx) &&               \
-       set_context(__old_ctx) == ALC_FALSE) {                                 \
-        ERR("Couldn't restore old context!!\n");                              \
-        checkALCError(alcGetContextsDevice(__old_ctx));                       \
-    }                                                                         \
-    if (!local_contexts) LeaveCriticalSection(&openal_crst);                  \
-} while(0)
-
-#else
 
 #define setALContext(actx) do {                                               \
     ALCcontext *cur_ctx = actx;                                               \
@@ -591,7 +565,6 @@ static inline FLOAT clampF(FLOAT val, FLOAT minval, FLOAT maxval)
     if (!local_contexts) LeaveCriticalSection(&openal_crst);                  \
 } while (0)
 
-#endif
 
 HRESULT DSOUND_Create(REFIID riid, void **ppDS);
 HRESULT DSOUND_Create8(REFIID riid, void **ppDS);
