@@ -562,25 +562,25 @@ fail:
 void DS8Buffer_Destroy(DS8Buffer *This)
 {
     DS8Primary *prim = This->primary;
-    DWORD idx, i;
+    DWORD i;
 
     TRACE("Destroying %p\n", This);
 
     EnterCriticalSection(prim->crst);
     /* Remove from list, if in list */
-    for(idx = 0;idx < prim->nnotifies;++idx)
+    for(i = 0;i < prim->nnotifies;++i)
     {
-        if(This == prim->notifies[idx])
+        if(This == prim->notifies[i])
         {
-            prim->notifies[idx] = prim->notifies[--prim->nnotifies];
+            prim->notifies[i] = prim->notifies[--prim->nnotifies];
             break;
         }
     }
-    for(idx = 0;idx < prim->nbuffers;++idx)
+    for(i = 0;i < prim->nbuffers;++i)
     {
-        if(prim->buffers[idx] == This)
+        if(prim->buffers[i] == This)
         {
-            prim->buffers[idx] = prim->buffers[--prim->nbuffers];
+            prim->buffers[i] = prim->buffers[--prim->nbuffers];
             break;
         }
     }
@@ -607,7 +607,7 @@ void DS8Buffer_Destroy(DS8Buffer *This)
 
     for(i = 0;i < prim->NumBufferGroups;++i)
     {
-        idx = This - prim->BufferGroups[i].Buffers;
+        DWORD_PTR idx = This - prim->BufferGroups[i].Buffers;
         if(idx < 64)
         {
             prim->BufferGroups[i].FreeBuffers |= U64(1) << idx;
