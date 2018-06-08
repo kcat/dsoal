@@ -624,19 +624,21 @@ static HRESULT WINAPI DS8Buffer_GetCurrentPosition(IDirectSoundBuffer8 *iface, D
     data = This->buffer;
     if(!(data->dsbflags&DSBCAPS_STATIC))
     {
+        ALint queued = QBUFFERS;
         ALint status = 0;
         ALint ofs = 0;
 
         EnterCriticalSection(This->crst);
 
         setALContext(This->ctx);
+        alGetSourcei(This->source, AL_BUFFERS_QUEUED, &queued);
         alGetSourcei(This->source, AL_BYTE_OFFSET, &ofs);
         alGetSourcei(This->source, AL_SOURCE_STATE, &status);
         checkALError();
         popALContext();
 
         if(status == AL_STOPPED)
-            pos = data->segsize*QBUFFERS + This->queue_base;
+            pos = data->segsize*queued + This->queue_base;
         else
             pos = ofs + This->queue_base;
         if(pos >= data->buf_size)
@@ -644,9 +646,13 @@ static HRESULT WINAPI DS8Buffer_GetCurrentPosition(IDirectSoundBuffer8 *iface, D
             if(This->islooping)
                 pos %= data->buf_size;
             else if(This->isplaying)
-                pos = data->buf_size - data->format.Format.nBlockAlign;
-            else
-                pos = 0;
+            {
+                pos = data->buf_size;
+                alSourceStop(This->source);
+                alSourcei(This->source, AL_BUFFER, 0);
+                This->curidx = 0;
+                This->isplaying = FALSE;
+            }
         }
         if(This->isplaying)
             writecursor = (data->segsize*QBUFFERS + pos) % data->buf_size;
@@ -667,7 +673,7 @@ static HRESULT WINAPI DS8Buffer_GetCurrentPosition(IDirectSoundBuffer8 *iface, D
         checkALError();
         popALContext();
 
-        pos = ofs;
+        pos = (status == AL_STOPPED) ? data->buf_size : ofs;
         if(status == AL_PLAYING)
         {
             writecursor = format->nSamplesPerSec / This->primary->refresh;
@@ -937,6 +943,7 @@ static HRESULT WINAPI DS8Buffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSo
     if(This->primary->parent->share->nsources)
     {
         This->source = This->primary->sources[--(This->primary->parent->share->nsources)];
+        alSourceRewind(This->source);
         alSourcef(This->source, AL_GAIN, 1.0f);
         alSourcef(This->source, AL_PITCH, 1.0f);
         checkALError();
