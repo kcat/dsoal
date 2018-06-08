@@ -627,21 +627,9 @@ static HRESULT WINAPI DS8_SetCooperativeLevel(IDirectSound8 *iface, HWND hwnd, D
     EnterCriticalSection(This->primary.crst);
     if(level == DSSCL_WRITEPRIMARY && (This->prio_level != DSSCL_WRITEPRIMARY))
     {
+        struct DSBufferGroup *bufgroup = This->primary.BufferGroups;
         DWORD i, state;
 
-        for(i = 0; i < This->primary.nbuffers; ++i)
-        {
-            DS8Buffer *buf = This->primary.buffers[i];
-            if(FAILED(IDirectSoundBuffer_GetStatus(&buf->IDirectSoundBuffer8_iface, &state)) ||
-               (state&DSBSTATUS_PLAYING))
-            {
-                WARN("DSSCL_WRITEPRIMARY set with playing buffers!\n");
-                hr = DSERR_INVALIDCALL;
-                goto out;
-            }
-            /* Mark buffer as lost */
-            buf->bufferlost = 1;
-        }
         if(This->primary.write_emu)
         {
             ERR("Why was there a write_emu?\n");
@@ -649,6 +637,28 @@ static HRESULT WINAPI DS8_SetCooperativeLevel(IDirectSound8 *iface, HWND hwnd, D
             IDirectSoundBuffer8_Release(This->primary.write_emu);
             This->primary.write_emu = NULL;
         }
+
+        for(i = 0;i < This->primary.NumBufferGroups;++i)
+        {
+            DWORD64 usemask = ~bufgroup[i].FreeBuffers;
+            while(usemask)
+            {
+                int idx = CTZ64(usemask);
+                DS8Buffer *buf = bufgroup[i].Buffers + idx;
+                usemask &= ~(U64(1) << idx);
+
+                if(FAILED(IDirectSoundBuffer_GetStatus(&buf->IDirectSoundBuffer8_iface, &state)) ||
+                   (state&DSBSTATUS_PLAYING))
+                {
+                    WARN("DSSCL_WRITEPRIMARY set with playing buffers!\n");
+                    hr = DSERR_INVALIDCALL;
+                    goto out;
+                }
+                /* Mark buffer as lost */
+                buf->bufferlost = 1;
+            }
+        }
+
         if(This->primary.flags)
         {
             /* Primary has open references.. create write_emu */
@@ -674,11 +684,12 @@ static HRESULT WINAPI DS8_SetCooperativeLevel(IDirectSound8 *iface, HWND hwnd, D
             }
         }
     }
-    else if(This->prio_level == DSSCL_WRITEPRIMARY && level != DSSCL_WRITEPRIMARY && This->primary.write_emu)
+    else if(This->prio_level == DSSCL_WRITEPRIMARY && level != DSSCL_WRITEPRIMARY)
     {
-        TRACE("Nuking write_emu\n");
         /* Delete it */
-        IDirectSoundBuffer8_Release(This->primary.write_emu);
+        TRACE("Nuking write_emu\n");
+        if(This->primary.write_emu)
+            IDirectSoundBuffer8_Release(This->primary.write_emu);
         This->primary.write_emu = NULL;
     }
     if(SUCCEEDED(hr))

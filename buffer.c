@@ -415,76 +415,6 @@ static void DS8Data_Release(DS8Data *This)
 }
 
 
-#ifndef U64
-#if defined(_MSC_VER)
-#define U64(x) (x##ui64)
-#elif SIZEOF_LONG == 8
-#define U64(x) (x##ul)
-#else
-#define U64(x) (x##ull)
-#endif
-#endif
-
-/* Define a CTZ64 macro (count trailing zeros, for 64-bit integers). The result
- * is *UNDEFINED* if the value is 0.
- */
-#ifdef __GNUC__
-
-#if SIZEOF_LONG == 8
-#define CTZ64 __builtin_ctzl
-#else
-#define CTZ64 __builtin_ctzll
-#endif
-
-#elif defined(HAVE_BITSCANFORWARD64_INTRINSIC)
-
-static inline int msvc64_ctz64(DWORD64 v)
-{
-    unsigned long idx = 64;
-    _BitScanForward64(&idx, v);
-    return (int)idx;
-}
-#define CTZ64 msvc64_ctz64
-
-#elif defined(HAVE_BITSCANFORWARD_INTRINSIC)
-
-static inline int msvc_ctz64(DWORD64 v)
-{
-    unsigned long idx = 64;
-    if(!_BitScanForward(&idx, v&0xffffffff))
-    {
-        if(_BitScanForward(&idx, v>>32))
-            idx += 32;
-    }
-    return (int)idx;
-}
-#define CTZ64 msvc_ctz64
-
-#else
-
-/* There be black magics here. The popcnt64 method is derived from
- * https://graphics.stanford.edu/~seander/bithacks.html#CountBitsSetParallel
- * while the ctz-utilizing-popcnt algorithm is shown here
- * http://www.hackersdelight.org/hdcodetxt/ntz.c.txt
- * as the ntz2 variant. These likely aren't the most efficient methods, but
- * they're good enough if the GCC or MSVC intrinsics aren't available.
- */
-static inline int fallback_popcnt64(DWORD64 v)
-{
-    v = v - ((v >> 1) & U64(0x5555555555555555));
-    v = (v & U64(0x3333333333333333)) + ((v >> 2) & U64(0x3333333333333333));
-    v = (v + (v >> 4)) & U64(0x0f0f0f0f0f0f0f0f);
-    return (int)((v * U64(0x0101010101010101)) >> 56);
-}
-
-static inline int fallback_ctz64(DWORD64 value)
-{
-    return fallback_popcnt64(~value & (value - 1));
-}
-#define CTZ64 fallback_ctz64
-#endif
-
-
 HRESULT DS8Buffer_Create(DS8Buffer **ppv, DS8Primary *prim, IDirectSoundBuffer *orig)
 {
     DS8Buffer *This = NULL;
@@ -534,20 +464,6 @@ HRESULT DS8Buffer_Create(DS8Buffer **ppv, DS8Primary *prim, IDirectSoundBuffer *
         This->buffer = org->buffer;
     }
 
-    /* Append to buffer list */
-    if(prim->nbuffers == prim->sizebuffers)
-    {
-        DS8Buffer **bufs;
-
-        hr = DSERR_OUTOFMEMORY;
-        bufs = HeapReAlloc(GetProcessHeap(), 0, prim->buffers, sizeof(*bufs)*(prim->nbuffers+1));
-        if(!bufs) goto fail;
-
-        prim->buffers = bufs;
-        prim->sizebuffers++;
-    }
-    prim->buffers[prim->nbuffers++] = This;
-
     /* Disable until initialized.. */
     This->ds3dmode = DS3DMODE_DISABLE;
 
@@ -573,14 +489,6 @@ void DS8Buffer_Destroy(DS8Buffer *This)
         if(This == prim->notifies[i])
         {
             prim->notifies[i] = prim->notifies[--prim->nnotifies];
-            break;
-        }
-    }
-    for(i = 0;i < prim->nbuffers;++i)
-    {
-        if(prim->buffers[i] == This)
-        {
-            prim->buffers[i] = prim->buffers[--prim->nbuffers];
             break;
         }
     }

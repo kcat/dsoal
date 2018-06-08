@@ -122,6 +122,8 @@ static DWORD CALLBACK DS8Primary_thread(void *dwUser)
     TRACE("Primary buffer (%p) message loop start\n", prim);
     while(WaitForSingleObject(prim->timer_evt, INFINITE) == WAIT_OBJECT_0 && !prim->quit_now)
     {
+        struct DSBufferGroup *bufgroup;
+
         EnterCriticalSection(prim->crst);
         setALContext(prim->ctx);
 
@@ -153,85 +155,93 @@ static DWORD CALLBACK DS8Primary_thread(void *dwUser)
         /* OpenAL doesn't support our lovely buffer extensions
          * so just make sure enough buffers are queued
          */
-        for(i = 0;i < prim->nbuffers;++i)
+        bufgroup = prim->BufferGroups;
+        for(i = 0;i < prim->NumBufferGroups;++i)
         {
-            DS8Buffer *buf = prim->buffers[i];
-            DS8Data *data = buf->buffer;
-            ALint ofs, done = 0, queued = QBUFFERS, state = AL_PLAYING;
-            ALuint which;
-
-            if((data->dsbflags&DSBCAPS_STATIC) || !buf->isplaying)
-                continue;
-
-            alGetSourcei(buf->source, AL_SOURCE_STATE, &state);
-            alGetSourcei(buf->source, AL_BUFFERS_QUEUED, &queued);
-            alGetSourcei(buf->source, AL_BUFFERS_PROCESSED, &done);
-
-            if(done > 0)
+            DWORD64 usemask = ~bufgroup[i].FreeBuffers;
+            while(usemask)
             {
-                ALuint bids[QBUFFERS];
-                queued -= done;
+                int idx = CTZ64(usemask);
+                DS8Buffer *buf = bufgroup[i].Buffers + idx;
+                DS8Data *data = buf->buffer;
+                ALint ofs, done = 0, queued = QBUFFERS, state = AL_PLAYING;
+                ALuint which;
 
-                alSourceUnqueueBuffers(buf->source, done, bids);
-                buf->queue_base = (buf->queue_base + data->segsize*done) % data->buf_size;
-            }
-            while(queued < QBUFFERS)
-            {
-                which = buf->stream_bids[buf->curidx];
-                ofs = buf->data_offset;
+                usemask &= ~(U64(1) << idx);
 
-                if(data->segsize < data->buf_size - ofs)
+                if((data->dsbflags&DSBCAPS_STATIC) || !buf->isplaying)
+                    continue;
+
+                alGetSourcei(buf->source, AL_SOURCE_STATE, &state);
+                alGetSourcei(buf->source, AL_BUFFERS_QUEUED, &queued);
+                alGetSourcei(buf->source, AL_BUFFERS_PROCESSED, &done);
+
+                if(done > 0)
                 {
-                    alBufferData(which, data->buf_format, data->data + ofs, data->segsize,
-                                 data->format.Format.nSamplesPerSec);
-                    buf->data_offset = ofs + data->segsize;
+                    ALuint bids[QBUFFERS];
+                    queued -= done;
+
+                    alSourceUnqueueBuffers(buf->source, done, bids);
+                    buf->queue_base = (buf->queue_base + data->segsize*done) % data->buf_size;
                 }
-                else if(buf->islooping)
+                while(queued < QBUFFERS)
                 {
-                    ALsizei rem = data->buf_size - ofs;
-                    if(rem > 2048) rem = 2048;
+                    which = buf->stream_bids[buf->curidx];
+                    ofs = buf->data_offset;
 
-                    memcpy(scratch_mem, data->data + ofs, rem);
-                    while(rem < data->segsize)
+                    if(data->segsize < data->buf_size - ofs)
                     {
-                        ALsizei todo = data->segsize - rem;
-                        if(todo > data->buf_size)
-                            todo = data->buf_size;
-                        memcpy(scratch_mem + rem, data->data, todo);
-                        rem += todo;
+                        alBufferData(which, data->buf_format, data->data + ofs, data->segsize,
+                                     data->format.Format.nSamplesPerSec);
+                        buf->data_offset = ofs + data->segsize;
                     }
-                    alBufferData(which, data->buf_format, scratch_mem, data->segsize,
-                                 data->format.Format.nSamplesPerSec);
-                    buf->data_offset = (ofs+data->segsize) % data->buf_size;
+                    else if(buf->islooping)
+                    {
+                        ALsizei rem = data->buf_size - ofs;
+                        if(rem > 2048) rem = 2048;
+
+                        memcpy(scratch_mem, data->data + ofs, rem);
+                        while(rem < data->segsize)
+                        {
+                            ALsizei todo = data->segsize - rem;
+                            if(todo > data->buf_size)
+                                todo = data->buf_size;
+                            memcpy(scratch_mem + rem, data->data, todo);
+                            rem += todo;
+                        }
+                        alBufferData(which, data->buf_format, scratch_mem, data->segsize,
+                                     data->format.Format.nSamplesPerSec);
+                        buf->data_offset = (ofs+data->segsize) % data->buf_size;
+                    }
+                    else
+                    {
+                        ALsizei rem = data->buf_size - ofs;
+                        if(rem > 2048) rem = 2048;
+                        if(rem == 0) break;
+
+                        memcpy(scratch_mem, data->data + ofs, rem);
+                        memset(scratch_mem+rem, (data->format.Format.wBitsPerSample==8) ? 128 : 0,
+                               data->segsize - rem);
+                        alBufferData(which, data->buf_format, scratch_mem, data->segsize,
+                                     data->format.Format.nSamplesPerSec);
+                        buf->data_offset = data->buf_size;
+                    }
+
+                    alSourceQueueBuffers(buf->source, 1, &which);
+                    buf->curidx = (buf->curidx+1)%QBUFFERS;
+                    queued++;
                 }
-                else
+
+                if(!queued)
                 {
-                    ALsizei rem = data->buf_size - ofs;
-                    if(rem > 2048) rem = 2048;
-                    if(rem == 0) break;
-
-                    memcpy(scratch_mem, data->data + ofs, rem);
-                    memset(scratch_mem+rem, (data->format.Format.wBitsPerSample == 8) ? 0x80 : 0,
-                           data->segsize - rem);
-                    alBufferData(which, data->buf_format, scratch_mem, data->segsize,
-                                 data->format.Format.nSamplesPerSec);
-                    buf->data_offset = data->buf_size;
+                    alSourceRewind(buf->source);
+                    buf->curidx = 0;
+                    buf->queue_base = 0;
+                    buf->isplaying = FALSE;
                 }
-
-                alSourceQueueBuffers(buf->source, 1, &which);
-                buf->curidx = (buf->curidx+1)%QBUFFERS;
-                queued++;
+                else if(state != AL_PLAYING)
+                    alSourcePlay(buf->source);
             }
-
-            if(!queued)
-            {
-                alSourceRewind(buf->source);
-                buf->curidx = 0;
-                buf->queue_base = 0;
-                buf->isplaying = FALSE;
-            }
-            else if(state != AL_PLAYING)
-                alSourcePlay(buf->source);
         }
         checkALError();
 
@@ -352,15 +362,13 @@ HRESULT DS8Primary_PreInit(DS8Primary *This, DS8Impl *parent)
     listener->flRolloffFactor = DS3D_DEFAULTROLLOFFFACTOR;
     listener->flDopplerFactor = DS3D_DEFAULTDOPPLERFACTOR;
 
-    This->sizenotifies = This->sizebuffers = parent->share->max_sources;
+    This->sizenotifies = parent->share->max_sources;
 
     hr = DSERR_OUTOFMEMORY;
-    This->buffers = HeapAlloc(GetProcessHeap(), 0, This->sizebuffers*sizeof(*This->buffers));
     This->notifies = HeapAlloc(GetProcessHeap(), 0, This->sizenotifies*sizeof(*This->notifies));
-    if(!This->buffers || !This->notifies)
-        goto fail;
+    if(!This->notifies) goto fail;
 
-    This->NumBufferGroups = (This->sizebuffers+63) / 64;
+    This->NumBufferGroups = (parent->share->max_sources+63) / 64;
     This->BufferGroups = HeapAlloc(GetProcessHeap(), 0,
         This->NumBufferGroups*sizeof(*This->BufferGroups));
     if(!This->BufferGroups) goto fail;
@@ -386,6 +394,9 @@ fail:
 
 void DS8Primary_Clear(DS8Primary *This)
 {
+    struct DSBufferGroup *bufgroup;
+    DWORD i;
+
     TRACE("Clearing primary %p\n", This);
 
     if(!This->parent)
@@ -415,12 +426,23 @@ void DS8Primary_Clear(DS8Primary *This)
     if(This->effect)
         This->ExtAL->DeleteEffects(1, &This->effect);
     popALContext();
-    while(This->nbuffers--)
-        DS8Buffer_Destroy(This->buffers[This->nbuffers]);
+
+    bufgroup = This->BufferGroups;
+    for(i = 0;i < This->NumBufferGroups;++i)
+    {
+        DWORD64 usemask = ~bufgroup[i].FreeBuffers;
+        while(usemask)
+        {
+            int idx = CTZ64(usemask);
+            DS8Buffer *buf = bufgroup[i].Buffers + idx;
+            usemask &= ~(U64(1) << idx);
+
+            DS8Buffer_Destroy(buf);
+        }
+    }
 
     HeapFree(GetProcessHeap(), 0, This->BufferGroups);
     HeapFree(GetProcessHeap(), 0, This->notifies);
-    HeapFree(GetProcessHeap(), 0, This->buffers);
     memset(This, 0, sizeof(*This));
 }
 
@@ -614,16 +636,25 @@ static HRESULT WINAPI DS8Primary_GetStatus(IDirectSoundBuffer *iface, DWORD *sta
 
     if(This->stopped)
     {
-        DWORD i, state;
+        struct DSBufferGroup *bufgroup = This->BufferGroups;
+        DWORD i, state = 0;
         HRESULT hr;
 
-        for(i = 0;i < This->nbuffers;++i)
+        for(i = 0;i < This->NumBufferGroups;++i)
         {
-            hr = IDirectSoundBuffer8_GetStatus(&This->buffers[i]->IDirectSoundBuffer8_iface, &state);
-            if(SUCCEEDED(hr) && (state&DSBSTATUS_PLAYING))
-                break;
+            DWORD64 usemask = ~bufgroup[i].FreeBuffers;
+            while(usemask)
+            {
+                int idx = CTZ64(usemask);
+                DS8Buffer *buf = bufgroup[i].Buffers + idx;
+                usemask &= ~(U64(1) << idx);
+
+                hr = IDirectSoundBuffer8_GetStatus(&buf->IDirectSoundBuffer8_iface, &state);
+                if(SUCCEEDED(hr) && (state&DSBSTATUS_PLAYING))
+                    break;
+            }
         }
-        if(i == This->nbuffers)
+        if(!(state&DSBSTATUS_PLAYING))
         {
             /* Primary stopped and no buffers playing.. */
             *status = 0;
@@ -1029,13 +1060,22 @@ static void DS8Primary_SetParams(DS8Primary *This, const DS3DLISTENER *params, L
     }
     if(dirty.bit.rollofffactor)
     {
+        struct DSBufferGroup *bufgroup = This->BufferGroups;
         ALfloat rolloff = params->flRolloffFactor;
         This->rollofffactor = rolloff;
-        for(i = 0;i < This->nbuffers;++i)
+
+        for(i = 0;i < This->NumBufferGroups;++i)
         {
-            const DS8Buffer *buf = This->buffers[i];
-            if(buf->ds3dmode != DS3DMODE_DISABLE)
-                alSourcef(buf->source, AL_ROLLOFF_FACTOR, rolloff);
+            DWORD64 usemask = ~bufgroup[i].FreeBuffers;
+            while(usemask)
+            {
+                int idx = CTZ64(usemask);
+                DS8Buffer *buf = bufgroup[i].Buffers + idx;
+                usemask &= ~(U64(1) << idx);
+
+                if(buf->ds3dmode != DS3DMODE_DISABLE)
+                    alSourcef(buf->source, AL_ROLLOFF_FACTOR, rolloff);
+            }
         }
     }
     if(dirty.bit.dopplerfactor)
@@ -1378,13 +1418,22 @@ static HRESULT WINAPI DS8Primary3D_SetRolloffFactor(IDirectSound3DListener *ifac
     }
     else
     {
+        struct DSBufferGroup *bufgroup = This->BufferGroups;
         DWORD i;
 
         setALContext(This->ctx);
-        for(i = 0;i < This->nbuffers;++i)
+        for(i = 0;i < This->NumBufferGroups;++i)
         {
-            if(This->buffers[i]->ds3dmode != DS3DMODE_DISABLE)
-                alSourcef(This->buffers[i]->source, AL_ROLLOFF_FACTOR, factor);
+            DWORD64 usemask = ~bufgroup[i].FreeBuffers;
+            while(usemask)
+            {
+                int idx = CTZ64(usemask);
+                DS8Buffer *buf = bufgroup[i].Buffers + idx;
+                usemask &= ~(U64(1) << idx);
+
+                if(buf->ds3dmode != DS3DMODE_DISABLE)
+                    alSourcef(buf->source, AL_ROLLOFF_FACTOR, factor);
+            }
         }
         checkALError();
         popALContext();
@@ -1492,6 +1541,7 @@ static HRESULT WINAPI DS8Primary3D_SetAllParameters(IDirectSound3DListener *ifac
 static HRESULT WINAPI DS8Primary3D_CommitDeferredSettings(IDirectSound3DListener *iface)
 {
     DS8Primary *This = impl_from_IDirectSound3DListener(iface);
+    struct DSBufferGroup *bufgroup;
     LONG flags;
     DWORD i;
 
@@ -1507,12 +1557,19 @@ static HRESULT WINAPI DS8Primary3D_CommitDeferredSettings(IDirectSound3DListener
     }
     TRACE("Dirty flags was: 0x%02lx\n", flags);
 
-    for(i = 0;i < This->nbuffers;++i)
+    bufgroup = This->BufferGroups;
+    for(i = 0;i < This->NumBufferGroups;++i)
     {
-        DS8Buffer *buf = This->buffers[i];
+        DWORD64 usemask = ~bufgroup[i].FreeBuffers;
+        while(usemask)
+        {
+            int idx = CTZ64(usemask);
+            DS8Buffer *buf = bufgroup[i].Buffers + idx;
+            usemask &= ~(U64(1) << idx);
 
-        if((flags=InterlockedExchange(&buf->dirty.flags, 0)) != 0)
-            DS8Buffer_SetParams(buf, &buf->params, flags);
+            if((flags=InterlockedExchange(&buf->dirty.flags, 0)) != 0)
+                DS8Buffer_SetParams(buf, &buf->params, flags);
+        }
     }
     checkALError();
 

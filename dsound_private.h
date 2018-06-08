@@ -91,6 +91,76 @@ const char *debugstr_guid( const GUID *id );
 static inline const char *debugstr_w( const WCHAR *s ) { return wine_dbgstr_wn( s, -1 ); }
 
 
+#ifndef U64
+#if defined(_MSC_VER)
+#define U64(x) (x##ui64)
+#elif SIZEOF_LONG == 8
+#define U64(x) (x##ul)
+#else
+#define U64(x) (x##ull)
+#endif
+#endif
+
+/* Define a CTZ64 macro (count trailing zeros, for 64-bit integers). The result
+ * is *UNDEFINED* if the value is 0.
+ */
+#ifdef __GNUC__
+
+#if SIZEOF_LONG == 8
+#define CTZ64 __builtin_ctzl
+#else
+#define CTZ64 __builtin_ctzll
+#endif
+
+#elif defined(HAVE_BITSCANFORWARD64_INTRINSIC)
+
+static inline int msvc64_ctz64(DWORD64 v)
+{
+    unsigned long idx = 64;
+    _BitScanForward64(&idx, v);
+    return (int)idx;
+}
+#define CTZ64 msvc64_ctz64
+
+#elif defined(HAVE_BITSCANFORWARD_INTRINSIC)
+
+static inline int msvc_ctz64(DWORD64 v)
+{
+    unsigned long idx = 64;
+    if(!_BitScanForward(&idx, v&0xffffffff))
+    {
+        if(_BitScanForward(&idx, v>>32))
+            idx += 32;
+    }
+    return (int)idx;
+}
+#define CTZ64 msvc_ctz64
+
+#else
+
+/* There be black magics here. The popcnt64 method is derived from
+ * https://graphics.stanford.edu/~seander/bithacks.html#CountBitsSetParallel
+ * while the ctz-utilizing-popcnt algorithm is shown here
+ * http://www.hackersdelight.org/hdcodetxt/ntz.c.txt
+ * as the ntz2 variant. These likely aren't the most efficient methods, but
+ * they're good enough if the GCC or MSVC intrinsics aren't available.
+ */
+static inline int fallback_popcnt64(DWORD64 v)
+{
+    v = v - ((v >> 1) & U64(0x5555555555555555));
+    v = (v & U64(0x3333333333333333)) + ((v >> 2) & U64(0x3333333333333333));
+    v = (v + (v >> 4)) & U64(0x0f0f0f0f0f0f0f0f);
+    return (int)((v * U64(0x0101010101010101)) >> 56);
+}
+
+static inline int fallback_ctz64(DWORD64 value)
+{
+    return fallback_popcnt64(~value & (value - 1));
+}
+#define CTZ64 fallback_ctz64
+#endif
+
+
 /* All openal functions */
 extern int openal_loaded;
 extern LPALCCREATECONTEXT palcCreateContext;
@@ -467,8 +537,6 @@ struct DS8Primary {
     LPALDEFERUPDATESSOFT DeferUpdates;
     LPALPROCESSUPDATESSOFT ProcessUpdates;
 
-    DS8Buffer **buffers;
-    DWORD nbuffers, sizebuffers;
     DS8Buffer **notifies;
     DWORD nnotifies, sizenotifies;
 
