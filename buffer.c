@@ -1081,7 +1081,7 @@ static HRESULT WINAPI DS8Buffer_Lock(IDirectSoundBuffer8 *iface, DWORD ofs, DWOR
 static HRESULT WINAPI DS8Buffer_Play(IDirectSoundBuffer8 *iface, DWORD res1, DWORD prio, DWORD flags)
 {
     DS8Buffer *This = impl_from_IDirectSoundBuffer8(iface);
-    ALint type, state = AL_STOPPED;
+    ALint state = AL_STOPPED;
     DS8Data *data;
     HRESULT hr;
 
@@ -1115,17 +1115,15 @@ static HRESULT WINAPI DS8Buffer_Play(IDirectSoundBuffer8 *iface, DWORD res1, DWO
         goto out;
     }
 
-    alGetSourcei(This->source, AL_SOURCE_STATE, &state);
     if(!(data->dsbflags&DSBCAPS_STATIC))
     {
         This->islooping = !!(flags&DSBPLAY_LOOPING);
-        if(state != AL_PLAYING && This->isplaying)
-            state = AL_PLAYING;
+        if(This->isplaying) state = AL_PLAYING;
     }
     else
     {
-        alGetSourcei(This->source, AL_SOURCE_TYPE, &type);
         alSourcei(This->source, AL_LOOPING, (flags&DSBPLAY_LOOPING) ? AL_TRUE : AL_FALSE);
+        alGetSourcei(This->source, AL_SOURCE_STATE, &state);
     }
     checkALError();
 
@@ -1136,14 +1134,15 @@ static HRESULT WINAPI DS8Buffer_Play(IDirectSoundBuffer8 *iface, DWORD res1, DWO
     /* alSourceQueueBuffers will implicitly set type to streaming */
     if((data->dsbflags&DSBCAPS_STATIC))
     {
-        if(type != AL_STATIC)
-            alSourcei(This->source, AL_BUFFER, This->buffer->bid);
+        if(state != AL_PAUSED)
+            alSourcei(This->source, AL_BUFFER, data->bid);
         alSourcePlay(This->source);
     }
     else
     {
         alSourceRewind(This->source);
         alSourcei(This->source, AL_BUFFER, 0);
+        This->queue_base = This->data_offset % data->buf_size;
         This->curidx = 0;
     }
     if(alGetError() != AL_NO_ERROR)
