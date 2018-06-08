@@ -343,87 +343,6 @@ typedef struct DeviceShare {
 } DeviceShare;
 
 
-union PrimaryParamFlags {
-    LONG flags;
-    struct {
-        BOOL pos : 1;
-        BOOL vel : 1;
-        BOOL orientation : 1;
-        BOOL distancefactor : 1;
-        BOOL rollofffactor : 1;
-        BOOL dopplerfactor : 1;
-        BOOL effect : 1;
-    } bit;
-};
-
-struct DS8Primary {
-    IDirectSoundBuffer IDirectSoundBuffer_iface;
-    IDirectSound3DListener IDirectSound3DListener_iface;
-    IKsPropertySet IKsPropertySet_iface;
-
-    LONG ref, ds3d_ref, prop_ref;
-    IDirectSoundBuffer8 *write_emu;
-    DS8Impl *parent;
-
-    /* Taken from the share */
-    ALCcontext *ctx;
-    const ALboolean *SupportedExt;
-    const ExtALFuncs *ExtAL;
-    CRITICAL_SECTION *crst;
-    ALCint refresh;
-    ALuint *sources;
-    ALuint auxslot;
-
-    DWORD buf_size;
-    BOOL stopped;
-    DWORD flags;
-    WAVEFORMATEXTENSIBLE format;
-
-    HANDLE thread_hdl;
-    DWORD thread_id;
-
-    HANDLE queue_timer;
-    HANDLE timer_evt;
-    volatile LONG quit_now;
-
-    LPALDEFERUPDATESSOFT DeferUpdates;
-    LPALPROCESSUPDATESSOFT ProcessUpdates;
-
-    DS8Buffer **buffers;
-    DWORD nbuffers, sizebuffers;
-    DS8Buffer **notifies;
-    DWORD nnotifies, sizenotifies;
-
-    ALuint effect;
-    ALfloat rollofffactor;
-
-    DS3DLISTENER params;
-    union PrimaryParamFlags dirty;
-
-    EAXLISTENERPROPERTIES eax_prop;
-};
-
-
-/* Device implementation */
-struct DS8Impl {
-    IDirectSound8 IDirectSound8_iface;
-    IDirectSound IDirectSound_iface;
-
-    LONG ref;
-    BOOL is_8;
-
-    DeviceShare *share;
-
-    /* Taken from the share */
-    ALCdevice *device;
-
-    DS8Primary primary;
-
-    DWORD speaker_config;
-    DWORD prio_level;
-};
-
-
 typedef struct DS8Data {
     LONG ref;
 
@@ -494,6 +413,97 @@ struct DS8Buffer {
     DWORD nnotify, lastpos;
     DSBPOSITIONNOTIFY *notify;
 };
+
+
+struct DSBufferGroup {
+    DWORD64 FreeBuffers;
+    DS8Buffer Buffers[64];
+};
+
+
+union PrimaryParamFlags {
+    LONG flags;
+    struct {
+        BOOL pos : 1;
+        BOOL vel : 1;
+        BOOL orientation : 1;
+        BOOL distancefactor : 1;
+        BOOL rollofffactor : 1;
+        BOOL dopplerfactor : 1;
+        BOOL effect : 1;
+    } bit;
+};
+
+struct DS8Primary {
+    IDirectSoundBuffer IDirectSoundBuffer_iface;
+    IDirectSound3DListener IDirectSound3DListener_iface;
+    IKsPropertySet IKsPropertySet_iface;
+
+    LONG ref, ds3d_ref, prop_ref;
+    IDirectSoundBuffer8 *write_emu;
+    DS8Impl *parent;
+
+    /* Taken from the share */
+    ALCcontext *ctx;
+    const ALboolean *SupportedExt;
+    const ExtALFuncs *ExtAL;
+    CRITICAL_SECTION *crst;
+    ALCint refresh;
+    ALuint *sources;
+    ALuint auxslot;
+
+    DWORD buf_size;
+    BOOL stopped;
+    DWORD flags;
+    WAVEFORMATEXTENSIBLE format;
+
+    HANDLE thread_hdl;
+    DWORD thread_id;
+
+    HANDLE queue_timer;
+    HANDLE timer_evt;
+    volatile LONG quit_now;
+
+    LPALDEFERUPDATESSOFT DeferUpdates;
+    LPALPROCESSUPDATESSOFT ProcessUpdates;
+
+    DS8Buffer **buffers;
+    DWORD nbuffers, sizebuffers;
+    DS8Buffer **notifies;
+    DWORD nnotifies, sizenotifies;
+
+    ALuint effect;
+    ALfloat rollofffactor;
+
+    DS3DLISTENER params;
+    union PrimaryParamFlags dirty;
+
+    EAXLISTENERPROPERTIES eax_prop;
+
+    DWORD NumBufferGroups;
+    struct DSBufferGroup *BufferGroups;
+};
+
+
+/* Device implementation */
+struct DS8Impl {
+    IDirectSound8 IDirectSound8_iface;
+    IDirectSound IDirectSound_iface;
+
+    LONG ref;
+    BOOL is_8;
+
+    DeviceShare *share;
+
+    /* Taken from the share */
+    ALCdevice *device;
+
+    DS8Primary primary;
+
+    DWORD speaker_config;
+    DWORD prio_level;
+};
+
 
 const ALCchar *DSOUND_getdevicestrings(void);
 const ALCchar *DSOUND_getcapturedevicestrings(void);

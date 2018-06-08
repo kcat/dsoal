@@ -3,6 +3,8 @@ cmake_minimum_required(VERSION 3.0.2)
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 
 include(CheckCCompilerFlag)
+include(CheckCSourceCompiles)
+include(CheckTypeSize)
 include(CheckIncludeFile)
 
 project(DSOAL C)
@@ -31,12 +33,40 @@ set(DSOAL_OBJS buffer.c
 
 set(DSOAL_INC ${DSOAL_INC} ${DSOAL_BINARY_DIR} ${DSOAL_SOURCE_DIR}/include/AL)
 
+
+check_type_size("long" SIZEOF_LONG)
+set(DSOAL_DEFS ${DSOAL_DEFS} "SIZEOF_LONG=${SIZEOF_LONG}")
+
+check_c_source_compiles("#include <intrin.h>
+int main()
+{
+    unsigned long idx = 0;
+    _BitScanForward64(&idx, 1);
+    return idx;
+}" HAVE_BITSCANFORWARD64_INTRINSIC)
+if(HAVE_BITSCANFORWARD64_INTRINSIC)
+    set(DSOAL_DEFS ${DSOAL_DEFS} HAVE_BITSCANFORWARD64_INTRINSIC)
+else()
+    check_c_source_compiles("#include <intrin.h>
+    int main()
+    {
+        unsigned long idx = 0;
+        _BitScanForward(&idx, 1);
+        return idx;
+    }" HAVE_BITSCANFORWARD_INTRINSIC)
+    if(HAVE_BITSCANFORWARD_INTRINSIC)
+        set(DSOAL_DEFS ${DSOAL_DEFS} HAVE_BITSCANFORWARD_INTRINSIC)
+    endif()
+endif()
+
+
 if(NOT MSVC)
     set(DSOAL_FLAGS ${DSOAL_FLAGS} -Winline -Wall)
     check_c_compiler_flag(-Wextra HAVE_W_EXTRA)
     if(HAVE_W_EXTRA)
         set(DSOAL_FLAGS ${DSOAL_FLAGS} -Wextra)
     endif()
+    set(DSOAL_LIBS ${DSOAL_LIBS} -static-libgcc)
 endif()
 if(NOT WIN32)
     check_c_compiler_flag(-fvisibility=hidden HAVE_FVISIBILITY_HIDDEN)

@@ -272,6 +272,7 @@ HRESULT DS8Primary_PreInit(DS8Primary *This, DS8Impl *parent)
     WAVEFORMATEX *wfx;
     ALCint refresh;
     HRESULT hr;
+    DWORD i;
 
     This->IDirectSoundBuffer_iface.lpVtbl = (IDirectSoundBufferVtbl*)&DS8Primary_Vtbl;
     This->IDirectSound3DListener_iface.lpVtbl = (IDirectSound3DListenerVtbl*)&DS8Primary3D_Vtbl;
@@ -358,6 +359,14 @@ HRESULT DS8Primary_PreInit(DS8Primary *This, DS8Impl *parent)
     if(!This->buffers || !This->notifies)
         goto fail;
 
+    This->NumBufferGroups = (This->sizebuffers+63) / 64;
+    This->BufferGroups = HeapAlloc(GetProcessHeap(), 0,
+        This->NumBufferGroups*sizeof(*This->BufferGroups));
+    if(!This->BufferGroups) goto fail;
+
+    for(i = 0;i < This->NumBufferGroups;++i)
+        This->BufferGroups[i].FreeBuffers = ~(DWORD64)0;
+
     This->quit_now = FALSE;
     This->timer_evt = CreateEventA(NULL, FALSE, FALSE, NULL);
     if(!This->timer_evt) goto fail;
@@ -408,6 +417,7 @@ void DS8Primary_Clear(DS8Primary *This)
     while(This->nbuffers--)
         DS8Buffer_Destroy(This->buffers[This->nbuffers]);
 
+    HeapFree(GetProcessHeap(), 0, This->BufferGroups);
     HeapFree(GetProcessHeap(), 0, This->notifies);
     HeapFree(GetProcessHeap(), 0, This->buffers);
     memset(This, 0, sizeof(*This));
