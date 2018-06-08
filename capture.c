@@ -17,6 +17,7 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
+#define CONST_VTABLE
 #include <stdarg.h>
 
 #include <windows.h>
@@ -219,8 +220,8 @@ static HRESULT DSCBuffer_Create(DSCBuffer **buf, DSCImpl *parent)
     DSCBuffer *This = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(*This));
     if(!This) return E_OUTOFMEMORY;
 
-    This->IDirectSoundCaptureBuffer8_iface.lpVtbl = (IDirectSoundCaptureBuffer8Vtbl*)&DSCBuffer_Vtbl;
-    This->IDirectSoundNotify_iface.lpVtbl = (IDirectSoundNotifyVtbl*)&DSCNot_Vtbl;
+    This->IDirectSoundCaptureBuffer8_iface.lpVtbl = &DSCBuffer_Vtbl;
+    This->IDirectSoundNotify_iface.lpVtbl = &DSCNot_Vtbl;
 
     This->all_ref = This->ref = 1;
 
@@ -830,7 +831,7 @@ HRESULT DSOUND_CaptureCreate8(REFIID riid, void **cap)
     This = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(*This));
     if(!This) return DSERR_OUTOFMEMORY;
 
-    This->IDirectSoundCapture_iface.lpVtbl = (IDirectSoundCaptureVtbl*)&DSC_Vtbl;
+    This->IDirectSoundCapture_iface.lpVtbl = &DSC_Vtbl;
 
     This->is_8 = TRUE;
 

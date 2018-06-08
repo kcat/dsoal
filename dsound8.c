@@ -20,6 +20,7 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
+#define CONST_VTABLE
 #include <stdarg.h>
 #include <string.h>
 
@@ -276,8 +277,8 @@ HRESULT DSOUND_Create8(REFIID riid, LPVOID *ds)
     This = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(*This));
     if(!This) return DSERR_OUTOFMEMORY;
 
-    This->IDirectSound8_iface.lpVtbl = (IDirectSound8Vtbl*)&DS8_Vtbl;
-    This->IDirectSound_iface.lpVtbl = (IDirectSoundVtbl*)&DS_Vtbl;
+    This->IDirectSound8_iface.lpVtbl = &DS8_Vtbl;
+    This->IDirectSound_iface.lpVtbl = &DS_Vtbl;
 
     This->is_8 = TRUE;
     This->speaker_config = DSSPEAKER_COMBINED(DSSPEAKER_5POINT1, DSSPEAKER_GEOMETRY_WIDE);

@@ -20,6 +20,7 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
+#define CONST_VTABLE
 #include <stdarg.h>
 #include <string.h>
 
@@ -274,9 +275,9 @@ HRESULT DS8Primary_PreInit(DS8Primary *This, DS8Impl *parent)
     HRESULT hr;
     DWORD i;
 
-    This->IDirectSoundBuffer_iface.lpVtbl = (IDirectSoundBufferVtbl*)&DS8Primary_Vtbl;
-    This->IDirectSound3DListener_iface.lpVtbl = (IDirectSound3DListenerVtbl*)&DS8Primary3D_Vtbl;
-    This->IKsPropertySet_iface.lpVtbl = (IKsPropertySetVtbl*)&DS8PrimaryProp_Vtbl;
+    This->IDirectSoundBuffer_iface.lpVtbl = &DS8Primary_Vtbl;
+    This->IDirectSound3DListener_iface.lpVtbl = &DS8Primary3D_Vtbl;
+    This->IKsPropertySet_iface.lpVtbl = &DS8PrimaryProp_Vtbl;
 
     This->parent = parent;
     This->crst = &parent->share->crst;

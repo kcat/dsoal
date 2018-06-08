@@ -20,6 +20,7 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
+#define CONST_VTABLE
 #include <stdarg.h>
 #include <string.h>
 
@@ -511,11 +512,11 @@ HRESULT DS8Buffer_Create(DS8Buffer **ppv, DS8Primary *prim, IDirectSoundBuffer *
         if(!This) return DSERR_OUTOFMEMORY;
     }
 
-    This->IDirectSoundBuffer8_iface.lpVtbl = (IDirectSoundBuffer8Vtbl*)&DS8Buffer_Vtbl;
-    This->IDirectSoundBuffer_iface.lpVtbl = (IDirectSoundBufferVtbl*)&DSBuffer_Vtbl;
-    This->IDirectSound3DBuffer_iface.lpVtbl = (IDirectSound3DBufferVtbl*)&DS8Buffer3d_Vtbl;
-    This->IDirectSoundNotify_iface.lpVtbl = (IDirectSoundNotifyVtbl*)&DS8BufferNot_Vtbl;
-    This->IKsPropertySet_iface.lpVtbl = (IKsPropertySetVtbl*)&DS8BufferProp_Vtbl;
+    This->IDirectSoundBuffer8_iface.lpVtbl = &DS8Buffer_Vtbl;
+    This->IDirectSoundBuffer_iface.lpVtbl = &DSBuffer_Vtbl;
+    This->IDirectSound3DBuffer_iface.lpVtbl = &DS8Buffer3d_Vtbl;
+    This->IDirectSoundNotify_iface.lpVtbl = &DS8BufferNot_Vtbl;
+    This->IKsPropertySet_iface.lpVtbl = &DS8BufferProp_Vtbl;
 
     This->primary = prim;
     This->ctx = prim->ctx;

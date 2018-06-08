@@ -19,6 +19,7 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
+#define CONST_VTABLE
 #include <stdarg.h>
 #include <string.h>
 
@@ -756,7 +757,7 @@ HRESULT IKsPrivatePropertySetImpl_Create(
 
     iks = HeapAlloc(GetProcessHeap(),0,sizeof(*iks));
     iks->ref = 1;
-    iks->IKsPropertySet_iface.lpVtbl = (IKsPropertySetVtbl*)&ikspvt;
+    iks->IKsPropertySet_iface.lpVtbl = &ikspvt;
 
     *piks = iks;
     return S_OK;
