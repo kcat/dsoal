@@ -497,7 +497,7 @@ HRESULT DS8Buffer_Create(DS8Buffer **ppv, DS8Primary *prim, IDirectSoundBuffer *
         if(prim->BufferGroups[i].FreeBuffers)
         {
             int idx = CTZ64(prim->BufferGroups[i].FreeBuffers);
-            This = &prim->BufferGroups[i].Buffers[idx];
+            This = prim->BufferGroups[i].Buffers + idx;
             memset(This, 0, sizeof(*This));
             prim->BufferGroups[i].FreeBuffers &= ~(U64(1) << idx);
             break;
@@ -506,6 +506,7 @@ HRESULT DS8Buffer_Create(DS8Buffer **ppv, DS8Primary *prim, IDirectSoundBuffer *
     LeaveCriticalSection(prim->crst);
     if(!This)
     {
+        WARN("Allocating extra DS8Buffer\n");
         This = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(*This));
         if(!This) return DSERR_OUTOFMEMORY;
     }
