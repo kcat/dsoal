@@ -657,7 +657,7 @@ static HRESULT WINAPI DS8Buffer_GetCurrentPosition(IDirectSoundBuffer8 *iface, D
         if(This->isplaying)
             writecursor = (data->segsize*QBUFFERS + pos) % data->buf_size;
         else
-            writecursor = pos;
+            writecursor = pos % data->buf_size;
 
         LeaveCriticalSection(This->crst);
     }
@@ -685,15 +685,15 @@ static HRESULT WINAPI DS8Buffer_GetCurrentPosition(IDirectSoundBuffer8 *iface, D
     }
     TRACE("%p Play pos = %u, write pos = %u\n", This, pos, writecursor);
 
-    if(pos >= This->buffer->buf_size)
+    if(pos > data->buf_size)
     {
-        ERR("playpos >= buf_size\n");
-        pos %= This->buffer->buf_size;
+        ERR("playpos > buf_size\n");
+        pos %= data->buf_size;
     }
-    if(writecursor >= This->buffer->buf_size)
+    if(writecursor >= data->buf_size)
     {
         ERR("writepos >= buf_size\n");
-        writecursor %= This->buffer->buf_size;
+        writecursor %= data->buf_size;
     }
 
     if(playpos) *playpos = pos;

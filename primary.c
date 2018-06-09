@@ -172,8 +172,8 @@ static DWORD CALLBACK DS8Primary_thread(void *dwUser)
                 if((data->dsbflags&DSBCAPS_STATIC) || !buf->isplaying)
                     continue;
 
-                alGetSourcei(buf->source, AL_SOURCE_STATE, &state);
                 alGetSourcei(buf->source, AL_BUFFERS_QUEUED, &queued);
+                alGetSourcei(buf->source, AL_SOURCE_STATE, &state);
                 alGetSourcei(buf->source, AL_BUFFERS_PROCESSED, &done);
 
                 if(done > 0)
@@ -234,9 +234,9 @@ static DWORD CALLBACK DS8Primary_thread(void *dwUser)
 
                 if(!queued)
                 {
-                    alSourceRewind(buf->source);
                     buf->curidx = 0;
-                    buf->queue_base = 0;
+                    buf->queue_base = data->buf_size;
+                    buf->data_offset = 0;
                     buf->isplaying = FALSE;
                 }
                 else if(state != AL_PLAYING)
