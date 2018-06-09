@@ -62,14 +62,8 @@ static void DSShare_Destroy(DeviceShare *share)
         /* Calling setALContext is not appropriate here, since we *have* to
          * unset the context before destroying it
          */
-        ALCcontext *old_ctx;
-
         EnterCriticalSection(&openal_crst);
-        old_ctx = get_context();
-        if(old_ctx != share->ctx)
-            set_context(share->ctx);
-        else
-            old_ctx = NULL;
+        set_context(share->ctx);
 
         if(share->nsources)
             alDeleteSources(share->nsources, share->sources);
@@ -79,8 +73,8 @@ static void DSShare_Destroy(DeviceShare *share)
             share->ExtAL.DeleteAuxiliaryEffectSlots(1, &share->auxslot);
         share->auxslot = 0;
 
-        set_context(old_ctx);
-        TlsSetValue(TlsThreadPtr, old_ctx);
+        set_context(NULL);
+        TlsSetValue(TlsThreadPtr, NULL);
         alcDestroyContext(share->ctx);
         share->ctx = NULL;
         LeaveCriticalSection(&openal_crst);

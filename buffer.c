@@ -90,11 +90,12 @@ static inline DS8Buffer *impl_from_IKsPropertySet(IKsPropertySet *iface)
 /* Should be called with critsect held and context set.. */
 static void DS8Buffer_addnotify(DS8Buffer *buf)
 {
+    DS8Primary *prim = buf->primary;
     DS8Buffer **list;
     DWORD i;
 
-    list = buf->primary->notifies;
-    for(i = 0; i < buf->primary->nnotifies; ++i)
+    list = prim->notifies;
+    for(i = 0; i < prim->nnotifies; ++i)
     {
         if(buf == list[i])
         {
@@ -102,15 +103,14 @@ static void DS8Buffer_addnotify(DS8Buffer *buf)
             return;
         }
     }
-    if(buf->primary->nnotifies == buf->primary->sizenotifies)
+    if(prim->nnotifies == prim->sizenotifies)
     {
-        list = HeapReAlloc(GetProcessHeap(), 0, list, (buf->primary->nnotifies + 1) * sizeof(*list));
-        if(!list)
-            return;
-        buf->primary->sizenotifies++;
+        list = HeapReAlloc(GetProcessHeap(), 0, list, (prim->nnotifies + 1) * sizeof(*list));
+        if(!list) return;
+        prim->sizenotifies++;
     }
-    list[buf->primary->nnotifies++] = buf;
-    buf->primary->notifies = list;
+    list[prim->nnotifies++] = buf;
+    prim->notifies = list;
 }
 
 
@@ -1157,12 +1157,7 @@ static HRESULT WINAPI DS8Buffer_Play(IDirectSoundBuffer8 *iface, DWORD res1, DWO
     This->playflags = flags;
 
     if(This->nnotify)
-    {
         DS8Buffer_addnotify(This);
-        DS8Primary_starttimer(This->primary);
-    }
-    else if(!(data->dsbflags&DSBCAPS_STATIC))
-        DS8Primary_starttimer(This->primary);
 
 out:
     popALContext();

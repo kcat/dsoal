@@ -247,6 +247,12 @@ static DWORD CALLBACK DS8Primary_thread(void *dwUser)
     HeapFree(GetProcessHeap(), 0, scratch_mem);
     scratch_mem = NULL;
 
+    if(local_contexts)
+    {
+        set_context(NULL);
+        TlsSetValue(TlsThreadPtr, NULL);
+    }
+
     return 0;
 }
 
@@ -256,7 +262,7 @@ static void CALLBACK DS8Primary_timer(void *arg, BOOLEAN unused)
     SetEvent((HANDLE)arg);
 }
 
-void DS8Primary_starttimer(DS8Primary *prim)
+static void DS8Primary_starttimer(DS8Primary *prim)
 {
     DWORD triggertime;
 
@@ -378,6 +384,8 @@ HRESULT DS8Primary_PreInit(DS8Primary *This, DS8Impl *parent)
 
     This->thread_hdl = CreateThread(NULL, 0, DS8Primary_thread, This, 0, &This->thread_id);
     if(!This->thread_hdl) goto fail;
+
+    DS8Primary_starttimer(This);
 
     return S_OK;
 
