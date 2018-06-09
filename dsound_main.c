@@ -205,6 +205,16 @@ LPALCMAKECONTEXTCURRENT set_context;
 LPALCGETCURRENTCONTEXT get_context;
 BOOL local_contexts;
 
+static void EnterALSectionTLS(ALCcontext *ctx);
+static void LeaveALSectionTLS(void);
+static void EnterALSectionGlob(ALCcontext *ctx);
+static void LeaveALSectionGlob(void);
+
+DWORD TlsThreadPtr;
+void (*EnterALSection)(ALCcontext *ctx) = EnterALSectionGlob;
+void (*LeaveALSection)(void) = LeaveALSectionGlob;
+
+
 static BOOL load_libopenal(void)
 {
     const char libname[] = "dsoal-aldrv.dll";
@@ -354,9 +364,47 @@ static BOOL load_libopenal(void)
         set_context = alcMakeContextCurrent;
         get_context = alcGetCurrentContext;
     }
+    else
+    {
+        EnterALSection = EnterALSectionTLS;
+        LeaveALSection = LeaveALSectionTLS;
+    }
 
     return TRUE;
 }
+
+
+static void EnterALSectionTLS(ALCcontext *ctx)
+{
+    if(LIKELY(ctx == TlsGetValue(TlsThreadPtr)))
+        return;
+
+    if(LIKELY(set_context(ctx) != ALC_FALSE))
+        TlsSetValue(TlsThreadPtr, ctx);
+    else
+    {
+        ERR("Couldn't set current context!!\n");
+        checkALCError(alcGetContextsDevice(ctx));
+    }
+}
+static void LeaveALSectionTLS(void)
+{
+}
+
+static void EnterALSectionGlob(ALCcontext *ctx)
+{
+    EnterCriticalSection(&openal_crst);
+    if(UNLIKELY(alcMakeContextCurrent(ctx) == ALC_FALSE))
+    {
+        ERR("Couldn't set current context!!\n");
+        checkALCError(alcGetContextsDevice(ctx));
+    }
+}
+static void LeaveALSectionGlob(void)
+{
+    LeaveCriticalSection(&openal_crst);
+}
+
 
 const ALCchar *DSOUND_getdevicestrings(void)
 {
@@ -1082,6 +1130,7 @@ DECLSPEC_EXPORT BOOL WINAPI DllMain(HINSTANCE hInstDLL, DWORD fdwReason, LPVOID 
         TRACE("DLL_PROCESS_ATTACH\n");
         if(!load_libopenal())
             return FALSE;
+        TlsThreadPtr = TlsAlloc();
         /* Increase refcount on dsound by 1 */
         GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, (LPCWSTR)hInstDLL, &hInstDLL);
         break;
@@ -1100,6 +1149,7 @@ DECLSPEC_EXPORT BOOL WINAPI DllMain(HINSTANCE hInstDLL, DWORD fdwReason, LPVOID 
         TRACE("DLL_PROCESS_DETACH\n");
         if(openal_handle)
             FreeLibrary(openal_handle);
+        TlsFree(TlsThreadPtr);
         break;
 
     default:

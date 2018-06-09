@@ -78,6 +78,7 @@ static void DSShare_Destroy(DeviceShare *share)
             share->ExtAL.DeleteAuxiliaryEffectSlots(1, &share->auxslot);
 
         set_context(old_ctx);
+        TlsSetValue(TlsThreadPtr, old_ctx);
         alcDestroyContext(share->ctx);
         LeaveCriticalSection(&openal_crst);
     }

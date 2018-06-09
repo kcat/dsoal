@@ -160,6 +160,14 @@ static inline int fallback_ctz64(DWORD64 value)
 #define CTZ64 fallback_ctz64
 #endif
 
+#ifdef __GNUC__
+#define LIKELY(x) __builtin_expect(!!(x), !0)
+#define UNLIKELY(x) __builtin_expect(!!(x), !!0)
+#else
+#define LIKELY(x) (x)
+#define UNLIKELY(x) (x)
+#endif
+
 
 /* All openal functions */
 extern int openal_loaded;
@@ -361,6 +369,11 @@ extern CRITICAL_SECTION openal_crst;
 extern LPALCMAKECONTEXTCURRENT set_context;
 extern LPALCGETCURRENTCONTEXT get_context;
 extern BOOL local_contexts;
+
+
+extern DWORD TlsThreadPtr;
+extern void (*EnterALSection)(ALCcontext *ctx);
+extern void (*LeaveALSection)(void);
 
 
 typedef struct DS8Impl DS8Impl;
@@ -634,16 +647,8 @@ static inline FLOAT clampF(FLOAT val, FLOAT minval, FLOAT maxval)
 } while(0)
 
 
-#define setALContext(actx) do {                                               \
-    ALCcontext *cur_ctx = actx;                                               \
-    if(!local_contexts) EnterCriticalSection(&openal_crst);                   \
-    if(set_context(cur_ctx) == ALC_FALSE) {                                   \
-        ERR("Couldn't set current context!!\n");                              \
-        checkALCError(alcGetContextsDevice(cur_ctx));                         \
-    }
-#define popALContext()                                                        \
-    if (!local_contexts) LeaveCriticalSection(&openal_crst);                  \
-} while (0)
+#define setALContext(actx) EnterALSection(actx)
+#define popALContext() LeaveALSection()
 
 
 HRESULT DSOUND_Create(REFIID riid, void **ppDS);
