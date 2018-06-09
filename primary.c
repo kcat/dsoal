@@ -67,31 +67,27 @@ static void AL_APIENTRY wrap_ProcessUpdates(void)
 
 static void trigger_elapsed_notifies(DS8Buffer *buf, DWORD lastpos, DWORD curpos)
 {
-    DWORD i;
-    for(i = 0; i < buf->nnotify; ++i)
+    DSBPOSITIONNOTIFY *not = buf->notify;
+    DSBPOSITIONNOTIFY *not_end = not + buf->nnotify;
+    for(;not != not_end;++not)
     {
-        DSBPOSITIONNOTIFY *not = &buf->notify[i];
         HANDLE event = not->hEventNotify;
         DWORD ofs = not->dwOffset;
 
         if(ofs == (DWORD)DSBPN_OFFSETSTOP)
             continue;
 
-        /* Wraparound case */
-        if(curpos < lastpos)
+        if(curpos < lastpos) /* Wraparound case */
         {
             if(ofs < curpos || ofs >= lastpos)
             {
-                TRACE("Triggering notification %lu (%lu) from buffer %p\n", i, ofs, buf);
+                TRACE("Triggering notification %d from buffer %p\n", not - buf->notify, buf);
                 SetEvent(event);
             }
-            continue;
         }
-
-        /* Normal case */
-        if(ofs >= lastpos && ofs < curpos)
+        else if(ofs >= lastpos && ofs < curpos) /* Normal case */
         {
-            TRACE("Triggering notification %lu (%lu) from buffer %p\n", i, ofs, buf);
+            TRACE("Triggering notification %d from buffer %p\n", not - buf->notify, buf);
             SetEvent(event);
         }
     }
@@ -99,15 +95,14 @@ static void trigger_elapsed_notifies(DS8Buffer *buf, DWORD lastpos, DWORD curpos
 
 static void trigger_stop_notifies(DS8Buffer *buf)
 {
-    DWORD i;
-    for(i = 0; i < buf->nnotify; ++i)
+    DSBPOSITIONNOTIFY *not = buf->notify;
+    DSBPOSITIONNOTIFY *not_end = not + buf->nnotify;
+    for(;not != not_end;++not)
     {
-        DSBPOSITIONNOTIFY *not = &buf->notify[i];
-        if(not->dwOffset == (DWORD)DSBPN_OFFSETSTOP)
-        {
-            TRACE("Triggering notification %lu from buffer %p\n", i, buf);
-            SetEvent(not->hEventNotify);
-        }
+        if(not->dwOffset != (DWORD)DSBPN_OFFSETSTOP)
+            continue;
+        TRACE("Triggering notification %d from buffer %p\n", not - buf->notify, buf);
+        SetEvent(not->hEventNotify);
     }
 }
 
@@ -130,11 +125,10 @@ static DWORD CALLBACK DS8Primary_thread(void *dwUser)
         for(i = 0;i < prim->nnotifies;)
         {
             DS8Buffer *buf = prim->notifies[i];
-            IDirectSoundBuffer8 *dsb = &buf->IDirectSoundBuffer8_iface;
             DWORD status=0, curpos=buf->lastpos;
 
-            IDirectSoundBuffer8_GetStatus(dsb, &status);
-            IDirectSoundBuffer8_GetCurrentPosition(dsb, &curpos, NULL);
+            DS8Buffer_GetStatus(&buf->IDirectSoundBuffer8_iface, &status);
+            DS8Buffer_GetCurrentPosition(&buf->IDirectSoundBuffer8_iface, &curpos, NULL);
             if(buf->lastpos != curpos)
             {
                 trigger_elapsed_notifies(buf, buf->lastpos, curpos);
@@ -649,9 +643,8 @@ static HRESULT WINAPI DS8Primary_GetStatus(IDirectSoundBuffer *iface, DWORD *sta
                 DS8Buffer *buf = bufgroup[i].Buffers + idx;
                 usemask &= ~(U64(1) << idx);
 
-                hr = IDirectSoundBuffer8_GetStatus(&buf->IDirectSoundBuffer8_iface, &state);
-                if(SUCCEEDED(hr) && (state&DSBSTATUS_PLAYING))
-                    break;
+                hr = DS8Buffer_GetStatus(&buf->IDirectSoundBuffer8_iface, &state);
+                if(SUCCEEDED(hr) && (state&DSBSTATUS_PLAYING)) break;
             }
         }
         if(!(state&DSBSTATUS_PLAYING))

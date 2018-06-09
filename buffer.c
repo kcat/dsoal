@@ -613,7 +613,7 @@ static HRESULT WINAPI DS8Buffer_GetCaps(IDirectSoundBuffer8 *iface, DSBCAPS *cap
     return S_OK;
 }
 
-static HRESULT WINAPI DS8Buffer_GetCurrentPosition(IDirectSoundBuffer8 *iface, DWORD *playpos, DWORD *curpos)
+HRESULT WINAPI DS8Buffer_GetCurrentPosition(IDirectSoundBuffer8 *iface, DWORD *playpos, DWORD *curpos)
 {
     DS8Buffer *This = impl_from_IDirectSoundBuffer8(iface);
     ALsizei writecursor, pos;
@@ -827,7 +827,7 @@ static HRESULT WINAPI DS8Buffer_GetFrequency(IDirectSoundBuffer8 *iface, DWORD *
     return hr;
 }
 
-static HRESULT WINAPI DS8Buffer_GetStatus(IDirectSoundBuffer8 *iface, DWORD *status)
+HRESULT WINAPI DS8Buffer_GetStatus(IDirectSoundBuffer8 *iface, DWORD *status)
 {
     DS8Buffer *This = impl_from_IDirectSoundBuffer8(iface);
     ALint state, looping;
@@ -2313,9 +2313,8 @@ static HRESULT WINAPI DS8BufferNot_SetNotificationPositions(IDirectSoundNotify *
     if(count && !notifications)
         goto out;
 
-    hr = IDirectSoundBuffer8_GetStatus(&This->IDirectSoundBuffer8_iface, &state);
-    if(FAILED(hr))
-        goto out;
+    hr = DS8Buffer_GetStatus(&This->IDirectSoundBuffer8_iface, &state);
+    if(FAILED(hr)) goto out;
 
     hr = DSERR_INVALIDCALL;
     if((state&DSBSTATUS_PLAYING))
@@ -2342,8 +2341,7 @@ static HRESULT WINAPI DS8BufferNot_SetNotificationPositions(IDirectSoundNotify *
 
         hr = E_OUTOFMEMORY;
         nots = HeapAlloc(GetProcessHeap(), 0, count*sizeof(*nots));
-        if(!nots)
-            goto out;
+        if(!nots) goto out;
         memcpy(nots, notifications, count*sizeof(*nots));
 
         HeapFree(GetProcessHeap(), 0, This->notify);
