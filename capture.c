@@ -67,10 +67,12 @@ struct DSCBuffer {
     DSBPOSITIONNOTIFY *notify;
     DWORD nnotify;
 
-    UINT timer_id;
-    DWORD timer_res;
     HANDLE thread_hdl;
     DWORD thread_id;
+
+    HANDLE queue_timer;
+    HANDLE timer_evt;
+    volatile LONG quit_now;
 
     DWORD pos;
     BOOL playing, looping;
@@ -120,99 +122,81 @@ static void trigger_notifies(DSCBuffer *buf, DWORD lastpos, DWORD curpos)
 
 static DWORD CALLBACK DSCBuffer_thread(void *param)
 {
-    DSCImpl *This = param;
-    DSCBuffer *buf;
-    ALCint avail;
-    MSG msg;
+    DSCBuffer *This = param;
+    CRITICAL_SECTION *crst = &This->parent->crst;
 
     SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_TIME_CRITICAL);
 
-    while(GetMessageA(&msg, NULL, 0, 0))
+    while(WaitForSingleObject(This->timer_evt, INFINITE) == WAIT_OBJECT_0 && !This->quit_now)
     {
-        if(msg.message != WM_USER)
-            continue;
+        ALCint avail = 0;
 
-        avail = 0;
-        buf = This->buf;
-        alcGetIntegerv(buf->dev, ALC_CAPTURE_SAMPLES, 1, &avail);
-        if(avail == 0 || !buf->playing)
-            continue;
+        alcGetIntegerv(This->dev, ALC_CAPTURE_SAMPLES, 1, &avail);
+        if(avail == 0 || !This->playing) continue;
 
-        EnterCriticalSection(&This->crst);
-        if(!buf->playing)
+        EnterCriticalSection(crst);
+        if(!This->playing)
         {
-            LeaveCriticalSection(&This->crst);
+            LeaveCriticalSection(crst);
             continue;
         }
     more_samples:
-        avail *= buf->format.Format.nBlockAlign;
-        if((DWORD)avail > buf->buf_size - buf->pos)
-            avail = buf->buf_size - buf->pos;
+        avail *= This->format.Format.nBlockAlign;
+        if((DWORD)avail > This->buf_size - This->pos)
+            avail = This->buf_size - This->pos;
 
-        alcCaptureSamples(buf->dev, buf->buf + buf->pos, avail/buf->format.Format.nBlockAlign);
-        trigger_notifies(buf, buf->pos, buf->pos + avail);
-        buf->pos += avail;
+        alcCaptureSamples(This->dev, This->buf+This->pos, avail/This->format.Format.nBlockAlign);
+        trigger_notifies(This, This->pos, This->pos + avail);
+        This->pos += avail;
 
-        if(buf->pos == buf->buf_size)
+        if(This->pos == This->buf_size)
         {
-            buf->pos = 0;
-            if(!buf->looping)
+            This->pos = 0;
+            if(!This->looping)
             {
                 DWORD i;
-                for(i = 0;i < buf->nnotify;++i)
+                for(i = 0;i < This->nnotify;++i)
                 {
-                    if(buf->notify[i].dwOffset == DSCBPN_OFFSET_STOP)
-                        SetEvent(buf->notify[i].hEventNotify);
+                    if(This->notify[i].dwOffset == DSCBPN_OFFSET_STOP)
+                        SetEvent(This->notify[i].hEventNotify);
                 }
 
-                buf->playing = 0;
-                alcCaptureStop(buf->dev);
+                This->playing = 0;
+                alcCaptureStop(This->dev);
             }
             else
             {
-                alcGetIntegerv(buf->dev, ALC_CAPTURE_SAMPLES, 1, &avail);
+                alcGetIntegerv(This->dev, ALC_CAPTURE_SAMPLES, 1, &avail);
                 if(avail) goto more_samples;
             }
         }
 
-        LeaveCriticalSection(&This->crst);
+        LeaveCriticalSection(crst);
     }
 
     return 0;
 }
 
 
-static void CALLBACK DSCBuffer_timer(UINT timerID, UINT msg, DWORD_PTR dwUser,
-                                     DWORD_PTR dw1, DWORD_PTR dw2)
+static void CALLBACK DSCBuffer_timer(void *arg, BOOLEAN unused)
 {
-    (void)timerID;
-    (void)msg;
-    (void)dw1;
-    (void)dw2;
-    PostThreadMessageA(dwUser, WM_USER, 0, 0);
+    (void)unused;
+    SetEvent((HANDLE)arg);
 }
 
 static void DSCBuffer_starttimer(DSCBuffer *This)
 {
-    TIMECAPS time;
     ALint refresh = FAKE_REFRESH_COUNT;
-    DWORD triggertime, res = DS_TIME_RES;
+    DWORD triggertime;
 
-    if(This->timer_id)
+    if(This->queue_timer)
         return;
 
-    timeGetDevCaps(&time, sizeof(TIMECAPS));
-    triggertime = 1000 / refresh;
-    if (triggertime < time.wPeriodMin)
-        triggertime = time.wPeriodMin;
+    triggertime = 1000 / refresh * 2 / 3;
     TRACE("Calling timer every %lu ms for %i refreshes per second\n", triggertime, refresh);
-    if (res < time.wPeriodMin)
-        res = time.wPeriodMin;
-    if (timeBeginPeriod(res) == TIMERR_NOCANDO)
-        WARN("Could not set minimum resolution, don't expect sound\n");
-    else
-        This->timer_res = res;
-    This->timer_id = timeSetEvent(triggertime, res, DSCBuffer_timer, This->thread_id, TIME_PERIODIC|TIME_KILL_SYNCHRONOUS);
+
+    CreateTimerQueueTimer(&This->queue_timer, NULL, DSCBuffer_timer, This->timer_evt,
+                          triggertime, triggertime, WT_EXECUTEINTIMERTHREAD);
 }
 
 static HRESULT DSCBuffer_Create(DSCBuffer **buf, DSCImpl *parent)
@@ -227,31 +211,48 @@ static HRESULT DSCBuffer_Create(DSCBuffer **buf, DSCImpl *parent)
 
     This->parent = parent;
 
-    This->thread_hdl = CreateThread(NULL, 0, DSCBuffer_thread, This->parent, 0, &This->thread_id);
-    if(This->thread_hdl == NULL)
-    {
-        HeapFree(GetProcessHeap(), 0, This);
-        return DSERR_OUTOFMEMORY;
-    }
+    This->quit_now = FALSE;
+    This->timer_evt = CreateEventA(NULL, FALSE, FALSE, NULL);
+    if(!This->timer_evt) goto fail;
+
+    This->queue_timer = NULL;
+
+    This->thread_hdl = CreateThread(NULL, 0, DSCBuffer_thread, This, 0, &This->thread_id);
+    if(!This->thread_hdl) goto fail;
 
     *buf = This;
     return S_OK;
+
+fail:
+    if(This->timer_evt)
+        CloseHandle(This->timer_evt);
+    This->timer_evt = NULL;
+
+    HeapFree(GetProcessHeap(), 0, This);
+    return E_FAIL;
 }
 
 static void DSCBuffer_Destroy(DSCBuffer *This)
 {
-    if(This->timer_id)
-    {
-        timeKillEvent(This->timer_id);
-        timeEndPeriod(This->timer_res);
-    }
+    if(This->queue_timer)
+        DeleteTimerQueueTimer(NULL, This->queue_timer, INVALID_HANDLE_VALUE);
+    This->queue_timer = NULL;
+
     if(This->thread_hdl)
     {
-        PostThreadMessageA(This->thread_id, WM_QUIT, 0, 0);
+        InterlockedExchange(&This->quit_now, TRUE);
+        SetEvent(This->timer_evt);
+
         if(WaitForSingleObject(This->thread_hdl, 1000) != WAIT_OBJECT_0)
-            ERR("Thread wait timed out");
+            ERR("Thread wait timed out\n");
+
         CloseHandle(This->thread_hdl);
+        This->thread_hdl = NULL;
     }
+
+    if(This->timer_evt)
+        CloseHandle(This->timer_evt);
+    This->timer_evt = NULL;
 
     if(This->dev)
     {
