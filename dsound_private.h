@@ -410,6 +410,7 @@ typedef struct DeviceShare {
 
     ALCdevice *device;
     ALCcontext *ctx;
+    ALCint refresh;
 
     ALboolean SupportedExt[MAX_EXTENSIONS];
 
@@ -421,6 +422,16 @@ typedef struct DeviceShare {
     DWORD nsources, max_sources;
 
     ALuint auxslot;
+
+    HANDLE thread_hdl;
+    DWORD thread_id;
+
+    HANDLE queue_timer;
+    HANDLE timer_evt;
+    volatile LONG quit_now;
+
+    ALsizei nprimaries;
+    DS8Primary **primaries;
 
     GUID guid;
 } DeviceShare;
@@ -540,13 +551,6 @@ struct DS8Primary {
     DWORD flags;
     WAVEFORMATEXTENSIBLE format;
 
-    HANDLE thread_hdl;
-    DWORD thread_id;
-
-    HANDLE queue_timer;
-    HANDLE timer_evt;
-    volatile LONG quit_now;
-
     LPALDEFERUPDATESSOFT DeferUpdates;
     LPALPROCESSUPDATESSOFT ProcessUpdates;
 
@@ -591,6 +595,7 @@ const ALCchar *DSOUND_getcapturedevicestrings(void);
 
 HRESULT DS8Primary_PreInit(DS8Primary *prim, DS8Impl *parent);
 void DS8Primary_Clear(DS8Primary *prim);
+void DS8Primary_timertick(DS8Primary *prim, BYTE *scratch_mem/*2K non-permanent memory*/);
 
 HRESULT DS8Buffer_Create(DS8Buffer **ppv, DS8Primary *parent, IDirectSoundBuffer *orig);
 void DS8Buffer_Destroy(DS8Buffer *buf);

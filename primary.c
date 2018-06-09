@@ -106,174 +106,127 @@ static void trigger_stop_notifies(DS8Buffer *buf)
     }
 }
 
-static DWORD CALLBACK DS8Primary_thread(void *dwUser)
+void DS8Primary_timertick(DS8Primary *prim, BYTE *scratch_mem)
 {
-    DS8Primary *prim = (DS8Primary*)dwUser;
-    BYTE *scratch_mem = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, 2048);
+    struct DSBufferGroup *bufgroup;
     DWORD i;
 
-    SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_TIME_CRITICAL);
-
-    TRACE("Primary buffer (%p) message loop start\n", prim);
-    while(WaitForSingleObject(prim->timer_evt, INFINITE) == WAIT_OBJECT_0 && !prim->quit_now)
+    for(i = 0;i < prim->nnotifies;)
     {
-        struct DSBufferGroup *bufgroup;
+        DS8Buffer *buf = prim->notifies[i];
+        DWORD status=0, curpos=buf->lastpos;
 
-        EnterCriticalSection(prim->crst);
-        setALContext(prim->ctx);
-
-        for(i = 0;i < prim->nnotifies;)
+        DS8Buffer_GetStatus(&buf->IDirectSoundBuffer8_iface, &status);
+        DS8Buffer_GetCurrentPosition(&buf->IDirectSoundBuffer8_iface, &curpos, NULL);
+        if(buf->lastpos != curpos)
         {
-            DS8Buffer *buf = prim->notifies[i];
-            DWORD status=0, curpos=buf->lastpos;
+            trigger_elapsed_notifies(buf, buf->lastpos, curpos);
+            buf->lastpos = curpos;
+        }
+        if(!(status&DSBSTATUS_PLAYING))
+        {
+            /* Remove this buffer from list and put another at the current
+             * position; don't increment i
+             */
+            trigger_stop_notifies(buf);
+            prim->notifies[i] = prim->notifies[--prim->nnotifies];
+            continue;
+        }
+        i++;
+    }
 
-            DS8Buffer_GetStatus(&buf->IDirectSoundBuffer8_iface, &status);
-            DS8Buffer_GetCurrentPosition(&buf->IDirectSoundBuffer8_iface, &curpos, NULL);
-            if(buf->lastpos != curpos)
-            {
-                trigger_elapsed_notifies(buf, buf->lastpos, curpos);
-                buf->lastpos = curpos;
-            }
-            if(!(status&DSBSTATUS_PLAYING))
-            {
-                /* Remove this buffer from list and put another at the
-                 * current position; don't increment i
-                 */
-                trigger_stop_notifies(buf);
-                prim->notifies[i] = prim->notifies[--prim->nnotifies];
+    /* OpenAL doesn't support our lovely buffer extensions so just make sure
+     * enough buffers are queued
+     */
+    bufgroup = prim->BufferGroups;
+    for(i = 0;i < prim->NumBufferGroups;++i)
+    {
+        DWORD64 usemask = ~bufgroup[i].FreeBuffers;
+        while(usemask)
+        {
+            int idx = CTZ64(usemask);
+            DS8Buffer *buf = bufgroup[i].Buffers + idx;
+            DS8Data *data = buf->buffer;
+            ALint ofs, done = 0, queued = QBUFFERS, state = AL_PLAYING;
+            ALuint which;
+
+            usemask &= ~(U64(1) << idx);
+
+            if((data->dsbflags&DSBCAPS_STATIC) || !buf->isplaying)
                 continue;
-            }
-            i++;
-        }
 
-        /* OpenAL doesn't support our lovely buffer extensions
-         * so just make sure enough buffers are queued
-         */
-        bufgroup = prim->BufferGroups;
-        for(i = 0;i < prim->NumBufferGroups;++i)
-        {
-            DWORD64 usemask = ~bufgroup[i].FreeBuffers;
-            while(usemask)
+            alGetSourcei(buf->source, AL_BUFFERS_QUEUED, &queued);
+            alGetSourcei(buf->source, AL_SOURCE_STATE, &state);
+            alGetSourcei(buf->source, AL_BUFFERS_PROCESSED, &done);
+
+            if(done > 0)
             {
-                int idx = CTZ64(usemask);
-                DS8Buffer *buf = bufgroup[i].Buffers + idx;
-                DS8Data *data = buf->buffer;
-                ALint ofs, done = 0, queued = QBUFFERS, state = AL_PLAYING;
-                ALuint which;
+                ALuint bids[QBUFFERS];
+                queued -= done;
 
-                usemask &= ~(U64(1) << idx);
-
-                if((data->dsbflags&DSBCAPS_STATIC) || !buf->isplaying)
-                    continue;
-
-                alGetSourcei(buf->source, AL_BUFFERS_QUEUED, &queued);
-                alGetSourcei(buf->source, AL_SOURCE_STATE, &state);
-                alGetSourcei(buf->source, AL_BUFFERS_PROCESSED, &done);
-
-                if(done > 0)
-                {
-                    ALuint bids[QBUFFERS];
-                    queued -= done;
-
-                    alSourceUnqueueBuffers(buf->source, done, bids);
-                    buf->queue_base = (buf->queue_base + data->segsize*done) % data->buf_size;
-                }
-                while(queued < QBUFFERS)
-                {
-                    which = buf->stream_bids[buf->curidx];
-                    ofs = buf->data_offset;
-
-                    if(data->segsize < data->buf_size - ofs)
-                    {
-                        alBufferData(which, data->buf_format, data->data + ofs, data->segsize,
-                                     data->format.Format.nSamplesPerSec);
-                        buf->data_offset = ofs + data->segsize;
-                    }
-                    else if(buf->islooping)
-                    {
-                        ALsizei rem = data->buf_size - ofs;
-                        if(rem > 2048) rem = 2048;
-
-                        memcpy(scratch_mem, data->data + ofs, rem);
-                        while(rem < data->segsize)
-                        {
-                            ALsizei todo = data->segsize - rem;
-                            if(todo > data->buf_size)
-                                todo = data->buf_size;
-                            memcpy(scratch_mem + rem, data->data, todo);
-                            rem += todo;
-                        }
-                        alBufferData(which, data->buf_format, scratch_mem, data->segsize,
-                                     data->format.Format.nSamplesPerSec);
-                        buf->data_offset = (ofs+data->segsize) % data->buf_size;
-                    }
-                    else
-                    {
-                        ALsizei rem = data->buf_size - ofs;
-                        if(rem > 2048) rem = 2048;
-                        if(rem == 0) break;
-
-                        memcpy(scratch_mem, data->data + ofs, rem);
-                        memset(scratch_mem+rem, (data->format.Format.wBitsPerSample==8) ? 128 : 0,
-                               data->segsize - rem);
-                        alBufferData(which, data->buf_format, scratch_mem, data->segsize,
-                                     data->format.Format.nSamplesPerSec);
-                        buf->data_offset = data->buf_size;
-                    }
-
-                    alSourceQueueBuffers(buf->source, 1, &which);
-                    buf->curidx = (buf->curidx+1)%QBUFFERS;
-                    queued++;
-                }
-
-                if(!queued)
-                {
-                    buf->curidx = 0;
-                    buf->queue_base = data->buf_size;
-                    buf->data_offset = 0;
-                    buf->isplaying = FALSE;
-                }
-                else if(state != AL_PLAYING)
-                    alSourcePlay(buf->source);
+                alSourceUnqueueBuffers(buf->source, done, bids);
+                buf->queue_base = (buf->queue_base + data->segsize*done) % data->buf_size;
             }
+            while(queued < QBUFFERS)
+            {
+                which = buf->stream_bids[buf->curidx];
+                ofs = buf->data_offset;
+
+                if(data->segsize < data->buf_size - ofs)
+                {
+                    alBufferData(which, data->buf_format, data->data + ofs, data->segsize,
+                                 data->format.Format.nSamplesPerSec);
+                    buf->data_offset = ofs + data->segsize;
+                }
+                else if(buf->islooping)
+                {
+                    ALsizei rem = data->buf_size - ofs;
+                    if(rem > 2048) rem = 2048;
+
+                    memcpy(scratch_mem, data->data + ofs, rem);
+                    while(rem < data->segsize)
+                    {
+                        ALsizei todo = data->segsize - rem;
+                        if(todo > data->buf_size)
+                            todo = data->buf_size;
+                        memcpy(scratch_mem + rem, data->data, todo);
+                        rem += todo;
+                    }
+                    alBufferData(which, data->buf_format, scratch_mem, data->segsize,
+                                 data->format.Format.nSamplesPerSec);
+                    buf->data_offset = (ofs+data->segsize) % data->buf_size;
+                }
+                else
+                {
+                    ALsizei rem = data->buf_size - ofs;
+                    if(rem > 2048) rem = 2048;
+                    if(rem == 0) break;
+
+                    memcpy(scratch_mem, data->data + ofs, rem);
+                    memset(scratch_mem+rem, (data->format.Format.wBitsPerSample==8) ? 128 : 0,
+                           data->segsize - rem);
+                    alBufferData(which, data->buf_format, scratch_mem, data->segsize,
+                                 data->format.Format.nSamplesPerSec);
+                    buf->data_offset = data->buf_size;
+                }
+
+                alSourceQueueBuffers(buf->source, 1, &which);
+                buf->curidx = (buf->curidx+1)%QBUFFERS;
+                queued++;
+            }
+
+            if(!queued)
+            {
+                buf->curidx = 0;
+                buf->queue_base = data->buf_size;
+                buf->data_offset = 0;
+                buf->isplaying = FALSE;
+            }
+            else if(state != AL_PLAYING)
+                alSourcePlay(buf->source);
         }
-        checkALError();
-
-        popALContext();
-        LeaveCriticalSection(prim->crst);
     }
-    TRACE("Primary buffer (%p) message loop quit\n", prim);
-
-    HeapFree(GetProcessHeap(), 0, scratch_mem);
-    scratch_mem = NULL;
-
-    if(local_contexts)
-    {
-        set_context(NULL);
-        TlsSetValue(TlsThreadPtr, NULL);
-    }
-
-    return 0;
-}
-
-static void CALLBACK DS8Primary_timer(void *arg, BOOLEAN unused)
-{
-    (void)unused;
-    SetEvent((HANDLE)arg);
-}
-
-static void DS8Primary_starttimer(DS8Primary *prim)
-{
-    DWORD triggertime;
-
-    if(prim->queue_timer)
-        return;
-
-    triggertime = 1000 / prim->refresh * 2 / 3;
-    TRACE("Calling timer every %lu ms for %i refreshes per second\n", triggertime, prim->refresh);
-
-    CreateTimerQueueTimer(&prim->queue_timer, NULL, DS8Primary_timer, prim->timer_evt,
-                          triggertime, triggertime, WT_EXECUTEINTIMERTHREAD);
+    checkALError();
 }
 
 
@@ -281,7 +234,6 @@ HRESULT DS8Primary_PreInit(DS8Primary *This, DS8Impl *parent)
 {
     DS3DLISTENER *listener;
     WAVEFORMATEX *wfx;
-    ALCint refresh;
     HRESULT hr;
     DWORD i;
 
@@ -292,14 +244,11 @@ HRESULT DS8Primary_PreInit(DS8Primary *This, DS8Impl *parent)
     This->parent = parent;
     This->crst = &parent->share->crst;
     This->ctx = parent->share->ctx;
+    This->refresh = parent->share->refresh;
     This->SupportedExt = parent->share->SupportedExt;
     This->ExtAL = &parent->share->ExtAL;
     This->sources = parent->share->sources;
     This->auxslot = parent->share->auxslot;
-
-    alcGetIntegerv(parent->device, ALC_REFRESH, 1, &refresh);
-    checkALCError(parent->device);
-    This->refresh = refresh;
 
     /* Allocate enough for a WAVEFORMATEXTENSIBLE */
     wfx = &This->format.Format;
@@ -376,17 +325,6 @@ HRESULT DS8Primary_PreInit(DS8Primary *This, DS8Impl *parent)
     for(i = 0;i < This->NumBufferGroups;++i)
         This->BufferGroups[i].FreeBuffers = ~(DWORD64)0;
 
-    This->quit_now = FALSE;
-    This->timer_evt = CreateEventA(NULL, FALSE, FALSE, NULL);
-    if(!This->timer_evt) goto fail;
-
-    This->queue_timer = NULL;
-
-    This->thread_hdl = CreateThread(NULL, 0, DS8Primary_thread, This, 0, &This->thread_id);
-    if(!This->thread_hdl) goto fail;
-
-    DS8Primary_starttimer(This);
-
     return S_OK;
 
 fail:
@@ -403,26 +341,6 @@ void DS8Primary_Clear(DS8Primary *This)
 
     if(!This->parent)
         return;
-
-    if(This->queue_timer)
-        DeleteTimerQueueTimer(NULL, This->queue_timer, INVALID_HANDLE_VALUE);
-    This->queue_timer = NULL;
-
-    if(This->thread_hdl)
-    {
-        InterlockedExchange(&This->quit_now, TRUE);
-        SetEvent(This->timer_evt);
-
-        if(WaitForSingleObject(This->thread_hdl, 1000) != WAIT_OBJECT_0)
-            ERR("Thread wait timed out\n");
-
-        CloseHandle(This->thread_hdl);
-        This->thread_hdl = NULL;
-    }
-
-    if(This->timer_evt)
-        CloseHandle(This->timer_evt);
-    This->timer_evt = NULL;
 
     setALContext(This->ctx);
     if(This->effect)

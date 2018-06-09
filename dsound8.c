@@ -34,6 +34,63 @@
 #endif
 
 
+static DWORD CALLBACK DSShare_thread(void *dwUser)
+{
+    DeviceShare *share = (DeviceShare*)dwUser;
+    BYTE *scratch_mem = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, 2048);
+    ALsizei i;
+
+    SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_TIME_CRITICAL);
+
+    TRACE("Shared device (%p) message loop start\n", share);
+    while(WaitForSingleObject(share->timer_evt, INFINITE) == WAIT_OBJECT_0 && !share->quit_now)
+    {
+        EnterCriticalSection(&share->crst);
+        setALContext(share->ctx);
+
+        for(i = 0;i < share->nprimaries;++i)
+            DS8Primary_timertick(share->primaries[i], scratch_mem);
+
+        popALContext();
+        LeaveCriticalSection(&share->crst);
+    }
+    TRACE("Shared device (%p) message loop quit\n", share);
+
+    HeapFree(GetProcessHeap(), 0, scratch_mem);
+    scratch_mem = NULL;
+
+    if(local_contexts)
+    {
+        set_context(NULL);
+        TlsSetValue(TlsThreadPtr, NULL);
+    }
+
+    return 0;
+}
+
+static void CALLBACK DSShare_timer(void *arg, BOOLEAN unused)
+{
+    (void)unused;
+    SetEvent((HANDLE)arg);
+}
+
+static void DSShare_starttimer(DeviceShare *share)
+{
+    DWORD triggertime;
+
+    if(share->queue_timer)
+        return;
+
+    triggertime = 1000 / share->refresh * 2 / 3;
+    TRACE("Calling timer every %lu ms for %d refreshes per second\n",
+          triggertime, share->refresh);
+
+    CreateTimerQueueTimer(&share->queue_timer, NULL, DSShare_timer, share->timer_evt,
+                          triggertime, triggertime, WT_EXECUTEINTIMERTHREAD);
+}
+
+
+
 static DeviceShare **sharelist;
 static UINT sharelistsize;
 
@@ -56,6 +113,26 @@ static void DSShare_Destroy(DeviceShare *share)
         }
     }
     LeaveCriticalSection(&openal_crst);
+
+    if(share->queue_timer)
+        DeleteTimerQueueTimer(NULL, share->queue_timer, INVALID_HANDLE_VALUE);
+    share->queue_timer = NULL;
+
+    if(share->thread_hdl)
+    {
+        InterlockedExchange(&share->quit_now, TRUE);
+        SetEvent(share->timer_evt);
+
+        if(WaitForSingleObject(share->thread_hdl, 1000) != WAIT_OBJECT_0)
+            ERR("Thread wait timed out\n");
+
+        CloseHandle(share->thread_hdl);
+        share->thread_hdl = NULL;
+    }
+
+    if(share->timer_evt)
+        CloseHandle(share->timer_evt);
+    share->timer_evt = NULL;
 
     if(share->ctx)
     {
@@ -86,6 +163,7 @@ static void DSShare_Destroy(DeviceShare *share)
 
     DeleteCriticalSection(&share->crst);
 
+    HeapFree(GetProcessHeap(), 0, share->primaries);
     HeapFree(GetProcessHeap(), 0, share);
 }
 
@@ -100,6 +178,7 @@ static HRESULT DSShare_Create(REFIID guid, DeviceShare **out)
     share = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(*share));
     if(!share) return DSERR_OUTOFMEMORY;
     share->ref = 1;
+    share->refresh = FAKE_REFRESH_COUNT;
 
     InitializeCriticalSection(&share->crst);
 
@@ -140,6 +219,9 @@ static HRESULT DSShare_Create(REFIID guid, DeviceShare **out)
     }
 
     setALContext(share->ctx);
+    alcGetIntegerv(share->device, ALC_REFRESH, 1, &share->refresh);
+    checkALCError(share->device);
+
     if(alIsExtensionPresent("AL_EXT_FLOAT32"))
     {
         TRACE("Found AL_EXT_FLOAT32\n");
@@ -195,6 +277,19 @@ static HRESULT DSShare_Create(REFIID guid, DeviceShare **out)
         sharelist = temp;
         sharelist[sharelistsize++] = share;
     }
+
+    hr = E_FAIL;
+
+    share->quit_now = FALSE;
+    share->timer_evt = CreateEventA(NULL, FALSE, FALSE, NULL);
+    if(!share->timer_evt) goto fail;
+
+    share->queue_timer = NULL;
+
+    share->thread_hdl = CreateThread(NULL, 0, DSShare_thread, share, 0, &share->thread_id);
+    if(!share->thread_hdl) goto fail;
+
+    DSShare_starttimer(share);
 
     *out = share;
     return DS_OK;
@@ -303,6 +398,27 @@ HRESULT DSOUND_Create8(REFIID riid, LPVOID *ds)
 
 static void DS8Impl_Destroy(DS8Impl *This)
 {
+    DeviceShare *share = This->share;
+
+    if(share)
+    {
+        ALsizei i;
+
+        EnterCriticalSection(&share->crst);
+
+        for(i = 0;i < share->nprimaries;++i)
+        {
+            if(share->primaries[i] == &This->primary)
+            {
+                share->nprimaries -= 1;
+                share->primaries[i] = share->primaries[share->nprimaries];
+                break;
+            }
+        }
+
+        LeaveCriticalSection(&share->crst);
+    }
+
     DS8Primary_Clear(&This->primary);
     if(This->share)
         DSShare_Release(This->share);
@@ -834,6 +950,32 @@ static HRESULT WINAPI DS8_Initialize(IDirectSound8 *iface, const GUID *devguid)
     {
         This->device = This->share->device;
         hr = DS8Primary_PreInit(&This->primary, This);
+    }
+
+    if(SUCCEEDED(hr))
+    {
+        DeviceShare *share = This->share;
+        DS8Primary **prims;
+
+        EnterCriticalSection(&share->crst);
+
+        prims = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY,
+                          (share->nprimaries+1) * sizeof(*prims));
+        if(!prims)
+            hr = DSERR_OUTOFMEMORY;
+        else
+        {
+            ALsizei i;
+            for(i = 0;i < share->nprimaries;++i)
+                prims[i] = share->primaries[i];
+            prims[i] = &This->primary;
+
+            HeapFree(GetProcessHeap(), 0, share->primaries);
+            share->primaries = prims;
+            share->nprimaries += 1;
+        }
+
+        LeaveCriticalSection(&share->crst);
     }
 
     if(FAILED(hr))
