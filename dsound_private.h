@@ -387,8 +387,8 @@ typedef struct ExtALFuncs {
     LPALDELETEAUXILIARYEFFECTSLOTS DeleteAuxiliaryEffectSlots;
     LPALAUXILIARYEFFECTSLOTI AuxiliaryEffectSloti;
 
-    void (AL_APIENTRY*DeferUpdatesSOFT)(void);
-    void (AL_APIENTRY*ProcessUpdatesSOFT)(void);
+    LPALDEFERUPDATESSOFT DeferUpdatesSOFT;
+    LPALPROCESSUPDATESSOFT ProcessUpdatesSOFT;
 } ExtALFuncs;
 
 #define MAX_SOURCES 256
