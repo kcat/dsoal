@@ -165,18 +165,18 @@ void DS8Primary_timertick(DS8Primary *prim, BYTE *scratch_mem)
                 queued -= done;
 
                 alSourceUnqueueBuffers(buf->source, done, bids);
-                buf->queue_base = (buf->queue_base + data->segsize*done) % data->buf_size;
+                buf->queue_base = (buf->queue_base + buf->segsize*done) % data->buf_size;
             }
             while(queued < QBUFFERS)
             {
                 which = buf->stream_bids[buf->curidx];
                 ofs = buf->data_offset;
 
-                if(data->segsize < data->buf_size - ofs)
+                if(buf->segsize < data->buf_size - ofs)
                 {
-                    alBufferData(which, data->buf_format, data->data + ofs, data->segsize,
+                    alBufferData(which, data->buf_format, data->data + ofs, buf->segsize,
                                  data->format.Format.nSamplesPerSec);
-                    buf->data_offset = ofs + data->segsize;
+                    buf->data_offset = ofs + buf->segsize;
                 }
                 else if(buf->islooping)
                 {
@@ -184,17 +184,17 @@ void DS8Primary_timertick(DS8Primary *prim, BYTE *scratch_mem)
                     if(rem > 2048) rem = 2048;
 
                     memcpy(scratch_mem, data->data + ofs, rem);
-                    while(rem < data->segsize)
+                    while(rem < buf->segsize)
                     {
-                        ALsizei todo = data->segsize - rem;
+                        ALsizei todo = buf->segsize - rem;
                         if(todo > data->buf_size)
                             todo = data->buf_size;
                         memcpy(scratch_mem + rem, data->data, todo);
                         rem += todo;
                     }
-                    alBufferData(which, data->buf_format, scratch_mem, data->segsize,
+                    alBufferData(which, data->buf_format, scratch_mem, buf->segsize,
                                  data->format.Format.nSamplesPerSec);
-                    buf->data_offset = (ofs+data->segsize) % data->buf_size;
+                    buf->data_offset = (ofs+buf->segsize) % data->buf_size;
                 }
                 else
                 {
@@ -204,8 +204,8 @@ void DS8Primary_timertick(DS8Primary *prim, BYTE *scratch_mem)
 
                     memcpy(scratch_mem, data->data + ofs, rem);
                     memset(scratch_mem+rem, (data->format.Format.wBitsPerSample==8) ? 128 : 0,
-                           data->segsize - rem);
-                    alBufferData(which, data->buf_format, scratch_mem, data->segsize,
+                           buf->segsize - rem);
+                    alBufferData(which, data->buf_format, scratch_mem, buf->segsize,
                                  data->format.Format.nSamplesPerSec);
                     buf->data_offset = data->buf_size;
                 }
@@ -217,9 +217,9 @@ void DS8Primary_timertick(DS8Primary *prim, BYTE *scratch_mem)
 
             if(!queued)
             {
-                buf->curidx = 0;
-                buf->queue_base = data->buf_size;
                 buf->data_offset = 0;
+                buf->queue_base = data->buf_size;
+                buf->curidx = 0;
                 buf->isplaying = FALSE;
             }
             else if(state != AL_PLAYING)

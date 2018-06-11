@@ -333,14 +333,6 @@ static HRESULT DS8Data_Create(DS8Data **ppv, const DSBUFFERDESC *desc, DS8Primar
     if(pBuffer->buf_size > DSBSIZE_MAX)
         goto fail;
 
-    if(!(pBuffer->dsbflags&DSBCAPS_STATIC))
-    {
-        pBuffer->segsize = (format->nAvgBytesPerSec+prim->refresh-1) / prim->refresh;
-        pBuffer->segsize = clampI(pBuffer->segsize, format->nBlockAlign, 2048);
-        pBuffer->segsize += format->nBlockAlign - 1;
-        pBuffer->segsize -= pBuffer->segsize%format->nBlockAlign;
-    }
-
     if(format->wFormatTag == WAVE_FORMAT_PCM)
         fmt_str = get_fmtstr_PCM(prim, format, &pBuffer->format);
     else if(format->wFormatTag == WAVE_FORMAT_IEEE_FLOAT)
@@ -638,7 +630,7 @@ HRESULT WINAPI DS8Buffer_GetCurrentPosition(IDirectSoundBuffer8 *iface, DWORD *p
         popALContext();
 
         if(status == AL_STOPPED)
-            pos = data->segsize*queued + This->queue_base;
+            pos = This->segsize*queued + This->queue_base;
         else
             pos = ofs + This->queue_base;
         if(pos >= data->buf_size)
@@ -655,7 +647,7 @@ HRESULT WINAPI DS8Buffer_GetCurrentPosition(IDirectSoundBuffer8 *iface, DWORD *p
             }
         }
         if(This->isplaying)
-            writecursor = (data->segsize*QBUFFERS + pos) % data->buf_size;
+            writecursor = (This->segsize*QBUFFERS + pos) % data->buf_size;
         else
             writecursor = pos % data->buf_size;
 
@@ -883,6 +875,8 @@ static HRESULT WINAPI DS8Buffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSo
 {
     DS8Buffer *This = impl_from_IDirectSoundBuffer8(iface);
     DS3DBUFFER *ds3dbuffer;
+    DS8Primary *prim;
+    DS8Data *data;
     HRESULT hr;
 
     TRACE("(%p)->(%p, %p)\n", iface, ds, desc);
@@ -891,8 +885,7 @@ static HRESULT WINAPI DS8Buffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSo
     setALContext(This->ctx);
 
     hr = DSERR_ALREADYINITIALIZED;
-    if(This->source)
-        goto out;
+    if(This->source) goto out;
 
     if(!This->buffer)
     {
@@ -920,36 +913,37 @@ static HRESULT WINAPI DS8Buffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSo
         }
 
         hr = DS8Data_Create(&This->buffer, desc, This->primary);
-        if(FAILED(hr))
-            goto out;
-        else
-        {
-            DS8Data *buf = This->buffer;
+        if(FAILED(hr)) goto out;
 
-            if(buf->format.Format.wBitsPerSample == 8)
-                memset(buf->data, 0x80, buf->buf_size);
-            else
-                memset(buf->data, 0x00, buf->buf_size);
-        }
+        data = This->buffer;
+        if(data->format.Format.wBitsPerSample == 8)
+            memset(data->data, 0x80, data->buf_size);
+        else
+            memset(data->data, 0x00, data->buf_size);
     }
 
-    if(!(This->buffer->dsbflags&DSBCAPS_STATIC))
+    prim = This->primary;
+    data = This->buffer;
+    if(!(data->dsbflags&DSBCAPS_STATIC))
     {
+        This->segsize = (data->format.Format.nAvgBytesPerSec+prim->refresh-1) / prim->refresh;
+        This->segsize = clampI(This->segsize, data->format.Format.nBlockAlign, 2048);
+        This->segsize += data->format.Format.nBlockAlign - 1;
+        This->segsize -= This->segsize%data->format.Format.nBlockAlign;
+
         alGenBuffers(QBUFFERS, This->stream_bids);
         checkALError();
     }
 
     hr = DSERR_GENERIC;
-    if(This->primary->parent->share->nsources)
-    {
-        This->source = This->primary->sources[--(This->primary->parent->share->nsources)];
-        alSourceRewind(This->source);
-        alSourcef(This->source, AL_GAIN, 1.0f);
-        alSourcef(This->source, AL_PITCH, 1.0f);
-        checkALError();
-    }
-    else
+    if(!prim->parent->share->nsources)
         goto out;
+
+    This->source = prim->sources[--(prim->parent->share->nsources)];
+    alSourceRewind(This->source);
+    alSourcef(This->source, AL_GAIN, 1.0f);
+    alSourcef(This->source, AL_PITCH, 1.0f);
+    checkALError();
 
     ds3dbuffer = &This->params;
     ds3dbuffer->dwSize = sizeof(This->params);
@@ -969,11 +963,11 @@ static HRESULT WINAPI DS8Buffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSo
     ds3dbuffer->flMaxDistance = DS3D_DEFAULTMAXDISTANCE;
     ds3dbuffer->dwMode = DS3DMODE_NORMAL;
 
-    if((This->buffer->dsbflags&DSBCAPS_CTRL3D))
+    if((data->dsbflags&DSBCAPS_CTRL3D))
     {
-        if(This->primary->auxslot != 0)
+        if(prim->auxslot != 0)
         {
-            alSource3i(This->source, AL_AUXILIARY_SEND_FILTER, This->primary->auxslot, 0, AL_FILTER_NULL);
+            alSource3i(This->source, AL_AUXILIARY_SEND_FILTER, prim->auxslot, 0, AL_FILTER_NULL);
             checkALError();
         }
 
@@ -988,10 +982,10 @@ static HRESULT WINAPI DS8Buffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSo
     {
         ALuint source = This->source;
 
-        if(This->primary->auxslot != 0)
+        if(prim->auxslot != 0)
         {
             /* Simple hack to make reverb affect non-3D sounds too */
-            alSource3i(source, AL_AUXILIARY_SEND_FILTER, This->primary->auxslot, 0, AL_FILTER_NULL);
+            alSource3i(source, AL_AUXILIARY_SEND_FILTER, prim->auxslot, 0, AL_FILTER_NULL);
             /*alSource3i(source, AL_AUXILIARY_SEND_FILTER, 0, 0, AL_FILTER_NULL);*/
         }
 

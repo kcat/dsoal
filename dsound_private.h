@@ -445,7 +445,6 @@ typedef struct DS8Data {
 
     WAVEFORMATEXTENSIBLE format;
 
-    ALsizei segsize;
     ALsizei buf_size;
     ALenum buf_format;
     DWORD dsbflags;
@@ -490,10 +489,11 @@ struct DS8Buffer {
     DS8Data *buffer;
     ALuint source;
 
-    ALuint stream_bids[QBUFFERS];
-    ALsizei curidx;
+    ALsizei segsize;
     ALsizei data_offset;
     ALsizei queue_base;
+    ALsizei curidx;
+    ALuint stream_bids[QBUFFERS];
 
     DWORD isplaying : 1;
     DWORD islooping : 1;
