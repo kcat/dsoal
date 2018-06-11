@@ -1175,6 +1175,7 @@ static HRESULT WINAPI DS8Buffer_SetCurrentPosition(IDirectSoundBuffer8 *iface, D
     data = This->buffer;
     if(pos >= (DWORD)data->buf_size)
         return DSERR_INVALIDPARAM;
+    pos -= pos%data->format.Format.nBlockAlign;
 
     EnterCriticalSection(This->crst);
 
