@@ -269,6 +269,7 @@ HRESULT DS8Primary_PreInit(DS8Primary *This, DS8Impl *parent)
      */
     This->buf_size = 32768;
 
+    setALContext(This->ctx);
     if(This->SupportedExt[SOFT_DEFERRED_UPDATES])
     {
         This->DeferUpdates = This->ExtAL->DeferUpdatesSOFT;
@@ -291,6 +292,7 @@ HRESULT DS8Primary_PreInit(DS8Primary *This, DS8Impl *parent)
             checkALError();
         }
     }
+    popALContext();
 
     /* Make sure DS3DListener defaults are applied to OpenAL */
     listener = &This->params;
