@@ -614,7 +614,7 @@ HRESULT WINAPI DS8Buffer_GetCurrentPosition(IDirectSoundBuffer8 *iface, DWORD *p
     TRACE("(%p)->(%p, %p)\n", iface, playpos, curpos);
 
     data = This->buffer;
-    if(!(data->dsbflags&DSBCAPS_STATIC))
+    if(This->segsize != 0)
     {
         ALint queued = QBUFFERS;
         ALint status = 0;
@@ -833,7 +833,7 @@ HRESULT WINAPI DS8Buffer_GetStatus(IDirectSoundBuffer8 *iface, DWORD *status)
     }
     *status = 0;
 
-    if((This->buffer->dsbflags&DSBCAPS_STATIC))
+    if(This->segsize == 0)
     {
         setALContext(This->ctx);
         alGetSourcei(This->source, AL_SOURCE_STATE, &state);
@@ -1109,7 +1109,7 @@ static HRESULT WINAPI DS8Buffer_Play(IDirectSoundBuffer8 *iface, DWORD res1, DWO
         goto out;
     }
 
-    if(!(data->dsbflags&DSBCAPS_STATIC))
+    if(This->segsize != 0)
     {
         This->islooping = !!(flags&DSBPLAY_LOOPING);
         if(This->isplaying) state = AL_PLAYING;
@@ -1125,8 +1125,7 @@ static HRESULT WINAPI DS8Buffer_Play(IDirectSoundBuffer8 *iface, DWORD res1, DWO
     if(state == AL_PLAYING)
         goto out;
 
-    /* alSourceQueueBuffers will implicitly set type to streaming */
-    if((data->dsbflags&DSBCAPS_STATIC))
+    if(This->segsize == 0)
     {
         if(state != AL_PAUSED)
             alSourcei(This->source, AL_BUFFER, data->bid);
@@ -1173,7 +1172,7 @@ static HRESULT WINAPI DS8Buffer_SetCurrentPosition(IDirectSoundBuffer8 *iface, D
 
     EnterCriticalSection(This->crst);
 
-    if(!(data->dsbflags&DSBCAPS_STATIC))
+    if(This->segsize != 0)
     {
         if(This->isplaying)
         {
@@ -1356,12 +1355,14 @@ static HRESULT WINAPI DS8Buffer_Unlock(IDirectSoundBuffer8 *iface, void *ptr1, D
     if(!len1 && !len2)
         goto out;
 
-    setALContext(This->ctx);
-    if((buf->dsbflags&DSBCAPS_STATIC))
+    if(This->segsize == 0)
+    {
+        setALContext(This->ctx);
         alBufferData(buf->bid, buf->buf_format, buf->data, buf->buf_size,
                      buf->format.Format.nSamplesPerSec);
-    checkALError();
-    popALContext();
+        checkALError();
+        popALContext();
+    }
 
 out:
     if(hr != S_OK)

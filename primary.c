@@ -152,7 +152,7 @@ void DS8Primary_timertick(DS8Primary *prim, BYTE *scratch_mem)
 
             usemask &= ~(U64(1) << idx);
 
-            if((data->dsbflags&DSBCAPS_STATIC) || !buf->isplaying)
+            if(buf->segsize == 0 || !buf->isplaying)
                 continue;
 
             alGetSourcei(buf->source, AL_BUFFERS_QUEUED, &queued);
