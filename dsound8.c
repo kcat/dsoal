@@ -544,10 +544,12 @@ static HRESULT WINAPI DS8_CreateSoundBuffer(IDirectSound8 *iface, LPCDSBUFFERDES
     if((desc->dwFlags&(DSBCAPS_CTRL3D|DSBCAPS_CTRLPAN)) == (DSBCAPS_CTRL3D|DSBCAPS_CTRLPAN))
     {
         if(!This->is_8)
-            ERR("Cannot create buffers with 3D and panning control\n");
+            ERR("Buffers with 3D and panning control ignore panning\n");
         else
+        {
             WARN("Cannot create buffers with 3D and panning control\n");
-        return DSERR_INVALIDPARAM;
+            return DSERR_INVALIDPARAM;
+        }
     }
 
     EnterCriticalSection(This->primary.crst);

@@ -798,15 +798,20 @@ static HRESULT WINAPI DS8Buffer_GetPan(IDirectSoundBuffer8 *iface, LONG *pan)
         WARN("Panning control not set\n");
     else
     {
-        ALfloat pos[3];
+        if((This->buffer->dsbflags&DSBCAPS_CTRL3D))
+            *pan = 0;
+        else
+        {
+            ALfloat pos[3];
 
-        setALContext(This->ctx);
-        alGetSourcefv(This->source, AL_POSITION, pos);
-        checkALError();
-        popALContext();
+            setALContext(This->ctx);
+            alGetSourcefv(This->source, AL_POSITION, pos);
+            checkALError();
+            popALContext();
 
-        *pan = clampI((LONG)((pos[0]+0.5f)*(DSBPAN_RIGHT-DSBPAN_LEFT) + 0.5f) + DSBPAN_LEFT,
-                      DSBPAN_LEFT, DSBPAN_RIGHT);
+            *pan = clampI((LONG)((pos[0]+0.5f)*(DSBPAN_RIGHT-DSBPAN_LEFT) + 0.5f) + DSBPAN_LEFT,
+                          DSBPAN_LEFT, DSBPAN_RIGHT);
+        }
         hr = DS_OK;
     }
 
@@ -1278,21 +1283,25 @@ static HRESULT WINAPI DS8Buffer_SetPan(IDirectSoundBuffer8 *iface, LONG pan)
         hr = DSERR_CONTROLUNAVAIL;
     else
     {
-        ALfloat pos[3];
-        pos[0] = (ALfloat)(pan-DSBPAN_LEFT)/(ALfloat)(DSBPAN_RIGHT-DSBPAN_LEFT) - 0.5f;
-        pos[1] = 0.0f;
-        /* NOTE: Strict movement along the X plane can cause the sound to jump
-         * between left and right sharply. Using a curved path helps smooth it
-         * out */
-        pos[2] = -sqrtf(1.0f - pos[0]*pos[0]);
+        if(!(This->buffer->dsbflags&DSBCAPS_CTRL3D))
+        {
+            ALfloat pos[3];
+            pos[0] = (ALfloat)(pan-DSBPAN_LEFT)/(ALfloat)(DSBPAN_RIGHT-DSBPAN_LEFT) - 0.5f;
+            pos[1] = 0.0f;
+            /* NOTE: Strict movement along the X plane can cause the sound to
+             * jump between left and right sharply. Using a curved path helps
+             * smooth it out.
+             */
+            pos[2] = -sqrtf(1.0f - pos[0]*pos[0]);
 
-        setALContext(This->ctx);
-        alSourcefv(This->source, AL_POSITION, pos);
-        checkALError();
-        popALContext();
+            setALContext(This->ctx);
+            alSourcefv(This->source, AL_POSITION, pos);
+            checkALError();
+            popALContext();
 
-        if(pan != 0 && This->buffer->format.Format.nChannels > 1)
-            FIXME("Panning for multi-channel buffers is not supported\n");
+            if(pan != 0 && This->buffer->format.Format.nChannels > 1)
+                FIXME("Panning for multi-channel buffers is not supported\n");
+        }
     }
 
     return hr;
