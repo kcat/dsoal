@@ -299,7 +299,12 @@ static HRESULT DS8Data_Create(DS8Data **ppv, const DSBUFFERDESC *desc, DS8Primar
           format->nSamplesPerSec, format->nAvgBytesPerSec,
           format->nBlockAlign, format->wBitsPerSample);
 
-    if(format->nBlockAlign == 0)
+    if(format->nSamplesPerSec <= 0)
+    {
+        WARN("Invalid SamplesPerSec specified\n");
+        return DSERR_INVALIDPARAM;
+    }
+    if(format->nBlockAlign <= 0)
     {
         WARN("Invalid BlockAlign specified\n");
         return DSERR_INVALIDPARAM;
@@ -360,14 +365,25 @@ static HRESULT DS8Data_Create(DS8Data **ppv, const DSBUFFERDESC *desc, DS8Primar
         ERR("Unhandled formattag 0x%04x\n", format->wFormatTag);
 
     hr = DSERR_INVALIDCALL;
-    if(!fmt_str)
-        goto fail;
+    if(!fmt_str) goto fail;
 
     pBuffer->buf_format = alGetEnumValue(fmt_str);
     if(alGetError() != AL_NO_ERROR || pBuffer->buf_format == 0 ||
         pBuffer->buf_format == -1)
     {
         WARN("Could not get OpenAL format from %s\n", fmt_str);
+        goto fail;
+    }
+
+    hr = DSERR_INVALIDPARAM;
+    if(format->nBlockAlign != format->nChannels*format->wBitsPerSample/8)
+    {
+        WARN("Incorrect BlockAlign specified\n");
+        goto fail;
+    }
+    if(format->nAvgBytesPerSec != format->nBlockAlign*format->nSamplesPerSec)
+    {
+        WARN("Incorrect AvgBytesPerSec specified\n");
         goto fail;
     }
 
