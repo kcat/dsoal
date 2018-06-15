@@ -324,6 +324,53 @@ static ULONG DSShare_Release(DeviceShare *share)
 
 static const IDirectSound8Vtbl DS8_Vtbl;
 static const IDirectSoundVtbl DS_Vtbl;
+static const IUnknownVtbl DS8_Unknown_Vtbl;
+
+static void DS8Impl_Destroy(DS8Impl *This);
+static HRESULT WINAPI DS8_QueryInterface(IDirectSound8 *iface, REFIID riid, LPVOID *ppv);
+
+/*******************************************************************************
+ * IUnknown
+ */
+static inline DS8Impl *impl_from_IUnknown(IUnknown *iface)
+{
+    return CONTAINING_RECORD(iface, DS8Impl, IUnknown_iface);
+}
+
+static HRESULT WINAPI DS8Impl_IUnknown_QueryInterface(IUnknown *iface, REFIID riid, void **ppobj)
+{
+    DS8Impl *This = impl_from_IUnknown(iface);
+    return DS8_QueryInterface(&This->IDirectSound8_iface, riid, ppobj);
+}
+
+static ULONG WINAPI DS8Impl_IUnknown_AddRef(IUnknown *iface)
+{
+    DS8Impl *This = impl_from_IUnknown(iface);
+    ULONG ref;
+
+    InterlockedIncrement(&(This->ref));
+    ref = InterlockedIncrement(&(This->unkref));
+    TRACE("(%p) ref was %lu\n", This, ref - 1);
+
+    return ref;
+}
+
+static ULONG WINAPI DS8Impl_IUnknown_Release(IUnknown *iface)
+{
+    DS8Impl *This = impl_from_IUnknown(iface);
+    ULONG ref = InterlockedDecrement(&(This->unkref));
+    TRACE("(%p) ref was %lu\n", This, ref + 1);
+    if(InterlockedDecrement(&(This->ref)) == 0)
+        DS8Impl_Destroy(This);
+    return ref;
+}
+
+static const IUnknownVtbl DS8_Unknown_Vtbl = {
+    DS8Impl_IUnknown_QueryInterface,
+    DS8Impl_IUnknown_AddRef,
+    DS8Impl_IUnknown_Release
+};
+
 
 static inline DS8Impl *impl_from_IDirectSound8(IDirectSound8 *iface)
 {
@@ -354,8 +401,6 @@ HRESULT DSOUND_Create(REFIID riid, void **ds)
     return hr;
 }
 
-static void DS8Impl_Destroy(DS8Impl *This);
-
 static const WCHAR speakerconfigkey[] = {
     'S','Y','S','T','E','M','\\',
     'C','u','r','r','e','n','t','C','o','n','t','r','o','l','S','e','t','\\',
@@ -381,6 +426,7 @@ HRESULT DSOUND_Create8(REFIID riid, LPVOID *ds)
 
     This->IDirectSound8_iface.lpVtbl = &DS8_Vtbl;
     This->IDirectSound_iface.lpVtbl = &DS_Vtbl;
+    This->IUnknown_iface.lpVtbl = &DS8_Unknown_Vtbl;
 
     This->is_8 = TRUE;
     This->speaker_config = DSSPEAKER_COMBINED(DSSPEAKER_5POINT1, DSSPEAKER_GEOMETRY_WIDE);
@@ -445,7 +491,7 @@ static HRESULT WINAPI DS8_QueryInterface(IDirectSound8 *iface, REFIID riid, LPVO
 
     *ppv = NULL;
     if(IsEqualIID(riid, &IID_IUnknown))
-        *ppv = &This->IDirectSound8_iface;
+        *ppv = &This->IUnknown_iface;
     else if(IsEqualIID(riid, &IID_IDirectSound8))
     {
         if(This->is_8)
@@ -470,7 +516,8 @@ static ULONG WINAPI DS8_AddRef(IDirectSound8 *iface)
     DS8Impl *This = impl_from_IDirectSound8(iface);
     LONG ref;
 
-    ref = InterlockedIncrement(&This->ref);
+    InterlockedIncrement(&This->ref);
+    ref = InterlockedIncrement(&This->dsref);
     TRACE("Reference count incremented to %ld\n", ref);
 
     return ref;
@@ -481,9 +528,9 @@ static ULONG WINAPI DS8_Release(IDirectSound8 *iface)
     DS8Impl *This = impl_from_IDirectSound8(iface);
     LONG ref;
 
-    ref = InterlockedDecrement(&This->ref);
+    ref = InterlockedDecrement(&This->dsref);
     TRACE("Reference count decremented to %ld\n", ref);
-    if(ref == 0)
+    if(InterlockedDecrement(&This->ref) == 0)
         DS8Impl_Destroy(This);
 
     return ref;

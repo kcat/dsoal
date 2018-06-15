@@ -596,8 +596,9 @@ struct DS8Primary {
 struct DS8Impl {
     IDirectSound8 IDirectSound8_iface;
     IDirectSound IDirectSound_iface;
+    IUnknown IUnknown_iface;
 
-    LONG ref;
+    LONG ref, unkref, dsref;
     BOOL is_8;
 
     DeviceShare *share;
