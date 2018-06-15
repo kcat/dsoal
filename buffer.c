@@ -2445,12 +2445,151 @@ static HRESULT WINAPI DS8BufferProp_Get(IKsPropertySet *iface,
     }
     else
 #endif
+    if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX20_ListenerProperties))
     {
-        /* Not a known buffer/source property. Pass it to the listener */
-        hr = IKsPropertySet_Get(&This->primary->IKsPropertySet_iface, guidPropSet,
-                                dwPropID, pInstanceData, cbInstanceData, pPropData, cbPropData,
-                                pcbReturned);
+        DS8Primary *prim = This->primary;
+
+        EnterCriticalSection(This->crst);
+
+        hr = DSERR_INVALIDPARAM;
+        if(prim->effect == 0)
+            hr = E_PROP_ID_UNSUPPORTED;
+        else switch(dwPropID)
+        {
+        case DSPROPERTY_EAXLISTENER_ALLPARAMETERS:
+            if(cbPropData >= sizeof(EAXLISTENERPROPERTIES))
+            {
+                union {
+                    void *v;
+                    EAXLISTENERPROPERTIES *props;
+                } data = { pPropData };
+
+                *data.props = prim->eax_prop;
+                *pcbReturned = sizeof(EAXLISTENERPROPERTIES);
+                hr = DS_OK;
+            }
+            break;
+
+        case DSPROPERTY_EAXLISTENER_ROOM:
+            if(cbPropData >= sizeof(LONG))
+            {
+                union {
+                    void *v;
+                    LONG *l;
+                } data = { pPropData };
+
+                *data.l = prim->eax_prop.lRoom;
+                *pcbReturned = sizeof(LONG);
+                hr = DS_OK;
+            }
+            break;
+        case DSPROPERTY_EAXLISTENER_ROOMHF:
+            if(cbPropData >= sizeof(LONG))
+            {
+                union {
+                    void *v;
+                    LONG *l;
+                } data = { pPropData };
+
+                *data.l = prim->eax_prop.lRoomHF;
+                *pcbReturned = sizeof(LONG);
+                hr = DS_OK;
+            }
+            break;
+
+        case DSPROPERTY_EAXLISTENER_ROOMROLLOFFFACTOR:
+            if(cbPropData >= sizeof(FLOAT))
+            {
+                union {
+                    void *v;
+                    FLOAT *fl;
+                } data = { pPropData };
+
+                *data.fl = prim->eax_prop.flRoomRolloffFactor;
+                *pcbReturned = sizeof(FLOAT);
+                hr = DS_OK;
+            }
+            break;
+
+        case DSPROPERTY_EAXLISTENER_ENVIRONMENT:
+            if(cbPropData >= sizeof(DWORD))
+            {
+                union {
+                    void *v;
+                    DWORD *dw;
+                } data = { pPropData };
+
+                *data.dw = prim->eax_prop.dwEnvironment;
+                *pcbReturned = sizeof(DWORD);
+                hr = DS_OK;
+            }
+            break;
+
+        case DSPROPERTY_EAXLISTENER_ENVIRONMENTSIZE:
+            if(cbPropData >= sizeof(FLOAT))
+            {
+                union {
+                    void *v;
+                    FLOAT *fl;
+                } data = { pPropData };
+
+                *data.fl = prim->eax_prop.flEnvironmentSize;
+                *pcbReturned = sizeof(FLOAT);
+                hr = DS_OK;
+            }
+            break;
+        case DSPROPERTY_EAXLISTENER_ENVIRONMENTDIFFUSION:
+            if(cbPropData >= sizeof(FLOAT))
+            {
+                union {
+                    void *v;
+                    FLOAT *fl;
+                } data = { pPropData };
+
+                *data.fl = prim->eax_prop.flEnvironmentDiffusion;
+                *pcbReturned = sizeof(FLOAT);
+                hr = DS_OK;
+            }
+            break;
+
+        case DSPROPERTY_EAXLISTENER_AIRABSORPTIONHF:
+            if(cbPropData >= sizeof(FLOAT))
+            {
+                union {
+                    void *v;
+                    FLOAT *fl;
+                } data = { pPropData };
+
+                *data.fl = prim->eax_prop.flAirAbsorptionHF;
+                *pcbReturned = sizeof(FLOAT);
+                hr = DS_OK;
+            }
+            break;
+
+        case DSPROPERTY_EAXLISTENER_FLAGS:
+            if(cbPropData >= sizeof(DWORD))
+            {
+                union {
+                    void *v;
+                    DWORD *dw;
+                } data = { pPropData };
+
+                *data.dw = prim->eax_prop.dwFlags;
+                *pcbReturned = sizeof(DWORD);
+                hr = DS_OK;
+            }
+            break;
+
+        default:
+            hr = E_PROP_ID_UNSUPPORTED;
+            FIXME("Unhandled propid: 0x%08lx\n", dwPropID);
+            break;
+        }
+
+        LeaveCriticalSection(This->crst);
     }
+    else
+        FIXME("Unhandled propset: %s\n", debugstr_guid(guidPropSet));
 
     return hr;
 }
@@ -2472,12 +2611,269 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
     }
     else
 #endif
+    if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX20_ListenerProperties))
     {
-        /* Not a known buffer/source property. Pass it to the listener */
-        hr = IKsPropertySet_Set(&This->primary->IKsPropertySet_iface, guidPropSet,
-                                dwPropID, pInstanceData, cbInstanceData, pPropData,
-                                cbPropData);
+        DS8Primary *prim = This->primary;
+        DWORD propid = dwPropID & ~DSPROPERTY_EAXLISTENER_DEFERRED;
+        BOOL immediate = !(dwPropID&DSPROPERTY_EAXLISTENER_DEFERRED);
+
+        EnterCriticalSection(prim->crst);
+        setALContext(prim->ctx);
+
+        hr = DSERR_INVALIDPARAM;
+        if(prim->effect == 0)
+            hr = E_PROP_ID_UNSUPPORTED;
+        else switch(propid)
+        {
+        case DSPROPERTY_EAXLISTENER_NONE: /* not setting any property, just applying */
+            hr = DS_OK;
+            break;
+
+        case DSPROPERTY_EAXLISTENER_ALLPARAMETERS:
+        do_allparams:
+            if(cbPropData >= sizeof(EAXLISTENERPROPERTIES))
+            {
+                union {
+                    const void *v;
+                    const EAXLISTENERPROPERTIES *props;
+                } data = { pPropData };
+
+                /* FIXME: Need to validate property values... Ignore? Clamp? Error? */
+                prim->eax_prop = *data.props;
+                prim->ExtAL->Effectf(prim->effect, AL_REVERB_DENSITY,
+                                     clampF(powf(data.props->flEnvironmentSize, 3.0f) / 16.0f,
+                                            0.0f, 1.0f)
+                                    );
+                prim->ExtAL->Effectf(prim->effect, AL_REVERB_DIFFUSION,
+                                     data.props->flEnvironmentDiffusion);
+
+                prim->ExtAL->Effectf(prim->effect, AL_REVERB_GAIN,
+                                     mB_to_gain(data.props->lRoom));
+                prim->ExtAL->Effectf(prim->effect, AL_REVERB_GAINHF,
+                                     mB_to_gain(data.props->lRoomHF));
+
+                prim->ExtAL->Effectf(prim->effect, AL_REVERB_ROOM_ROLLOFF_FACTOR,
+                                     data.props->flRoomRolloffFactor);
+
+                prim->ExtAL->Effectf(prim->effect, AL_REVERB_DECAY_TIME,
+                                     data.props->flDecayTime);
+                prim->ExtAL->Effectf(prim->effect, AL_REVERB_DECAY_HFRATIO,
+                                     data.props->flDecayHFRatio);
+
+                prim->ExtAL->Effectf(prim->effect, AL_REVERB_REFLECTIONS_GAIN,
+                                     mB_to_gain(data.props->lReflections));
+                prim->ExtAL->Effectf(prim->effect, AL_REVERB_REFLECTIONS_DELAY,
+                                     data.props->flReflectionsDelay);
+
+                prim->ExtAL->Effectf(prim->effect, AL_REVERB_LATE_REVERB_GAIN,
+                                     mB_to_gain(data.props->lReverb));
+                prim->ExtAL->Effectf(prim->effect, AL_REVERB_LATE_REVERB_DELAY,
+                                     data.props->flReverbDelay);
+
+                prim->ExtAL->Effectf(prim->effect, AL_REVERB_AIR_ABSORPTION_GAINHF,
+                                     mBF_to_gain(data.props->flAirAbsorptionHF));
+
+                prim->ExtAL->Effecti(prim->effect, AL_REVERB_DECAY_HFLIMIT,
+                                     (data.props->dwFlags&EAXLISTENERFLAGS_DECAYHFLIMIT) ?
+                                     AL_TRUE : AL_FALSE);
+
+                checkALError();
+
+                prim->dirty.bit.effect = 1;
+                hr = DS_OK;
+            }
+            break;
+
+        case DSPROPERTY_EAXLISTENER_ROOM:
+            if(cbPropData >= sizeof(LONG))
+            {
+                union {
+                    const void *v;
+                    const LONG *l;
+                } data = { pPropData };
+
+                prim->eax_prop.lRoom = *data.l;
+                prim->ExtAL->Effectf(prim->effect, AL_REVERB_GAIN,
+                                     mB_to_gain(prim->eax_prop.lRoom));
+                checkALError();
+
+                prim->dirty.bit.effect = 1;
+                hr = DS_OK;
+            }
+            break;
+        case DSPROPERTY_EAXLISTENER_ROOMHF:
+            if(cbPropData >= sizeof(LONG))
+            {
+                union {
+                    const void *v;
+                    const LONG *l;
+                } data = { pPropData };
+
+                prim->eax_prop.lRoomHF = *data.l;
+                prim->ExtAL->Effectf(prim->effect, AL_REVERB_GAINHF,
+                                     mB_to_gain(prim->eax_prop.lRoomHF));
+                checkALError();
+
+                prim->dirty.bit.effect = 1;
+                hr = DS_OK;
+            }
+            break;
+
+        case DSPROPERTY_EAXLISTENER_ROOMROLLOFFFACTOR:
+            if(cbPropData >= sizeof(FLOAT))
+            {
+                union {
+                    const void *v;
+                    const FLOAT *fl;
+                } data = { pPropData };
+
+                prim->eax_prop.flRoomRolloffFactor = *data.fl;
+                prim->ExtAL->Effectf(prim->effect, AL_REVERB_ROOM_ROLLOFF_FACTOR,
+                                     prim->eax_prop.flRoomRolloffFactor);
+                checkALError();
+
+                prim->dirty.bit.effect = 1;
+                hr = DS_OK;
+            }
+            break;
+
+        case DSPROPERTY_EAXLISTENER_ENVIRONMENT:
+            if(cbPropData >= sizeof(DWORD))
+            {
+                union {
+                    const void *v;
+                    const DWORD *dw;
+                } data = { pPropData };
+
+                if(*data.dw <= EAX_MAX_ENVIRONMENT)
+                {
+                    /* Get the environment index's default and pass it down to
+                     * ALLPARAMETERS */
+                    propid = DSPROPERTY_EAXLISTENER_ALLPARAMETERS;
+                    pPropData = (void*)&EnvironmentDefaults[*data.dw];
+                    cbPropData = sizeof(EnvironmentDefaults[*data.dw]);
+                    goto do_allparams;
+                }
+            }
+            break;
+
+        case DSPROPERTY_EAXLISTENER_ENVIRONMENTSIZE:
+            if(cbPropData >= sizeof(FLOAT))
+            {
+                union {
+                    const void *v;
+                    const FLOAT *fl;
+                } data = { pPropData };
+
+                if(*data.fl >= 1.0f && *data.fl <= 100.0f)
+                {
+                    float scale = (*data.fl)/prim->eax_prop.flEnvironmentSize;
+
+                    prim->eax_prop.flEnvironmentSize = *data.fl;
+
+                    if((prim->eax_prop.dwFlags&EAXLISTENERFLAGS_DECAYTIMESCALE))
+                    {
+                        prim->eax_prop.flDecayTime *= scale;
+                        prim->eax_prop.flDecayTime = clampF(prim->eax_prop.flDecayTime, 0.1f, 20.0f);
+                    }
+                    if((prim->eax_prop.dwFlags&EAXLISTENERFLAGS_REFLECTIONSSCALE))
+                    {
+                        prim->eax_prop.lReflections -= gain_to_mB(scale);
+                        prim->eax_prop.lReflections = clampI(prim->eax_prop.lReflections, -10000, 1000);
+                    }
+                    if((prim->eax_prop.dwFlags&EAXLISTENERFLAGS_REFLECTIONSDELAYSCALE))
+                    {
+                        prim->eax_prop.flReflectionsDelay *= scale;
+                        prim->eax_prop.flReflectionsDelay = clampF(prim->eax_prop.flReflectionsDelay, 0.0f, 0.3f);
+                    }
+                    if((prim->eax_prop.dwFlags&EAXLISTENERFLAGS_REVERBSCALE))
+                    {
+                        prim->eax_prop.lReverb -= gain_to_mB(scale);
+                        prim->eax_prop.lReverb = clampI(prim->eax_prop.lReverb, -10000, 2000);
+                    }
+                    if((prim->eax_prop.dwFlags&EAXLISTENERFLAGS_REVERBDELAYSCALE))
+                    {
+                        prim->eax_prop.flReverbDelay *= scale;
+                        prim->eax_prop.flReverbDelay = clampF(prim->eax_prop.flReverbDelay, 0.0f, 0.1f);
+                    }
+
+                    /* Pass the updated environment properties down to ALLPARAMETERS */
+                    propid = DSPROPERTY_EAXLISTENER_ALLPARAMETERS;
+                    pPropData = (void*)&prim->eax_prop;
+                    cbPropData = sizeof(prim->eax_prop);
+                    goto do_allparams;
+                }
+            }
+            break;
+        case DSPROPERTY_EAXLISTENER_ENVIRONMENTDIFFUSION:
+            if(cbPropData >= sizeof(FLOAT))
+            {
+                union {
+                    const void *v;
+                    const FLOAT *fl;
+                } data = { pPropData };
+
+                prim->eax_prop.flEnvironmentDiffusion = *data.fl;
+                prim->ExtAL->Effectf(prim->effect, AL_REVERB_DIFFUSION,
+                                     prim->eax_prop.flEnvironmentDiffusion);
+                checkALError();
+
+                prim->dirty.bit.effect = 1;
+                hr = DS_OK;
+            }
+            break;
+
+        case DSPROPERTY_EAXLISTENER_AIRABSORPTIONHF:
+            if(cbPropData >= sizeof(FLOAT))
+            {
+                union {
+                    const void *v;
+                    const FLOAT *fl;
+                } data = { pPropData };
+
+                prim->eax_prop.flAirAbsorptionHF = *data.fl;
+                prim->ExtAL->Effectf(prim->effect, AL_REVERB_AIR_ABSORPTION_GAINHF,
+                                     mBF_to_gain(prim->eax_prop.flAirAbsorptionHF));
+                checkALError();
+
+                prim->dirty.bit.effect = 1;
+                hr = DS_OK;
+            }
+            break;
+
+        case DSPROPERTY_EAXLISTENER_FLAGS:
+            if(cbPropData >= sizeof(DWORD))
+            {
+                union {
+                    const void *v;
+                    const DWORD *dw;
+                } data = { pPropData };
+
+                prim->eax_prop.dwFlags = *data.dw;
+                prim->ExtAL->Effecti(prim->effect, AL_REVERB_DECAY_HFLIMIT,
+                                     (prim->eax_prop.dwFlags&EAXLISTENERFLAGS_DECAYHFLIMIT) ?
+                                     AL_TRUE : AL_FALSE);
+                checkALError();
+
+                prim->dirty.bit.effect = 1;
+                hr = DS_OK;
+            }
+            break;
+
+        default:
+            hr = E_PROP_ID_UNSUPPORTED;
+            FIXME("Unhandled propid: 0x%08lx\n", propid);
+            break;
+        }
+
+        if(hr == DS_OK && immediate)
+            DS8Primary3D_CommitDeferredSettings(&prim->IDirectSound3DListener_iface);
+
+        popALContext();
+        LeaveCriticalSection(prim->crst);
     }
+    else
+        FIXME("Unhandled propset: %s\n", debugstr_guid(guidPropSet));
 
     return hr;
 }
@@ -2501,11 +2897,34 @@ static HRESULT WINAPI DS8BufferProp_QuerySupport(IKsPropertySet *iface,
     }
     else
 #endif
+    if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX20_ListenerProperties))
     {
-        /* Not a known buffer/source property. Pass it to the listener */
-        hr = IKsPropertySet_QuerySupport(&This->primary->IKsPropertySet_iface,
-                                         guidPropSet, dwPropID, pTypeSupport);
+        DS8Primary *prim = This->primary;
+
+        EnterCriticalSection(This->crst);
+
+        if(prim->effect == 0)
+            hr = E_PROP_ID_UNSUPPORTED;
+        else if(dwPropID == DSPROPERTY_EAXLISTENER_ALLPARAMETERS ||
+                dwPropID == DSPROPERTY_EAXLISTENER_ROOM ||
+                dwPropID == DSPROPERTY_EAXLISTENER_ROOMHF ||
+                dwPropID == DSPROPERTY_EAXLISTENER_ROOMROLLOFFFACTOR ||
+                dwPropID == DSPROPERTY_EAXLISTENER_ENVIRONMENT ||
+                dwPropID == DSPROPERTY_EAXLISTENER_ENVIRONMENTSIZE ||
+                dwPropID == DSPROPERTY_EAXLISTENER_ENVIRONMENTDIFFUSION ||
+                dwPropID == DSPROPERTY_EAXLISTENER_AIRABSORPTIONHF ||
+                dwPropID == DSPROPERTY_EAXLISTENER_FLAGS)
+        {
+            *pTypeSupport = KSPROPERTY_SUPPORT_GET|KSPROPERTY_SUPPORT_SET;
+            hr = DS_OK;
+        }
+        else
+            FIXME("Unhandled propid: 0x%08lx\n", dwPropID);
+
+        LeaveCriticalSection(This->crst);
     }
+    else
+        FIXME("Unhandled propset: %s\n", debugstr_guid(guidPropSet));
 
     return hr;
 }

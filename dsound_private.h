@@ -618,6 +618,7 @@ const ALCchar *DSOUND_getcapturedevicestrings(void);
 HRESULT DS8Primary_PreInit(DS8Primary *prim, DS8Impl *parent);
 void DS8Primary_Clear(DS8Primary *prim);
 void DS8Primary_timertick(DS8Primary *prim, BYTE *scratch_mem/*2K non-permanent memory*/);
+HRESULT WINAPI DS8Primary3D_CommitDeferredSettings(IDirectSound3DListener *iface);
 
 HRESULT DS8Buffer_Create(DS8Buffer **ppv, DS8Primary *parent, IDirectSoundBuffer *orig);
 void DS8Buffer_Destroy(DS8Buffer *buf);
