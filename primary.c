@@ -108,44 +108,86 @@ static void trigger_stop_notifies(DS8Buffer *buf)
 
 void DS8Primary_timertick(DS8Primary *prim, BYTE *scratch_mem)
 {
-    struct DSBufferGroup *bufgroup;
-    DWORD i;
+    struct DSBufferGroup *bufgroup, *endgroup;
+    DS8Buffer **curnot, **endnot;
 
-    for(i = 0;i < prim->nnotifies;)
+    curnot = prim->notifies;
+    endnot = curnot + prim->nnotifies;
+    while(curnot != endnot)
     {
-        DS8Buffer *buf = prim->notifies[i];
-        DWORD status=0, curpos=buf->lastpos;
+        DS8Buffer *buf = *curnot;
+        DS8Data *data = buf->buffer;
+        DWORD curpos = buf->lastpos;
+        ALint state = 0;
+        ALint ofs;
 
-        DS8Buffer_GetStatus(&buf->IDirectSoundBuffer8_iface, &status);
-        DS8Buffer_GetCurrentPosition(&buf->IDirectSoundBuffer8_iface, &curpos, NULL);
+        alGetSourcei(buf->source, AL_BYTE_OFFSET, &ofs);
+        alGetSourcei(buf->source, AL_SOURCE_STATE, &state);
+        if(buf->segsize == 0)
+            curpos = (state == AL_STOPPED) ? data->buf_size : ofs;
+        else
+        {
+            if(state != AL_STOPPED)
+                curpos = ofs + buf->queue_base;
+            else
+            {
+                ALint queued;
+                alGetSourcei(buf->source, AL_BUFFERS_QUEUED, &queued);
+                curpos = buf->segsize*queued + buf->queue_base;
+            }
+
+            if(curpos >= (DWORD)data->buf_size)
+            {
+                if(buf->islooping)
+                    curpos %= (DWORD)data->buf_size;
+                else if(buf->isplaying)
+                {
+                    curpos = data->buf_size;
+                    alSourceStop(buf->source);
+                    alSourcei(buf->source, AL_BUFFER, 0);
+                    buf->curidx = 0;
+                    buf->isplaying = FALSE;
+                }
+            }
+
+            if(state != AL_PLAYING)
+                state = buf->isplaying ? AL_PLAYING : AL_PAUSED;
+        }
+        checkALError();
+
         if(buf->lastpos != curpos)
         {
             trigger_elapsed_notifies(buf, buf->lastpos, curpos);
             buf->lastpos = curpos;
         }
-        if(!(status&DSBSTATUS_PLAYING))
+        if(state != AL_PLAYING)
         {
             /* Remove this buffer from list and put another at the current
              * position; don't increment i
              */
             trigger_stop_notifies(buf);
-            prim->notifies[i] = prim->notifies[--prim->nnotifies];
+            *curnot = *(--endnot);
+            prim->nnotifies--;
             continue;
         }
-        i++;
+        curnot++;
     }
+
+    if(prim->SupportedExt[SOFTX_MAP_BUFFER])
+        return;
 
     /* OpenAL doesn't support our lovely buffer extensions so just make sure
      * enough buffers are queued
      */
     bufgroup = prim->BufferGroups;
-    for(i = 0;i < prim->NumBufferGroups;++i)
+    endgroup = bufgroup + prim->NumBufferGroups;
+    for(;bufgroup != endgroup;++bufgroup)
     {
-        DWORD64 usemask = ~bufgroup[i].FreeBuffers;
+        DWORD64 usemask = ~bufgroup->FreeBuffers;
         while(usemask)
         {
             int idx = CTZ64(usemask);
-            DS8Buffer *buf = bufgroup[i].Buffers + idx;
+            DS8Buffer *buf = bufgroup->Buffers + idx;
             DS8Data *data = buf->buffer;
             ALint ofs, done = 0, queued = QBUFFERS, state = AL_PLAYING;
             ALuint which;

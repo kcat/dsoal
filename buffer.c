@@ -309,9 +309,9 @@ static HRESULT DS8Data_Create(DS8Data **ppv, const DSBUFFERDESC *desc, DS8Primar
      * will need the EAX-RAM extension. Currently, we just tell the app it
      * gets what it wanted. */
     pBuffer = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(*pBuffer));
-    if(!pBuffer)
-        return E_OUTOFMEMORY;
+    if(!pBuffer) return E_OUTOFMEMORY;
     pBuffer->ref = 1;
+    pBuffer->primary = prim;
 
     pBuffer->dsbflags = desc->dwFlags;
     if((pBuffer->dsbflags&(DSBCAPS_LOCSOFTWARE|DSBCAPS_LOCHARDWARE)) == (DSBCAPS_LOCSOFTWARE|DSBCAPS_LOCHARDWARE))
@@ -372,11 +372,26 @@ static HRESULT DS8Data_Create(DS8Data **ppv, const DSBUFFERDESC *desc, DS8Primar
     }
 
     hr = E_OUTOFMEMORY;
-    pBuffer->data = HeapAlloc(GetProcessHeap(), 0, pBuffer->buf_size);
-    if(!pBuffer->data) goto fail;
+    if(!prim->SupportedExt[SOFTX_MAP_BUFFER])
+    {
+        pBuffer->data = HeapAlloc(GetProcessHeap(), 0, pBuffer->buf_size);
+        if(!pBuffer->data) goto fail;
 
-    alGenBuffers(1, &pBuffer->bid);
-    checkALError();
+        alGenBuffers(1, &pBuffer->bid);
+        checkALError();
+    }
+    else
+    {
+        const ALbitfieldSOFT map_bits = AL_MAP_READ_BIT_SOFT | AL_MAP_WRITE_BIT_SOFT |
+                                        AL_MAP_PERSISTENT_BIT_SOFT;
+        alGenBuffers(1, &pBuffer->bid);
+        prim->ExtAL->BufferStorageSOFT(pBuffer->bid, pBuffer->buf_format, NULL, pBuffer->buf_size,
+                                       pBuffer->format.Format.nSamplesPerSec, map_bits);
+        pBuffer->data = prim->ExtAL->MapBufferSOFT(pBuffer->bid, 0, pBuffer->buf_size, map_bits);
+        checkALError();
+
+        if(!pBuffer->data) goto fail;
+    }
 
     *ppv = pBuffer;
     return S_OK;
@@ -399,6 +414,12 @@ static void DS8Data_Release(DS8Data *This)
     TRACE("Deleting %p\n", This);
     if(This->bid)
     {
+        DS8Primary *prim = This->primary;
+        if(prim->SupportedExt[SOFTX_MAP_BUFFER])
+        {
+            prim->ExtAL->UnmapBufferSOFT(This->bid);
+            This->data = NULL;
+        }
         alDeleteBuffers(1, &This->bid);
         checkALError();
     }
@@ -665,6 +686,11 @@ HRESULT WINAPI DS8Buffer_GetCurrentPosition(IDirectSoundBuffer8 *iface, DWORD *p
         checkALError();
         popALContext();
 
+        /* AL_STOPPED means the source naturally reached its end, where
+         * DirectSound's position should be at the end (OpenAL reports a 0
+         * position). The Stop method correlates to pausing, which would put
+         * the source into an AL_PAUSED state and hold its current position.
+         */
         pos = (status == AL_STOPPED) ? data->buf_size : ofs;
         if(status == AL_PLAYING)
         {
@@ -779,7 +805,7 @@ static HRESULT WINAPI DS8Buffer_GetPan(IDirectSoundBuffer8 *iface, LONG *pan)
         checkALError();
         popALContext();
 
-        *pan = clampI((LONG)((pos[0]+0.5f) * (DSBPAN_RIGHT-DSBPAN_LEFT)) + DSBPAN_LEFT,
+        *pan = clampI((LONG)((pos[0]+0.5f)*(DSBPAN_RIGHT-DSBPAN_LEFT) + 0.5f) + DSBPAN_LEFT,
                       DSBPAN_LEFT, DSBPAN_RIGHT);
         hr = DS_OK;
     }
@@ -924,7 +950,7 @@ static HRESULT WINAPI DS8Buffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSo
 
     prim = This->primary;
     data = This->buffer;
-    if(!(data->dsbflags&DSBCAPS_STATIC))
+    if(!(data->dsbflags&DSBCAPS_STATIC) && !prim->SupportedExt[SOFTX_MAP_BUFFER])
     {
         This->segsize = (data->format.Format.nAvgBytesPerSec+prim->refresh-1) / prim->refresh;
         This->segsize = clampI(This->segsize, data->format.Format.nBlockAlign, 2048);
@@ -965,18 +991,21 @@ static HRESULT WINAPI DS8Buffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSo
 
     if((data->dsbflags&DSBCAPS_CTRL3D))
     {
-        if(prim->auxslot != 0)
-        {
-            alSource3i(This->source, AL_AUXILIARY_SEND_FILTER, prim->auxslot, 0, AL_FILTER_NULL);
-            checkALError();
-        }
+        union BufferParamFlags dirty = { 0 };
 
-        hr = IDirectSound3DBuffer_SetAllParameters(&This->IDirectSound3DBuffer_iface, ds3dbuffer, DS3D_IMMEDIATE);
-        if(FAILED(hr))
-        {
-            ERR("SetAllParameters failed\n");
-            goto out;
-        }
+        if(prim->auxslot != 0)
+            alSource3i(This->source, AL_AUXILIARY_SEND_FILTER, prim->auxslot, 0, AL_FILTER_NULL);
+
+        dirty.bit.pos = 1;
+        dirty.bit.vel = 1;
+        dirty.bit.cone_angles = 1;
+        dirty.bit.cone_orient = 1;
+        dirty.bit.cone_outsidevolume = 1;
+        dirty.bit.min_distance = 1;
+        dirty.bit.max_distance = 1;
+        dirty.bit.mode = 1;
+        DS8Buffer_SetParams(This, ds3dbuffer, dirty.flags);
+        checkALError();
     }
     else
     {
@@ -1340,9 +1369,7 @@ static HRESULT WINAPI DS8Buffer_Unlock(IDirectSoundBuffer8 *iface, void *ptr1, D
     /* Make sure offset is between boundary and boundary + bufsize */
     ofs1 = (DWORD_PTR)ptr1;
     ofs2 = (DWORD_PTR)ptr2;
-    if(ofs1 < boundary)
-        goto out;
-    if(ofs2 && ofs2 != boundary)
+    if(ofs1 < boundary || (ofs2 && ofs2 != boundary))
         goto out;
     ofs1 -= boundary;
     ofs2 = 0;
@@ -1355,7 +1382,14 @@ static HRESULT WINAPI DS8Buffer_Unlock(IDirectSoundBuffer8 *iface, void *ptr1, D
     if(!len1 && !len2)
         goto out;
 
-    if(This->segsize == 0)
+    if(This->primary->SupportedExt[SOFTX_MAP_BUFFER])
+    {
+        setALContext(This->ctx);
+        This->ExtAL->FlushMappedBufferSOFT(buf->bid, 0, buf->buf_size);
+        checkALError();
+        popALContext();
+    }
+    else if(This->segsize == 0)
     {
         setALContext(This->ctx);
         alBufferData(buf->bid, buf->buf_format, buf->data, buf->buf_size,

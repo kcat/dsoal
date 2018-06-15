@@ -35,6 +35,20 @@
 
 #include "eax.h"
 
+#ifndef AL_SOFT_map_buffer
+#define AL_SOFT_map_buffer 1
+typedef unsigned int ALbitfieldSOFT;
+#define AL_MAP_READ_BIT_SOFT                     0x00000001
+#define AL_MAP_WRITE_BIT_SOFT                    0x00000002
+#define AL_MAP_PERSISTENT_BIT_SOFT               0x00000004
+#define AL_PRESERVE_DATA_BIT_SOFT                0x00000008
+typedef void (AL_APIENTRY*LPALBUFFERSTORAGESOFT)(ALuint buffer, ALenum format, const ALvoid *data, ALsizei size, ALsizei freq, ALbitfieldSOFT flags);
+typedef void* (AL_APIENTRY*LPALMAPBUFFERSOFT)(ALuint buffer, ALsizei offset, ALsizei length, ALbitfieldSOFT access);
+typedef void (AL_APIENTRY*LPALUNMAPBUFFERSOFT)(ALuint buffer);
+typedef void (AL_APIENTRY*LPALFLUSHMAPPEDBUFFERSOFT)(ALuint buffer, ALsizei offset, ALsizei length);
+#endif
+
+
 extern int LogLevel;
 
 #define DO_PRINT(a, ...) fprintf(stderr, a, __VA_ARGS__)
@@ -386,6 +400,7 @@ enum {
     EXT_FLOAT32,
     EXT_MCFORMATS,
     SOFT_DEFERRED_UPDATES,
+    SOFTX_MAP_BUFFER,
 
     MAX_EXTENSIONS
 };
@@ -402,6 +417,11 @@ typedef struct ExtALFuncs {
 
     LPALDEFERUPDATESSOFT DeferUpdatesSOFT;
     LPALPROCESSUPDATESSOFT ProcessUpdatesSOFT;
+
+    LPALBUFFERSTORAGESOFT BufferStorageSOFT;
+    LPALMAPBUFFERSOFT MapBufferSOFT;
+    LPALUNMAPBUFFERSOFT UnmapBufferSOFT;
+    LPALFLUSHMAPPEDBUFFERSOFT FlushMappedBufferSOFT;
 } ExtALFuncs;
 
 #define MAX_SOURCES 256
@@ -439,6 +459,8 @@ typedef struct DeviceShare {
 
 typedef struct DS8Data {
     LONG ref;
+
+    DS8Primary *primary;
 
     /* Lock was called and unlock isn't? */
     LONG locked;

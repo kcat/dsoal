@@ -239,6 +239,15 @@ static HRESULT DSShare_Create(REFIID guid, DeviceShare **out)
         share->ExtAL.ProcessUpdatesSOFT = alGetProcAddress("alProcessUpdatesSOFT");
         share->SupportedExt[SOFT_DEFERRED_UPDATES] = AL_TRUE;
     }
+    if(alIsExtensionPresent("AL_SOFTX_map_buffer"))
+    {
+        TRACE("Found AL_SOFTX_map_buffer\n");
+        share->ExtAL.BufferStorageSOFT = alGetProcAddress("alBufferStorageSOFT");
+        share->ExtAL.MapBufferSOFT = alGetProcAddress("alMapBufferSOFT");
+        share->ExtAL.UnmapBufferSOFT = alGetProcAddress("alUnmapBufferSOFT");
+        share->ExtAL.FlushMappedBufferSOFT = alGetProcAddress("alFlushMappedBufferSOFT");
+        share->SupportedExt[SOFTX_MAP_BUFFER] = AL_TRUE;
+    }
 
     if(alcIsExtensionPresent(share->device, "ALC_EXT_EFX"))
     {
