@@ -286,6 +286,7 @@ static HRESULT DS8Data_Create(DS8Data **ppv, const DSBUFFERDESC *desc, DS8Primar
     const WAVEFORMATEX *format;
     const char *fmt_str = NULL;
     DS8Data *pBuffer;
+    DWORD buf_size;
 
     format = desc->lpwfxFormat;
     TRACE("Requested buffer format:\n"
@@ -310,33 +311,48 @@ static HRESULT DS8Data_Create(DS8Data **ppv, const DSBUFFERDESC *desc, DS8Primar
         return DSERR_INVALIDPARAM;
     }
 
+    if((format->wBitsPerSample%8) != 0)
+    {
+        WARN("Invalid BitsPerSample specified\n");
+        return DSERR_INVALIDPARAM;
+    }
+    if(format->nBlockAlign != format->nChannels*format->wBitsPerSample/8)
+    {
+        WARN("Incorrect BlockAlign specified\n");
+        return DSERR_INVALIDPARAM;
+    }
+    if(format->nAvgBytesPerSec != format->nBlockAlign*format->nSamplesPerSec)
+    {
+        WARN("Incorrect AvgBytesPerSec specified\n");
+        return DSERR_INVALIDPARAM;
+    }
+
+    if((desc->dwFlags&(DSBCAPS_LOCSOFTWARE|DSBCAPS_LOCHARDWARE)) == (DSBCAPS_LOCSOFTWARE|DSBCAPS_LOCHARDWARE))
+    {
+        WARN("Hardware and software location requested\n");
+        return DSERR_INVALIDPARAM;
+    }
+
+    buf_size  = desc->dwBufferBytes + format->nBlockAlign - 1;
+    buf_size -= buf_size%format->nBlockAlign;
+    if(buf_size < DSBSIZE_MIN) return DSERR_BUFFERTOOSMALL;
+    if(buf_size > DSBSIZE_MAX) return DSERR_INVALIDPARAM;
+
     /* Generate a new buffer. Supporting the DSBCAPS_LOC* flags properly
      * will need the EAX-RAM extension. Currently, we just tell the app it
      * gets what it wanted. */
-    pBuffer = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(*pBuffer));
+    if(!prim->SupportedExt[SOFTX_MAP_BUFFER])
+        pBuffer = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(*pBuffer)+buf_size);
+    else
+        pBuffer = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(*pBuffer));
     if(!pBuffer) return E_OUTOFMEMORY;
     pBuffer->ref = 1;
     pBuffer->primary = prim;
 
     pBuffer->dsbflags = desc->dwFlags;
-    if((pBuffer->dsbflags&(DSBCAPS_LOCSOFTWARE|DSBCAPS_LOCHARDWARE)) == (DSBCAPS_LOCSOFTWARE|DSBCAPS_LOCHARDWARE))
-    {
-        WARN("Hardware and software location requested\n");
-        goto fail;
-    }
     if(!(pBuffer->dsbflags&(DSBCAPS_LOCSOFTWARE|DSBCAPS_LOCHARDWARE|DSBCAPS_LOCDEFER)))
         pBuffer->dsbflags |= DSBCAPS_LOCHARDWARE;
-
-    pBuffer->buf_size  = desc->dwBufferBytes + format->nBlockAlign - 1;
-    pBuffer->buf_size -= pBuffer->buf_size%format->nBlockAlign;
-
-    hr = DSERR_BUFFERTOOSMALL;
-    if(pBuffer->buf_size < DSBSIZE_MIN)
-        goto fail;
-
-    hr = DSERR_INVALIDPARAM;
-    if(pBuffer->buf_size > DSBSIZE_MAX)
-        goto fail;
+    pBuffer->buf_size = buf_size;
 
     if(format->wFormatTag == WAVE_FORMAT_PCM)
         fmt_str = get_fmtstr_PCM(prim, format, &pBuffer->format);
@@ -372,23 +388,10 @@ static HRESULT DS8Data_Create(DS8Data **ppv, const DSBUFFERDESC *desc, DS8Primar
         goto fail;
     }
 
-    hr = DSERR_INVALIDPARAM;
-    if(format->nBlockAlign != format->nChannels*format->wBitsPerSample/8)
-    {
-        WARN("Incorrect BlockAlign specified\n");
-        goto fail;
-    }
-    if(format->nAvgBytesPerSec != format->nBlockAlign*format->nSamplesPerSec)
-    {
-        WARN("Incorrect AvgBytesPerSec specified\n");
-        goto fail;
-    }
-
     hr = E_OUTOFMEMORY;
     if(!prim->SupportedExt[SOFTX_MAP_BUFFER])
     {
-        pBuffer->data = HeapAlloc(GetProcessHeap(), 0, pBuffer->buf_size);
-        if(!pBuffer->data) goto fail;
+        pBuffer->data = (BYTE*)(pBuffer+1);
 
         alGenBuffers(1, &pBuffer->bid);
         checkALError();
@@ -429,14 +432,10 @@ static void DS8Data_Release(DS8Data *This)
     {
         DS8Primary *prim = This->primary;
         if(prim->SupportedExt[SOFTX_MAP_BUFFER])
-        {
             prim->ExtAL->UnmapBufferSOFT(This->bid);
-            This->data = NULL;
-        }
         alDeleteBuffers(1, &This->bid);
         checkALError();
     }
-    HeapFree(GetProcessHeap(), 0, This->data);
     HeapFree(GetProcessHeap(), 0, This);
 }
 
