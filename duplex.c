@@ -329,13 +329,19 @@ static HRESULT WINAPI IDirectSoundFullDuplexImpl_QueryInterface(
         return S_OK;
     } else if (IsEqualIID(riid, &IID_IDirectSound) ||
                IsEqualIID(riid, &IID_IDirectSound8)) {
-        *ppobj = &This->IDirectSound8_iface;
-        IUnknown_AddRef((IUnknown*)*ppobj);
-        return S_OK;
+        if(This->renderer_device != NULL)
+        {
+            *ppobj = &This->IDirectSound8_iface;
+            IUnknown_AddRef((IUnknown*)*ppobj);
+            return S_OK;
+        }
     } else if (IsEqualIID(riid, &IID_IDirectSoundCapture)) {
-        *ppobj = &This->IDirectSoundCapture_iface;
-        IUnknown_AddRef((IUnknown*)*ppobj);
-        return S_OK;
+        if(This->capture_device != NULL)
+        {
+            *ppobj = &This->IDirectSoundCapture_iface;
+            IUnknown_AddRef((IUnknown*)*ppobj);
+            return S_OK;
+        }
     }
 
     return E_NOINTERFACE;
@@ -381,6 +387,12 @@ static HRESULT WINAPI IDirectSoundFullDuplexImpl_Initialize(
         debugstr_guid(pCaptureGuid), debugstr_guid(pRendererGuid),
         lpDscBufferDesc, lpDsBufferDesc, hWnd, dwLevel,
         lplpDirectSoundCaptureBuffer8, lplpDirectSoundBuffer8);
+
+    if(!lplpDirectSoundBuffer8 || !lplpDirectSoundCaptureBuffer8)
+    {
+        WARN("NULL output pointers\n");
+        return DSERR_INVALIDPARAM;
+    }
 
     *lplpDirectSoundCaptureBuffer8 = NULL;
     *lplpDirectSoundBuffer8 = NULL;
