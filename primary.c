@@ -740,22 +740,32 @@ static HRESULT WINAPI DS8Primary_SetCurrentPosition(IDirectSoundBuffer *iface, D
 }
 
 /* Just assume the format is crap, and clean up the damage */
-static void copy_waveformat(WAVEFORMATEX *wfx, const WAVEFORMATEX *from)
+static HRESULT copy_waveformat(WAVEFORMATEX *wfx, const WAVEFORMATEX *from)
 {
+    if(from->nBlockAlign <= 0 || from->nChannels <= 0)
+        return DSERR_INVALIDPARAM;
+    if(from->nSamplesPerSec < DSBFREQUENCY_MIN || from->nSamplesPerSec > DSBFREQUENCY_MAX)
+        return DSERR_INVALIDPARAM;
+    if(from->wBitsPerSample == 0 || (from->wBitsPerSample%8) != 0)
+        return DSERR_INVALIDPARAM;
+    if(from->nBlockAlign != from->nChannels*from->wBitsPerSample/8)
+        return DSERR_INVALIDPARAM;
+    if(from->nAvgBytesPerSec != from->nBlockAlign*from->nSamplesPerSec)
+        return DSERR_INVALIDPARAM;
+
     if(from->wFormatTag == WAVE_FORMAT_PCM)
     {
+        if(from->wBitsPerSample > 32)
+            return DSERR_INVALIDPARAM;
         wfx->cbSize = 0;
-        if(from->wBitsPerSample == 8 ||
-           from->wBitsPerSample == 16 ||
-           from->wBitsPerSample == 24 ||
-           from->wBitsPerSample == 32)
-            wfx->wBitsPerSample = from->wBitsPerSample;
+        wfx->wBitsPerSample = from->wBitsPerSample;
     }
     else if(from->wFormatTag == WAVE_FORMAT_IEEE_FLOAT)
     {
+        if(from->wBitsPerSample != 32)
+            return DSERR_INVALIDPARAM;
         wfx->cbSize = 0;
-        if(from->wBitsPerSample == 32)
-            wfx->wBitsPerSample = from->wBitsPerSample;
+        wfx->wBitsPerSample = from->wBitsPerSample;
     }
     else if(from->wFormatTag == WAVE_FORMAT_EXTENSIBLE)
     {
@@ -764,17 +774,25 @@ static void copy_waveformat(WAVEFORMATEX *wfx, const WAVEFORMATEX *from)
         const WORD size = sizeof(WAVEFORMATEXTENSIBLE) - sizeof(WAVEFORMATEX);
 
         /* Fail silently.. */
-        if(from->cbSize < size)
-            return;
-        if(!fromx->Samples.wValidBitsPerSample &&
-           !fromx->Format.wBitsPerSample)
-            return;
+        if(from->cbSize < size) return DS_OK;
+        if(fromx->Samples.wValidBitsPerSample > fromx->Format.wBitsPerSample)
+            return DSERR_INVALIDPARAM;
 
-        if(!IsEqualGUID(&wfe->SubFormat, &KSDATAFORMAT_SUBTYPE_PCM) &&
-           !IsEqualGUID(&wfe->SubFormat, &KSDATAFORMAT_SUBTYPE_IEEE_FLOAT))
+        if(IsEqualGUID(&wfe->SubFormat, &KSDATAFORMAT_SUBTYPE_PCM) ||
+           IsEqualGUID(&wfe->SubFormat, &GUID_NULL))
+        {
+            if(from->wBitsPerSample > 32)
+                return DSERR_INVALIDPARAM;
+        }
+        else if(IsEqualGUID(&wfe->SubFormat, &KSDATAFORMAT_SUBTYPE_IEEE_FLOAT))
+        {
+            if(from->wBitsPerSample != 32)
+                return DSERR_INVALIDPARAM;
+        }
+        else
         {
             ERR("Unhandled extensible format: %s\n", debugstr_guid(&wfe->SubFormat));
-            return;
+            return DSERR_INVALIDPARAM;
         }
 
         wfe->Format.wBitsPerSample = from->wBitsPerSample;
@@ -788,24 +806,21 @@ static void copy_waveformat(WAVEFORMATEX *wfx, const WAVEFORMATEX *from)
     else
     {
         ERR("Unhandled format tag %04x\n", from->wFormatTag);
-        return;
+        return DSERR_INVALIDPARAM;
     }
 
-    if(from->nChannels)
-        wfx->nChannels = from->nChannels;
+    wfx->nChannels = from->nChannels;
     wfx->wFormatTag = from->wFormatTag;
-    if(from->nSamplesPerSec >= DSBFREQUENCY_MIN &&
-       from->nSamplesPerSec <= DSBFREQUENCY_MAX)
-        wfx->nSamplesPerSec = from->nSamplesPerSec;
+    wfx->nSamplesPerSec = from->nSamplesPerSec;
     wfx->nBlockAlign = wfx->wBitsPerSample * wfx->nChannels / 8;
     wfx->nAvgBytesPerSec = wfx->nSamplesPerSec * wfx->nBlockAlign;
+    return DS_OK;
 }
 
 static HRESULT WINAPI DS8Primary_SetFormat(IDirectSoundBuffer *iface, const WAVEFORMATEX *wfx)
 {
     DS8Primary *This = impl_from_IDirectSoundBuffer(iface);
     HRESULT hr = S_OK;
-    ALCint freq;
 
     TRACE("(%p)->(%p)\n", iface, wfx);
 
@@ -834,17 +849,8 @@ static HRESULT WINAPI DS8Primary_SetFormat(IDirectSoundBuffer *iface, const WAVE
           wfx->nSamplesPerSec, wfx->nAvgBytesPerSec,
           wfx->nBlockAlign, wfx->wBitsPerSample);
 
-    copy_waveformat(&This->format.Format, wfx);
-
-    freq = This->format.Format.nSamplesPerSec;
-    alcGetIntegerv(This->parent->device, ALC_FREQUENCY, 1, &freq);
-    checkALCError(This->parent->device);
-
-    This->format.Format.nSamplesPerSec = freq;
-    This->format.Format.nAvgBytesPerSec = This->format.Format.nBlockAlign *
-                                          This->format.Format.nSamplesPerSec;
-
-    if(This->write_emu)
+    hr = copy_waveformat(&This->format.Format, wfx);
+    if(SUCCEEDED(hr) && This->write_emu)
     {
         DS8Buffer *buf;
         DSBUFFERDESC desc;
@@ -856,8 +862,7 @@ static HRESULT WINAPI DS8Primary_SetFormat(IDirectSoundBuffer *iface, const WAVE
         desc.lpwfxFormat = &This->format.Format;
 
         hr = DS8Buffer_Create(&buf, This, NULL);
-        if(FAILED(hr))
-            goto out;
+        if(FAILED(hr)) goto out;
 
         hr = IDirectSoundBuffer8_Initialize(&buf->IDirectSoundBuffer8_iface, &This->parent->IDirectSound_iface, &desc);
         if(FAILED(hr))

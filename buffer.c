@@ -300,7 +300,7 @@ static HRESULT DS8Data_Create(DS8Data **ppv, const DSBUFFERDESC *desc, DS8Primar
           format->nSamplesPerSec, format->nAvgBytesPerSec,
           format->nBlockAlign, format->wBitsPerSample);
 
-    if(format->nSamplesPerSec <= 0)
+    if(format->nSamplesPerSec < DSBFREQUENCY_MIN || format->nSamplesPerSec > DSBFREQUENCY_MAX)
     {
         WARN("Invalid SamplesPerSec specified\n");
         return DSERR_INVALIDPARAM;
