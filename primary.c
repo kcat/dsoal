@@ -749,6 +749,12 @@ static void copy_waveformat(WAVEFORMATEX *wfx, const WAVEFORMATEX *from)
            from->wBitsPerSample == 32)
             wfx->wBitsPerSample = from->wBitsPerSample;
     }
+    else if(from->wFormatTag == WAVE_FORMAT_IEEE_FLOAT)
+    {
+        wfx->cbSize = 0;
+        if(from->wBitsPerSample == 32)
+            wfx->wBitsPerSample = from->wBitsPerSample;
+    }
     else if(from->wFormatTag == WAVE_FORMAT_EXTENSIBLE)
     {
         WAVEFORMATEXTENSIBLE *wfe = (WAVEFORMATEXTENSIBLE*)wfx;

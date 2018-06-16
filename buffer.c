@@ -346,7 +346,6 @@ static HRESULT DS8Data_Create(DS8Data **ppv, const DSBUFFERDESC *desc, DS8Primar
     {
         const WAVEFORMATEXTENSIBLE *wfe;
 
-        hr = DSERR_CONTROLUNAVAIL;
         if(format->cbSize != sizeof(WAVEFORMATEXTENSIBLE)-sizeof(WAVEFORMATEX) &&
             format->cbSize != sizeof(WAVEFORMATEXTENSIBLE))
             goto fail;
@@ -363,13 +362,11 @@ static HRESULT DS8Data_Create(DS8Data **ppv, const DSBUFFERDESC *desc, DS8Primar
     }
     else
         ERR("Unhandled formattag 0x%04x\n", format->wFormatTag);
-
-    hr = DSERR_INVALIDCALL;
     if(!fmt_str) goto fail;
 
     pBuffer->buf_format = alGetEnumValue(fmt_str);
     if(alGetError() != AL_NO_ERROR || pBuffer->buf_format == 0 ||
-        pBuffer->buf_format == -1)
+       pBuffer->buf_format == -1)
     {
         WARN("Could not get OpenAL format from %s\n", fmt_str);
         goto fail;
@@ -982,7 +979,7 @@ static HRESULT WINAPI DS8Buffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSo
         checkALError();
     }
 
-    hr = DSERR_GENERIC;
+    hr = DSERR_ALLOCATED;
     if(!prim->parent->share->nsources)
         goto out;
 
@@ -1453,32 +1450,58 @@ static HRESULT WINAPI DS8Buffer_Restore(IDirectSoundBuffer8 *iface)
 static HRESULT WINAPI DS8Buffer_SetFX(IDirectSoundBuffer8 *iface, DWORD fxcount, DSEFFECTDESC *desc, DWORD *rescodes)
 {
     DS8Buffer *This = impl_from_IDirectSoundBuffer8(iface);
+    ALenum state = AL_INITIAL;
+    DS8Data *data;
+    HRESULT hr;
     DWORD i;
 
     TRACE("(%p)->(%lu, %p, %p)\n", This, fxcount, desc, rescodes);
 
-    if(!(This->buffer->dsbflags&DSBCAPS_CTRLFX))
+    data = This->buffer;
+    if(!(data->dsbflags&DSBCAPS_CTRLFX))
     {
         WARN("FX control not set\n");
         return DSERR_CONTROLUNAVAIL;
     }
 
+    if(data->locked)
+    {
+        WARN("Buffer is locked\n");
+        return DSERR_INVALIDCALL;
+    }
+
+    EnterCriticalSection(This->crst);
+    setALContext(This->ctx);
+
+    alGetSourcei(This->source, AL_SOURCE_STATE, &state);
+    checkALError();
+    if(This->segsize != 0 && state != AL_PLAYING)
+        state = This->isplaying ? AL_PLAYING : AL_PAUSED;
+    if(state == AL_PLAYING)
+    {
+        WARN("Buffer is playing\n");
+        hr = DSERR_INVALIDCALL;
+        goto done;
+    }
+
+    hr = DSERR_INVALIDPARAM;
     if(fxcount == 0)
     {
         if(desc || rescodes)
         {
             WARN("Non-NULL desc and/or result pointer specified with no effects.\n");
-            return DSERR_INVALIDPARAM;
+            goto done;
         }
 
         /* No effects; we can handle that */
-        return DS_OK;
+        hr = DS_OK;
+        goto done;
     }
 
     if(!desc || !rescodes)
     {
         WARN("NULL desc and/or result pointer specified.\n");
-        return DSERR_INVALIDPARAM;
+        goto done;
     }
 
     /* We don't (currently) handle DSound effects */
@@ -1487,8 +1510,13 @@ static HRESULT WINAPI DS8Buffer_SetFX(IDirectSoundBuffer8 *iface, DWORD fxcount,
         FIXME("Cannot handle effect: %s\n", debugstr_guid(&desc[i].guidDSFXClass));
         rescodes[i] = DSFXR_FAILED;
     }
+    hr = DS_INCOMPLETE;
 
-    return DS_INCOMPLETE;
+done:
+    popALContext();
+    LeaveCriticalSection(This->crst);
+
+    return hr;
 }
 
 static HRESULT WINAPI DS8Buffer_AcquireResources(IDirectSoundBuffer8 *iface, DWORD flags, DWORD fxcount, DWORD *rescodes)
