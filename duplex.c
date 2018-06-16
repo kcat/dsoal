@@ -363,7 +363,7 @@ static ULONG WINAPI IDirectSoundFullDuplexImpl_Release(IDirectSoundFullDuplex *i
 {
     IDirectSoundFullDuplexImpl *This = impl_from_IDirectSoundFullDuplex(iface);
     ULONG ref = InterlockedDecrement(&(This->ref));
-    TRACE("(%p) ref was %lu\n", This, ref - 1);
+    TRACE("(%p) ref was %lu\n", This, ref + 1);
     if(InterlockedDecrement(&(This->all_ref)) == 0)
         DSOUND_FullDuplexDestroy(This);
     return ref;
