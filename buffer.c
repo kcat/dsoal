@@ -1363,6 +1363,7 @@ static HRESULT WINAPI DS8Buffer_Stop(IDirectSoundBuffer8 *iface)
     checkALError();
 
     This->isplaying = FALSE;
+    DS8Primary_triggernots(This->primary);
 
     popALContext();
     LeaveCriticalSection(This->crst);

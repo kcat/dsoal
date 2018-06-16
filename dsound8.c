@@ -49,7 +49,11 @@ static DWORD CALLBACK DSShare_thread(void *dwUser)
         setALContext(share->ctx);
 
         for(i = 0;i < share->nprimaries;++i)
-            DS8Primary_timertick(share->primaries[i], scratch_mem);
+        {
+            DS8Primary_triggernots(share->primaries[i]);
+            if(!share->SupportedExt[SOFTX_MAP_BUFFER])
+                DS8Primary_streamfeeder(share->primaries[i], scratch_mem);
+        }
 
         popALContext();
         LeaveCriticalSection(&share->crst);

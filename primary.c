@@ -106,9 +106,8 @@ static void trigger_stop_notifies(DS8Buffer *buf)
     }
 }
 
-void DS8Primary_timertick(DS8Primary *prim, BYTE *scratch_mem)
+void DS8Primary_triggernots(DS8Primary *prim)
 {
-    struct DSBufferGroup *bufgroup, *endgroup;
     DS8Buffer **curnot, **endnot;
 
     curnot = prim->notifies;
@@ -172,9 +171,12 @@ void DS8Primary_timertick(DS8Primary *prim, BYTE *scratch_mem)
         }
         curnot++;
     }
+    checkALError();
+}
 
-    if(prim->SupportedExt[SOFTX_MAP_BUFFER])
-        return;
+void DS8Primary_streamfeeder(DS8Primary *prim, BYTE *scratch_mem)
+{
+    struct DSBufferGroup *bufgroup, *endgroup;
 
     /* OpenAL doesn't support our lovely buffer extensions so just make sure
      * enough buffers are queued
