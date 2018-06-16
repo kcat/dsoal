@@ -2958,6 +2958,11 @@ static HRESULT WINAPI DS8BufferProp_QuerySupport(IKsPropertySet *iface,
 
         if(prim->effect == 0)
             hr = E_PROP_ID_UNSUPPORTED;
+        else if(dwPropID == DSPROPERTY_EAXLISTENER_NONE)
+        {
+            *pTypeSupport = KSPROPERTY_SUPPORT_SET;
+            hr = DS_OK;
+        }
         else if(dwPropID == DSPROPERTY_EAXLISTENER_ALLPARAMETERS ||
                 dwPropID == DSPROPERTY_EAXLISTENER_ROOM ||
                 dwPropID == DSPROPERTY_EAXLISTENER_ROOMHF ||
