@@ -49,27 +49,36 @@ typedef void (AL_APIENTRY*LPALFLUSHMAPPEDBUFFERSOFT)(ALuint buffer, ALsizei offs
 #endif
 
 
+#ifdef __GNUC__
+#define LIKELY(x) __builtin_expect(!!(x), !0)
+#define UNLIKELY(x) __builtin_expect(!!(x), !!0)
+#else
+#define LIKELY(x) (!!(x))
+#define UNLIKELY(x) (!!(x))
+#endif
+
+
 extern int LogLevel;
 
 #define DO_PRINT(a, ...) fprintf(stderr, a, __VA_ARGS__)
 #ifdef _MSC_VER
 #define TRACE(fmt, ...) do {                                              \
-    if(LogLevel >= 3)                                                     \
+    if(UNLIKELY(LogLevel >= 3))                                           \
         DO_PRINT("%04x:trace:dsound:%s " fmt, (UINT)GetCurrentThreadId(), \
                  __FUNCTION__, __VA_ARGS__);                              \
 } while(0)
 #define WARN(fmt, ...) do {                                              \
-    if(LogLevel >= 2)                                                    \
+    if(UNLIKELY(LogLevel >= 2))                                          \
         DO_PRINT("%04x:warn:dsound:%s " fmt, (UINT)GetCurrentThreadId(), \
                  __FUNCTION__, __VA_ARGS__);                             \
 } while(0)
 #define FIXME(fmt, ...) do {                                              \
-    if(LogLevel >= 1)                                                     \
+    if(UNLIKELY(LogLevel >= 1))                                           \
         DO_PRINT("%04x:fixme:dsound:%s " fmt, (UINT)GetCurrentThreadId(), \
                  __FUNCTION__, __VA_ARGS__);                              \
 } while(0)
 #define ERR(fmt, ...) do {                                              \
-    if(LogLevel >= 0)                                                   \
+    if(UNLIKELY(LogLevel >= 0))                                         \
         DO_PRINT("%04x:err:dsound:%s " fmt, (UINT)GetCurrentThreadId(), \
                  __FUNCTION__, __VA_ARGS__);                            \
 } while(0)
@@ -77,22 +86,22 @@ extern int LogLevel;
 #else
 
 #define TRACE(fmt, ...) do {                                              \
-    if(LogLevel >= 3)                                                     \
+    if(UNLIKELY(LogLevel >= 3))                                           \
         DO_PRINT("%04x:trace:dsound:%s " fmt, (UINT)GetCurrentThreadId(), \
                  __FUNCTION__, ## __VA_ARGS__);                           \
 } while(0)
 #define WARN(fmt, ...) do {                                              \
-    if(LogLevel >= 2)                                                    \
+    if(UNLIKELY(LogLevel >= 2))                                          \
         DO_PRINT("%04x:warn:dsound:%s " fmt, (UINT)GetCurrentThreadId(), \
                  __FUNCTION__, ## __VA_ARGS__);                          \
 } while(0)
 #define FIXME(fmt, ...) do {                                              \
-    if(LogLevel >= 1)                                                     \
+    if(UNLIKELY(LogLevel >= 1))                                           \
         DO_PRINT("%04x:fixme:dsound:%s " fmt, (UINT)GetCurrentThreadId(), \
                  __FUNCTION__, ## __VA_ARGS__);                           \
 } while(0)
 #define ERR(fmt, ...) do {                                              \
-    if(LogLevel >= 0)                                                   \
+    if(UNLIKELY(LogLevel >= 0))                                         \
         DO_PRINT("%04x:err:dsound:%s " fmt, (UINT)GetCurrentThreadId(), \
                  __FUNCTION__, ## __VA_ARGS__);                         \
 } while(0)
