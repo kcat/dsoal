@@ -59,8 +59,13 @@ typedef void (AL_APIENTRY*LPALFLUSHMAPPEDBUFFERSOFT)(ALuint buffer, ALsizei offs
 
 
 extern int LogLevel;
+extern FILE *LogFile;
 
-#define DO_PRINT(a, ...) fprintf(stderr, a, __VA_ARGS__)
+#define DO_PRINT(a, ...) do {         \
+    fprintf(LogFile, a, __VA_ARGS__); \
+    fflush(LogFile);                  \
+} while(0)
+
 #ifdef _MSC_VER
 #define TRACE(fmt, ...) do {                                              \
     if(UNLIKELY(LogLevel >= 3))                                           \

@@ -53,6 +53,7 @@
 DEFINE_GUID(CLSID_DirectSoundPrivate,0x11ab3ec0,0x25ec,0x11d1,0xa4,0xd8,0x00,0xc0,0x4f,0xc2,0x8a,0xca);
 
 int LogLevel = 1;
+FILE *LogFile;
 
 
 const GUID DSOUND_renderer_guid = { 0xbd6dd71a, 0x3deb, 0x11d1, { 0xb1, 0x71, 0x00, 0xc0, 0x4f, 0xc2, 0x00, 0x00 } };
@@ -1122,11 +1123,21 @@ DECLSPEC_EXPORT HRESULT WINAPI DllCanUnloadNow(void)
  */
 DECLSPEC_EXPORT BOOL WINAPI DllMain(HINSTANCE hInstDLL, DWORD fdwReason, LPVOID lpvReserved)
 {
+    const WCHAR *wstr;
+
     TRACE("(%p, %lu, %p)\n", hInstDLL, fdwReason, lpvReserved);
 
     switch(fdwReason)
     {
     case DLL_PROCESS_ATTACH:
+        LogFile = stderr;
+        if((wstr=_wgetenv(L"DSOAL_LOGFILE")) != NULL && wstr[0] != 0)
+        {
+            FILE *f = _wfopen(wstr, L"wt");
+            if(!f) ERR("Failed to open log file %ls\n", wstr);
+            else LogFile = f;
+        }
+
         TRACE("DLL_PROCESS_ATTACH\n");
         if(!load_libopenal())
             return FALSE;
@@ -1150,6 +1161,9 @@ DECLSPEC_EXPORT BOOL WINAPI DllMain(HINSTANCE hInstDLL, DWORD fdwReason, LPVOID 
         if(openal_handle)
             FreeLibrary(openal_handle);
         TlsFree(TlsThreadPtr);
+        if(LogFile != stderr)
+            fclose(LogFile);
+        LogFile = stderr;
         break;
 
     default:
