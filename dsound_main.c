@@ -39,6 +39,8 @@
 #include <windows.h>
 #include <dsound.h>
 #include <mmsystem.h>
+#include <mmdeviceapi.h>
+#include <devpropdef.h>
 
 #include "dsound_private.h"
 
@@ -50,14 +52,14 @@
 #endif
 #endif
 
+DEFINE_DEVPROPKEY(DEVPKEY_Device_FriendlyName, 0xa45c254e,0xdf1c,0x4efd,0x80,0x20,0x67,0xd1,0x46,0xa8,0x50,0xe0, 14);
 DEFINE_GUID(CLSID_DirectSoundPrivate,0x11ab3ec0,0x25ec,0x11d1,0xa4,0xd8,0x00,0xc0,0x4f,0xc2,0x8a,0xca);
 
 int LogLevel = 1;
 FILE *LogFile;
 
 
-const GUID DSOUND_renderer_guid = { 0xbd6dd71a, 0x3deb, 0x11d1, { 0xb1, 0x71, 0x00, 0xc0, 0x4f, 0xc2, 0x00, 0x00 } };
-const GUID DSOUND_capture_guid = { 0xbd6dd71b, 0x3deb, 0x11d1, { 0xb1, 0x71, 0x00, 0xc0, 0x4f, 0xc2, 0x00, 0x00 } };
+const WCHAR wine_vxd_drv[] = L"winemm.vxd";
 
 const IID DSPROPSETID_EAX20_ListenerProperties = {
     0x0306a6a8, 0xb224, 0x11d2, { 0x99, 0xe5, 0x00, 0x00, 0xe8, 0xd8, 0xc7, 0x22 }
@@ -407,16 +409,268 @@ static void LeaveALSectionGlob(void)
 }
 
 
-const ALCchar *DSOUND_getdevicestrings(void)
+static const char *get_device_id(LPCGUID pGuid)
 {
-    if(alcIsExtensionPresent(NULL, "ALC_ENUMERATE_ALL_EXT"))
-        return alcGetString(NULL, ALC_ALL_DEVICES_SPECIFIER);
-    return alcGetString(NULL, ALC_DEVICE_SPECIFIER);
+    if(IsEqualGUID(&DSDEVID_DefaultPlayback, pGuid))
+        return "DSDEVID_DefaultPlayback";
+    if(IsEqualGUID(&DSDEVID_DefaultVoicePlayback, pGuid))
+        return "DSDEVID_DefaultVoicePlayback";
+    if(IsEqualGUID(&DSDEVID_DefaultCapture, pGuid))
+        return "DSDEVID_DefaultCapture";
+    if(IsEqualGUID(&DSDEVID_DefaultVoiceCapture, pGuid))
+        return "DSDEVID_DefaultVoiceCapture";
+    return debugstr_guid(pGuid);
 }
 
-const ALCchar *DSOUND_getcapturedevicestrings(void)
+static HRESULT get_mmdevenum(IMMDeviceEnumerator **devenum)
 {
-    return alcGetString(NULL, ALC_CAPTURE_DEVICE_SPECIFIER);
+    HRESULT hr, init_hr;
+
+    init_hr = CoInitialize(NULL);
+
+    hr = CoCreateInstance(&CLSID_MMDeviceEnumerator, NULL,
+            CLSCTX_INPROC_SERVER, &IID_IMMDeviceEnumerator, (void**)devenum);
+    if(FAILED(hr))
+    {
+        if(SUCCEEDED(init_hr))
+            CoUninitialize();
+        *devenum = NULL;
+        ERR("CoCreateInstance failed: %08lx\n", hr);
+        return hr;
+    }
+
+    return init_hr;
+}
+
+static void release_mmdevenum(IMMDeviceEnumerator *devenum, HRESULT init_hr)
+{
+    IMMDeviceEnumerator_Release(devenum);
+    if(SUCCEEDED(init_hr))
+        CoUninitialize();
+}
+
+static HRESULT get_mmdevice_guid(IMMDevice *device, IPropertyStore *ps, GUID *guid)
+{
+    PROPVARIANT pv;
+    HRESULT hr;
+
+    if(ps)
+        IPropertyStore_AddRef(ps);
+    else
+    {
+        hr = IMMDevice_OpenPropertyStore(device, STGM_READ, &ps);
+        if(FAILED(hr))
+        {
+            WARN("OpenPropertyStore failed: %08lx\n", hr);
+            return hr;
+        }
+    }
+
+    PropVariantInit(&pv);
+
+    hr = IPropertyStore_GetValue(ps, &PKEY_AudioEndpoint_GUID, &pv);
+    if(FAILED(hr))
+    {
+        IPropertyStore_Release(ps);
+        WARN("GetValue(GUID) failed: %08lx\n", hr);
+        return hr;
+    }
+
+    CLSIDFromString(pv.pwszVal, guid);
+
+    PropVariantClear(&pv);
+    IPropertyStore_Release(ps);
+
+    return S_OK;
+}
+
+
+static BOOL send_device(IMMDevice *device, LPDSENUMCALLBACKW cb, void *user)
+{
+    IPropertyStore *ps;
+    PROPVARIANT pv;
+    BOOL keep_going;
+    HRESULT hr;
+    GUID guid;
+
+    PropVariantInit(&pv);
+
+    hr = IMMDevice_OpenPropertyStore(device, STGM_READ, &ps);
+    if(FAILED(hr))
+    {
+        WARN("OpenPropertyStore failed: %08lx\n", hr);
+        return TRUE;
+    }
+
+    hr = get_mmdevice_guid(device, ps, &guid);
+    if(FAILED(hr))
+    {
+        IPropertyStore_Release(ps);
+        return TRUE;
+    }
+
+    hr = IPropertyStore_GetValue(ps, (const PROPERTYKEY*)&DEVPKEY_Device_FriendlyName, &pv);
+    if(FAILED(hr))
+    {
+        IPropertyStore_Release(ps);
+        WARN("GetValue(FriendlyName) failed: %08lx\n", hr);
+        return TRUE;
+    }
+
+    TRACE("Calling back with %s (%ls)\n", debugstr_guid(&guid), pv.pwszVal);
+
+    keep_going = cb(&guid, pv.pwszVal, wine_vxd_drv, user);
+
+    PropVariantClear(&pv);
+    IPropertyStore_Release(ps);
+
+    return keep_going;
+}
+
+HRESULT get_mmdevice(EDataFlow flow, const GUID *tgt, IMMDevice **device)
+{
+    IMMDeviceEnumerator *devenum;
+    IMMDeviceCollection *coll;
+    UINT count, i;
+    HRESULT hr, init_hr;
+
+    init_hr = get_mmdevenum(&devenum);
+    if(!devenum) return init_hr;
+
+    hr = IMMDeviceEnumerator_EnumAudioEndpoints(devenum, flow, DEVICE_STATE_ACTIVE, &coll);
+    if(FAILED(hr))
+    {
+        WARN("EnumAudioEndpoints failed: %08lx\n", hr);
+        release_mmdevenum(devenum, init_hr);
+        return hr;
+    }
+
+    hr = IMMDeviceCollection_GetCount(coll, &count);
+    if(FAILED(hr))
+    {
+        IMMDeviceCollection_Release(coll);
+        release_mmdevenum(devenum, init_hr);
+        WARN("GetCount failed: %08lx\n", hr);
+        return hr;
+    }
+
+    for(i = 0; i < count;++i)
+    {
+        GUID guid;
+
+        hr = IMMDeviceCollection_Item(coll, i, device);
+        if(FAILED(hr)) continue;
+
+        hr = get_mmdevice_guid(*device, NULL, &guid);
+        if(FAILED(hr))
+        {
+            IMMDevice_Release(*device);
+            continue;
+        }
+
+        if(IsEqualGUID(&guid, tgt))
+        {
+            IMMDeviceCollection_Release(coll);
+            release_mmdevenum(devenum, init_hr);
+            return DS_OK;
+        }
+
+        IMMDevice_Release(*device);
+    }
+
+    WARN("No device with GUID %s found!\n", debugstr_guid(tgt));
+
+    IMMDeviceCollection_Release(coll);
+    release_mmdevenum(devenum, init_hr);
+
+    return DSERR_INVALIDPARAM;
+}
+
+/* S_FALSE means the callback returned FALSE at some point
+ * S_OK means the callback always returned TRUE */
+HRESULT enumerate_mmdevices(EDataFlow flow, LPDSENUMCALLBACKW cb, void *user)
+{
+    static const WCHAR primary_desc[] = L"Primary Sound Driver";
+
+    IMMDeviceEnumerator *devenum;
+    IMMDeviceCollection *coll;
+    IMMDevice *defdev = NULL;
+    UINT count, i, n;
+    BOOL keep_going;
+    HRESULT hr, init_hr;
+
+    init_hr = get_mmdevenum(&devenum);
+    if(!devenum) return init_hr;
+
+    hr = IMMDeviceEnumerator_EnumAudioEndpoints(devenum, flow, DEVICE_STATE_ACTIVE, &coll);
+    if(FAILED(hr))
+    {
+        release_mmdevenum(devenum, init_hr);
+        WARN("EnumAudioEndpoints failed: %08lx\n", hr);
+        return DS_OK;
+    }
+
+    hr = IMMDeviceCollection_GetCount(coll, &count);
+    if(FAILED(hr))
+    {
+        IMMDeviceCollection_Release(coll);
+        release_mmdevenum(devenum, init_hr);
+        WARN("GetCount failed: %08lx\n", hr);
+        return DS_OK;
+    }
+
+    if(count == 0)
+    {
+        release_mmdevenum(devenum, init_hr);
+        return DS_OK;
+    }
+
+    TRACE("Calling back with NULL (%ls)\n", primary_desc);
+    keep_going = cb(NULL, primary_desc, L"", user);
+
+    /* always send the default device first */
+    if(keep_going)
+    {
+        hr = IMMDeviceEnumerator_GetDefaultAudioEndpoint(devenum, flow, eMultimedia, &defdev);
+        if(FAILED(hr))
+        {
+            defdev = NULL;
+            n = 0;
+        }
+        else
+        {
+            keep_going = send_device(defdev, cb, user);
+            n = 1;
+        }
+    }
+
+    for(i = 0;keep_going && i < count;++i)
+    {
+        IMMDevice *device;
+
+        hr = IMMDeviceCollection_Item(coll, i, &device);
+        if(FAILED(hr))
+        {
+            WARN("Item failed: %08lx\n", hr);
+            continue;
+        }
+
+        if(device != defdev)
+        {
+            keep_going = send_device(device, cb, user);
+            ++n;
+        }
+
+        IMMDevice_Release(device);
+    }
+
+    if(defdev)
+        IMMDevice_Release(defdev);
+    IMMDeviceCollection_Release(coll);
+
+    release_mmdevenum(devenum, init_hr);
+
+    return keep_going ? S_OK : S_FALSE;
 }
 
 /***************************************************************************
@@ -441,67 +695,73 @@ const ALCchar *DSOUND_getcapturedevicestrings(void)
  */
 DECLSPEC_EXPORT HRESULT WINAPI GetDeviceID(LPCGUID pGuidSrc, LPGUID pGuidDest)
 {
-    TRACE("(%s, %p)\n", debugstr_guid(pGuidSrc), pGuidDest);
+    IMMDeviceEnumerator *devenum;
+    EDataFlow flow = (EDataFlow)-1;
+    ERole role = (ERole)-1;
+    HRESULT hr, init_hr;
 
-    if(pGuidSrc == NULL)
-    {
-        WARN("invalid parameter: pGuidSrc == NULL\n");
+    TRACE("(%s, %p)\n", get_device_id(pGuidSrc), pGuidDest);
+
+    if(!pGuidSrc || !pGuidDest)
         return DSERR_INVALIDPARAM;
+
+    init_hr = get_mmdevenum(&devenum);
+    if(!devenum) return init_hr;
+
+    if(IsEqualGUID(&DSDEVID_DefaultPlayback, pGuidSrc)){
+        role = eMultimedia;
+        flow = eRender;
+    }else if(IsEqualGUID(&DSDEVID_DefaultVoicePlayback, pGuidSrc)){
+        role = eCommunications;
+        flow = eRender;
+    }else if(IsEqualGUID(&DSDEVID_DefaultCapture, pGuidSrc)){
+        role = eMultimedia;
+        flow = eCapture;
+    }else if(IsEqualGUID(&DSDEVID_DefaultVoiceCapture, pGuidSrc)){
+        role = eCommunications;
+        flow = eCapture;
     }
 
-    if(pGuidDest == NULL)
+    if(role != (ERole)-1 && flow != (EDataFlow)-1)
     {
-        WARN("invalid parameter: pGuidDest == NULL\n");
-        return DSERR_INVALIDPARAM;
+        IMMDevice *device;
+
+        hr = IMMDeviceEnumerator_GetDefaultAudioEndpoint(devenum, flow, role, &device);
+        if(FAILED(hr))
+        {
+            WARN("GetDefaultAudioEndpoint failed: %08lx\n", hr);
+            release_mmdevenum(devenum, init_hr);
+            return DSERR_NODRIVER;
+        }
+
+        hr = get_mmdevice_guid(device, NULL, pGuidDest);
+        IMMDevice_Release(device);
+
+        release_mmdevenum(devenum, init_hr);
+
+        return hr;
     }
 
-    if(IsEqualGUID(&DSDEVID_DefaultPlayback, pGuidSrc) ||
-       IsEqualGUID(&DSDEVID_DefaultVoicePlayback, pGuidSrc))
-        *pGuidDest = DSOUND_renderer_guid;
-    else if(IsEqualGUID(&DSDEVID_DefaultCapture, pGuidSrc) ||
-            IsEqualGUID(&DSDEVID_DefaultVoiceCapture, pGuidSrc))
-        *pGuidDest = DSOUND_capture_guid;
-    else
-        *pGuidDest = *pGuidSrc;
+    release_mmdevenum(devenum, init_hr);
 
-    TRACE("returns %s\n", debugstr_guid(pGuidDest));
+    *pGuidDest = *pGuidSrc;
+
     return DS_OK;
 }
 
-struct ConvAcontext
-{
+
+struct morecontext {
     LPDSENUMCALLBACKA callA;
     LPVOID data;
-
-    CHAR *str;
-    int strlen;
 };
 
-static BOOL CALLBACK w2a_callback(LPGUID guid, LPCWSTR descW, LPCWSTR modW, LPVOID data)
+static BOOL CALLBACK w_to_a_callback(LPGUID guid, LPCWSTR descW, LPCWSTR modW, LPVOID data)
 {
-    struct ConvAcontext *context = data;
-    int desclen, modlen;
-    CHAR *descA, *modA;
+    struct morecontext *context = data;
+    char descA[MAXPNAMELEN], modA[MAXPNAMELEN];
 
-    desclen = WideCharToMultiByte(CP_ACP, 0, descW, -1, NULL, 0, NULL, NULL);
-    modlen = WideCharToMultiByte(CP_ACP, 0, modW, -1, NULL, 0, NULL, NULL);
-
-    if(desclen+modlen > context->strlen)
-    {
-        CHAR *newstr = realloc(context->str, desclen+modlen+2);
-        if(!newstr) return FALSE;
-
-        context->str = newstr;
-        context->strlen = desclen+modlen;
-    }
-
-    descA = context->str;
-    modA = context->str + desclen+1;
-
-    WideCharToMultiByte(CP_ACP, 0, descW, -1, descA, desclen, NULL, NULL);
-    descA[desclen] = 0;
-    WideCharToMultiByte(CP_ACP, 0, modW, -1, modA, modlen, NULL, NULL);
-    modA[modlen] = 0;
+    WideCharToMultiByte(CP_ACP, 0, descW, -1, descA, sizeof(descA), NULL, NULL);
+    WideCharToMultiByte(CP_ACP, 0, modW, -1, modA, sizeof(modA), NULL, NULL);
 
     return context->callA(guid, descA, modA, context->data);
 }
@@ -523,26 +783,20 @@ DECLSPEC_EXPORT HRESULT WINAPI DirectSoundEnumerateA(
     LPDSENUMCALLBACKA lpDSEnumCallback,
     LPVOID lpContext)
 {
-    struct ConvAcontext context;
-    HRESULT ret;
+    struct morecontext context;
 
-    TRACE("lpDSEnumCallback = %p, lpContext = %p\n", lpDSEnumCallback, lpContext);
-
-    if(lpDSEnumCallback == NULL) {
+    if(lpDSEnumCallback == NULL)
+    {
         WARN("invalid parameter: lpDSEnumCallback == NULL\n");
         return DSERR_INVALIDPARAM;
     }
 
     context.callA = lpDSEnumCallback;
     context.data = lpContext;
-    context.str = NULL;
-    context.strlen = 0;
 
-    ret = DirectSoundEnumerateW(w2a_callback, &context);
-
-    free(context.str);
-    return ret;
+    return DirectSoundEnumerateW(w_to_a_callback, &context);
 }
+
 
 /***************************************************************************
  * DirectSoundEnumerateW [DSOUND.3]
@@ -561,67 +815,18 @@ DECLSPEC_EXPORT HRESULT WINAPI DirectSoundEnumerateW(
     LPDSENUMCALLBACKW lpDSEnumCallback,
     LPVOID lpContext )
 {
-    TRACE("lpDSEnumCallback = %p, lpContext = %p\n", lpDSEnumCallback, lpContext);
+    HRESULT hr;
 
-    if(!lpDSEnumCallback)
+    TRACE("(%p, %p)\n", lpDSEnumCallback, lpContext);
+
+    if(lpDSEnumCallback == NULL)
     {
         WARN("invalid parameter: lpDSEnumCallback == NULL\n");
         return DSERR_INVALIDPARAM;
     }
 
-    if(!openal_loaded)
-    {
-        ERR("Attempting to enumerate sound cards without OpenAL support\n");
-        ERR("Please recompile wine with OpenAL for sound to work\n");
-    }
-    else
-    {
-        WCHAR *devwstr = NULL;
-        int devwstrlen = 0;
-        const ALCchar *devstr;
-        GUID guid;
-
-        EnterCriticalSection(&openal_crst);
-        devstr = DSOUND_getdevicestrings();
-        if(!devstr || !*devstr)
-            goto out;
-
-        TRACE("calling lpDSEnumCallback(NULL,\"%ls\",\"%ls\",%p)\n",
-              L"Primary Sound Driver", L"", lpContext);
-        if(lpDSEnumCallback(NULL, L"Primary Sound Driver", L"", lpContext) == FALSE)
-            goto out;
-
-        guid = DSOUND_renderer_guid;
-        do {
-            int len;
-
-            len = MultiByteToWideChar(CP_UTF8, 0, devstr, -1, NULL, 0);
-            if(len <= 0) break;
-
-            if(len > devwstrlen)
-            {
-                WCHAR *str = realloc(devwstr, (len+1)*sizeof(WCHAR));
-                if(!str) break;
-
-                devwstr = str;
-                devwstrlen = len;
-            }
-            MultiByteToWideChar(CP_UTF8, 0, devstr, -1, devwstr, len);
-            devwstr[len] = 0;
-
-            TRACE("calling lpDSEnumCallback(%s,\"%ls\",\"%ls\",%p)\n",
-                  debugstr_guid(&guid), devwstr, L"wineal.drv", lpContext);
-            if(lpDSEnumCallback(&guid, devwstr, L"wineal.drv", lpContext) == FALSE)
-                goto out;
-
-            guid.Data4[7]++;
-            devstr += strlen(devstr)+1;
-        } while(*devstr);
-out:
-        LeaveCriticalSection(&openal_crst);
-        free(devwstr);
-    }
-    return DS_OK;
+    hr = enumerate_mmdevices(eRender, lpDSEnumCallback, lpContext);
+    return SUCCEEDED(hr) ? DS_OK : hr;
 }
 
 /***************************************************************************
@@ -641,25 +846,18 @@ DECLSPEC_EXPORT HRESULT WINAPI DirectSoundCaptureEnumerateA(
     LPDSENUMCALLBACKA lpDSEnumCallback,
     LPVOID lpContext)
 {
-    struct ConvAcontext context;
-    HRESULT ret;
+    struct morecontext context;
 
-    TRACE("lpDSEnumCallback = %p, lpContext = %p\n", lpDSEnumCallback, lpContext);
-
-    if(lpDSEnumCallback == NULL) {
+    if(lpDSEnumCallback == NULL)
+    {
         WARN("invalid parameter: lpDSEnumCallback == NULL\n");
         return DSERR_INVALIDPARAM;
     }
 
     context.callA = lpDSEnumCallback;
     context.data = lpContext;
-    context.str = NULL;
-    context.strlen = 0;
 
-    ret = DirectSoundCaptureEnumerateW(w2a_callback, &context);
-
-    free(context.str);
-    return ret;
+    return DirectSoundCaptureEnumerateW(w_to_a_callback, &context);
 }
 
 /***************************************************************************
@@ -679,68 +877,18 @@ DECLSPEC_EXPORT HRESULT WINAPI DirectSoundCaptureEnumerateW(
     LPDSENUMCALLBACKW lpDSEnumCallback,
     LPVOID lpContext)
 {
-    TRACE("lpDSEnumCallback = %p, lpContext = %p\n", lpDSEnumCallback, lpContext);
+    HRESULT hr;
 
-    if(!lpDSEnumCallback)
+    TRACE("(%p, %p)\n", lpDSEnumCallback, lpContext );
+
+    if(lpDSEnumCallback == NULL)
     {
         WARN("invalid parameter: lpDSEnumCallback == NULL\n");
         return DSERR_INVALIDPARAM;
     }
 
-    if(!openal_loaded)
-    {
-        ERR("Attempting to enumerate sound cards without OpenAL support\n");
-        ERR("Please recompile wine with OpenAL for sound to work\n");
-    }
-    else
-    {
-        WCHAR *devwstr = NULL;
-        int devwstrlen = 0;
-        const ALCchar *devstr;
-        GUID guid;
-
-        EnterCriticalSection(&openal_crst);
-        devstr = DSOUND_getcapturedevicestrings();
-        if(!devstr || !*devstr)
-            goto out;
-
-        TRACE("calling lpDSEnumCallback(NULL,\"%ls\",\"%ls\",%p)\n",
-              L"Primary Sound Driver", L"", lpContext);
-        if(lpDSEnumCallback(NULL, L"Primary Sound Driver", L"", lpContext) == FALSE)
-            goto out;
-
-        guid = DSOUND_capture_guid;
-        do {
-            int len;
-
-            len = MultiByteToWideChar(CP_UTF8, 0, devstr, -1, NULL, 0);
-            if(len <= 0) break;
-
-            if(len > devwstrlen)
-            {
-                WCHAR *str = realloc(devwstr, (len+1)*sizeof(WCHAR));
-                if(!str) break;
-
-                devwstr = str;
-                devwstrlen = len;
-            }
-            MultiByteToWideChar(CP_UTF8, 0, devstr, -1, devwstr, len);
-            devwstr[len] = 0;
-
-            TRACE("calling lpDSEnumCallback(%s,\"%ls\",\"%ls\",%p)\n",
-                  debugstr_guid(&guid), devwstr, L"wineal.drv", lpContext);
-            if(lpDSEnumCallback(&guid, devwstr, L"wineal.drv", lpContext) == FALSE)
-                goto out;
-
-            guid.Data4[7]++;
-            devstr += strlen(devstr)+1;
-        } while(*devstr);
-out:
-        LeaveCriticalSection(&openal_crst);
-        free(devwstr);
-    }
-
-    return DS_OK;
+    hr = enumerate_mmdevices(eCapture, lpDSEnumCallback, lpContext);
+    return SUCCEEDED(hr) ? DS_OK : hr;
 }
 
 /*******************************************************************************

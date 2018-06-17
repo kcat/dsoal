@@ -29,8 +29,12 @@
 #include "dsound.h"
 #include "mmsystem.h"
 #include "ks.h"
+#include <devpropdef.h>
 
 #include "dsound_private.h"
+
+
+DEFINE_DEVPROPKEY(DEVPKEY_Device_FriendlyName, 0xa45c254e,0xdf1c,0x4efd,0x80,0x20,0x67,0xd1,0x46,0xa8,0x50,0xe0, 14);
 
 DEFINE_GUID(CLSID_DirectSoundPrivate,0x11ab3ec0,0x25ec,0x11d1,0xa4,0xd8,0x00,0xc0,0x4f,0xc2,0x8a,0xca);
 
@@ -39,10 +43,6 @@ DEFINE_GUID(DSPROPSETID_DirectSoundDevice,0x84624f82,0x25ec,0x11d1,0xa4,0xd8,0x0
 DEFINE_GUID(KSDATAFORMAT_SUBTYPE_PCM, 0x00000001, 0x0000, 0x0010, 0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71);
 DEFINE_GUID(KSDATAFORMAT_SUBTYPE_IEEE_FLOAT, 0x00000003, 0x0000, 0x0010, 0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71);
 
-#ifndef E_PROP_ID_UNSUPPORTED
-#define E_PROP_ID_UNSUPPORTED           ((HRESULT)0x80070490)
-#endif
-
 #ifndef DS_INCOMPLETE
 #define DS_INCOMPLETE                   ((HRESULT)0x08780020)
 #endif
@@ -50,6 +50,7 @@ DEFINE_GUID(KSDATAFORMAT_SUBTYPE_IEEE_FLOAT, 0x00000003, 0x0000, 0x0010, 0x80, 0
 #ifndef WAVE_FORMAT_IEEE_FLOAT
 #define WAVE_FORMAT_IEEE_FLOAT 3
 #endif
+
 
 /* TODO: when bufferlost is set, return from all calls except initialize with
  * DSERR_BUFFERLOST

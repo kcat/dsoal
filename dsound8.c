@@ -173,11 +173,11 @@ static void DSShare_Destroy(DeviceShare *share)
 
 static HRESULT DSShare_Create(REFIID guid, DeviceShare **out)
 {
-    const ALCchar *drv_name;
+    OLECHAR *guid_str = NULL;
+    ALchar drv_name[64];
     DeviceShare *share;
     void *temp;
     HRESULT hr;
-    DWORD n;
 
     share = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(*share));
     if(!share) return DSERR_OUTOFMEMORY;
@@ -186,24 +186,18 @@ static HRESULT DSShare_Create(REFIID guid, DeviceShare **out)
 
     InitializeCriticalSection(&share->crst);
 
+    hr = StringFromCLSID(guid, &guid_str);
+    if(FAILED(hr))
+    {
+        ERR("Failed to convert GUID to string\n");
+        goto fail;
+    }
+    WideCharToMultiByte(CP_UTF8, 0, guid_str, -1, drv_name, sizeof(drv_name), NULL, NULL);
+    drv_name[sizeof(drv_name)-1] = 0;
+    CoTaskMemFree(guid_str);
+    guid_str = NULL;
+
     hr = DSERR_NODRIVER;
-    if(!(drv_name=DSOUND_getdevicestrings()) ||
-       memcmp(guid, &DSOUND_renderer_guid, sizeof(GUID)-1) != 0)
-    {
-        WARN("No device found\n");
-        goto fail;
-    }
-
-    n = guid->Data4[7];
-    while(*drv_name && n--)
-        drv_name += strlen(drv_name) + 1;
-    if(!*drv_name)
-    {
-        WARN("No device string found\n");
-        goto fail;
-    }
-    memcpy(&share->guid, guid, sizeof(GUID));
-
     share->device = alcOpenDevice(drv_name);
     if(!share->device)
     {
@@ -211,9 +205,11 @@ static HRESULT DSShare_Create(REFIID guid, DeviceShare **out)
         WARN("Couldn't open device \"%s\"\n", drv_name);
         goto fail;
     }
-    TRACE("Opened device: %s\n", alcGetString(share->device, ALC_DEVICE_SPECIFIER));
+    TRACE("Opened device: %s\n",
+          alcIsExtensionPresent(share->device, "ALC_ENUMERATE_ALL_EXT") ?
+          alcGetString(share->device, ALC_ALL_DEVICES_SPECIFIER) :
+          alcGetString(share->device, ALC_DEVICE_SPECIFIER));
 
-    hr = DSERR_NODRIVER;
     share->ctx = alcCreateContext(share->device, NULL);
     if(!share->ctx)
     {
@@ -221,6 +217,8 @@ static HRESULT DSShare_Create(REFIID guid, DeviceShare **out)
         ERR("Could not create context (0x%x)!\n", err);
         goto fail;
     }
+
+    memcpy(&share->guid, guid, sizeof(GUID));
 
     setALContext(share->ctx);
     alcGetIntegerv(share->device, ALC_REFRESH, 1, &share->refresh);
@@ -994,11 +992,14 @@ static HRESULT WINAPI DS8_Initialize(IDirectSound8 *iface, const GUID *devguid)
         return DSERR_ALREADYINITIALIZED;
     }
 
-    if(!devguid)
+    if(!devguid || IsEqualGUID(devguid, &GUID_NULL))
         devguid = &DSDEVID_DefaultPlayback;
+    else if(IsEqualGUID(devguid, &DSDEVID_DefaultCapture) ||
+            IsEqualGUID(devguid, &DSDEVID_DefaultVoiceCapture))
+        return DSERR_NODRIVER;
+
     hr = GetDeviceID(devguid, &guid);
-    if(FAILED(hr))
-        return hr;
+    if(FAILED(hr)) return hr;
 
     EnterCriticalSection(&openal_crst);
 

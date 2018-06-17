@@ -994,10 +994,10 @@ static HRESULT WINAPI DSCImpl_GetCaps(IDirectSoundCapture *iface, DSCCAPS *caps)
 static HRESULT WINAPI DSCImpl_Initialize(IDirectSoundCapture *iface, const GUID *devguid)
 {
     DSCImpl *This = impl_from_IDirectSoundCapture(iface);
+    OLECHAR *guid_str = NULL;
     HRESULT hr;
-    const ALCchar *devs, *drv_name;
     GUID guid;
-    UINT n;
+    int len;
 
     TRACE("(%p)->(%p)\n", iface, devguid);
 
@@ -1007,61 +1007,56 @@ static HRESULT WINAPI DSCImpl_Initialize(IDirectSoundCapture *iface, const GUID 
         return DSERR_NODRIVER;
     }
 
-    if(This->device) {
+    if(This->device)
+    {
         WARN("Already initialized\n");
         return DSERR_ALREADYINITIALIZED;
     }
 
     if(!devguid || IsEqualGUID(devguid, &GUID_NULL))
         devguid = &DSDEVID_DefaultCapture;
+    else if(IsEqualGUID(devguid, &DSDEVID_DefaultPlayback) ||
+            IsEqualGUID(devguid, &DSDEVID_DefaultVoicePlayback))
+        return DSERR_NODRIVER;
 
     hr = GetDeviceID(devguid, &guid);
-    if (FAILED(hr))
-        return DSERR_INVALIDPARAM;
+    if(FAILED(hr)) return hr;
+
     devguid = &guid;
+
+    hr = StringFromCLSID(devguid, &guid_str);
+    if(FAILED(hr))
+    {
+        ERR("Failed to convert GUID to string\n");
+        return hr;
+    }
 
     EnterCriticalSection(&This->crst);
     EnterCriticalSection(&openal_crst);
-    devs = DSOUND_getcapturedevicestrings();
-    n = guid.Data4[7];
 
-    hr = DSERR_NODRIVER;
-    if(memcmp(devguid, &DSOUND_capture_guid, sizeof(GUID)-1) ||
-       !devs || !*devs)
+    hr = E_OUTOFMEMORY;
+    len = WideCharToMultiByte(CP_UTF8, 0, guid_str, -1, NULL, 0, NULL, NULL);
+    if(len <= 0)
     {
-        WARN("No driver found\n");
+        ERR("Failed to convert GUID to string\n");
         goto out;
     }
 
-    if(n)
-    {
-        const ALCchar *str = devs;
-        while (n--)
-        {
-            str += strlen(str) + 1;
-            if (!*str)
-            {
-                WARN("No driver string found\n");
-                goto out;
-            }
-        }
-        drv_name = str;
-    }
-    else
-        drv_name = devs;
-
-    This->device = HeapAlloc(GetProcessHeap(), 0, strlen(drv_name)+1);
+    This->device = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, len+1);
     if(!This->device)
     {
-        WARN("Out of memory to allocate %s\n", drv_name);
+        WARN("Out of memory to allocate %ls\n", guid_str);
         goto out;
     }
-    strcpy(This->device, drv_name);
+    WideCharToMultiByte(CP_UTF8, 0, guid_str, -1, This->device, len, NULL, NULL);
 
     hr = S_OK;
 out:
     LeaveCriticalSection(&openal_crst);
     LeaveCriticalSection(&This->crst);
+    if(guid_str)
+        CoTaskMemFree(guid_str);
+    guid_str = NULL;
     return hr;
 }
 

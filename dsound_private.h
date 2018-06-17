@@ -28,6 +28,7 @@
 
 #include <stdio.h>
 #include <dsound.h>
+#include <mmdeviceapi.h>
 
 #include "alc.h"
 #include "al.h"
@@ -393,6 +394,10 @@ extern LPALSPEEDOFSOUND palSpeedOfSound;
 #include "wingdi.h"
 #include "mmreg.h"
 
+#ifndef E_PROP_ID_UNSUPPORTED
+#define E_PROP_ID_UNSUPPORTED           ((HRESULT)0x80070490)
+#endif
+
 /* OpenAL only allows for 1 single access to the device at the same time */
 extern CRITICAL_SECTION openal_crst;
 
@@ -630,9 +635,6 @@ struct DS8Impl {
 };
 
 
-const ALCchar *DSOUND_getdevicestrings(void);
-const ALCchar *DSOUND_getcapturedevicestrings(void);
-
 HRESULT DS8Primary_PreInit(DS8Primary *prim, DS8Impl *parent);
 void DS8Primary_Clear(DS8Primary *prim);
 void DS8Primary_triggernots(DS8Primary *prim);
@@ -706,5 +708,7 @@ HRESULT IKsPrivatePropertySetImpl_Create(REFIID riid, void **piks);
 HRESULT DSOUND_CaptureCreate(REFIID riid, void **ppDSC);
 HRESULT DSOUND_CaptureCreate8(REFIID riid, void **ppDSC);
 
-extern const GUID DSOUND_renderer_guid;
-extern const GUID DSOUND_capture_guid;
+HRESULT enumerate_mmdevices(EDataFlow flow, LPDSENUMCALLBACKW cb, void *user);
+HRESULT get_mmdevice(EDataFlow flow, const GUID *tgt, IMMDevice **device);
+
+extern const WCHAR wine_vxd_drv[];
