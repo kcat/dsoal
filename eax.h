@@ -186,10 +186,10 @@ typedef enum {
 } DSPROPERTY_EAX_BUFFERPROPERTY;
 
 /* Stores the value being set, but does not apply it */
-#define DSPROPERTY_EAXBUFFER_IMMEDIATE              0x00000000
+#define DSPROPERTY_EAXBUFFER_DEFERRED               0x80000000
 /* The lack of the deferred flag forces a call to CommitDeferredSettings(),
  * applying *all* deferred settings, including the EAX property being set */
-#define DSPROPERTY_EAXBUFFER_DEFERRED               0x80000000
+#define DSPROPERTY_EAXBUFFER_IMMEDIATE              0x00000000
 /* Same as IMMEDIATE; causes a commit of deferred properties but implies no
  * extra property being set */
 #define DSPROPERTY_EAXBUFFER_COMMITDEFERREDSETTINGS 0x00000000
