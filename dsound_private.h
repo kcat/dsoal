@@ -135,12 +135,28 @@ static inline const char *debugstr_w( const WCHAR *s ) { return wine_dbgstr_wn( 
 #ifdef __GNUC__
 
 #if SIZEOF_LONG == 8
+#define POPCNT64 __builtin_popcountl
 #define CTZ64 __builtin_ctzl
 #else
+#define POPCNT64 __builtin_popcountll
 #define CTZ64 __builtin_ctzll
 #endif
 
-#elif defined(HAVE_BITSCANFORWARD64_INTRINSIC)
+#else
+
+/* There be black magics here. The popcnt64 method is derived from
+ * https://graphics.stanford.edu/~seander/bithacks.html#CountBitsSetParallel
+ */
+static inline int fallback_popcnt64(DWORD64 v)
+{
+    v = v - ((v >> 1) & U64(0x5555555555555555));
+    v = (v & U64(0x3333333333333333)) + ((v >> 2) & U64(0x3333333333333333));
+    v = (v + (v >> 4)) & U64(0x0f0f0f0f0f0f0f0f);
+    return (int)((v * U64(0x0101010101010101)) >> 56);
+}
+#define POPCNT64 fallback_popcnt64
+
+#if defined(HAVE_BITSCANFORWARD64_INTRINSIC)
 
 static inline int msvc64_ctz64(DWORD64 v)
 {
@@ -166,26 +182,12 @@ static inline int msvc_ctz64(DWORD64 v)
 
 #else
 
-/* There be black magics here. The popcnt64 method is derived from
- * https://graphics.stanford.edu/~seander/bithacks.html#CountBitsSetParallel
- * while the ctz-utilizing-popcnt algorithm is shown here
- * http://www.hackersdelight.org/hdcodetxt/ntz.c.txt
- * as the ntz2 variant. These likely aren't the most efficient methods, but
- * they're good enough if the GCC or MSVC intrinsics aren't available.
- */
-static inline int fallback_popcnt64(DWORD64 v)
-{
-    v = v - ((v >> 1) & U64(0x5555555555555555));
-    v = (v & U64(0x3333333333333333)) + ((v >> 2) & U64(0x3333333333333333));
-    v = (v + (v >> 4)) & U64(0x0f0f0f0f0f0f0f0f);
-    return (int)((v * U64(0x0101010101010101)) >> 56);
-}
-
 static inline int fallback_ctz64(DWORD64 value)
 {
     return fallback_popcnt64(~value & (value - 1));
 }
 #define CTZ64 fallback_ctz64
+#endif
 #endif
 
 #ifdef __GNUC__

@@ -278,8 +278,11 @@ static HRESULT DSShare_Create(REFIID guid, DeviceShare **out)
             break;
         share->max_sources++;
     }
-    share->nsources = share->max_sources;
     popALContext();
+    /* As long as we have at least 64 sources, keep it a multiple of 64. */
+    if(share->max_sources > 64)
+        share->max_sources &= ~63u;
+    share->nsources = share->max_sources;
 
     if(sharelist)
         temp = HeapReAlloc(GetProcessHeap(), 0, sharelist, sizeof(*sharelist)*(sharelistsize+1));
@@ -646,6 +649,7 @@ static HRESULT WINAPI DS8_CreateSoundBuffer(IDirectSound8 *iface, LPCDSBUFFERDES
 static HRESULT WINAPI DS8_GetCaps(IDirectSound8 *iface, LPDSCAPS caps)
 {
     DS8Impl *This = impl_from_IDirectSound8(iface);
+    DWORD free_bufs, i;
 
     TRACE("(%p)->(%p)\n", iface, caps);
 
@@ -662,6 +666,10 @@ static HRESULT WINAPI DS8_GetCaps(IDirectSound8 *iface, LPDSCAPS caps)
     }
 
     EnterCriticalSection(&This->share->crst);
+
+    free_bufs = 0;
+    for(i = 0;i < This->primary.NumBufferGroups;i++)
+        free_bufs += POPCNT64(This->primary.BufferGroups[i].FreeBuffers);
 
     caps->dwFlags = DSCAPS_CONTINUOUSRATE |
                     DSCAPS_PRIMARY16BIT | DSCAPS_PRIMARYSTEREO |
@@ -682,7 +690,7 @@ static HRESULT WINAPI DS8_GetCaps(IDirectSound8 *iface, LPDSCAPS caps)
         caps->dwFreeHwMixingStreamingBuffers =
         caps->dwFreeHw3DAllBuffers =
         caps->dwFreeHw3DStaticBuffers =
-        caps->dwFreeHw3DStreamingBuffers = This->share->nsources;
+        caps->dwFreeHw3DStreamingBuffers = free_bufs;
     caps->dwTotalHwMemBytes =
         caps->dwFreeHwMemBytes = 64 * 1024 * 1024;
     caps->dwMaxContigFreeHwMemBytes = caps->dwFreeHwMemBytes;

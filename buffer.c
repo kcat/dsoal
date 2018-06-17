@@ -509,6 +509,7 @@ void DS8Buffer_Destroy(DS8Buffer *This)
     DS8Primary *prim = This->primary;
     DWORD i;
 
+    if(!prim) return;
     TRACE("Destroying %p\n", This);
 
     EnterCriticalSection(prim->crst);

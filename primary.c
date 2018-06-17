@@ -288,6 +288,8 @@ HRESULT DS8Primary_PreInit(DS8Primary *This, DS8Impl *parent)
 {
     DS3DLISTENER *listener;
     WAVEFORMATEX *wfx;
+    DWORD num_srcs;
+    DWORD count;
     HRESULT hr;
     DWORD i;
 
@@ -304,9 +306,7 @@ HRESULT DS8Primary_PreInit(DS8Primary *This, DS8Impl *parent)
     This->sources = parent->share->sources;
     This->auxslot = parent->share->auxslot;
 
-    /* Allocate enough for a WAVEFORMATEXTENSIBLE */
     wfx = &This->format.Format;
-
     wfx->wFormatTag = WAVE_FORMAT_PCM;
     wfx->nChannels = 2;
     wfx->wBitsPerSample = 8;
@@ -366,19 +366,35 @@ HRESULT DS8Primary_PreInit(DS8Primary *This, DS8Impl *parent)
     listener->flRolloffFactor = DS3D_DEFAULTROLLOFFFACTOR;
     listener->flDopplerFactor = DS3D_DEFAULTDOPPLERFACTOR;
 
-    This->sizenotifies = parent->share->max_sources;
+    num_srcs = parent->share->max_sources;
 
     hr = DSERR_OUTOFMEMORY;
-    This->notifies = HeapAlloc(GetProcessHeap(), 0, This->sizenotifies*sizeof(*This->notifies));
+    This->notifies = HeapAlloc(GetProcessHeap(), 0, num_srcs*sizeof(*This->notifies));
     if(!This->notifies) goto fail;
+    This->sizenotifies = num_srcs;
 
-    This->NumBufferGroups = (parent->share->max_sources+63) / 64;
-    This->BufferGroups = HeapAlloc(GetProcessHeap(), 0,
-        This->NumBufferGroups*sizeof(*This->BufferGroups));
+    count = (num_srcs+63) / 64;
+    This->BufferGroups = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY,
+                                   count*sizeof(*This->BufferGroups));
     if(!This->BufferGroups) goto fail;
+    This->NumBufferGroups = count;
 
+    /* Only flag usable buffers as free. */
+    count = 0;
     for(i = 0;i < This->NumBufferGroups;++i)
-        This->BufferGroups[i].FreeBuffers = ~(DWORD64)0;
+    {
+        DWORD count_rem = num_srcs - count;
+        if(count_rem >= 64)
+        {
+            This->BufferGroups[i].FreeBuffers = ~(DWORD64)0;
+            count += 64;
+        }
+        else
+        {
+            This->BufferGroups[i].FreeBuffers = (U64(1) << count_rem) - 1;
+            count += count_rem;
+        }
+    }
 
     return S_OK;
 
