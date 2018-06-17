@@ -632,7 +632,7 @@ static HRESULT WINAPI DS8Primary_GetStatus(IDirectSoundBuffer *iface, DWORD *sta
     return DS_OK;
 }
 
-static HRESULT WINAPI DS8Primary_Initialize(IDirectSoundBuffer *iface, IDirectSound *ds, const DSBUFFERDESC *desc)
+HRESULT WINAPI DS8Primary_Initialize(IDirectSoundBuffer *iface, IDirectSound *ds, const DSBUFFERDESC *desc)
 {
     DS8Primary *This = impl_from_IDirectSoundBuffer(iface);
     HRESULT hr;
@@ -680,7 +680,7 @@ static HRESULT WINAPI DS8Primary_Initialize(IDirectSoundBuffer *iface, IDirectSo
         if(SUCCEEDED(hr))
         {
             This->write_emu = &emu->IDirectSoundBuffer8_iface;
-            hr = IDirectSoundBuffer8_Initialize(This->write_emu, ds, &emudesc);
+            hr = DS8Buffer_Initialize(This->write_emu, ds, &emudesc);
             if(FAILED(hr))
             {
                 IDirectSoundBuffer8_Release(This->write_emu);
@@ -864,7 +864,7 @@ static HRESULT WINAPI DS8Primary_SetFormat(IDirectSoundBuffer *iface, const WAVE
         hr = DS8Buffer_Create(&buf, This, NULL);
         if(FAILED(hr)) goto out;
 
-        hr = IDirectSoundBuffer8_Initialize(&buf->IDirectSoundBuffer8_iface, &This->parent->IDirectSound_iface, &desc);
+        hr = DS8Buffer_Initialize(&buf->IDirectSoundBuffer8_iface, &This->parent->IDirectSound_iface, &desc);
         if(FAILED(hr))
             DS8Buffer_Destroy(buf);
         else

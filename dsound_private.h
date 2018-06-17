@@ -629,6 +629,7 @@ HRESULT DS8Primary_PreInit(DS8Primary *prim, DS8Impl *parent);
 void DS8Primary_Clear(DS8Primary *prim);
 void DS8Primary_triggernots(DS8Primary *prim);
 void DS8Primary_streamfeeder(DS8Primary *prim, BYTE *scratch_mem/*2K non-permanent memory*/);
+HRESULT WINAPI DS8Primary_Initialize(IDirectSoundBuffer *iface, IDirectSound *ds, const DSBUFFERDESC *desc);
 HRESULT WINAPI DS8Primary3D_CommitDeferredSettings(IDirectSound3DListener *iface);
 
 HRESULT DS8Buffer_Create(DS8Buffer **ppv, DS8Primary *parent, IDirectSoundBuffer *orig);
@@ -636,6 +637,7 @@ void DS8Buffer_Destroy(DS8Buffer *buf);
 void DS8Buffer_SetParams(DS8Buffer *buffer, const DS3DBUFFER *params, LONG flags);
 HRESULT WINAPI DS8Buffer_GetCurrentPosition(IDirectSoundBuffer8 *iface, DWORD *playpos, DWORD *curpos);
 HRESULT WINAPI DS8Buffer_GetStatus(IDirectSoundBuffer8 *iface, DWORD *status);
+HRESULT WINAPI DS8Buffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSound *ds, const DSBUFFERDESC *desc);
 
 static inline LONG gain_to_mB(float gain)
 {

@@ -611,7 +611,7 @@ static HRESULT WINAPI DS8_CreateSoundBuffer(IDirectSound8 *iface, LPCDSBUFFERDES
         hr = S_OK;
         if(IDirectSoundBuffer_AddRef(prim) == 1)
         {
-            hr = IDirectSoundBuffer_Initialize(prim, &This->IDirectSound_iface, desc);
+            hr = DS8Primary_Initialize(prim, &This->IDirectSound_iface, desc);
             if(FAILED(hr))
             {
                 IDirectSoundBuffer_Release(prim);
@@ -627,7 +627,7 @@ static HRESULT WINAPI DS8_CreateSoundBuffer(IDirectSound8 *iface, LPCDSBUFFERDES
         hr = DS8Buffer_Create(&dsb, &This->primary, NULL);
         if(SUCCEEDED(hr))
         {
-            hr = IDirectSoundBuffer8_Initialize(&dsb->IDirectSoundBuffer8_iface, &This->IDirectSound_iface, desc);
+            hr = DS8Buffer_Initialize(&dsb->IDirectSoundBuffer8_iface, &This->IDirectSound_iface, desc);
             if(FAILED(hr))
                 IDirectSoundBuffer8_Release(&dsb->IDirectSoundBuffer8_iface);
             else

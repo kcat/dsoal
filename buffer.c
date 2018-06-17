@@ -914,7 +914,7 @@ HRESULT WINAPI DS8Buffer_GetStatus(IDirectSoundBuffer8 *iface, DWORD *status)
     return S_OK;
 }
 
-static HRESULT WINAPI DS8Buffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSound *ds, const DSBUFFERDESC *desc)
+HRESULT WINAPI DS8Buffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSound *ds, const DSBUFFERDESC *desc)
 {
     DS8Buffer *This = impl_from_IDirectSoundBuffer8(iface);
     DS3DBUFFER *ds3dbuffer;
