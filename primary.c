@@ -338,7 +338,6 @@ HRESULT DS8Primary_PreInit(DS8Primary *This, DS8Impl *parent)
     }
     popALContext();
 
-    /* Make sure DS3DListener defaults are applied to OpenAL */
     listener = &This->params;
     listener->dwSize = sizeof(This->params);
     listener->vPosition.x = 0.0f;
