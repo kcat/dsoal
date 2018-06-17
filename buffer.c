@@ -887,16 +887,8 @@ HRESULT WINAPI DS8Buffer_GetStatus(IDirectSoundBuffer8 *iface, DWORD *status)
     else
     {
         EnterCriticalSection(This->crst);
-
-        setALContext(This->ctx);
-        alGetSourcei(This->source, AL_SOURCE_STATE, &state);
-        checkALError();
-        popALContext();
-
-        if(state != AL_PLAYING)
-            state = This->isplaying ? AL_PLAYING : AL_PAUSED;
+        state = This->isplaying ? AL_PLAYING : AL_PAUSED;
         looping = This->islooping;
-
         LeaveCriticalSection(This->crst);
     }
 
