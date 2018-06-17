@@ -624,7 +624,7 @@ static HRESULT WINAPI DS8_CreateSoundBuffer(IDirectSound8 *iface, LPCDSBUFFERDES
     {
         DS8Buffer *dsb;
 
-        hr = DS8Buffer_Create(&dsb, &This->primary, NULL);
+        hr = DS8Buffer_Create(&dsb, &This->primary, NULL, FALSE);
         if(SUCCEEDED(hr))
         {
             hr = DS8Buffer_Initialize(&dsb->IDirectSoundBuffer8_iface, &This->IDirectSound_iface, desc);
@@ -728,7 +728,7 @@ static HRESULT WINAPI DS8_DuplicateSoundBuffer(IDirectSound8 *iface, IDirectSoun
         hr = DSERR_INVALIDPARAM;
     }
     if(SUCCEEDED(hr))
-        hr = DS8Buffer_Create(&buf, &This->primary, in);
+        hr = DS8Buffer_Create(&buf, &This->primary, in, FALSE);
     if(SUCCEEDED(hr))
     {
         *out = &buf->IDirectSoundBuffer_iface;
@@ -847,7 +847,7 @@ static HRESULT WINAPI DS8_SetCooperativeLevel(IDirectSound8 *iface, HWND hwnd, D
             desc.dwBufferBytes = This->primary.buf_size;
             desc.lpwfxFormat = &This->primary.format.Format;
 
-            hr = DS8Buffer_Create(&emu, &This->primary, NULL);
+            hr = DS8Buffer_Create(&emu, &This->primary, NULL, TRUE);
             if(SUCCEEDED(hr))
             {
                 This->primary.write_emu = &emu->IDirectSoundBuffer8_iface;

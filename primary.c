@@ -174,100 +174,110 @@ void DS8Primary_triggernots(DS8Primary *prim)
     checkALError();
 }
 
+static void do_buffer_stream(DS8Buffer *buf, BYTE *scratch_mem)
+{
+    DS8Data *data = buf->buffer;
+    ALint ofs, done = 0, queued = QBUFFERS, state = AL_PLAYING;
+    ALuint which;
+
+    alGetSourcei(buf->source, AL_BUFFERS_QUEUED, &queued);
+    alGetSourcei(buf->source, AL_SOURCE_STATE, &state);
+    alGetSourcei(buf->source, AL_BUFFERS_PROCESSED, &done);
+
+    if(done > 0)
+    {
+        ALuint bids[QBUFFERS];
+        queued -= done;
+
+        alSourceUnqueueBuffers(buf->source, done, bids);
+        buf->queue_base = (buf->queue_base + buf->segsize*done) % data->buf_size;
+    }
+    while(queued < QBUFFERS)
+    {
+        which = buf->stream_bids[buf->curidx];
+        ofs = buf->data_offset;
+
+        if(buf->segsize < data->buf_size - ofs)
+        {
+            alBufferData(which, data->buf_format, data->data + ofs, buf->segsize,
+                            data->format.Format.nSamplesPerSec);
+            buf->data_offset = ofs + buf->segsize;
+        }
+        else if(buf->islooping)
+        {
+            ALsizei rem = data->buf_size - ofs;
+            if(rem > 2048) rem = 2048;
+
+            memcpy(scratch_mem, data->data + ofs, rem);
+            while(rem < buf->segsize)
+            {
+                ALsizei todo = buf->segsize - rem;
+                if(todo > data->buf_size)
+                    todo = data->buf_size;
+                memcpy(scratch_mem + rem, data->data, todo);
+                rem += todo;
+            }
+            alBufferData(which, data->buf_format, scratch_mem, buf->segsize,
+                            data->format.Format.nSamplesPerSec);
+            buf->data_offset = (ofs+buf->segsize) % data->buf_size;
+        }
+        else
+        {
+            ALsizei rem = data->buf_size - ofs;
+            if(rem > 2048) rem = 2048;
+            if(rem == 0) break;
+
+            memcpy(scratch_mem, data->data + ofs, rem);
+            memset(scratch_mem+rem, (data->format.Format.wBitsPerSample==8) ? 128 : 0,
+                    buf->segsize - rem);
+            alBufferData(which, data->buf_format, scratch_mem, buf->segsize,
+                            data->format.Format.nSamplesPerSec);
+            buf->data_offset = data->buf_size;
+        }
+
+        alSourceQueueBuffers(buf->source, 1, &which);
+        buf->curidx = (buf->curidx+1)%QBUFFERS;
+        queued++;
+    }
+
+    if(!queued)
+    {
+        buf->data_offset = 0;
+        buf->queue_base = data->buf_size;
+        buf->curidx = 0;
+        buf->isplaying = FALSE;
+    }
+    else if(state != AL_PLAYING)
+        alSourcePlay(buf->source);
+}
+
 void DS8Primary_streamfeeder(DS8Primary *prim, BYTE *scratch_mem)
 {
-    struct DSBufferGroup *bufgroup, *endgroup;
-
     /* OpenAL doesn't support our lovely buffer extensions so just make sure
-     * enough buffers are queued
+     * enough buffers are queued for streaming
      */
-    bufgroup = prim->BufferGroups;
-    endgroup = bufgroup + prim->NumBufferGroups;
-    for(;bufgroup != endgroup;++bufgroup)
+    if(prim->write_emu)
     {
-        DWORD64 usemask = ~bufgroup->FreeBuffers;
-        while(usemask)
+        DS8Buffer *buf = &prim->writable_buf;
+        if(buf->segsize != 0 && buf->isplaying)
+            do_buffer_stream(buf, scratch_mem);
+    }
+    else
+    {
+        struct DSBufferGroup *bufgroup = prim->BufferGroups;
+        struct DSBufferGroup *endgroup = bufgroup + prim->NumBufferGroups;
+        for(;bufgroup != endgroup;++bufgroup)
         {
-            int idx = CTZ64(usemask);
-            DS8Buffer *buf = bufgroup->Buffers + idx;
-            DS8Data *data = buf->buffer;
-            ALint ofs, done = 0, queued = QBUFFERS, state = AL_PLAYING;
-            ALuint which;
-
-            usemask &= ~(U64(1) << idx);
-
-            if(buf->segsize == 0 || !buf->isplaying)
-                continue;
-
-            alGetSourcei(buf->source, AL_BUFFERS_QUEUED, &queued);
-            alGetSourcei(buf->source, AL_SOURCE_STATE, &state);
-            alGetSourcei(buf->source, AL_BUFFERS_PROCESSED, &done);
-
-            if(done > 0)
+            DWORD64 usemask = ~bufgroup->FreeBuffers;
+            while(usemask)
             {
-                ALuint bids[QBUFFERS];
-                queued -= done;
+                int idx = CTZ64(usemask);
+                DS8Buffer *buf = bufgroup->Buffers + idx;
+                usemask &= ~(U64(1) << idx);
 
-                alSourceUnqueueBuffers(buf->source, done, bids);
-                buf->queue_base = (buf->queue_base + buf->segsize*done) % data->buf_size;
+                if(buf->segsize != 0 && buf->isplaying)
+                    do_buffer_stream(buf, scratch_mem);
             }
-            while(queued < QBUFFERS)
-            {
-                which = buf->stream_bids[buf->curidx];
-                ofs = buf->data_offset;
-
-                if(buf->segsize < data->buf_size - ofs)
-                {
-                    alBufferData(which, data->buf_format, data->data + ofs, buf->segsize,
-                                 data->format.Format.nSamplesPerSec);
-                    buf->data_offset = ofs + buf->segsize;
-                }
-                else if(buf->islooping)
-                {
-                    ALsizei rem = data->buf_size - ofs;
-                    if(rem > 2048) rem = 2048;
-
-                    memcpy(scratch_mem, data->data + ofs, rem);
-                    while(rem < buf->segsize)
-                    {
-                        ALsizei todo = buf->segsize - rem;
-                        if(todo > data->buf_size)
-                            todo = data->buf_size;
-                        memcpy(scratch_mem + rem, data->data, todo);
-                        rem += todo;
-                    }
-                    alBufferData(which, data->buf_format, scratch_mem, buf->segsize,
-                                 data->format.Format.nSamplesPerSec);
-                    buf->data_offset = (ofs+buf->segsize) % data->buf_size;
-                }
-                else
-                {
-                    ALsizei rem = data->buf_size - ofs;
-                    if(rem > 2048) rem = 2048;
-                    if(rem == 0) break;
-
-                    memcpy(scratch_mem, data->data + ofs, rem);
-                    memset(scratch_mem+rem, (data->format.Format.wBitsPerSample==8) ? 128 : 0,
-                           buf->segsize - rem);
-                    alBufferData(which, data->buf_format, scratch_mem, buf->segsize,
-                                 data->format.Format.nSamplesPerSec);
-                    buf->data_offset = data->buf_size;
-                }
-
-                alSourceQueueBuffers(buf->source, 1, &which);
-                buf->curidx = (buf->curidx+1)%QBUFFERS;
-                queued++;
-            }
-
-            if(!queued)
-            {
-                buf->data_offset = 0;
-                buf->queue_base = data->buf_size;
-                buf->curidx = 0;
-                buf->isplaying = FALSE;
-            }
-            else if(state != AL_PLAYING)
-                alSourcePlay(buf->source);
         }
     }
     checkALError();
@@ -675,7 +685,7 @@ HRESULT WINAPI DS8Primary_Initialize(IDirectSoundBuffer *iface, IDirectSound *ds
         emudesc.dwBufferBytes = This->buf_size - (This->buf_size%This->format.Format.nBlockAlign);
         emudesc.lpwfxFormat = &This->format.Format;
 
-        hr = DS8Buffer_Create(&emu, This, NULL);
+        hr = DS8Buffer_Create(&emu, This, NULL, TRUE);
         if(SUCCEEDED(hr))
         {
             This->write_emu = &emu->IDirectSoundBuffer8_iface;
@@ -860,7 +870,7 @@ static HRESULT WINAPI DS8Primary_SetFormat(IDirectSoundBuffer *iface, const WAVE
         desc.dwBufferBytes = This->buf_size - (This->buf_size % This->format.Format.nBlockAlign);
         desc.lpwfxFormat = &This->format.Format;
 
-        hr = DS8Buffer_Create(&buf, This, NULL);
+        hr = DS8Buffer_Create(&buf, This, NULL, TRUE);
         if(FAILED(hr)) goto out;
 
         hr = DS8Buffer_Initialize(&buf->IDirectSoundBuffer8_iface, &This->parent->IDirectSound_iface, &desc);

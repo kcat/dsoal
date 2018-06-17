@@ -440,7 +440,7 @@ static void DS8Data_Release(DS8Data *This)
 }
 
 
-HRESULT DS8Buffer_Create(DS8Buffer **ppv, DS8Primary *prim, IDirectSoundBuffer *orig)
+HRESULT DS8Buffer_Create(DS8Buffer **ppv, DS8Primary *prim, IDirectSoundBuffer *orig, BOOL prim_emu)
 {
     DS8Buffer *This = NULL;
     HRESULT hr;
@@ -448,7 +448,12 @@ HRESULT DS8Buffer_Create(DS8Buffer **ppv, DS8Primary *prim, IDirectSoundBuffer *
 
     *ppv = NULL;
     EnterCriticalSection(prim->crst);
-    for(i = 0;i < prim->NumBufferGroups;++i)
+    if(prim_emu)
+    {
+        This = &prim->writable_buf;
+        memset(This, 0, sizeof(*This));
+    }
+    else for(i = 0;i < prim->NumBufferGroups;++i)
     {
         if(prim->BufferGroups[i].FreeBuffers)
         {
@@ -462,9 +467,8 @@ HRESULT DS8Buffer_Create(DS8Buffer **ppv, DS8Primary *prim, IDirectSoundBuffer *
     LeaveCriticalSection(prim->crst);
     if(!This)
     {
-        WARN("Allocating extra DS8Buffer\n");
-        This = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(*This));
-        if(!This) return DSERR_OUTOFMEMORY;
+        WARN("Out of buffers\n");
+        return DSERR_ALLOCATED;
     }
 
     This->IDirectSoundBuffer8_iface.lpVtbl = &DS8Buffer_Vtbl;
@@ -549,8 +553,6 @@ void DS8Buffer_Destroy(DS8Buffer *This)
         }
     }
     LeaveCriticalSection(prim->crst);
-
-    HeapFree(GetProcessHeap(), 0, This);
 }
 
 

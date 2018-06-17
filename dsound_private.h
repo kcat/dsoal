@@ -571,6 +571,7 @@ struct DS8Primary {
 
     LONG ref, ds3d_ref, prop_ref;
     IDirectSoundBuffer8 *write_emu;
+    DS8Buffer writable_buf;
     DS8Impl *parent;
 
     /* Taken from the share */
@@ -637,7 +638,7 @@ void DS8Primary_streamfeeder(DS8Primary *prim, BYTE *scratch_mem/*2K non-permane
 HRESULT WINAPI DS8Primary_Initialize(IDirectSoundBuffer *iface, IDirectSound *ds, const DSBUFFERDESC *desc);
 HRESULT WINAPI DS8Primary3D_CommitDeferredSettings(IDirectSound3DListener *iface);
 
-HRESULT DS8Buffer_Create(DS8Buffer **ppv, DS8Primary *parent, IDirectSoundBuffer *orig);
+HRESULT DS8Buffer_Create(DS8Buffer **ppv, DS8Primary *parent, IDirectSoundBuffer *orig, BOOL prim_emu);
 void DS8Buffer_Destroy(DS8Buffer *buf);
 void DS8Buffer_SetParams(DS8Buffer *buffer, const DS3DBUFFER *params, LONG flags);
 HRESULT WINAPI DS8Buffer_GetCurrentPosition(IDirectSoundBuffer8 *iface, DWORD *playpos, DWORD *curpos);
