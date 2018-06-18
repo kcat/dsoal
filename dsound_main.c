@@ -758,12 +758,25 @@ struct morecontext {
 static BOOL CALLBACK w_to_a_callback(LPGUID guid, LPCWSTR descW, LPCWSTR modW, LPVOID data)
 {
     struct morecontext *context = data;
-    char descA[MAXPNAMELEN], modA[MAXPNAMELEN];
+    char *descA, *modA;
+    int dlen, mlen;
+    BOOL ret;
 
-    WideCharToMultiByte(CP_ACP, 0, descW, -1, descA, sizeof(descA), NULL, NULL);
-    WideCharToMultiByte(CP_ACP, 0, modW, -1, modA, sizeof(modA), NULL, NULL);
+    dlen = WideCharToMultiByte(CP_ACP, 0, descW, -1, NULL, 0, NULL, NULL);
+    mlen = WideCharToMultiByte(CP_ACP, 0, modW, -1, NULL, 0, NULL, NULL);
+    if(dlen < 0 || mlen < 0) return FALSE;
 
-    return context->callA(guid, descA, modA, context->data);
+    descA = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, dlen+mlen+2);
+    if(!descA) return FALSE;
+    modA = descA + dlen+1;
+
+    WideCharToMultiByte(CP_ACP, 0, descW, -1, descA, dlen, NULL, NULL);
+    WideCharToMultiByte(CP_ACP, 0, modW, -1, modA, mlen, NULL, NULL);
+
+    ret = context->callA(guid, descA, modA, context->data);
+
+    HeapFree(GetProcessHeap(), 0, descA);
+    return ret;
 }
 
 /***************************************************************************
