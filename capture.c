@@ -429,9 +429,33 @@ static HRESULT WINAPI DSCBuffer_Initialize(IDirectSoundCaptureBuffer8 *iface, ID
         return DSERR_INVALIDPARAM;
 
     format = desc->lpwfxFormat;
-    if(format->nChannels > 2)
+    if(format->nChannels <= 0 || format->nChannels > 2)
     {
-        WARN("nChannels > 2 not supported for recording\n");
+        WARN("Invalid Channels %d\n", format->nChannels);
+        return DSERR_INVALIDPARAM;
+    }
+    if(format->wBitsPerSample <= 0 || (format->wBitsPerSample%8) != 0)
+    {
+        WARN("Invalid BitsPerSample %d\n", format->wBitsPerSample);
+        return DSERR_INVALIDPARAM;
+    }
+    if(format->nBlockAlign != format->nChannels*format->wBitsPerSample/8)
+    {
+        WARN("Invalid BlockAlign %d (expected %u = %u*%u/8)\n",
+             format->nBlockAlign, format->nChannels*format->wBitsPerSample/8,
+             format->nChannels, format->wBitsPerSample);
+        return DSERR_INVALIDPARAM;
+    }
+    if(format->nSamplesPerSec < DSBFREQUENCY_MIN || format->nSamplesPerSec > DSBFREQUENCY_MAX)
+    {
+        WARN("Invalid sample rate %lu\n", format->nSamplesPerSec);
+        return DSERR_INVALIDPARAM;
+    }
+    if(format->nAvgBytesPerSec != format->nSamplesPerSec*format->nBlockAlign)
+    {
+        WARN("Invalid AvgBytesPerSec %lu (expected %lu = %lu*%u)\n",
+             format->nAvgBytesPerSec, format->nSamplesPerSec*format->nBlockAlign,
+             format->nSamplesPerSec, format->nBlockAlign);
         return DSERR_INVALIDPARAM;
     }
 
@@ -462,9 +486,7 @@ static HRESULT WINAPI DSCBuffer_Initialize(IDirectSoundCaptureBuffer8 *iface, ID
         else
             WARN("Unsupported channels: %d\n", format->nChannels);
 
-        memcpy(&This->format.Format, format, sizeof(This->format.Format));
-        This->format.Format.nBlockAlign = This->format.Format.wBitsPerSample * This->format.Format.nChannels / 8;
-        This->format.Format.nAvgBytesPerSec = This->format.Format.nSamplesPerSec * This->format.Format.nBlockAlign;
+        This->format.Format = *format;
         This->format.Format.cbSize = 0;
     }
     else if(format->wFormatTag == WAVE_FORMAT_EXTENSIBLE)
@@ -509,10 +531,9 @@ static HRESULT WINAPI DSCBuffer_Initialize(IDirectSoundCaptureBuffer8 *iface, ID
         else
             WARN("Unsupported channels: %d -- 0x%08lu\n", wfe->Format.nChannels, wfe->dwChannelMask);
 
-        memcpy(&This->format, wfe, sizeof(This->format));
+        This->format = *wfe;
         This->format.Format.cbSize = sizeof(This->format) - sizeof(This->format.Format);
-        This->format.Format.nBlockAlign = This->format.Format.wBitsPerSample * This->format.Format.nChannels / 8;
-        This->format.Format.nAvgBytesPerSec = This->format.Format.nSamplesPerSec * This->format.Format.nBlockAlign;
+        This->format.Samples.wValidBitsPerSample = This->format.Format.wBitsPerSample;
     }
     else
         WARN("Unhandled formattag %x\n", format->wFormatTag);
@@ -522,6 +543,15 @@ static HRESULT WINAPI DSCBuffer_Initialize(IDirectSoundCaptureBuffer8 *iface, ID
         WARN("Could not get OpenAL format\n");
         return DSERR_INVALIDPARAM;
     }
+
+    if(desc->dwBufferBytes < This->format.Format.nBlockAlign ||
+       (desc->dwBufferBytes%This->format.Format.nBlockAlign) != 0)
+    {
+        WARN("Invalid BufferBytes (%lu %% %d)\n", desc->dwBufferBytes,
+             This->format.Format.nBlockAlign);
+        return DSERR_INVALIDPARAM;
+    }
+
 
     This->buf_size = desc->dwBufferBytes;
     This->buf = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, This->buf_size);
@@ -948,7 +978,7 @@ static HRESULT WINAPI DSCImpl_CreateCaptureBuffer(IDirectSoundCapture *iface, co
     hr = DSCBuffer_Create(&This->buf, This);
     if(SUCCEEDED(hr))
     {
-        hr = IDirectSoundCaptureBuffer8_Initialize(&This->buf->IDirectSoundCaptureBuffer8_iface, iface, desc);
+        hr = DSCBuffer_Initialize(&This->buf->IDirectSoundCaptureBuffer8_iface, iface, desc);
         if(SUCCEEDED(hr))
             *ppv = (IDirectSoundCaptureBuffer*)&This->buf->IDirectSoundCaptureBuffer8_iface;
         else
