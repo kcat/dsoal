@@ -42,6 +42,8 @@ static const IDirectSoundBufferVtbl DS8Primary_Vtbl;
 static const IDirectSound3DListenerVtbl DS8Primary3D_Vtbl;
 static const IKsPropertySetVtbl DS8PrimaryProp_Vtbl;
 
+static void DS8Primary_SetParams(DS8Primary *This, const DS3DLISTENER *params, LONG flags);
+
 
 static inline DS8Primary *impl_from_IDirectSoundBuffer(IDirectSoundBuffer *iface)
 {
@@ -286,7 +288,6 @@ void DS8Primary_streamfeeder(DS8Primary *prim, BYTE *scratch_mem)
 
 HRESULT DS8Primary_PreInit(DS8Primary *This, DS8Impl *parent)
 {
-    DS3DLISTENER *listener;
     WAVEFORMATEX *wfx;
     DWORD num_srcs;
     DWORD count;
@@ -347,24 +348,6 @@ HRESULT DS8Primary_PreInit(DS8Primary *This, DS8Impl *parent)
         }
     }
     popALContext();
-
-    listener = &This->params;
-    listener->dwSize = sizeof(This->params);
-    listener->vPosition.x = 0.0f;
-    listener->vPosition.y = 0.0f;
-    listener->vPosition.z = 0.0f;
-    listener->vVelocity.x = 0.0f;
-    listener->vVelocity.y = 0.0f;
-    listener->vVelocity.z = 0.0f;
-    listener->vOrientFront.x = 0.0f;
-    listener->vOrientFront.y = 0.0f;
-    listener->vOrientFront.z = 1.0f;
-    listener->vOrientTop.x = 0.0f;
-    listener->vOrientTop.y = 1.0f;
-    listener->vOrientTop.z = 0.0f;
-    listener->flDistanceFactor = DS3D_DEFAULTDISTANCEFACTOR;
-    listener->flRolloffFactor = DS3D_DEFAULTROLLOFFFACTOR;
-    listener->flDopplerFactor = DS3D_DEFAULTDOPPLERFACTOR;
 
     num_srcs = parent->share->max_sources;
 
@@ -720,7 +703,40 @@ HRESULT WINAPI DS8Primary_Initialize(IDirectSoundBuffer *iface, IDirectSound *ds
     }
 
     if(SUCCEEDED(hr))
+    {
+        DS3DLISTENER *listener = &This->params;
+        listener->dwSize = sizeof(This->params);
+        listener->vPosition.x = 0.0f;
+        listener->vPosition.y = 0.0f;
+        listener->vPosition.z = 0.0f;
+        listener->vVelocity.x = 0.0f;
+        listener->vVelocity.y = 0.0f;
+        listener->vVelocity.z = 0.0f;
+        listener->vOrientFront.x = 0.0f;
+        listener->vOrientFront.y = 0.0f;
+        listener->vOrientFront.z = 1.0f;
+        listener->vOrientTop.x = 0.0f;
+        listener->vOrientTop.y = 1.0f;
+        listener->vOrientTop.z = 0.0f;
+        listener->flDistanceFactor = DS3D_DEFAULTDISTANCEFACTOR;
+        listener->flRolloffFactor = DS3D_DEFAULTROLLOFFFACTOR;
+        listener->flDopplerFactor = DS3D_DEFAULTDOPPLERFACTOR;
+
         This->flags = desc->dwFlags | DSBCAPS_LOCHARDWARE;
+
+        if((This->flags&DSBCAPS_CTRL3D))
+        {
+            union PrimaryParamFlags dirty = { 0l };
+
+            dirty.bit.pos = 1;
+            dirty.bit.vel = 1;
+            dirty.bit.orientation = 1;
+            dirty.bit.distancefactor = 1;
+            dirty.bit.rollofffactor = 1;
+            dirty.bit.dopplerfactor = 1;
+            DS8Primary_SetParams(This, listener, dirty.flags);
+        }
+    }
     return hr;
 }
 
