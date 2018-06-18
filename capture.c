@@ -38,7 +38,8 @@ typedef struct DSCBuffer DSCBuffer;
 struct DSCImpl {
     /* IDirectSoundCapture and IDirectSoundCapture8 are aliases */
     IDirectSoundCapture IDirectSoundCapture_iface;
-    LONG ref;
+    IUnknown IUnknown_iface;
+    LONG allref, dscref, unkref;
 
     BOOL is_8;
 
@@ -79,6 +80,7 @@ struct DSCBuffer {
 };
 
 static const IDirectSoundCaptureVtbl DSC_Vtbl;
+static const IUnknownVtbl DSC_Unknown_Vtbl;
 static const IDirectSoundCaptureBuffer8Vtbl DSCBuffer_Vtbl;
 static const IDirectSoundNotifyVtbl DSCNot_Vtbl;
 
@@ -834,6 +836,15 @@ static inline DSCImpl *impl_from_IDirectSoundCapture(IDirectSoundCapture *iface)
     return CONTAINING_RECORD(iface, DSCImpl, IDirectSoundCapture_iface);
 }
 
+static inline DSCImpl *impl_from_IUnknown(IUnknown *iface)
+{
+    return CONTAINING_RECORD(iface, DSCImpl, IUnknown_iface);
+}
+
+static HRESULT WINAPI DSCImpl_QueryInterface(IDirectSoundCapture *iface, REFIID riid, void **ppv);
+static ULONG WINAPI DSCImpl_AddRef(IDirectSoundCapture *iface);
+static ULONG WINAPI DSCImpl_Release(IDirectSoundCapture *iface);
+
 HRESULT DSOUND_CaptureCreate(REFIID riid, void **cap)
 {
     HRESULT hr;
@@ -846,8 +857,8 @@ HRESULT DSOUND_CaptureCreate(REFIID riid, void **cap)
 
         if(!IsEqualIID(riid, &IID_IDirectSoundCapture))
         {
-            hr = IDirectSoundCapture_QueryInterface(&impl->IDirectSoundCapture_iface, riid, cap);
-            IDirectSoundCapture_Release(&impl->IDirectSoundCapture_iface);
+            hr = DSCImpl_QueryInterface(&impl->IDirectSoundCapture_iface, riid, cap);
+            DSCImpl_Release(&impl->IDirectSoundCapture_iface);
         }
     }
     return hr;
@@ -863,12 +874,13 @@ HRESULT DSOUND_CaptureCreate8(REFIID riid, void **cap)
     if(!This) return DSERR_OUTOFMEMORY;
 
     This->IDirectSoundCapture_iface.lpVtbl = &DSC_Vtbl;
+    This->IUnknown_iface.lpVtbl = &DSC_Unknown_Vtbl;
 
     This->is_8 = TRUE;
 
     InitializeCriticalSection(&This->crst);
 
-    if(FAILED(IDirectSoundCapture_QueryInterface(&This->IDirectSoundCapture_iface, riid, cap)))
+    if(FAILED(DSCImpl_QueryInterface(&This->IDirectSoundCapture_iface, riid, cap)))
     {
         DSCImpl_Destroy(This);
         return E_NOINTERFACE;
@@ -890,6 +902,42 @@ static void DSCImpl_Destroy(DSCImpl *This)
     HeapFree(GetProcessHeap(), 0, This);
 }
 
+
+static HRESULT WINAPI DSCImpl_IUnknown_QueryInterface(IUnknown *iface, REFIID riid, void **ppobj)
+{
+    DSCImpl *This = impl_from_IUnknown(iface);
+    return DSCImpl_QueryInterface(&This->IDirectSoundCapture_iface, riid, ppobj);
+}
+
+static ULONG WINAPI DSCImpl_IUnknown_AddRef(IUnknown *iface)
+{
+    DSCImpl *This = impl_from_IUnknown(iface);
+    ULONG ref;
+
+    InterlockedIncrement(&(This->allref));
+    ref = InterlockedIncrement(&(This->unkref));
+    TRACE("(%p) ref was %lu\n", This, ref - 1);
+
+    return ref;
+}
+
+static ULONG WINAPI DSCImpl_IUnknown_Release(IUnknown *iface)
+{
+    DSCImpl *This = impl_from_IUnknown(iface);
+    ULONG ref = InterlockedDecrement(&(This->unkref));
+    TRACE("(%p) ref was %lu\n", This, ref + 1);
+    if(InterlockedDecrement(&(This->allref)) == 0)
+        DSCImpl_Destroy(This);
+    return ref;
+}
+
+static const IUnknownVtbl DSC_Unknown_Vtbl = {
+    DSCImpl_IUnknown_QueryInterface,
+    DSCImpl_IUnknown_AddRef,
+    DSCImpl_IUnknown_Release
+};
+
+
 static HRESULT WINAPI DSCImpl_QueryInterface(IDirectSoundCapture *iface, REFIID riid, void **ppv)
 {
     DSCImpl *This = impl_from_IDirectSoundCapture(iface);
@@ -897,9 +945,10 @@ static HRESULT WINAPI DSCImpl_QueryInterface(IDirectSoundCapture *iface, REFIID 
     TRACE("(%p)->(%s, %p)\n", iface, debugstr_guid(riid), ppv);
 
     *ppv = NULL;
-    if(IsEqualIID(riid, &IID_IUnknown) ||
-       IsEqualIID(riid, &IID_IDirectSoundCapture))
+    if(IsEqualIID(riid, &IID_IDirectSoundCapture))
         *ppv = &This->IDirectSoundCapture_iface;
+    else if(IsEqualIID(riid, &IID_IUnknown))
+        *ppv = &This->IUnknown_iface;
     else
         FIXME("Unhandled GUID: %s\n", debugstr_guid(riid));
 
@@ -917,7 +966,8 @@ static ULONG WINAPI DSCImpl_AddRef(IDirectSoundCapture *iface)
     DSCImpl *This = impl_from_IDirectSoundCapture(iface);
     LONG ref;
 
-    ref = InterlockedIncrement(&This->ref);
+    InterlockedIncrement(&(This->allref));
+    ref = InterlockedIncrement(&This->dscref);
     TRACE("Reference count incremented to %li\n", ref);
 
     return ref;
@@ -928,9 +978,9 @@ static ULONG WINAPI DSCImpl_Release(IDirectSoundCapture *iface)
     DSCImpl *This = impl_from_IDirectSoundCapture(iface);
     LONG ref;
 
-    ref = InterlockedDecrement(&This->ref);
+    ref = InterlockedDecrement(&This->dscref);
     TRACE("Reference count decremented to %li\n", ref);
-    if(!ref)
+    if(InterlockedDecrement(&This->allref) == 0)
         DSCImpl_Destroy(This);
 
     return ref;
