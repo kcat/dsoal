@@ -830,27 +830,26 @@ static HRESULT copy_waveformat(WAVEFORMATEX *wfx, const WAVEFORMATEX *from)
         if(fromx->Samples.wValidBitsPerSample > fromx->Format.wBitsPerSample)
             return DSERR_INVALIDPARAM;
 
-        if(IsEqualGUID(&wfe->SubFormat, &KSDATAFORMAT_SUBTYPE_PCM) ||
-           IsEqualGUID(&wfe->SubFormat, &GUID_NULL))
+        if(IsEqualGUID(&fromx->SubFormat, &KSDATAFORMAT_SUBTYPE_PCM))
         {
             if(from->wBitsPerSample > 32)
                 return DSERR_INVALIDPARAM;
         }
-        else if(IsEqualGUID(&wfe->SubFormat, &KSDATAFORMAT_SUBTYPE_IEEE_FLOAT))
+        else if(IsEqualGUID(&fromx->SubFormat, &KSDATAFORMAT_SUBTYPE_IEEE_FLOAT))
         {
             if(from->wBitsPerSample != 32)
                 return DSERR_INVALIDPARAM;
         }
         else
         {
-            ERR("Unhandled extensible format: %s\n", debugstr_guid(&wfe->SubFormat));
+            ERR("Unhandled extensible format: %s\n", debugstr_guid(&fromx->SubFormat));
             return DSERR_INVALIDPARAM;
         }
 
         wfe->Format.cbSize = size;
         wfe->Samples.wValidBitsPerSample = fromx->Samples.wValidBitsPerSample;
         if(!wfe->Samples.wValidBitsPerSample)
-            wfe->Samples.wValidBitsPerSample = wfe->Format.wBitsPerSample;
+            wfe->Samples.wValidBitsPerSample = fromx->Format.wBitsPerSample;
         wfe->dwChannelMask = fromx->dwChannelMask;
         wfe->SubFormat = fromx->SubFormat;
     }
