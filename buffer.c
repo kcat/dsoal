@@ -2307,6 +2307,51 @@ static const IDirectSoundNotifyVtbl DS8BufferNot_Vtbl =
 };
 
 
+static void ApplyReverbParams(DS8Primary *prim, const EAXLISTENERPROPERTIES *props)
+{
+    /* FIXME: Need to validate property values... Ignore? Clamp? Error? */
+    prim->eax_prop = *props;
+    prim->ExtAL->Effectf(prim->effect, AL_REVERB_DENSITY,
+        clampF(powf(props->flEnvironmentSize, 3.0f) / 16.0f, 0.0f, 1.0f)
+    );
+    prim->ExtAL->Effectf(prim->effect, AL_REVERB_DIFFUSION,
+                         props->flEnvironmentDiffusion);
+
+    prim->ExtAL->Effectf(prim->effect, AL_REVERB_GAIN,
+                         mB_to_gain(props->lRoom));
+    prim->ExtAL->Effectf(prim->effect, AL_REVERB_GAINHF,
+                         mB_to_gain(props->lRoomHF));
+
+    prim->ExtAL->Effectf(prim->effect, AL_REVERB_ROOM_ROLLOFF_FACTOR,
+                         props->flRoomRolloffFactor);
+
+    prim->ExtAL->Effectf(prim->effect, AL_REVERB_DECAY_TIME,
+                         props->flDecayTime);
+    prim->ExtAL->Effectf(prim->effect, AL_REVERB_DECAY_HFRATIO,
+                         props->flDecayHFRatio);
+
+    prim->ExtAL->Effectf(prim->effect, AL_REVERB_REFLECTIONS_GAIN,
+                         mB_to_gain(props->lReflections));
+    prim->ExtAL->Effectf(prim->effect, AL_REVERB_REFLECTIONS_DELAY,
+                         props->flReflectionsDelay);
+
+    prim->ExtAL->Effectf(prim->effect, AL_REVERB_LATE_REVERB_GAIN,
+                         mB_to_gain(props->lReverb));
+    prim->ExtAL->Effectf(prim->effect, AL_REVERB_LATE_REVERB_DELAY,
+                         props->flReverbDelay);
+
+    prim->ExtAL->Effectf(prim->effect, AL_REVERB_AIR_ABSORPTION_GAINHF,
+                         mBF_to_gain(props->flAirAbsorptionHF));
+
+    prim->ExtAL->Effecti(prim->effect, AL_REVERB_DECAY_HFLIMIT,
+                         (props->dwFlags&EAXLISTENERFLAGS_DECAYHFLIMIT) ?
+                         AL_TRUE : AL_FALSE);
+
+    checkALError();
+
+    prim->dirty.bit.effect = 1;
+}
+
 static HRESULT WINAPI DS8BufferProp_QueryInterface(IKsPropertySet *iface, REFIID riid, void **ppv)
 {
     DS8Buffer *This = impl_from_IKsPropertySet(iface);
@@ -2503,7 +2548,6 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
             break;
 
         case DSPROPERTY_EAXLISTENER_ALLPARAMETERS:
-        do_allparams:
             if(cbPropData >= sizeof(EAXLISTENERPROPERTIES))
             {
                 union {
@@ -2511,48 +2555,7 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
                     const EAXLISTENERPROPERTIES *props;
                 } data = { pPropData };
 
-                /* FIXME: Need to validate property values... Ignore? Clamp? Error? */
-                prim->eax_prop = *data.props;
-                prim->ExtAL->Effectf(prim->effect, AL_REVERB_DENSITY,
-                                     clampF(powf(data.props->flEnvironmentSize, 3.0f) / 16.0f,
-                                            0.0f, 1.0f)
-                                    );
-                prim->ExtAL->Effectf(prim->effect, AL_REVERB_DIFFUSION,
-                                     data.props->flEnvironmentDiffusion);
-
-                prim->ExtAL->Effectf(prim->effect, AL_REVERB_GAIN,
-                                     mB_to_gain(data.props->lRoom));
-                prim->ExtAL->Effectf(prim->effect, AL_REVERB_GAINHF,
-                                     mB_to_gain(data.props->lRoomHF));
-
-                prim->ExtAL->Effectf(prim->effect, AL_REVERB_ROOM_ROLLOFF_FACTOR,
-                                     data.props->flRoomRolloffFactor);
-
-                prim->ExtAL->Effectf(prim->effect, AL_REVERB_DECAY_TIME,
-                                     data.props->flDecayTime);
-                prim->ExtAL->Effectf(prim->effect, AL_REVERB_DECAY_HFRATIO,
-                                     data.props->flDecayHFRatio);
-
-                prim->ExtAL->Effectf(prim->effect, AL_REVERB_REFLECTIONS_GAIN,
-                                     mB_to_gain(data.props->lReflections));
-                prim->ExtAL->Effectf(prim->effect, AL_REVERB_REFLECTIONS_DELAY,
-                                     data.props->flReflectionsDelay);
-
-                prim->ExtAL->Effectf(prim->effect, AL_REVERB_LATE_REVERB_GAIN,
-                                     mB_to_gain(data.props->lReverb));
-                prim->ExtAL->Effectf(prim->effect, AL_REVERB_LATE_REVERB_DELAY,
-                                     data.props->flReverbDelay);
-
-                prim->ExtAL->Effectf(prim->effect, AL_REVERB_AIR_ABSORPTION_GAINHF,
-                                     mBF_to_gain(data.props->flAirAbsorptionHF));
-
-                prim->ExtAL->Effecti(prim->effect, AL_REVERB_DECAY_HFLIMIT,
-                                     (data.props->dwFlags&EAXLISTENERFLAGS_DECAYHFLIMIT) ?
-                                     AL_TRUE : AL_FALSE);
-
-                checkALError();
-
-                prim->dirty.bit.effect = 1;
+                ApplyReverbParams(prim, data.props);
                 hr = DS_OK;
             }
             break;
@@ -2725,12 +2728,8 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
 
                 if(*data.dw <= EAX_MAX_ENVIRONMENT)
                 {
-                    /* Get the environment index's default and pass it down to
-                     * ALLPARAMETERS */
-                    propid = DSPROPERTY_EAXLISTENER_ALLPARAMETERS;
-                    pPropData = (void*)&EnvironmentDefaults[*data.dw];
-                    cbPropData = sizeof(EnvironmentDefaults[*data.dw]);
-                    goto do_allparams;
+                    ApplyReverbParams(prim, &EnvironmentDefaults[*data.dw]);
+                    hr = DS_OK;
                 }
             }
             break;
@@ -2775,11 +2774,8 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
                         prim->eax_prop.flReverbDelay = clampF(prim->eax_prop.flReverbDelay, 0.0f, 0.1f);
                     }
 
-                    /* Pass the updated environment properties down to ALLPARAMETERS */
-                    propid = DSPROPERTY_EAXLISTENER_ALLPARAMETERS;
-                    pPropData = (void*)&prim->eax_prop;
-                    cbPropData = sizeof(prim->eax_prop);
-                    goto do_allparams;
+                    ApplyReverbParams(prim, &prim->eax_prop);
+                    hr = DS_OK;
                 }
             }
             break;
