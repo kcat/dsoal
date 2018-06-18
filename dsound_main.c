@@ -1019,18 +1019,18 @@ DirectSoundCaptureCreate(LPCGUID lpcGUID, IDirectSoundCapture **ppDSC, IUnknown 
 
     TRACE("(%s, %p, %p)\n", debugstr_guid(lpcGUID), ppDSC, pUnkOuter);
 
+    if(pUnkOuter)
+    {
+        WARN("invalid parameter: pUnkOuter != NULL\n");
+        return DSERR_NOAGGREGATION;
+    }
+
     if(ppDSC == NULL)
     {
         WARN("invalid parameter: ppDSC == NULL\n");
         return DSERR_INVALIDPARAM;
     }
     *ppDSC = NULL;
-
-    if(pUnkOuter)
-    {
-        WARN("invalid parameter: pUnkOuter != NULL\n");
-        return DSERR_NOAGGREGATION;
-    }
 
     hr = DSOUND_CaptureCreate(&IID_IDirectSoundCapture, &pDSC);
     if(SUCCEEDED(hr))
@@ -1077,18 +1077,18 @@ DirectSoundCaptureCreate8(LPCGUID lpcGUID, IDirectSoundCapture8 **ppDSC8, IUnkno
 
     TRACE("(%s, %p, %p)\n", debugstr_guid(lpcGUID), ppDSC8, pUnkOuter);
 
+    if(pUnkOuter)
+    {
+        WARN("invalid parameter: pUnkOuter != NULL\n");
+        return DSERR_NOAGGREGATION;
+    }
+
     if(ppDSC8 == NULL)
     {
         WARN("invalid parameter: ppDSC8 == NULL\n");
         return DSERR_INVALIDPARAM;
     }
     *ppDSC8 = NULL;
-
-    if(pUnkOuter)
-    {
-        WARN("invalid parameter: pUnkOuter != NULL\n");
-        return DSERR_NOAGGREGATION;
-    }
 
     hr = DSOUND_CaptureCreate8(&IID_IDirectSoundCapture, &pDSC8);
     if(SUCCEEDED(hr))
