@@ -716,7 +716,7 @@ static HRESULT WINAPI DS8_DuplicateSoundBuffer(IDirectSound8 *iface, IDirectSoun
 
     if(!in || !out)
     {
-        WARN("Invalid pointer: int = %p, out = %p\n", in, out);
+        WARN("Invalid pointer: in = %p, out = %p\n", in, out);
         return DSERR_INVALIDPARAM;
     }
     *out = NULL;
