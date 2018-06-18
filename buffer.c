@@ -2428,6 +2428,87 @@ static HRESULT WINAPI DS8BufferProp_Get(IKsPropertySet *iface,
             }
             break;
 
+        case DSPROPERTY_EAXLISTENER_DECAYTIME:
+            if(cbPropData >= sizeof(FLOAT))
+            {
+                union {
+                    void *v;
+                    FLOAT *fl;
+                } data = { pPropData };
+
+                *data.fl = prim->eax_prop.flDecayTime;
+                *pcbReturned = sizeof(FLOAT);
+                hr = DS_OK;
+            }
+            break;
+        case DSPROPERTY_EAXLISTENER_DECAYHFRATIO:
+            if(cbPropData >= sizeof(FLOAT))
+            {
+                union {
+                    void *v;
+                    FLOAT *fl;
+                } data = { pPropData };
+
+                *data.fl = prim->eax_prop.flDecayHFRatio;
+                *pcbReturned = sizeof(FLOAT);
+                hr = DS_OK;
+            }
+            break;
+
+        case DSPROPERTY_EAXLISTENER_REFLECTIONS:
+            if(cbPropData >= sizeof(LONG))
+            {
+                union {
+                    void *v;
+                    LONG *l;
+                } data = { pPropData };
+
+                *data.l = prim->eax_prop.lReflections;
+                *pcbReturned = sizeof(LONG);
+                hr = DS_OK;
+            }
+            break;
+        case DSPROPERTY_EAXLISTENER_REFLECTIONSDELAY:
+            if(cbPropData >= sizeof(FLOAT))
+            {
+                union {
+                    void *v;
+                    FLOAT *fl;
+                } data = { pPropData };
+
+                *data.fl = prim->eax_prop.flReflectionsDelay;
+                *pcbReturned = sizeof(FLOAT);
+                hr = DS_OK;
+            }
+            break;
+
+        case DSPROPERTY_EAXLISTENER_REVERB:
+            if(cbPropData >= sizeof(LONG))
+            {
+                union {
+                    void *v;
+                    LONG *l;
+                } data = { pPropData };
+
+                *data.l = prim->eax_prop.lReverb;
+                *pcbReturned = sizeof(LONG);
+                hr = DS_OK;
+            }
+            break;
+        case DSPROPERTY_EAXLISTENER_REVERBDELAY:
+            if(cbPropData >= sizeof(FLOAT))
+            {
+                union {
+                    void *v;
+                    FLOAT *fl;
+                } data = { pPropData };
+
+                *data.fl = prim->eax_prop.flReverbDelay;
+                *pcbReturned = sizeof(FLOAT);
+                hr = DS_OK;
+            }
+            break;
+
         case DSPROPERTY_EAXLISTENER_ENVIRONMENT:
             if(cbPropData >= sizeof(DWORD))
             {
@@ -2654,6 +2735,111 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
             }
             break;
 
+        case DSPROPERTY_EAXLISTENER_DECAYTIME:
+            if(cbPropData >= sizeof(FLOAT))
+            {
+                union {
+                    const void *v;
+                    const FLOAT *fl;
+                } data = { pPropData };
+
+                prim->eax_prop.flDecayTime = *data.fl;
+                prim->ExtAL->Effectf(prim->effect, AL_REVERB_DECAY_TIME,
+                                     prim->eax_prop.flDecayTime);
+                checkALError();
+
+                prim->dirty.bit.effect = 1;
+                hr = DS_OK;
+            }
+            break;
+        case DSPROPERTY_EAXLISTENER_DECAYHFRATIO:
+            if(cbPropData >= sizeof(FLOAT))
+            {
+                union {
+                    const void *v;
+                    const FLOAT *fl;
+                } data = { pPropData };
+
+                prim->eax_prop.flDecayHFRatio = *data.fl;
+                prim->ExtAL->Effectf(prim->effect, AL_REVERB_DECAY_HFRATIO,
+                                     prim->eax_prop.flDecayHFRatio);
+                checkALError();
+
+                prim->dirty.bit.effect = 1;
+                hr = DS_OK;
+            }
+            break;
+
+        case DSPROPERTY_EAXLISTENER_REFLECTIONS:
+            if(cbPropData >= sizeof(LONG))
+            {
+                union {
+                    const void *v;
+                    const LONG *l;
+                } data = { pPropData };
+
+                prim->eax_prop.lReflections = *data.l;
+                prim->ExtAL->Effectf(prim->effect, AL_REVERB_REFLECTIONS_GAIN,
+                                     mB_to_gain(prim->eax_prop.lReflections));
+                checkALError();
+
+                prim->dirty.bit.effect = 1;
+                hr = DS_OK;
+            }
+            break;
+        case DSPROPERTY_EAXLISTENER_REFLECTIONSDELAY:
+            if(cbPropData >= sizeof(FLOAT))
+            {
+                union {
+                    const void *v;
+                    const FLOAT *fl;
+                } data = { pPropData };
+
+                prim->eax_prop.flReflectionsDelay = *data.fl;
+                prim->ExtAL->Effectf(prim->effect, AL_REVERB_REFLECTIONS_DELAY,
+                                     prim->eax_prop.flReflectionsDelay);
+                checkALError();
+
+                prim->dirty.bit.effect = 1;
+                hr = DS_OK;
+            }
+            break;
+
+        case DSPROPERTY_EAXLISTENER_REVERB:
+            if(cbPropData >= sizeof(LONG))
+            {
+                union {
+                    const void *v;
+                    const LONG *l;
+                } data = { pPropData };
+
+                prim->eax_prop.lReverb = *data.l;
+                prim->ExtAL->Effectf(prim->effect, AL_REVERB_LATE_REVERB_GAIN,
+                                     mB_to_gain(prim->eax_prop.lReverb));
+                checkALError();
+
+                prim->dirty.bit.effect = 1;
+                hr = DS_OK;
+            }
+            break;
+        case DSPROPERTY_EAXLISTENER_REVERBDELAY:
+            if(cbPropData >= sizeof(FLOAT))
+            {
+                union {
+                    const void *v;
+                    const FLOAT *fl;
+                } data = { pPropData };
+
+                prim->eax_prop.flReverbDelay = *data.fl;
+                prim->ExtAL->Effectf(prim->effect, AL_REVERB_LATE_REVERB_DELAY,
+                                     prim->eax_prop.flReverbDelay);
+                checkALError();
+
+                prim->dirty.bit.effect = 1;
+                hr = DS_OK;
+            }
+            break;
+
         case DSPROPERTY_EAXLISTENER_ENVIRONMENT:
             if(cbPropData >= sizeof(DWORD))
             {
@@ -2831,6 +3017,12 @@ static HRESULT WINAPI DS8BufferProp_QuerySupport(IKsPropertySet *iface,
                 dwPropID == DSPROPERTY_EAXLISTENER_ROOM ||
                 dwPropID == DSPROPERTY_EAXLISTENER_ROOMHF ||
                 dwPropID == DSPROPERTY_EAXLISTENER_ROOMROLLOFFFACTOR ||
+                dwPropID == DSPROPERTY_EAXLISTENER_DECAYTIME ||
+                dwPropID == DSPROPERTY_EAXLISTENER_DECAYHFRATIO ||
+                dwPropID == DSPROPERTY_EAXLISTENER_REFLECTIONS ||
+                dwPropID == DSPROPERTY_EAXLISTENER_REFLECTIONSDELAY ||
+                dwPropID == DSPROPERTY_EAXLISTENER_REVERB ||
+                dwPropID == DSPROPERTY_EAXLISTENER_REVERBDELAY ||
                 dwPropID == DSPROPERTY_EAXLISTENER_ENVIRONMENT ||
                 dwPropID == DSPROPERTY_EAXLISTENER_ENVIRONMENTSIZE ||
                 dwPropID == DSPROPERTY_EAXLISTENER_ENVIRONMENTDIFFUSION ||
