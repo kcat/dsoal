@@ -643,7 +643,7 @@ static HRESULT WINAPI DSCBuffer_Start(IDirectSoundCaptureBuffer8 *iface, DWORD f
         This->playing = 1;
         alcCaptureStart(This->dev);
     }
-    This->looping = !!(flags & DSCBSTART_LOOPING);
+    This->looping |= !!(flags & DSCBSTART_LOOPING);
     LeaveCriticalSection(&This->parent->crst);
     return S_OK;
 }
