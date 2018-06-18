@@ -772,30 +772,52 @@ static HRESULT WINAPI DS8Primary_SetCurrentPosition(IDirectSoundBuffer *iface, D
 /* Just assume the format is crap, and clean up the damage */
 static HRESULT copy_waveformat(WAVEFORMATEX *wfx, const WAVEFORMATEX *from)
 {
-    if(from->nBlockAlign <= 0 || from->nChannels <= 0)
+    if(from->nChannels <= 0)
+    {
+        WARN("Invalid Channels %d\n", from->nChannels);
         return DSERR_INVALIDPARAM;
+    }
     if(from->nSamplesPerSec < DSBFREQUENCY_MIN || from->nSamplesPerSec > DSBFREQUENCY_MAX)
+    {
+        WARN("Invalid SamplesPerSec %lu\n", from->nSamplesPerSec);
         return DSERR_INVALIDPARAM;
+    }
+    if(from->nBlockAlign <= 0)
+    {
+        WARN("Invalid BlockAlign %d\n", from->nBlockAlign);
+        return DSERR_INVALIDPARAM;
+    }
     if(from->wBitsPerSample == 0 || (from->wBitsPerSample%8) != 0)
+    {
+        WARN("Invalid BitsPerSample %d\n", from->wBitsPerSample);
         return DSERR_INVALIDPARAM;
+    }
     if(from->nBlockAlign != from->nChannels*from->wBitsPerSample/8)
+    {
+        WARN("Invalid BlockAlign %d (expected %u = %u*%u/8)\n",
+             from->nBlockAlign, from->nChannels*from->wBitsPerSample/8,
+             from->nChannels, from->wBitsPerSample);
         return DSERR_INVALIDPARAM;
+    }
     if(from->nAvgBytesPerSec != from->nBlockAlign*from->nSamplesPerSec)
+    {
+        WARN("Invalid AvgBytesPerSec %lu (expected %lu = %lu*%u)\n",
+             from->nAvgBytesPerSec, from->nSamplesPerSec*from->nBlockAlign,
+             from->nSamplesPerSec, from->nBlockAlign);
         return DSERR_INVALIDPARAM;
+    }
 
     if(from->wFormatTag == WAVE_FORMAT_PCM)
     {
         if(from->wBitsPerSample > 32)
             return DSERR_INVALIDPARAM;
         wfx->cbSize = 0;
-        wfx->wBitsPerSample = from->wBitsPerSample;
     }
     else if(from->wFormatTag == WAVE_FORMAT_IEEE_FLOAT)
     {
         if(from->wBitsPerSample != 32)
             return DSERR_INVALIDPARAM;
         wfx->cbSize = 0;
-        wfx->wBitsPerSample = from->wBitsPerSample;
     }
     else if(from->wFormatTag == WAVE_FORMAT_EXTENSIBLE)
     {
@@ -825,11 +847,10 @@ static HRESULT copy_waveformat(WAVEFORMATEX *wfx, const WAVEFORMATEX *from)
             return DSERR_INVALIDPARAM;
         }
 
-        wfe->Format.wBitsPerSample = from->wBitsPerSample;
+        wfe->Format.cbSize = size;
         wfe->Samples.wValidBitsPerSample = fromx->Samples.wValidBitsPerSample;
         if(!wfe->Samples.wValidBitsPerSample)
             wfe->Samples.wValidBitsPerSample = wfe->Format.wBitsPerSample;
-        wfe->Format.cbSize = size;
         wfe->dwChannelMask = fromx->dwChannelMask;
         wfe->SubFormat = fromx->SubFormat;
     }
@@ -839,11 +860,12 @@ static HRESULT copy_waveformat(WAVEFORMATEX *wfx, const WAVEFORMATEX *from)
         return DSERR_INVALIDPARAM;
     }
 
-    wfx->nChannels = from->nChannels;
     wfx->wFormatTag = from->wFormatTag;
+    wfx->nChannels = from->nChannels;
     wfx->nSamplesPerSec = from->nSamplesPerSec;
-    wfx->nBlockAlign = wfx->wBitsPerSample * wfx->nChannels / 8;
-    wfx->nAvgBytesPerSec = wfx->nSamplesPerSec * wfx->nBlockAlign;
+    wfx->nAvgBytesPerSec = from->nSamplesPerSec * from->nBlockAlign;
+    wfx->nBlockAlign = from->wBitsPerSample * from->nChannels / 8;
+    wfx->wBitsPerSample = from->wBitsPerSample;
     return DS_OK;
 }
 

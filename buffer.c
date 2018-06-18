@@ -202,7 +202,12 @@ static const char *get_fmtstr_EXT(const DS8Primary *prim, const WAVEFORMATEX *fo
 
     if(!out->Samples.wValidBitsPerSample)
         out->Samples.wValidBitsPerSample = out->Format.wBitsPerSample;
-    else if(out->Samples.wValidBitsPerSample != out->Format.wBitsPerSample)
+    else if(out->Samples.wValidBitsPerSample > out->Format.wBitsPerSample)
+    {
+        WARN("Invalid ValidBitsPerSample (%u > %u)\n", out->Samples.wValidBitsPerSample, out->Format.wBitsPerSample);
+        return NULL;
+    }
+    else if(out->Samples.wValidBitsPerSample < out->Format.wBitsPerSample)
     {
         FIXME("Padded samples not supported (%u of %u)\n", out->Samples.wValidBitsPerSample, out->Format.wBitsPerSample);
         return NULL;
@@ -300,30 +305,38 @@ static HRESULT DS8Data_Create(DS8Data **ppv, const DSBUFFERDESC *desc, DS8Primar
           format->nSamplesPerSec, format->nAvgBytesPerSec,
           format->nBlockAlign, format->wBitsPerSample);
 
+    if(format->nChannels <= 0)
+    {
+        WARN("Invalid Channels %d\n", format->nChannels);
+        return DSERR_INVALIDPARAM;
+    }
     if(format->nSamplesPerSec < DSBFREQUENCY_MIN || format->nSamplesPerSec > DSBFREQUENCY_MAX)
     {
-        WARN("Invalid SamplesPerSec specified\n");
+        WARN("Invalid SamplesPerSec %lu\n", format->nSamplesPerSec);
         return DSERR_INVALIDPARAM;
     }
     if(format->nBlockAlign <= 0)
     {
-        WARN("Invalid BlockAlign specified\n");
+        WARN("Invalid BlockAlign %d\n", format->nBlockAlign);
         return DSERR_INVALIDPARAM;
     }
-
-    if((format->wBitsPerSample%8) != 0)
+    if(format->wBitsPerSample == 0 || (format->wBitsPerSample%8) != 0)
     {
-        WARN("Invalid BitsPerSample specified\n");
+        WARN("Invalid BitsPerSample %d\n", format->wBitsPerSample);
         return DSERR_INVALIDPARAM;
     }
     if(format->nBlockAlign != format->nChannels*format->wBitsPerSample/8)
     {
-        WARN("Incorrect BlockAlign specified\n");
+        WARN("Invalid BlockAlign %d (expected %u = %u*%u/8)\n",
+             format->nBlockAlign, format->nChannels*format->wBitsPerSample/8,
+             format->nChannels, format->wBitsPerSample);
         return DSERR_INVALIDPARAM;
     }
     if(format->nAvgBytesPerSec != format->nBlockAlign*format->nSamplesPerSec)
     {
-        WARN("Incorrect AvgBytesPerSec specified\n");
+        WARN("Invalid AvgBytesPerSec %lu (expected %lu = %lu*%u)\n",
+             format->nAvgBytesPerSec, format->nSamplesPerSec*format->nBlockAlign,
+             format->nSamplesPerSec, format->nBlockAlign);
         return DSERR_INVALIDPARAM;
     }
 
