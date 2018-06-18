@@ -2356,13 +2356,24 @@ static HRESULT WINAPI DS8BufferProp_Get(IKsPropertySet *iface,
         return E_POINTER;
     *pcbReturned = 0;
 
-#if 0
+#define GET_PROP(hr, retsize, dst, dstsize, src, Type) do {  \
+    if(cbPropData >= sizeof(Type))                           \
+    {                                                        \
+        union {                                              \
+            void *v;                                         \
+            Type *props;                                     \
+        } data = { dst };                                    \
+                                                             \
+        *data.props = src;                                   \
+        *(retsize) = sizeof(Type);                           \
+        *(hr) = DS_OK;                                       \
+    }                                                        \
+} while(0)
     if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX20_BufferProperties))
     {
+        FIXME("Unhandled propset: DSPROPSETID_EAX20_BufferProperties\n");
     }
-    else
-#endif
-    if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX20_ListenerProperties))
+    else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX20_ListenerProperties))
     {
         DS8Primary *prim = This->primary;
 
@@ -2374,208 +2385,73 @@ static HRESULT WINAPI DS8BufferProp_Get(IKsPropertySet *iface,
         else switch(dwPropID)
         {
         case DSPROPERTY_EAXLISTENER_ALLPARAMETERS:
-            if(cbPropData >= sizeof(EAXLISTENERPROPERTIES))
-            {
-                union {
-                    void *v;
-                    EAXLISTENERPROPERTIES *props;
-                } data = { pPropData };
-
-                *data.props = prim->eax_prop;
-                *pcbReturned = sizeof(EAXLISTENERPROPERTIES);
-                hr = DS_OK;
-            }
+            GET_PROP(&hr, pcbReturned, pPropData, cbPropData, prim->eax_prop,
+                     EAXLISTENERPROPERTIES);
             break;
 
         case DSPROPERTY_EAXLISTENER_ROOM:
-            if(cbPropData >= sizeof(LONG))
-            {
-                union {
-                    void *v;
-                    LONG *l;
-                } data = { pPropData };
-
-                *data.l = prim->eax_prop.lRoom;
-                *pcbReturned = sizeof(LONG);
-                hr = DS_OK;
-            }
+            GET_PROP(&hr, pcbReturned, pPropData, cbPropData,
+                     prim->eax_prop.lRoom, LONG);
             break;
         case DSPROPERTY_EAXLISTENER_ROOMHF:
-            if(cbPropData >= sizeof(LONG))
-            {
-                union {
-                    void *v;
-                    LONG *l;
-                } data = { pPropData };
-
-                *data.l = prim->eax_prop.lRoomHF;
-                *pcbReturned = sizeof(LONG);
-                hr = DS_OK;
-            }
+            GET_PROP(&hr, pcbReturned, pPropData, cbPropData,
+                     prim->eax_prop.lRoomHF, LONG);
             break;
 
         case DSPROPERTY_EAXLISTENER_ROOMROLLOFFFACTOR:
-            if(cbPropData >= sizeof(FLOAT))
-            {
-                union {
-                    void *v;
-                    FLOAT *fl;
-                } data = { pPropData };
-
-                *data.fl = prim->eax_prop.flRoomRolloffFactor;
-                *pcbReturned = sizeof(FLOAT);
-                hr = DS_OK;
-            }
+            GET_PROP(&hr, pcbReturned, pPropData, cbPropData,
+                     prim->eax_prop.flRoomRolloffFactor, FLOAT);
             break;
 
         case DSPROPERTY_EAXLISTENER_DECAYTIME:
-            if(cbPropData >= sizeof(FLOAT))
-            {
-                union {
-                    void *v;
-                    FLOAT *fl;
-                } data = { pPropData };
-
-                *data.fl = prim->eax_prop.flDecayTime;
-                *pcbReturned = sizeof(FLOAT);
-                hr = DS_OK;
-            }
+            GET_PROP(&hr, pcbReturned, pPropData, cbPropData,
+                     prim->eax_prop.flDecayTime, FLOAT);
             break;
         case DSPROPERTY_EAXLISTENER_DECAYHFRATIO:
-            if(cbPropData >= sizeof(FLOAT))
-            {
-                union {
-                    void *v;
-                    FLOAT *fl;
-                } data = { pPropData };
-
-                *data.fl = prim->eax_prop.flDecayHFRatio;
-                *pcbReturned = sizeof(FLOAT);
-                hr = DS_OK;
-            }
+            GET_PROP(&hr, pcbReturned, pPropData, cbPropData,
+                     prim->eax_prop.flDecayHFRatio, FLOAT);
             break;
 
         case DSPROPERTY_EAXLISTENER_REFLECTIONS:
-            if(cbPropData >= sizeof(LONG))
-            {
-                union {
-                    void *v;
-                    LONG *l;
-                } data = { pPropData };
-
-                *data.l = prim->eax_prop.lReflections;
-                *pcbReturned = sizeof(LONG);
-                hr = DS_OK;
-            }
+            GET_PROP(&hr, pcbReturned, pPropData, cbPropData,
+                     prim->eax_prop.lReflections, LONG);
             break;
         case DSPROPERTY_EAXLISTENER_REFLECTIONSDELAY:
-            if(cbPropData >= sizeof(FLOAT))
-            {
-                union {
-                    void *v;
-                    FLOAT *fl;
-                } data = { pPropData };
-
-                *data.fl = prim->eax_prop.flReflectionsDelay;
-                *pcbReturned = sizeof(FLOAT);
-                hr = DS_OK;
-            }
+            GET_PROP(&hr, pcbReturned, pPropData, cbPropData,
+                     prim->eax_prop.flReflectionsDelay, FLOAT);
             break;
 
         case DSPROPERTY_EAXLISTENER_REVERB:
-            if(cbPropData >= sizeof(LONG))
-            {
-                union {
-                    void *v;
-                    LONG *l;
-                } data = { pPropData };
-
-                *data.l = prim->eax_prop.lReverb;
-                *pcbReturned = sizeof(LONG);
-                hr = DS_OK;
-            }
+            GET_PROP(&hr, pcbReturned, pPropData, cbPropData,
+                     prim->eax_prop.lReverb, LONG);
             break;
         case DSPROPERTY_EAXLISTENER_REVERBDELAY:
-            if(cbPropData >= sizeof(FLOAT))
-            {
-                union {
-                    void *v;
-                    FLOAT *fl;
-                } data = { pPropData };
-
-                *data.fl = prim->eax_prop.flReverbDelay;
-                *pcbReturned = sizeof(FLOAT);
-                hr = DS_OK;
-            }
+            GET_PROP(&hr, pcbReturned, pPropData, cbPropData,
+                     prim->eax_prop.flReverbDelay, FLOAT);
             break;
 
         case DSPROPERTY_EAXLISTENER_ENVIRONMENT:
-            if(cbPropData >= sizeof(DWORD))
-            {
-                union {
-                    void *v;
-                    DWORD *dw;
-                } data = { pPropData };
-
-                *data.dw = prim->eax_prop.dwEnvironment;
-                *pcbReturned = sizeof(DWORD);
-                hr = DS_OK;
-            }
+            GET_PROP(&hr, pcbReturned, pPropData, cbPropData,
+                     prim->eax_prop.dwEnvironment, DWORD);
             break;
 
         case DSPROPERTY_EAXLISTENER_ENVIRONMENTSIZE:
-            if(cbPropData >= sizeof(FLOAT))
-            {
-                union {
-                    void *v;
-                    FLOAT *fl;
-                } data = { pPropData };
-
-                *data.fl = prim->eax_prop.flEnvironmentSize;
-                *pcbReturned = sizeof(FLOAT);
-                hr = DS_OK;
-            }
+            GET_PROP(&hr, pcbReturned, pPropData, cbPropData,
+                     prim->eax_prop.flEnvironmentSize, FLOAT);
             break;
         case DSPROPERTY_EAXLISTENER_ENVIRONMENTDIFFUSION:
-            if(cbPropData >= sizeof(FLOAT))
-            {
-                union {
-                    void *v;
-                    FLOAT *fl;
-                } data = { pPropData };
-
-                *data.fl = prim->eax_prop.flEnvironmentDiffusion;
-                *pcbReturned = sizeof(FLOAT);
-                hr = DS_OK;
-            }
+            GET_PROP(&hr, pcbReturned, pPropData, cbPropData,
+                     prim->eax_prop.flEnvironmentDiffusion, FLOAT);
             break;
 
         case DSPROPERTY_EAXLISTENER_AIRABSORPTIONHF:
-            if(cbPropData >= sizeof(FLOAT))
-            {
-                union {
-                    void *v;
-                    FLOAT *fl;
-                } data = { pPropData };
-
-                *data.fl = prim->eax_prop.flAirAbsorptionHF;
-                *pcbReturned = sizeof(FLOAT);
-                hr = DS_OK;
-            }
+            GET_PROP(&hr, pcbReturned, pPropData, cbPropData,
+                     prim->eax_prop.flAirAbsorptionHF, FLOAT);
             break;
 
         case DSPROPERTY_EAXLISTENER_FLAGS:
-            if(cbPropData >= sizeof(DWORD))
-            {
-                union {
-                    void *v;
-                    DWORD *dw;
-                } data = { pPropData };
-
-                *data.dw = prim->eax_prop.dwFlags;
-                *pcbReturned = sizeof(DWORD);
-                hr = DS_OK;
-            }
+            GET_PROP(&hr, pcbReturned, pPropData, cbPropData,
+                     prim->eax_prop.dwFlags, DWORD);
             break;
 
         default:
@@ -2588,6 +2464,7 @@ static HRESULT WINAPI DS8BufferProp_Get(IKsPropertySet *iface,
     }
     else
         FIXME("Unhandled propset: %s\n", debugstr_guid(guidPropSet));
+#undef GET_PROP
 
     return hr;
 }
@@ -2603,13 +2480,11 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
     TRACE("(%p)->(%s, %lu, %p, %lu, %p, %lu)\n", iface, debugstr_guid(guidPropSet),
           dwPropID, pInstanceData, cbInstanceData, pPropData, cbPropData);
 
-#if 0
     if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX20_BufferProperties))
     {
+        FIXME("Unhandled propset: DSPROPSETID_EAX20_BufferProperties\n");
     }
-    else
-#endif
-    if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX20_ListenerProperties))
+    else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX20_ListenerProperties))
     {
         DS8Primary *prim = This->primary;
         DWORD propid = dwPropID & ~DSPROPERTY_EAXLISTENER_DEFERRED;
@@ -2994,13 +2869,11 @@ static HRESULT WINAPI DS8BufferProp_QuerySupport(IKsPropertySet *iface,
         return E_POINTER;
     *pTypeSupport = 0;
 
-#if 0
     if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX20_BufferProperties))
     {
+        FIXME("Unhandled propset: DSPROPSETID_EAX20_BufferProperties\n");
     }
-    else
-#endif
-    if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX20_ListenerProperties))
+    else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX20_ListenerProperties))
     {
         DS8Primary *prim = This->primary;
 
