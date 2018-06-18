@@ -948,7 +948,18 @@ HRESULT WINAPI DS8Buffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSound *ds
                 WARN("Can't create multi-channel 3D buffers\n");
                 goto out;
             }
-            ERR("Multi-channel 3D sounds are not spatialized\n");
+            else
+            {
+                static int once = 0;
+                if(!once++)
+                    ERR("Multi-channel 3D sounds are not spatialized\n");
+            }
+        }
+        if((desc->dwFlags&DSBCAPS_CTRLPAN) && desc->lpwfxFormat->nChannels != 1)
+        {
+            static int once = 0;
+            if(!once++)
+                ERR("Panning for multi-channel buffers is not supported\n");
         }
 
         hr = DS8Data_Create(&This->buffer, desc, This->primary);
@@ -1306,9 +1317,6 @@ static HRESULT WINAPI DS8Buffer_SetPan(IDirectSoundBuffer8 *iface, LONG pan)
             alSourcefv(This->source, AL_POSITION, pos);
             checkALError();
             popALContext();
-
-            if(pan != 0 && This->buffer->format.Format.nChannels > 1)
-                FIXME("Panning for multi-channel buffers is not supported\n");
         }
     }
 
