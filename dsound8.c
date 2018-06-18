@@ -638,7 +638,7 @@ static HRESULT WINAPI DS8_CreateSoundBuffer(IDirectSound8 *iface, LPCDSBUFFERDES
             else
             {
                 dsb->bufferlost = (This->prio_level == DSSCL_WRITEPRIMARY);
-                *buf = &dsb->IDirectSoundBuffer_iface;
+                *buf = (IDirectSoundBuffer*)&dsb->IDirectSoundBuffer8_iface;
             }
         }
     }
@@ -741,8 +741,8 @@ static HRESULT WINAPI DS8_DuplicateSoundBuffer(IDirectSound8 *iface, IDirectSoun
         hr = DS8Buffer_Create(&buf, &This->primary, in, FALSE);
     if(SUCCEEDED(hr))
     {
-        *out = &buf->IDirectSoundBuffer_iface;
-        hr = IDirectSoundBuffer_Initialize(*out, NULL, NULL);
+        *out = (IDirectSoundBuffer*)&buf->IDirectSoundBuffer8_iface;
+        hr = DS8Buffer_Initialize(&buf->IDirectSoundBuffer8_iface, NULL, NULL);
     }
     if(SUCCEEDED(hr))
     {

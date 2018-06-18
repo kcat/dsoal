@@ -56,7 +56,6 @@ DEFINE_GUID(KSDATAFORMAT_SUBTYPE_IEEE_FLOAT, 0x00000003, 0x0000, 0x0010, 0x80, 0
  * DSERR_BUFFERLOST
  */
 static const IDirectSoundBuffer8Vtbl DS8Buffer_Vtbl;
-static const IDirectSoundBufferVtbl DSBuffer_Vtbl;
 static const IDirectSound3DBufferVtbl DS8Buffer3d_Vtbl;
 static const IDirectSoundNotifyVtbl DS8BufferNot_Vtbl;
 static const IKsPropertySetVtbl DS8BufferProp_Vtbl;
@@ -69,7 +68,7 @@ static inline DS8Buffer *impl_from_IDirectSoundBuffer8(IDirectSoundBuffer8 *ifac
 
 static inline DS8Buffer *impl_from_IDirectSoundBuffer(IDirectSoundBuffer *iface)
 {
-    return CONTAINING_RECORD(iface, DS8Buffer, IDirectSoundBuffer_iface);
+    return CONTAINING_RECORD(iface, DS8Buffer, IDirectSoundBuffer8_iface);
 }
 
 static inline DS8Buffer *impl_from_IDirectSound3DBuffer(IDirectSound3DBuffer *iface)
@@ -473,7 +472,6 @@ HRESULT DS8Buffer_Create(DS8Buffer **ppv, DS8Primary *prim, IDirectSoundBuffer *
     }
 
     This->IDirectSoundBuffer8_iface.lpVtbl = &DS8Buffer_Vtbl;
-    This->IDirectSoundBuffer_iface.lpVtbl = &DSBuffer_Vtbl;
     This->IDirectSound3DBuffer_iface.lpVtbl = &DS8Buffer3d_Vtbl;
     This->IDirectSoundNotify_iface.lpVtbl = &DS8BufferNot_Vtbl;
     This->IKsPropertySet_iface.lpVtbl = &DS8BufferProp_Vtbl;
@@ -568,7 +566,7 @@ static HRESULT WINAPI DS8Buffer_QueryInterface(IDirectSoundBuffer8 *iface, REFII
     if(IsEqualIID(riid, &IID_IUnknown))
         *ppv = &This->IDirectSoundBuffer8_iface;
     else if(IsEqualIID(riid, &IID_IDirectSoundBuffer))
-        *ppv = &This->IDirectSoundBuffer_iface;
+        *ppv = &This->IDirectSoundBuffer8_iface;
     else if(IsEqualIID(riid, &IID_IDirectSoundBuffer8))
     {
         if(This->primary->parent->is_8)
@@ -1581,157 +1579,6 @@ static const IDirectSoundBuffer8Vtbl DS8Buffer_Vtbl = {
     DS8Buffer_SetFX,
     DS8Buffer_AcquireResources,
     DS8Buffer_GetObjectInPath
-};
-
-
-static HRESULT WINAPI DSBuffer_QueryInterface(IDirectSoundBuffer *iface, REFIID riid, void **ppv)
-{
-    DS8Buffer *This = impl_from_IDirectSoundBuffer(iface);
-    return DS8Buffer_QueryInterface(&This->IDirectSoundBuffer8_iface, riid, ppv);
-}
-
-static ULONG WINAPI DSBuffer_AddRef(IDirectSoundBuffer *iface)
-{
-    DS8Buffer *This = impl_from_IDirectSoundBuffer(iface);
-    return DS8Buffer_AddRef(&This->IDirectSoundBuffer8_iface);
-}
-
-static ULONG WINAPI DSBuffer_Release(IDirectSoundBuffer *iface)
-{
-    DS8Buffer *This = impl_from_IDirectSoundBuffer(iface);
-    return DS8Buffer_Release(&This->IDirectSoundBuffer8_iface);
-}
-
-static HRESULT WINAPI DSBuffer_GetCaps(IDirectSoundBuffer *iface, DSBCAPS *caps)
-{
-    DS8Buffer *This = impl_from_IDirectSoundBuffer(iface);
-    return DS8Buffer_GetCaps(&This->IDirectSoundBuffer8_iface, caps);
-}
-
-static HRESULT WINAPI DSBuffer_GetCurrentPosition(IDirectSoundBuffer *iface, DWORD *playpos, DWORD *curpos)
-{
-    DS8Buffer *This = impl_from_IDirectSoundBuffer(iface);
-    return DS8Buffer_GetCurrentPosition(&This->IDirectSoundBuffer8_iface, playpos, curpos);
-}
-
-static HRESULT WINAPI DSBuffer_GetFormat(IDirectSoundBuffer *iface, WAVEFORMATEX *wfx, DWORD allocated, DWORD *written)
-{
-    DS8Buffer *This = impl_from_IDirectSoundBuffer(iface);
-    return DS8Buffer_GetFormat(&This->IDirectSoundBuffer8_iface, wfx, allocated, written);
-}
-
-static HRESULT WINAPI DSBuffer_GetVolume(IDirectSoundBuffer *iface, LONG *vol)
-{
-    DS8Buffer *This = impl_from_IDirectSoundBuffer(iface);
-    return DS8Buffer_GetVolume(&This->IDirectSoundBuffer8_iface, vol);
-}
-
-static HRESULT WINAPI DSBuffer_GetPan(IDirectSoundBuffer *iface, LONG *pan)
-{
-    DS8Buffer *This = impl_from_IDirectSoundBuffer(iface);
-    return DS8Buffer_GetPan(&This->IDirectSoundBuffer8_iface, pan);
-}
-
-static HRESULT WINAPI DSBuffer_GetFrequency(IDirectSoundBuffer *iface, DWORD *freq)
-{
-    DS8Buffer *This = impl_from_IDirectSoundBuffer(iface);
-    return DS8Buffer_GetFrequency(&This->IDirectSoundBuffer8_iface, freq);
-}
-
-static HRESULT WINAPI DSBuffer_GetStatus(IDirectSoundBuffer *iface, DWORD *status)
-{
-    DS8Buffer *This = impl_from_IDirectSoundBuffer(iface);
-    return DS8Buffer_GetStatus(&This->IDirectSoundBuffer8_iface, status);
-}
-
-static HRESULT WINAPI DSBuffer_Initialize(IDirectSoundBuffer *iface, IDirectSound *ds, const DSBUFFERDESC *desc)
-{
-    DS8Buffer *This = impl_from_IDirectSoundBuffer(iface);
-    return DS8Buffer_Initialize(&This->IDirectSoundBuffer8_iface, ds, desc);
-}
-
-static HRESULT WINAPI DSBuffer_Lock(IDirectSoundBuffer *iface, DWORD ofs, DWORD bytes, void **ptr1, DWORD *len1, void **ptr2, DWORD *len2, DWORD flags)
-{
-    DS8Buffer *This = impl_from_IDirectSoundBuffer(iface);
-    return DS8Buffer_Lock(&This->IDirectSoundBuffer8_iface, ofs, bytes, ptr1, len1, ptr2, len2, flags);
-}
-
-static HRESULT WINAPI DSBuffer_Play(IDirectSoundBuffer *iface, DWORD res1, DWORD prio, DWORD flags)
-{
-    DS8Buffer *This = impl_from_IDirectSoundBuffer(iface);
-    return DS8Buffer_Play(&This->IDirectSoundBuffer8_iface, res1, prio, flags);
-}
-
-static HRESULT WINAPI DSBuffer_SetCurrentPosition(IDirectSoundBuffer *iface, DWORD pos)
-{
-    DS8Buffer *This = impl_from_IDirectSoundBuffer(iface);
-    return DS8Buffer_SetCurrentPosition(&This->IDirectSoundBuffer8_iface, pos);
-}
-
-static HRESULT WINAPI DSBuffer_SetFormat(IDirectSoundBuffer *iface, const WAVEFORMATEX *wfx)
-{
-    DS8Buffer *This = impl_from_IDirectSoundBuffer(iface);
-    return DS8Buffer_SetFormat(&This->IDirectSoundBuffer8_iface, wfx);
-}
-
-static HRESULT WINAPI DSBuffer_SetVolume(IDirectSoundBuffer *iface, LONG vol)
-{
-    DS8Buffer *This = impl_from_IDirectSoundBuffer(iface);
-    return DS8Buffer_SetVolume(&This->IDirectSoundBuffer8_iface, vol);
-}
-
-static HRESULT WINAPI DSBuffer_SetPan(IDirectSoundBuffer *iface, LONG pan)
-{
-    DS8Buffer *This = impl_from_IDirectSoundBuffer(iface);
-    return DS8Buffer_SetPan(&This->IDirectSoundBuffer8_iface, pan);
-}
-
-static HRESULT WINAPI DSBuffer_SetFrequency(IDirectSoundBuffer *iface, DWORD freq)
-{
-    DS8Buffer *This = impl_from_IDirectSoundBuffer(iface);
-    return DS8Buffer_SetFrequency(&This->IDirectSoundBuffer8_iface, freq);
-}
-
-static HRESULT WINAPI DSBuffer_Stop(IDirectSoundBuffer *iface)
-{
-    DS8Buffer *This = impl_from_IDirectSoundBuffer(iface);
-    return DS8Buffer_Stop(&This->IDirectSoundBuffer8_iface);
-}
-
-static HRESULT WINAPI DSBuffer_Unlock(IDirectSoundBuffer *iface, void *ptr1, DWORD len1, void *ptr2, DWORD len2)
-{
-    DS8Buffer *This = impl_from_IDirectSoundBuffer(iface);
-    return DS8Buffer_Unlock(&This->IDirectSoundBuffer8_iface, ptr1, len1, ptr2, len2);
-}
-
-static HRESULT WINAPI DSBuffer_Restore(IDirectSoundBuffer *iface)
-{
-    DS8Buffer *This = impl_from_IDirectSoundBuffer(iface);
-    return DS8Buffer_Restore(&This->IDirectSoundBuffer8_iface);
-}
-
-static const IDirectSoundBufferVtbl DSBuffer_Vtbl = {
-    DSBuffer_QueryInterface,
-    DSBuffer_AddRef,
-    DSBuffer_Release,
-    DSBuffer_GetCaps,
-    DSBuffer_GetCurrentPosition,
-    DSBuffer_GetFormat,
-    DSBuffer_GetVolume,
-    DSBuffer_GetPan,
-    DSBuffer_GetFrequency,
-    DSBuffer_GetStatus,
-    DSBuffer_Initialize,
-    DSBuffer_Lock,
-    DSBuffer_Play,
-    DSBuffer_SetCurrentPosition,
-    DSBuffer_SetFormat,
-    DSBuffer_SetVolume,
-    DSBuffer_SetPan,
-    DSBuffer_SetFrequency,
-    DSBuffer_Stop,
-    DSBuffer_Unlock,
-    DSBuffer_Restore
 };
 
 
