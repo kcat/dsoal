@@ -665,7 +665,7 @@ static HRESULT WINAPI DS8_GetCaps(IDirectSound8 *iface, LPDSCAPS caps)
     for(i = 0;i < This->primary.NumBufferGroups;i++)
         free_bufs += POPCNT64(This->primary.BufferGroups[i].FreeBuffers);
 
-    caps->dwFlags = DSCAPS_CONTINUOUSRATE |
+    caps->dwFlags = DSCAPS_CONTINUOUSRATE | DSCAPS_CERTIFIED |
                     DSCAPS_PRIMARY16BIT | DSCAPS_PRIMARYSTEREO |
                     DSCAPS_PRIMARY8BIT | DSCAPS_PRIMARYMONO |
                     DSCAPS_SECONDARY16BIT | DSCAPS_SECONDARY8BIT |
