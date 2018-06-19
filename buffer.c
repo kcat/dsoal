@@ -1033,10 +1033,10 @@ HRESULT WINAPI DS8Buffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSound *ds
     eaxbuffer->lRoomHF = 0;
     eaxbuffer->flRoomRolloffFactor = 0.0f;
     eaxbuffer->lObstruction = 0;
-    eaxbuffer->flObstructionLFRatio = 1.0f;
+    eaxbuffer->flObstructionLFRatio = 0.25f;
     eaxbuffer->lOcclusion = 0;
-    eaxbuffer->flOcclusionLFRatio = 1.0f;
-    eaxbuffer->flOcclusionRoomRatio = 1.0f;
+    eaxbuffer->flOcclusionLFRatio = 0.25f;
+    eaxbuffer->flOcclusionRoomRatio = 0.5f;
     eaxbuffer->lOutsideVolumeHF = 0;
     eaxbuffer->flAirAbsorptionFactor = 0.0f;
     eaxbuffer->dwFlags = EAXBUFFERFLAGS_DIRECTHFAUTO | EAXBUFFERFLAGS_ROOMAUTO |
