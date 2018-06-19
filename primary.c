@@ -61,12 +61,6 @@ static inline DS8Primary *impl_from_IKsPropertySet(IKsPropertySet *iface)
 }
 
 
-static void AL_APIENTRY wrap_DeferUpdates(void)
-{ alcSuspendContext(alcGetCurrentContext()); }
-static void AL_APIENTRY wrap_ProcessUpdates(void)
-{ alcProcessContext(alcGetCurrentContext()); }
-
-
 static void trigger_elapsed_notifies(DS8Buffer *buf, DWORD lastpos, DWORD curpos)
 {
     DSBPOSITIONNOTIFY *not = buf->notify;
@@ -303,7 +297,6 @@ HRESULT DS8Primary_PreInit(DS8Primary *This, DS8Impl *parent)
     This->ctx = parent->share->ctx;
     This->refresh = parent->share->refresh;
     This->SupportedExt = parent->share->SupportedExt;
-    This->ExtAL = &parent->share->ExtAL;
     This->sources = parent->share->sources;
     This->auxslot = parent->share->auxslot;
 
@@ -325,25 +318,14 @@ HRESULT DS8Primary_PreInit(DS8Primary *This, DS8Impl *parent)
     This->buf_size = 32768;
 
     setALContext(This->ctx);
-    if(This->SupportedExt[SOFT_DEFERRED_UPDATES])
-    {
-        This->DeferUpdates = This->ExtAL->DeferUpdatesSOFT;
-        This->ProcessUpdates = This->ExtAL->ProcessUpdatesSOFT;
-    }
-    else
-    {
-        This->DeferUpdates = wrap_DeferUpdates;
-        This->ProcessUpdates = wrap_ProcessUpdates;
-    }
-
     This->eax_prop = EnvironmentDefaults[EAX_ENVIRONMENT_GENERIC];
-    if(This->SupportedExt[EXT_EFX] && This->auxslot != 0)
+    if(This->auxslot != 0)
     {
         ALint revid = alGetEnumValue("AL_EFFECT_REVERB");
         if(revid != 0 && revid != -1)
         {
-            This->ExtAL->GenEffects(1, &This->effect);
-            This->ExtAL->Effecti(This->effect, AL_EFFECT_TYPE, AL_EFFECT_REVERB);
+            alGenEffects(1, &This->effect);
+            alEffecti(This->effect, AL_EFFECT_TYPE, AL_EFFECT_REVERB);
             checkALError();
         }
     }
@@ -398,7 +380,7 @@ void DS8Primary_Clear(DS8Primary *This)
 
     setALContext(This->ctx);
     if(This->effect)
-        This->ExtAL->DeleteEffects(1, &This->effect);
+        alDeleteEffects(1, &This->effect);
     popALContext();
 
     bufgroup = This->BufferGroups;
@@ -1126,7 +1108,7 @@ static void DS8Primary_SetParams(DS8Primary *This, const DS3DLISTENER *params, L
     if(dirty.bit.dopplerfactor)
         alDopplerFactor(params->flDopplerFactor);
     if(dirty.bit.effect)
-        This->ExtAL->AuxiliaryEffectSloti(This->auxslot, AL_EFFECTSLOT_EFFECT, This->effect);
+        alAuxiliaryEffectSloti(This->auxslot, AL_EFFECTSLOT_EFFECT, This->effect);
 }
 
 static HRESULT WINAPI DS8Primary3D_QueryInterface(IDirectSound3DListener *iface, REFIID riid, void **ppv)
@@ -1592,7 +1574,7 @@ HRESULT WINAPI DS8Primary3D_CommitDeferredSettings(IDirectSound3DListener *iface
 
     EnterCriticalSection(This->crst);
     setALContext(This->ctx);
-    This->DeferUpdates();
+    alDeferUpdatesSOFT();
 
     if((flags=InterlockedExchange(&This->dirty.flags, 0)) != 0)
     {
@@ -1616,9 +1598,9 @@ HRESULT WINAPI DS8Primary3D_CommitDeferredSettings(IDirectSound3DListener *iface
                 DS8Buffer_SetParams(buf, &buf->params, &buf->eax_prop, flags);
         }
     }
+    alProcessUpdatesSOFT();
     checkALError();
 
-    This->ProcessUpdates();
     popALContext();
     LeaveCriticalSection(This->crst);
 

@@ -151,7 +151,7 @@ static void DSShare_Destroy(DeviceShare *share)
         share->nsources = 0;
 
         if(share->auxslot)
-            share->ExtAL.DeleteAuxiliaryEffectSlots(1, &share->auxslot);
+            alDeleteAuxiliaryEffectSlots(1, &share->auxslot);
         share->auxslot = 0;
 
         set_context(NULL);
@@ -237,40 +237,20 @@ static HRESULT DSShare_Create(REFIID guid, DeviceShare **out)
     if(alIsExtensionPresent("AL_SOFT_deferred_updates"))
     {
         TRACE("Found AL_SOFT_deferred_updates\n");
-        share->ExtAL.DeferUpdatesSOFT = alGetProcAddress("alDeferUpdatesSOFT");
-        share->ExtAL.ProcessUpdatesSOFT = alGetProcAddress("alProcessUpdatesSOFT");
         share->SupportedExt[SOFT_DEFERRED_UPDATES] = AL_TRUE;
     }
     if(alIsExtensionPresent("AL_SOFTX_map_buffer"))
     {
         TRACE("Found AL_SOFTX_map_buffer\n");
-        share->ExtAL.BufferStorageSOFT = alGetProcAddress("alBufferStorageSOFT");
-        share->ExtAL.MapBufferSOFT = alGetProcAddress("alMapBufferSOFT");
-        share->ExtAL.UnmapBufferSOFT = alGetProcAddress("alUnmapBufferSOFT");
-        share->ExtAL.FlushMappedBufferSOFT = alGetProcAddress("alFlushMappedBufferSOFT");
         share->SupportedExt[SOFTX_MAP_BUFFER] = AL_TRUE;
     }
 
     if(alcIsExtensionPresent(share->device, "ALC_EXT_EFX"))
     {
-#define LOAD_FUNC(x) (share->ExtAL.x = alGetProcAddress("al"#x))
-        LOAD_FUNC(GenFilters);
-        LOAD_FUNC(DeleteFilters);
-        LOAD_FUNC(Filteri);
-        LOAD_FUNC(Filterf);
-
-        LOAD_FUNC(GenEffects);
-        LOAD_FUNC(DeleteEffects);
-        LOAD_FUNC(Effecti);
-        LOAD_FUNC(Effectf);
-
-        LOAD_FUNC(GenAuxiliaryEffectSlots);
-        LOAD_FUNC(DeleteAuxiliaryEffectSlots);
-        LOAD_FUNC(AuxiliaryEffectSloti);
-#undef LOAD_FUNC
+        TRACE("Found ALC_EXT_EFX\n");
         share->SupportedExt[EXT_EFX] = AL_TRUE;
 
-        share->ExtAL.GenAuxiliaryEffectSlots(1, &share->auxslot);
+        alGenAuxiliaryEffectSlots(1, &share->auxslot);
     }
 
     share->max_sources = 0;

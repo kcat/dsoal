@@ -390,6 +390,46 @@ extern LPALSPEEDOFSOUND palSpeedOfSound;
 #define alDistanceModel palDistanceModel
 #define alSpeedOfSound palSpeedOfSound
 
+/* Extension functions. Technically device- or driver-specific, but as long as
+ * they're pulled from the NULL device it should be routed correctly.
+ */
+extern LPALGENFILTERS palGenFilters;
+extern LPALDELETEFILTERS palDeleteFilters;
+extern LPALFILTERI palFilteri;
+extern LPALFILTERF palFilterf;
+extern LPALGENEFFECTS palGenEffects;
+extern LPALDELETEEFFECTS palDeleteEffects;
+extern LPALEFFECTI palEffecti;
+extern LPALEFFECTF palEffectf;
+extern LPALGENAUXILIARYEFFECTSLOTS palGenAuxiliaryEffectSlots;
+extern LPALDELETEAUXILIARYEFFECTSLOTS palDeleteAuxiliaryEffectSlots;
+extern LPALAUXILIARYEFFECTSLOTI palAuxiliaryEffectSloti;
+extern LPALDEFERUPDATESSOFT palDeferUpdatesSOFT;
+extern LPALPROCESSUPDATESSOFT palProcessUpdatesSOFT;
+extern LPALBUFFERSTORAGESOFT palBufferStorageSOFT;
+extern LPALMAPBUFFERSOFT palMapBufferSOFT;
+extern LPALUNMAPBUFFERSOFT palUnmapBufferSOFT;
+extern LPALFLUSHMAPPEDBUFFERSOFT palFlushMappedBufferSOFT;
+
+#define alGenFilters palGenFilters
+#define alDeleteFilters palDeleteFilters
+#define alFilteri palFilteri
+#define alFilterf palFilterf
+#define alGenEffects palGenEffects
+#define alDeleteEffects palDeleteEffects
+#define alEffecti palEffecti
+#define alEffectf palEffectf
+#define alGenAuxiliaryEffectSlots palGenAuxiliaryEffectSlots
+#define alDeleteAuxiliaryEffectSlots palDeleteAuxiliaryEffectSlots
+#define alAuxiliaryEffectSloti palAuxiliaryEffectSloti
+#define alDeferUpdatesSOFT palDeferUpdatesSOFT
+#define alProcessUpdatesSOFT palProcessUpdatesSOFT
+#define alBufferStorageSOFT palBufferStorageSOFT
+#define alMapBufferSOFT palMapBufferSOFT
+#define alUnmapBufferSOFT palUnmapBufferSOFT
+#define alFlushMappedBufferSOFT palFlushMappedBufferSOFT
+
+
 #include <math.h>
 #include "wingdi.h"
 #include "mmreg.h"
@@ -426,29 +466,6 @@ enum {
     MAX_EXTENSIONS
 };
 
-typedef struct ExtALFuncs {
-    LPALGENFILTERS GenFilters;
-    LPALDELETEFILTERS DeleteFilters;
-    LPALFILTERI Filteri;
-    LPALFILTERF Filterf;
-
-    LPALGENEFFECTS GenEffects;
-    LPALDELETEEFFECTS DeleteEffects;
-    LPALEFFECTI Effecti;
-    LPALEFFECTF Effectf;
-
-    LPALGENAUXILIARYEFFECTSLOTS GenAuxiliaryEffectSlots;
-    LPALDELETEAUXILIARYEFFECTSLOTS DeleteAuxiliaryEffectSlots;
-    LPALAUXILIARYEFFECTSLOTI AuxiliaryEffectSloti;
-
-    LPALDEFERUPDATESSOFT DeferUpdatesSOFT;
-    LPALPROCESSUPDATESSOFT ProcessUpdatesSOFT;
-
-    LPALBUFFERSTORAGESOFT BufferStorageSOFT;
-    LPALMAPBUFFERSOFT MapBufferSOFT;
-    LPALUNMAPBUFFERSOFT UnmapBufferSOFT;
-    LPALFLUSHMAPPEDBUFFERSOFT FlushMappedBufferSOFT;
-} ExtALFuncs;
 
 #define MAX_SOURCES 256
 typedef struct DeviceShare {
@@ -459,8 +476,6 @@ typedef struct DeviceShare {
     ALCint refresh;
 
     ALboolean SupportedExt[MAX_EXTENSIONS];
-
-    ExtALFuncs ExtAL;
 
     CRITICAL_SECTION crst;
 
@@ -538,7 +553,6 @@ struct DS8Buffer {
 
     /* From the primary */
     ALCcontext *ctx;
-    const ExtALFuncs *ExtAL;
     CRITICAL_SECTION *crst;
 
     DS8Data *buffer;
@@ -599,7 +613,6 @@ struct DS8Primary {
     /* Taken from the share */
     ALCcontext *ctx;
     const ALboolean *SupportedExt;
-    const ExtALFuncs *ExtAL;
     CRITICAL_SECTION *crst;
     ALCint refresh;
     ALuint *sources;
@@ -609,9 +622,6 @@ struct DS8Primary {
     BOOL stopped;
     DWORD flags;
     WAVEFORMATEXTENSIBLE format;
-
-    LPALDEFERUPDATESSOFT DeferUpdates;
-    LPALPROCESSUPDATESSOFT ProcessUpdates;
 
     DS8Buffer **notifies;
     DWORD nnotifies, sizenotifies;

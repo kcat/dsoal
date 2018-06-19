@@ -204,9 +204,33 @@ LPALDOPPLERVELOCITY palDopplerVelocity = NULL;
 LPALDISTANCEMODEL palDistanceModel = NULL;
 LPALSPEEDOFSOUND palSpeedOfSound = NULL;
 
+LPALGENFILTERS palGenFilters = (void*)0xdeadbee0;//NULL;
+LPALDELETEFILTERS palDeleteFilters = (void*)0xdeadbee1;//NULL;
+LPALFILTERI palFilteri = (void*)0xdeadbee2;//NULL;
+LPALFILTERF palFilterf = (void*)0xdeadbee3;//NULL;
+LPALGENEFFECTS palGenEffects = (void*)0xdeadbee4;//NULL;
+LPALDELETEEFFECTS palDeleteEffects = (void*)0xdeadbee5;//NULL;
+LPALEFFECTI palEffecti = (void*)0xdeadbee6;//NULL;
+LPALEFFECTF palEffectf = (void*)0xdeadbee7;//NULL;
+LPALGENAUXILIARYEFFECTSLOTS palGenAuxiliaryEffectSlots = (void*)0xdeadbee8;//NULL;
+LPALDELETEAUXILIARYEFFECTSLOTS palDeleteAuxiliaryEffectSlots = (void*)0xdeadbee9;//NULL;
+LPALAUXILIARYEFFECTSLOTI palAuxiliaryEffectSloti = (void*)0xdeadbeea;//NULL;
+LPALDEFERUPDATESSOFT palDeferUpdatesSOFT = (void*)0xdeadbeeb;//NULL;
+LPALPROCESSUPDATESSOFT palProcessUpdatesSOFT = (void*)0xdeadbeec;//NULL;
+LPALBUFFERSTORAGESOFT palBufferStorageSOFT = (void*)0xdeadbeed;//NULL;
+LPALMAPBUFFERSOFT palMapBufferSOFT = (void*)0xdeadbeee;//NULL;
+LPALUNMAPBUFFERSOFT palUnmapBufferSOFT = (void*)0xdeadbeef;//NULL;
+LPALFLUSHMAPPEDBUFFERSOFT palFlushMappedBufferSOFT = (void*)0xdeadbef0;//NULL;
+
 LPALCMAKECONTEXTCURRENT set_context;
 LPALCGETCURRENTCONTEXT get_context;
 BOOL local_contexts;
+
+
+static void AL_APIENTRY wrap_DeferUpdates(void)
+{ alcSuspendContext(alcGetCurrentContext()); }
+static void AL_APIENTRY wrap_ProcessUpdates(void)
+{ alcProcessContext(alcGetCurrentContext()); }
 
 static void EnterALSectionTLS(ALCcontext *ctx);
 static void LeaveALSectionTLS(void);
@@ -348,6 +372,31 @@ static BOOL load_libopenal(void)
 
     openal_loaded = 1;
     TRACE("Loaded %s\n", libname);
+
+#define LOAD_FUNCPTR(f) *((void**)&p##f) = alcGetProcAddress(NULL, #f)
+    LOAD_FUNCPTR(alGenFilters);
+    LOAD_FUNCPTR(alDeleteFilters);
+    LOAD_FUNCPTR(alFilteri);
+    LOAD_FUNCPTR(alFilterf);
+    LOAD_FUNCPTR(alGenEffects);
+    LOAD_FUNCPTR(alDeleteEffects);
+    LOAD_FUNCPTR(alEffecti);
+    LOAD_FUNCPTR(alEffectf);
+    LOAD_FUNCPTR(alGenAuxiliaryEffectSlots);
+    LOAD_FUNCPTR(alDeleteAuxiliaryEffectSlots);
+    LOAD_FUNCPTR(alAuxiliaryEffectSloti);
+    LOAD_FUNCPTR(alDeferUpdatesSOFT);
+    LOAD_FUNCPTR(alProcessUpdatesSOFT);
+    LOAD_FUNCPTR(alBufferStorageSOFT);
+    LOAD_FUNCPTR(alMapBufferSOFT);
+    LOAD_FUNCPTR(alUnmapBufferSOFT);
+    LOAD_FUNCPTR(alFlushMappedBufferSOFT);
+#undef LOAD_FUNCPTR
+    if(!palDeferUpdatesSOFT || !palProcessUpdatesSOFT)
+    {
+        palDeferUpdatesSOFT = wrap_DeferUpdates;
+        palProcessUpdatesSOFT = wrap_ProcessUpdates;
+    }
 
     local_contexts = alcIsExtensionPresent(NULL, "ALC_EXT_thread_local_context");
     if(local_contexts)

@@ -414,9 +414,9 @@ static HRESULT DS8Data_Create(DS8Data **ppv, const DSBUFFERDESC *desc, DS8Primar
         const ALbitfieldSOFT map_bits = AL_MAP_READ_BIT_SOFT | AL_MAP_WRITE_BIT_SOFT |
                                         AL_MAP_PERSISTENT_BIT_SOFT;
         alGenBuffers(1, &pBuffer->bid);
-        prim->ExtAL->BufferStorageSOFT(pBuffer->bid, pBuffer->buf_format, NULL, pBuffer->buf_size,
-                                       pBuffer->format.Format.nSamplesPerSec, map_bits);
-        pBuffer->data = prim->ExtAL->MapBufferSOFT(pBuffer->bid, 0, pBuffer->buf_size, map_bits);
+        alBufferStorageSOFT(pBuffer->bid, pBuffer->buf_format, NULL, pBuffer->buf_size,
+                            pBuffer->format.Format.nSamplesPerSec, map_bits);
+        pBuffer->data = alMapBufferSOFT(pBuffer->bid, 0, pBuffer->buf_size, map_bits);
         checkALError();
 
         if(!pBuffer->data) goto fail;
@@ -445,7 +445,7 @@ static void DS8Data_Release(DS8Data *This)
     {
         DS8Primary *prim = This->primary;
         if(prim->SupportedExt[SOFTX_MAP_BUFFER])
-            prim->ExtAL->UnmapBufferSOFT(This->bid);
+            alUnmapBufferSOFT(This->bid);
         alDeleteBuffers(1, &This->bid);
         checkALError();
     }
@@ -491,7 +491,6 @@ HRESULT DS8Buffer_Create(DS8Buffer **ppv, DS8Primary *prim, IDirectSoundBuffer *
 
     This->primary = prim;
     This->ctx = prim->ctx;
-    This->ExtAL = prim->ExtAL;
     This->crst = prim->crst;
     This->ref = This->all_ref = 1;
 
@@ -548,7 +547,7 @@ void DS8Buffer_Destroy(DS8Buffer *This)
     if(This->stream_bids[0])
         alDeleteBuffers(QBUFFERS, This->stream_bids);
     if(This->filter[0])
-        prim->ExtAL->DeleteFilters(2, This->filter);
+        alDeleteFilters(2, This->filter);
 
     if(This->buffer)
         DS8Data_Release(This->buffer);
@@ -1048,9 +1047,9 @@ HRESULT WINAPI DS8Buffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSound *ds
 
         if(prim->SupportedExt[EXT_EFX])
         {
-            prim->ExtAL->GenFilters(2, This->filter);
-            prim->ExtAL->Filteri(This->filter[0], AL_FILTER_TYPE, AL_FILTER_LOWPASS);
-            prim->ExtAL->Filteri(This->filter[1], AL_FILTER_TYPE, AL_FILTER_LOWPASS);
+            alGenFilters(2, This->filter);
+            alFilteri(This->filter[0], AL_FILTER_TYPE, AL_FILTER_LOWPASS);
+            alFilteri(This->filter[1], AL_FILTER_TYPE, AL_FILTER_LOWPASS);
         }
 
         dirty.bit.pos = 1;
@@ -1457,7 +1456,7 @@ static HRESULT WINAPI DS8Buffer_Unlock(IDirectSoundBuffer8 *iface, void *ptr1, D
     if(This->primary->SupportedExt[SOFTX_MAP_BUFFER])
     {
         setALContext(This->ctx);
-        This->ExtAL->FlushMappedBufferSOFT(buf->bid, 0, buf->buf_size);
+        alFlushMappedBufferSOFT(buf->bid, 0, buf->buf_size);
         checkALError();
         popALContext();
     }
@@ -2366,41 +2365,31 @@ static void ApplyReverbParams(DS8Primary *prim, const EAXLISTENERPROPERTIES *pro
 {
     /* FIXME: Need to validate property values... Ignore? Clamp? Error? */
     prim->eax_prop = *props;
-    prim->ExtAL->Effectf(prim->effect, AL_REVERB_DENSITY,
+    alEffectf(prim->effect, AL_REVERB_DENSITY,
         clampF(powf(props->flEnvironmentSize, 3.0f) / 16.0f, 0.0f, 1.0f)
     );
-    prim->ExtAL->Effectf(prim->effect, AL_REVERB_DIFFUSION,
-                         props->flEnvironmentDiffusion);
+    alEffectf(prim->effect, AL_REVERB_DIFFUSION, props->flEnvironmentDiffusion);
 
-    prim->ExtAL->Effectf(prim->effect, AL_REVERB_GAIN,
-                         mB_to_gain(props->lRoom));
-    prim->ExtAL->Effectf(prim->effect, AL_REVERB_GAINHF,
-                         mB_to_gain(props->lRoomHF));
+    alEffectf(prim->effect, AL_REVERB_GAIN, mB_to_gain(props->lRoom));
+    alEffectf(prim->effect, AL_REVERB_GAINHF, mB_to_gain(props->lRoomHF));
 
-    prim->ExtAL->Effectf(prim->effect, AL_REVERB_ROOM_ROLLOFF_FACTOR,
-                         props->flRoomRolloffFactor);
+    alEffectf(prim->effect, AL_REVERB_ROOM_ROLLOFF_FACTOR, props->flRoomRolloffFactor);
 
-    prim->ExtAL->Effectf(prim->effect, AL_REVERB_DECAY_TIME,
-                         props->flDecayTime);
-    prim->ExtAL->Effectf(prim->effect, AL_REVERB_DECAY_HFRATIO,
-                         props->flDecayHFRatio);
+    alEffectf(prim->effect, AL_REVERB_DECAY_TIME, props->flDecayTime);
+    alEffectf(prim->effect, AL_REVERB_DECAY_HFRATIO, props->flDecayHFRatio);
 
-    prim->ExtAL->Effectf(prim->effect, AL_REVERB_REFLECTIONS_GAIN,
-                         mB_to_gain(props->lReflections));
-    prim->ExtAL->Effectf(prim->effect, AL_REVERB_REFLECTIONS_DELAY,
-                         props->flReflectionsDelay);
+    alEffectf(prim->effect, AL_REVERB_REFLECTIONS_GAIN, mB_to_gain(props->lReflections));
+    alEffectf(prim->effect, AL_REVERB_REFLECTIONS_DELAY, props->flReflectionsDelay);
 
-    prim->ExtAL->Effectf(prim->effect, AL_REVERB_LATE_REVERB_GAIN,
-                         mB_to_gain(props->lReverb));
-    prim->ExtAL->Effectf(prim->effect, AL_REVERB_LATE_REVERB_DELAY,
-                         props->flReverbDelay);
+    alEffectf(prim->effect, AL_REVERB_LATE_REVERB_GAIN, mB_to_gain(props->lReverb));
+    alEffectf(prim->effect, AL_REVERB_LATE_REVERB_DELAY, props->flReverbDelay);
 
-    prim->ExtAL->Effectf(prim->effect, AL_REVERB_AIR_ABSORPTION_GAINHF,
-                         mBF_to_gain(props->flAirAbsorptionHF));
+    alEffectf(prim->effect, AL_REVERB_AIR_ABSORPTION_GAINHF,
+              mBF_to_gain(props->flAirAbsorptionHF));
 
-    prim->ExtAL->Effecti(prim->effect, AL_REVERB_DECAY_HFLIMIT,
-                         (props->dwFlags&EAXLISTENERFLAGS_DECAYHFLIMIT) ?
-                         AL_TRUE : AL_FALSE);
+    alEffecti(prim->effect, AL_REVERB_DECAY_HFLIMIT,
+              (props->dwFlags&EAXLISTENERFLAGS_DECAYHFLIMIT) ?
+              AL_TRUE : AL_FALSE);
 
     checkALError();
 
@@ -2411,7 +2400,6 @@ static void ApplyReverbParams(DS8Primary *prim, const EAXLISTENERPROPERTIES *pro
 #define APPLY_WET_PARAMS 2
 static void ApplyFilterParams(DS8Buffer *buf, const EAX20BUFFERPROPERTIES *props, int apply)
 {
-    DS8Primary *prim = buf->primary;
     /* The LFRatio properties determine how much the given level applies to low
      * frequencies as well as high frequencies. Given that the high frequency
      * levels are specified relative to the low, they should increase as the
@@ -2427,8 +2415,8 @@ static void ApplyFilterParams(DS8Buffer *buf, const EAX20BUFFERPROPERTIES *props
         FLOAT mb   = props->lDirect   + obstr   + occl;
         FLOAT mbhf = props->lDirectHF + obstrhf + occlhf;
 
-        prim->ExtAL->Filterf(buf->filter[0], AL_LOWPASS_GAIN, mBF_to_gain(mb));
-        prim->ExtAL->Filterf(buf->filter[0], AL_LOWPASS_GAINHF, mBF_to_gain(mbhf));
+        alFilterf(buf->filter[0], AL_LOWPASS_GAIN, mBF_to_gain(mb));
+        alFilterf(buf->filter[0], AL_LOWPASS_GAINHF, mBF_to_gain(mbhf));
     }
     if((apply&APPLY_WET_PARAMS))
     {
@@ -2436,8 +2424,8 @@ static void ApplyFilterParams(DS8Buffer *buf, const EAX20BUFFERPROPERTIES *props
         FLOAT mb   = props->lRoom   + obstr   + occlroom*occl;
         FLOAT mbhf = props->lRoomHF + obstrhf + occlroom*occlhf;
 
-        prim->ExtAL->Filterf(buf->filter[1], AL_LOWPASS_GAIN, mBF_to_gain(mb));
-        prim->ExtAL->Filterf(buf->filter[1], AL_LOWPASS_GAINHF, mBF_to_gain(mbhf));
+        alFilterf(buf->filter[1], AL_LOWPASS_GAIN, mBF_to_gain(mb));
+        alFilterf(buf->filter[1], AL_LOWPASS_GAINHF, mBF_to_gain(mbhf));
     }
 }
 
@@ -2984,8 +2972,8 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
                 } data = { pPropData };
 
                 prim->eax_prop.lRoom = *data.l;
-                prim->ExtAL->Effectf(prim->effect, AL_REVERB_GAIN,
-                                     mB_to_gain(prim->eax_prop.lRoom));
+                alEffectf(prim->effect, AL_REVERB_GAIN,
+                          mB_to_gain(prim->eax_prop.lRoom));
                 checkALError();
 
                 prim->dirty.bit.effect = 1;
@@ -3001,8 +2989,8 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
                 } data = { pPropData };
 
                 prim->eax_prop.lRoomHF = *data.l;
-                prim->ExtAL->Effectf(prim->effect, AL_REVERB_GAINHF,
-                                     mB_to_gain(prim->eax_prop.lRoomHF));
+                alEffectf(prim->effect, AL_REVERB_GAINHF,
+                          mB_to_gain(prim->eax_prop.lRoomHF));
                 checkALError();
 
                 prim->dirty.bit.effect = 1;
@@ -3019,8 +3007,8 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
                 } data = { pPropData };
 
                 prim->eax_prop.flRoomRolloffFactor = *data.fl;
-                prim->ExtAL->Effectf(prim->effect, AL_REVERB_ROOM_ROLLOFF_FACTOR,
-                                     prim->eax_prop.flRoomRolloffFactor);
+                alEffectf(prim->effect, AL_REVERB_ROOM_ROLLOFF_FACTOR,
+                          prim->eax_prop.flRoomRolloffFactor);
                 checkALError();
 
                 prim->dirty.bit.effect = 1;
@@ -3037,8 +3025,8 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
                 } data = { pPropData };
 
                 prim->eax_prop.flDecayTime = *data.fl;
-                prim->ExtAL->Effectf(prim->effect, AL_REVERB_DECAY_TIME,
-                                     prim->eax_prop.flDecayTime);
+                alEffectf(prim->effect, AL_REVERB_DECAY_TIME,
+                          prim->eax_prop.flDecayTime);
                 checkALError();
 
                 prim->dirty.bit.effect = 1;
@@ -3054,8 +3042,8 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
                 } data = { pPropData };
 
                 prim->eax_prop.flDecayHFRatio = *data.fl;
-                prim->ExtAL->Effectf(prim->effect, AL_REVERB_DECAY_HFRATIO,
-                                     prim->eax_prop.flDecayHFRatio);
+                alEffectf(prim->effect, AL_REVERB_DECAY_HFRATIO,
+                          prim->eax_prop.flDecayHFRatio);
                 checkALError();
 
                 prim->dirty.bit.effect = 1;
@@ -3072,8 +3060,8 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
                 } data = { pPropData };
 
                 prim->eax_prop.lReflections = *data.l;
-                prim->ExtAL->Effectf(prim->effect, AL_REVERB_REFLECTIONS_GAIN,
-                                     mB_to_gain(prim->eax_prop.lReflections));
+                alEffectf(prim->effect, AL_REVERB_REFLECTIONS_GAIN,
+                          mB_to_gain(prim->eax_prop.lReflections));
                 checkALError();
 
                 prim->dirty.bit.effect = 1;
@@ -3089,8 +3077,8 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
                 } data = { pPropData };
 
                 prim->eax_prop.flReflectionsDelay = *data.fl;
-                prim->ExtAL->Effectf(prim->effect, AL_REVERB_REFLECTIONS_DELAY,
-                                     prim->eax_prop.flReflectionsDelay);
+                alEffectf(prim->effect, AL_REVERB_REFLECTIONS_DELAY,
+                          prim->eax_prop.flReflectionsDelay);
                 checkALError();
 
                 prim->dirty.bit.effect = 1;
@@ -3107,8 +3095,8 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
                 } data = { pPropData };
 
                 prim->eax_prop.lReverb = *data.l;
-                prim->ExtAL->Effectf(prim->effect, AL_REVERB_LATE_REVERB_GAIN,
-                                     mB_to_gain(prim->eax_prop.lReverb));
+                alEffectf(prim->effect, AL_REVERB_LATE_REVERB_GAIN,
+                          mB_to_gain(prim->eax_prop.lReverb));
                 checkALError();
 
                 prim->dirty.bit.effect = 1;
@@ -3124,8 +3112,8 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
                 } data = { pPropData };
 
                 prim->eax_prop.flReverbDelay = *data.fl;
-                prim->ExtAL->Effectf(prim->effect, AL_REVERB_LATE_REVERB_DELAY,
-                                     prim->eax_prop.flReverbDelay);
+                alEffectf(prim->effect, AL_REVERB_LATE_REVERB_DELAY,
+                          prim->eax_prop.flReverbDelay);
                 checkALError();
 
                 prim->dirty.bit.effect = 1;
@@ -3203,8 +3191,8 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
                 } data = { pPropData };
 
                 prim->eax_prop.flEnvironmentDiffusion = *data.fl;
-                prim->ExtAL->Effectf(prim->effect, AL_REVERB_DIFFUSION,
-                                     prim->eax_prop.flEnvironmentDiffusion);
+                alEffectf(prim->effect, AL_REVERB_DIFFUSION,
+                          prim->eax_prop.flEnvironmentDiffusion);
                 checkALError();
 
                 prim->dirty.bit.effect = 1;
@@ -3221,8 +3209,8 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
                 } data = { pPropData };
 
                 prim->eax_prop.flAirAbsorptionHF = *data.fl;
-                prim->ExtAL->Effectf(prim->effect, AL_REVERB_AIR_ABSORPTION_GAINHF,
-                                     mBF_to_gain(prim->eax_prop.flAirAbsorptionHF));
+                alEffectf(prim->effect, AL_REVERB_AIR_ABSORPTION_GAINHF,
+                          mBF_to_gain(prim->eax_prop.flAirAbsorptionHF));
                 checkALError();
 
                 prim->dirty.bit.effect = 1;
@@ -3239,9 +3227,9 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
                 } data = { pPropData };
 
                 prim->eax_prop.dwFlags = *data.dw;
-                prim->ExtAL->Effecti(prim->effect, AL_REVERB_DECAY_HFLIMIT,
-                                     (prim->eax_prop.dwFlags&EAXLISTENERFLAGS_DECAYHFLIMIT) ?
-                                     AL_TRUE : AL_FALSE);
+                alEffecti(prim->effect, AL_REVERB_DECAY_HFLIMIT,
+                          (prim->eax_prop.dwFlags&EAXLISTENERFLAGS_DECAYHFLIMIT) ?
+                          AL_TRUE : AL_FALSE);
                 checkALError();
 
                 prim->dirty.bit.effect = 1;
