@@ -406,18 +406,10 @@ HRESULT DSOUND_Create(REFIID riid, void **ds)
     return hr;
 }
 
-static const WCHAR speakerconfigkey[] = {
-    'S','Y','S','T','E','M','\\',
-    'C','u','r','r','e','n','t','C','o','n','t','r','o','l','S','e','t','\\',
-    'C','o','n','t','r','o','l','\\',
-    'M','e','d','i','a','R','e','s','o','u','r','c','e','s','\\',
-    'D','i','r','e','c','t','S','o','u','n','d','\\',
-    'S','p','e','a','k','e','r',' ','C','o','n','f','i','g','u','r','a','t','i','o','n',0
-};
 
-static const WCHAR speakerconfig[] = {
-    'S','p','e','a','k','e','r',' ','C','o','n','f','i','g','u','r','a','t','i','o','n',0
-};
+static const WCHAR speakerconfigkey[] =
+    L"SYSTEM\\CurrentControlSet\\Control\\MediaResources\\DirectSound\\Speaker Configuration";
+static const WCHAR speakerconfig[] = L"Speaker Configuration";
 
 HRESULT DSOUND_Create8(REFIID riid, LPVOID *ds)
 {
