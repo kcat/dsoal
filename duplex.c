@@ -474,6 +474,8 @@ HRESULT DSOUND_FullDuplexCreate(
     REFIID riid, void **ppDSFD)
 {
     IDirectSoundFullDuplexImpl *This = NULL;
+    HRESULT hr;
+
     TRACE("(%s, %p)\n", debugstr_guid(riid), ppDSFD);
 
     if(ppDSFD == NULL)
@@ -499,7 +501,8 @@ HRESULT DSOUND_FullDuplexCreate(
     This->IDirectSound8_iface.lpVtbl = &DirectSoundFullDuplex_DirectSound8_Vtbl;
     This->IDirectSoundCapture_iface.lpVtbl = &DirectSoundFullDuplex_DirectSoundCapture_Vtbl;
 
-    This->all_ref = This->ref = 1;
+    This->all_ref = 0;
+    This->ref = 0;
     This->unkref = 0;
     This->ds8ref = 0;
     This->dscref = 0;
@@ -507,8 +510,9 @@ HRESULT DSOUND_FullDuplexCreate(
     This->capture_device = NULL;
     This->renderer_device = NULL;
 
-    *ppDSFD = &This->IDirectSoundFullDuplex_iface;
-    return DS_OK;
+    hr = IDirectSoundFullDuplexImpl_QueryInterface(&This->IDirectSoundFullDuplex_iface, riid, ppDSFD);
+    if(FAILED(hr)) DSOUND_FullDuplexDestroy(This);
+    return hr;
 }
 
 /***************************************************************************
