@@ -427,6 +427,11 @@ enum {
 };
 
 typedef struct ExtALFuncs {
+    LPALGENFILTERS GenFilters;
+    LPALDELETEFILTERS DeleteFilters;
+    LPALFILTERI Filteri;
+    LPALFILTERF Filterf;
+
     LPALGENEFFECTS GenEffects;
     LPALDELETEEFFECTS DeleteEffects;
     LPALEFFECTI Effecti;
@@ -554,6 +559,8 @@ struct DS8Buffer {
     DS3DBUFFER params;
     EAX20BUFFERPROPERTIES eax_prop;
     union BufferParamFlags dirty;
+
+    ALuint filter[2];
 
     DWORD nnotify, lastpos;
     DSBPOSITIONNOTIFY *notify;

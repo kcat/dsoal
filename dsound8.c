@@ -254,6 +254,11 @@ static HRESULT DSShare_Create(REFIID guid, DeviceShare **out)
     if(alcIsExtensionPresent(share->device, "ALC_EXT_EFX"))
     {
 #define LOAD_FUNC(x) (share->ExtAL.x = alGetProcAddress("al"#x))
+        LOAD_FUNC(GenFilters);
+        LOAD_FUNC(DeleteFilters);
+        LOAD_FUNC(Filteri);
+        LOAD_FUNC(Filterf);
+
         LOAD_FUNC(GenEffects);
         LOAD_FUNC(DeleteEffects);
         LOAD_FUNC(Effecti);

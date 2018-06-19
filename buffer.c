@@ -547,6 +547,8 @@ void DS8Buffer_Destroy(DS8Buffer *This)
     }
     if(This->stream_bids[0])
         alDeleteBuffers(QBUFFERS, This->stream_bids);
+    if(This->filter[0])
+        prim->ExtAL->DeleteFilters(2, This->filter);
 
     if(This->buffer)
         DS8Data_Release(This->buffer);
@@ -1043,6 +1045,13 @@ HRESULT WINAPI DS8Buffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSound *ds
     if((data->dsbflags&DSBCAPS_CTRL3D))
     {
         union BufferParamFlags dirty = { 0 };
+
+        if(prim->SupportedExt[EXT_EFX])
+        {
+            prim->ExtAL->GenFilters(2, This->filter);
+            prim->ExtAL->Filteri(This->filter[0], AL_FILTER_TYPE, AL_FILTER_LOWPASS);
+            prim->ExtAL->Filteri(This->filter[1], AL_FILTER_TYPE, AL_FILTER_LOWPASS);
+        }
 
         dirty.bit.pos = 1;
         dirty.bit.vel = 1;
@@ -1659,9 +1668,9 @@ void DS8Buffer_SetParams(DS8Buffer *This, const DS3DBUFFER *params, const EAX20B
     }
 
     if(dirty.bit.dry_filter)
-        alSourcei(source, AL_DIRECT_FILTER, AL_FILTER_NULL);/*TODO*/
+        alSourcei(source, AL_DIRECT_FILTER, This->filter[0]);
     if(dirty.bit.wet_filter)
-        alSource3i(source, AL_AUXILIARY_SEND_FILTER, This->primary->auxslot, 0, AL_FILTER_NULL);/*TODO*/
+        alSource3i(source, AL_AUXILIARY_SEND_FILTER, This->primary->auxslot, 0, This->filter[1]);
     if(dirty.bit.room_rolloff)
         alSourcef(source, AL_ROOM_ROLLOFF_FACTOR, eax_params->flRoomRolloffFactor);
     if(dirty.bit.out_cone_vol)
