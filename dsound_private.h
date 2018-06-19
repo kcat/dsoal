@@ -519,7 +519,7 @@ union BufferParamFlags {
         BOOL dry_filter : 1;
         BOOL wet_filter : 1;
         BOOL room_rolloff : 1;
-        BOOL out_cone_vol : 1;
+        BOOL cone_outsidevolumehf : 1;
         BOOL air_absorb : 1;
         BOOL flags : 1;
     } bit;

@@ -1066,7 +1066,7 @@ HRESULT WINAPI DS8Buffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSound *ds
             dirty.bit.dry_filter = 1;
             dirty.bit.wet_filter = 1;
             dirty.bit.room_rolloff = 1;
-            dirty.bit.out_cone_vol = 1;
+            dirty.bit.cone_outsidevolumehf = 1;
             dirty.bit.air_absorb = 1;
             dirty.bit.flags = 1;
         }
@@ -1673,7 +1673,7 @@ void DS8Buffer_SetParams(DS8Buffer *This, const DS3DBUFFER *params, const EAX20B
         alSource3i(source, AL_AUXILIARY_SEND_FILTER, This->primary->auxslot, 0, This->filter[1]);
     if(dirty.bit.room_rolloff)
         alSourcef(source, AL_ROOM_ROLLOFF_FACTOR, eax_params->flRoomRolloffFactor);
-    if(dirty.bit.out_cone_vol)
+    if(dirty.bit.cone_outsidevolumehf)
         alSourcef(source, AL_CONE_OUTER_GAINHF, mB_to_gain(eax_params->lOutsideVolumeHF));
     if(dirty.bit.air_absorb)
         alSourcef(source, AL_AIR_ABSORPTION_FACTOR, eax_params->flAirAbsorptionFactor);
@@ -2691,7 +2691,7 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
                 This->dirty.bit.dry_filter = 1;
                 This->dirty.bit.wet_filter = 1;
                 This->dirty.bit.room_rolloff = 1;
-                This->dirty.bit.out_cone_vol = 1;
+                This->dirty.bit.cone_outsidevolumehf = 1;
                 This->dirty.bit.air_absorb = 1;
                 This->dirty.bit.flags = 1;
                 hr = DS_OK;
@@ -2865,7 +2865,7 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
 
                 This->eax_prop.lOutsideVolumeHF = *data.props;
 
-                This->dirty.bit.out_cone_vol = 1;
+                This->dirty.bit.cone_outsidevolumehf = 1;
                 hr = DS_OK;
             }
             break;
