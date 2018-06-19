@@ -2412,17 +2412,32 @@ static void ApplyReverbParams(DS8Primary *prim, const EAXLISTENERPROPERTIES *pro
 static void ApplyFilterParams(DS8Buffer *buf, const EAX20BUFFERPROPERTIES *props, int apply)
 {
     DS8Primary *prim = buf->primary;
+    /* The LFRatio properties determine how much the given level applies to low
+     * frequencies as well as high frequencies. Given that the high frequency
+     * levels are specified relative to the low, they should increase as the
+     * low frequency levels reduce.
+     */
+    FLOAT obstr   = props->lObstruction *       props->flObstructionLFRatio;
+    FLOAT obstrhf = props->lObstruction * (1.0f-props->flObstructionLFRatio);
+    FLOAT occl   = props->lOcclusion *       props->flOcclusionLFRatio;
+    FLOAT occlhf = props->lOcclusion * (1.0f-props->flOcclusionLFRatio);
 
-    /* TODO: Apply obstruction and occlusion. */
     if((apply&APPLY_DRY_PARAMS))
     {
-        prim->ExtAL->Filterf(buf->filter[0], AL_LOWPASS_GAIN, mB_to_gain(props->lDirect));
-        prim->ExtAL->Filterf(buf->filter[0], AL_LOWPASS_GAINHF, mB_to_gain(props->lDirectHF));
+        FLOAT mb   = props->lDirect   + obstr   + occl;
+        FLOAT mbhf = props->lDirectHF + obstrhf + occlhf;
+
+        prim->ExtAL->Filterf(buf->filter[0], AL_LOWPASS_GAIN, mBF_to_gain(mb));
+        prim->ExtAL->Filterf(buf->filter[0], AL_LOWPASS_GAINHF, mBF_to_gain(mbhf));
     }
     if((apply&APPLY_WET_PARAMS))
     {
-        prim->ExtAL->Filterf(buf->filter[1], AL_LOWPASS_GAIN, mB_to_gain(props->lRoom));
-        prim->ExtAL->Filterf(buf->filter[1], AL_LOWPASS_GAINHF, mB_to_gain(props->lRoomHF));
+        FLOAT occlroom = props->flOcclusionRoomRatio;
+        FLOAT mb   = props->lRoom   + obstr   + occlroom*occl;
+        FLOAT mbhf = props->lRoomHF + obstrhf + occlroom*occlhf;
+
+        prim->ExtAL->Filterf(buf->filter[1], AL_LOWPASS_GAIN, mBF_to_gain(mb));
+        prim->ExtAL->Filterf(buf->filter[1], AL_LOWPASS_GAINHF, mBF_to_gain(mbhf));
     }
 }
 
