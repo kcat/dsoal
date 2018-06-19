@@ -1098,9 +1098,7 @@ HRESULT WINAPI DS8Buffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSound *ds
             alSourcei(source, AL_AUXILIARY_SEND_FILTER_GAIN_AUTO, AL_TRUE);
             alSourcei(source, AL_AUXILIARY_SEND_FILTER_GAINHF_AUTO, AL_TRUE);
             alSourcei(source, AL_DIRECT_FILTER, AL_FILTER_NULL);
-            /* Simple hack to make reverb affect non-3D sounds too */
-            alSource3i(source, AL_AUXILIARY_SEND_FILTER, prim->auxslot, 0, AL_FILTER_NULL);
-            /*alSource3i(source, AL_AUXILIARY_SEND_FILTER, 0, 0, AL_FILTER_NULL);*/
+            alSource3i(source, AL_AUXILIARY_SEND_FILTER, 0, 0, AL_FILTER_NULL);
         }
         checkALError();
     }
