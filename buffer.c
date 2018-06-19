@@ -2407,6 +2407,25 @@ static void ApplyReverbParams(DS8Primary *prim, const EAXLISTENERPROPERTIES *pro
     prim->dirty.bit.effect = 1;
 }
 
+#define APPLY_DRY_PARAMS 1
+#define APPLY_WET_PARAMS 2
+static void ApplyFilterParams(DS8Buffer *buf, const EAX20BUFFERPROPERTIES *props, int apply)
+{
+    DS8Primary *prim = buf->primary;
+
+    /* TODO: Apply obstruction and occlusion. */
+    if((apply&APPLY_DRY_PARAMS))
+    {
+        prim->ExtAL->Filterf(buf->filter[0], AL_LOWPASS_GAIN, mB_to_gain(props->lDirect));
+        prim->ExtAL->Filterf(buf->filter[0], AL_LOWPASS_GAINHF, mB_to_gain(props->lDirectHF));
+    }
+    if((apply&APPLY_WET_PARAMS))
+    {
+        prim->ExtAL->Filterf(buf->filter[1], AL_LOWPASS_GAIN, mB_to_gain(props->lRoom));
+        prim->ExtAL->Filterf(buf->filter[1], AL_LOWPASS_GAINHF, mB_to_gain(props->lRoomHF));
+    }
+}
+
 static HRESULT WINAPI DS8BufferProp_QueryInterface(IKsPropertySet *iface, REFIID riid, void **ppv)
 {
     DS8Buffer *This = impl_from_IKsPropertySet(iface);
@@ -2684,7 +2703,7 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
                 } data = { pPropData };
 
                 This->eax_prop = *data.props;
-                /* TODO: Apply filter props */
+                ApplyFilterParams(This, data.props, APPLY_DRY_PARAMS|APPLY_WET_PARAMS);
 
                 This->dirty.bit.dry_filter = 1;
                 This->dirty.bit.wet_filter = 1;
@@ -2705,7 +2724,7 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
                 } data = { pPropData };
 
                 This->eax_prop.lDirect = *data.props;
-                /* TODO: Apply filter props */
+                ApplyFilterParams(This, &This->eax_prop, APPLY_DRY_PARAMS);
 
                 This->dirty.bit.dry_filter = 1;
                 hr = DS_OK;
@@ -2720,7 +2739,7 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
                 } data = { pPropData };
 
                 This->eax_prop.lDirectHF = *data.props;
-                /* TODO: Apply filter props */
+                ApplyFilterParams(This, &This->eax_prop, APPLY_DRY_PARAMS);
 
                 This->dirty.bit.dry_filter = 1;
                 hr = DS_OK;
@@ -2736,7 +2755,7 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
                 } data = { pPropData };
 
                 This->eax_prop.lRoom = *data.props;
-                /* TODO: Apply filter props */
+                ApplyFilterParams(This, &This->eax_prop, APPLY_WET_PARAMS);
 
                 This->dirty.bit.wet_filter = 1;
                 hr = DS_OK;
@@ -2751,7 +2770,7 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
                 } data = { pPropData };
 
                 This->eax_prop.lRoomHF = *data.props;
-                /* TODO: Apply filter props */
+                ApplyFilterParams(This, &This->eax_prop, APPLY_WET_PARAMS);
 
                 This->dirty.bit.wet_filter = 1;
                 hr = DS_OK;
@@ -2782,7 +2801,7 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
                 } data = { pPropData };
 
                 This->eax_prop.lObstruction = *data.props;
-                /* TODO: Apply filter props */
+                ApplyFilterParams(This, &This->eax_prop, APPLY_DRY_PARAMS);
 
                 This->dirty.bit.dry_filter = 1;
                 hr = DS_OK;
@@ -2797,7 +2816,7 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
                 } data = { pPropData };
 
                 This->eax_prop.flObstructionLFRatio = *data.props;
-                /* TODO: Apply filter props */
+                ApplyFilterParams(This, &This->eax_prop, APPLY_DRY_PARAMS);
 
                 This->dirty.bit.dry_filter = 1;
                 hr = DS_OK;
@@ -2813,7 +2832,7 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
                 } data = { pPropData };
 
                 This->eax_prop.lOcclusion = *data.props;
-                /* TODO: Apply filter props */
+                ApplyFilterParams(This, &This->eax_prop, APPLY_DRY_PARAMS|APPLY_WET_PARAMS);
 
                 This->dirty.bit.dry_filter = 1;
                 This->dirty.bit.wet_filter = 1;
@@ -2829,7 +2848,7 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
                 } data = { pPropData };
 
                 This->eax_prop.flOcclusionLFRatio = *data.props;
-                /* TODO: Apply filter props */
+                ApplyFilterParams(This, &This->eax_prop, APPLY_DRY_PARAMS|APPLY_WET_PARAMS);
 
                 This->dirty.bit.dry_filter = 1;
                 This->dirty.bit.wet_filter = 1;
@@ -2845,7 +2864,7 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
                 } data = { pPropData };
 
                 This->eax_prop.flOcclusionRoomRatio = *data.props;
-                /* TODO: Apply filter props */
+                ApplyFilterParams(This, &This->eax_prop, APPLY_DRY_PARAMS|APPLY_WET_PARAMS);
 
                 This->dirty.bit.dry_filter = 1;
                 This->dirty.bit.wet_filter = 1;
