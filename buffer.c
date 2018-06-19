@@ -2473,7 +2473,85 @@ static HRESULT WINAPI DS8BufferProp_Get(IKsPropertySet *iface,
 } while(0)
     if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX20_BufferProperties))
     {
-        FIXME("Unhandled propset: DSPROPSETID_EAX20_BufferProperties\n");
+        EnterCriticalSection(This->crst);
+
+        hr = DSERR_INVALIDPARAM;
+        if(This->filter[0] == 0)
+            hr = E_PROP_ID_UNSUPPORTED;
+        else switch(dwPropID)
+        {
+        case DSPROPERTY_EAXBUFFER_ALLPARAMETERS:
+            GET_PROP(&hr, pcbReturned, pPropData, cbPropData, This->eax_prop,
+                     EAX20BUFFERPROPERTIES);
+            break;
+
+        case DSPROPERTY_EAXBUFFER_DIRECT:
+            GET_PROP(&hr, pcbReturned, pPropData, cbPropData, This->eax_prop.lDirect,
+                     LONG);
+            break;
+        case DSPROPERTY_EAXBUFFER_DIRECTHF:
+            GET_PROP(&hr, pcbReturned, pPropData, cbPropData, This->eax_prop.lDirectHF,
+                     LONG);
+            break;
+
+        case DSPROPERTY_EAXBUFFER_ROOM:
+            GET_PROP(&hr, pcbReturned, pPropData, cbPropData, This->eax_prop.lRoom,
+                     LONG);
+            break;
+        case DSPROPERTY_EAXBUFFER_ROOMHF:
+            GET_PROP(&hr, pcbReturned, pPropData, cbPropData, This->eax_prop.lRoomHF,
+                     LONG);
+            break;
+
+        case DSPROPERTY_EAXBUFFER_ROOMROLLOFFFACTOR:
+            GET_PROP(&hr, pcbReturned, pPropData, cbPropData, This->eax_prop.flRoomRolloffFactor,
+                     FLOAT);
+            break;
+
+        case DSPROPERTY_EAXBUFFER_OBSTRUCTION:
+            GET_PROP(&hr, pcbReturned, pPropData, cbPropData, This->eax_prop.lObstruction,
+                     LONG);
+            break;
+        case DSPROPERTY_EAXBUFFER_OBSTRUCTIONLFRATIO:
+            GET_PROP(&hr, pcbReturned, pPropData, cbPropData, This->eax_prop.flObstructionLFRatio,
+                     FLOAT);
+            break;
+
+        case DSPROPERTY_EAXBUFFER_OCCLUSION:
+            GET_PROP(&hr, pcbReturned, pPropData, cbPropData, This->eax_prop.lOcclusion,
+                     LONG);
+            break;
+        case DSPROPERTY_EAXBUFFER_OCCLUSIONLFRATIO:
+            GET_PROP(&hr, pcbReturned, pPropData, cbPropData, This->eax_prop.flOcclusionLFRatio,
+                     FLOAT);
+            break;
+        case DSPROPERTY_EAXBUFFER_OCCLUSIONROOMRATIO:
+            GET_PROP(&hr, pcbReturned, pPropData, cbPropData, This->eax_prop.flOcclusionRoomRatio,
+                     FLOAT);
+            break;
+
+        case DSPROPERTY_EAXBUFFER_OUTSIDEVOLUMEHF:
+            GET_PROP(&hr, pcbReturned, pPropData, cbPropData, This->eax_prop.lOutsideVolumeHF,
+                     LONG);
+            break;
+
+        case DSPROPERTY_EAXBUFFER_AIRABSORPTIONFACTOR:
+            GET_PROP(&hr, pcbReturned, pPropData, cbPropData, This->eax_prop.flAirAbsorptionFactor,
+                     FLOAT);
+            break;
+
+        case DSPROPERTY_EAXBUFFER_FLAGS:
+            GET_PROP(&hr, pcbReturned, pPropData, cbPropData, This->eax_prop.dwFlags,
+                     DWORD);
+            break;
+
+        default:
+            hr = E_PROP_ID_UNSUPPORTED;
+            FIXME("Unhandled buffer propid: 0x%08lx\n", dwPropID);
+            break;
+        }
+
+        LeaveCriticalSection(This->crst);
     }
     else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX20_ListenerProperties))
     {
@@ -2558,7 +2636,7 @@ static HRESULT WINAPI DS8BufferProp_Get(IKsPropertySet *iface,
 
         default:
             hr = E_PROP_ID_UNSUPPORTED;
-            FIXME("Unhandled propid: 0x%08lx\n", dwPropID);
+            FIXME("Unhandled listener propid: 0x%08lx\n", dwPropID);
             break;
         }
 
@@ -2584,7 +2662,255 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
 
     if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX20_BufferProperties))
     {
-        FIXME("Unhandled propset: DSPROPSETID_EAX20_BufferProperties\n");
+        DWORD propid = dwPropID & ~DSPROPERTY_EAXBUFFER_DEFERRED;
+        BOOL immediate = !(dwPropID&DSPROPERTY_EAXBUFFER_DEFERRED);
+
+        EnterCriticalSection(This->crst);
+        setALContext(This->ctx);
+
+        hr = DSERR_INVALIDPARAM;
+        if(This->filter[0] == 0)
+            hr = E_PROP_ID_UNSUPPORTED;
+        else switch(propid)
+        {
+        case DSPROPERTY_EAXBUFFER_NONE: /* not setting any property, just applying */
+            hr = DS_OK;
+            break;
+
+        case DSPROPERTY_EAXBUFFER_ALLPARAMETERS:
+            if(cbPropData >= sizeof(EAX20BUFFERPROPERTIES))
+            {
+                union {
+                    const void *v;
+                    const EAX20BUFFERPROPERTIES *props;
+                } data = { pPropData };
+
+                This->eax_prop = *data.props;
+                /* TODO: Apply filter props */
+
+                This->dirty.bit.dry_filter = 1;
+                This->dirty.bit.wet_filter = 1;
+                This->dirty.bit.room_rolloff = 1;
+                This->dirty.bit.out_cone_vol = 1;
+                This->dirty.bit.air_absorb = 1;
+                This->dirty.bit.flags = 1;
+                hr = DS_OK;
+            }
+            break;
+
+        case DSPROPERTY_EAXBUFFER_DIRECT:
+            if(cbPropData >= sizeof(LONG))
+            {
+                union {
+                    const void *v;
+                    const LONG *props;
+                } data = { pPropData };
+
+                This->eax_prop.lDirect = *data.props;
+                /* TODO: Apply filter props */
+
+                This->dirty.bit.dry_filter = 1;
+                hr = DS_OK;
+            }
+            break;
+        case DSPROPERTY_EAXBUFFER_DIRECTHF:
+            if(cbPropData >= sizeof(LONG))
+            {
+                union {
+                    const void *v;
+                    const LONG *props;
+                } data = { pPropData };
+
+                This->eax_prop.lDirectHF = *data.props;
+                /* TODO: Apply filter props */
+
+                This->dirty.bit.dry_filter = 1;
+                hr = DS_OK;
+            }
+            break;
+
+        case DSPROPERTY_EAXBUFFER_ROOM:
+            if(cbPropData >= sizeof(LONG))
+            {
+                union {
+                    const void *v;
+                    const LONG *props;
+                } data = { pPropData };
+
+                This->eax_prop.lRoom = *data.props;
+                /* TODO: Apply filter props */
+
+                This->dirty.bit.wet_filter = 1;
+                hr = DS_OK;
+            }
+            break;
+        case DSPROPERTY_EAXBUFFER_ROOMHF:
+            if(cbPropData >= sizeof(LONG))
+            {
+                union {
+                    const void *v;
+                    const LONG *props;
+                } data = { pPropData };
+
+                This->eax_prop.lRoomHF = *data.props;
+                /* TODO: Apply filter props */
+
+                This->dirty.bit.wet_filter = 1;
+                hr = DS_OK;
+            }
+            break;
+
+        case DSPROPERTY_EAXBUFFER_ROOMROLLOFFFACTOR:
+            if(cbPropData >= sizeof(FLOAT))
+            {
+                union {
+                    const void *v;
+                    const FLOAT *props;
+                } data = { pPropData };
+
+                This->eax_prop.flRoomRolloffFactor = *data.props;
+
+                This->dirty.bit.room_rolloff = 1;
+                hr = DS_OK;
+            }
+            break;
+
+        case DSPROPERTY_EAXBUFFER_OBSTRUCTION:
+            if(cbPropData >= sizeof(LONG))
+            {
+                union {
+                    const void *v;
+                    const LONG *props;
+                } data = { pPropData };
+
+                This->eax_prop.lObstruction = *data.props;
+                /* TODO: Apply filter props */
+
+                This->dirty.bit.dry_filter = 1;
+                hr = DS_OK;
+            }
+            break;
+        case DSPROPERTY_EAXBUFFER_OBSTRUCTIONLFRATIO:
+            if(cbPropData >= sizeof(FLOAT))
+            {
+                union {
+                    const void *v;
+                    const FLOAT *props;
+                } data = { pPropData };
+
+                This->eax_prop.flObstructionLFRatio = *data.props;
+                /* TODO: Apply filter props */
+
+                This->dirty.bit.dry_filter = 1;
+                hr = DS_OK;
+            }
+            break;
+
+        case DSPROPERTY_EAXBUFFER_OCCLUSION:
+            if(cbPropData >= sizeof(LONG))
+            {
+                union {
+                    const void *v;
+                    const LONG *props;
+                } data = { pPropData };
+
+                This->eax_prop.lOcclusion = *data.props;
+                /* TODO: Apply filter props */
+
+                This->dirty.bit.dry_filter = 1;
+                This->dirty.bit.wet_filter = 1;
+                hr = DS_OK;
+            }
+            break;
+        case DSPROPERTY_EAXBUFFER_OCCLUSIONLFRATIO:
+            if(cbPropData >= sizeof(FLOAT))
+            {
+                union {
+                    const void *v;
+                    const FLOAT *props;
+                } data = { pPropData };
+
+                This->eax_prop.flOcclusionLFRatio = *data.props;
+                /* TODO: Apply filter props */
+
+                This->dirty.bit.dry_filter = 1;
+                This->dirty.bit.wet_filter = 1;
+                hr = DS_OK;
+            }
+            break;
+        case DSPROPERTY_EAXBUFFER_OCCLUSIONROOMRATIO:
+            if(cbPropData >= sizeof(FLOAT))
+            {
+                union {
+                    const void *v;
+                    const FLOAT *props;
+                } data = { pPropData };
+
+                This->eax_prop.flOcclusionRoomRatio = *data.props;
+                /* TODO: Apply filter props */
+
+                This->dirty.bit.dry_filter = 1;
+                This->dirty.bit.wet_filter = 1;
+                hr = DS_OK;
+            }
+            break;
+
+        case DSPROPERTY_EAXBUFFER_OUTSIDEVOLUMEHF:
+            if(cbPropData >= sizeof(LONG))
+            {
+                union {
+                    const void *v;
+                    const LONG *props;
+                } data = { pPropData };
+
+                This->eax_prop.lOutsideVolumeHF = *data.props;
+
+                This->dirty.bit.out_cone_vol = 1;
+                hr = DS_OK;
+            }
+            break;
+
+        case DSPROPERTY_EAXBUFFER_AIRABSORPTIONFACTOR:
+            if(cbPropData >= sizeof(FLOAT))
+            {
+                union {
+                    const void *v;
+                    const FLOAT *props;
+                } data = { pPropData };
+
+                This->eax_prop.flAirAbsorptionFactor = *data.props;
+
+                This->dirty.bit.air_absorb = 1;
+                hr = DS_OK;
+            }
+            break;
+
+        case DSPROPERTY_EAXBUFFER_FLAGS:
+            if(cbPropData >= sizeof(DWORD))
+            {
+                union {
+                    const void *v;
+                    const DWORD *props;
+                } data = { pPropData };
+
+                This->eax_prop.dwFlags = *data.props;
+
+                This->dirty.bit.flags = 1;
+                hr = DS_OK;
+            }
+            break;
+
+        default:
+            hr = E_PROP_ID_UNSUPPORTED;
+            FIXME("Unhandled buffer propid: 0x%08lx\n", propid);
+            break;
+        }
+
+        if(hr == DS_OK && immediate)
+            DS8Primary3D_CommitDeferredSettings(&This->primary->IDirectSound3DListener_iface);
+
+        popALContext();
+        LeaveCriticalSection(This->crst);
     }
     else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX20_ListenerProperties))
     {
@@ -2893,7 +3219,7 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
 
         default:
             hr = E_PROP_ID_UNSUPPORTED;
-            FIXME("Unhandled propid: 0x%08lx\n", propid);
+            FIXME("Unhandled listener propid: 0x%08lx\n", propid);
             break;
         }
 
@@ -2924,7 +3250,37 @@ static HRESULT WINAPI DS8BufferProp_QuerySupport(IKsPropertySet *iface,
 
     if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX20_BufferProperties))
     {
-        FIXME("Unhandled propset: DSPROPSETID_EAX20_BufferProperties\n");
+        EnterCriticalSection(This->crst);
+
+        if(This->filter[0] == 0)
+            hr = E_PROP_ID_UNSUPPORTED;
+        else if(dwPropID == DSPROPERTY_EAXBUFFER_NONE)
+        {
+            *pTypeSupport = KSPROPERTY_SUPPORT_SET;
+            hr = DS_OK;
+        }
+        else if(dwPropID == DSPROPERTY_EAXBUFFER_ALLPARAMETERS ||
+                dwPropID == DSPROPERTY_EAXBUFFER_DIRECT ||
+                dwPropID == DSPROPERTY_EAXBUFFER_DIRECTHF ||
+                dwPropID == DSPROPERTY_EAXBUFFER_ROOM ||
+                dwPropID == DSPROPERTY_EAXBUFFER_ROOMHF ||
+                dwPropID == DSPROPERTY_EAXBUFFER_ROOMROLLOFFFACTOR ||
+                dwPropID == DSPROPERTY_EAXBUFFER_OBSTRUCTION ||
+                dwPropID == DSPROPERTY_EAXBUFFER_OBSTRUCTIONLFRATIO ||
+                dwPropID == DSPROPERTY_EAXBUFFER_OCCLUSION ||
+                dwPropID == DSPROPERTY_EAXBUFFER_OCCLUSIONLFRATIO ||
+                dwPropID == DSPROPERTY_EAXBUFFER_OCCLUSIONROOMRATIO ||
+                dwPropID == DSPROPERTY_EAXBUFFER_OUTSIDEVOLUMEHF ||
+                dwPropID == DSPROPERTY_EAXBUFFER_AIRABSORPTIONFACTOR ||
+                dwPropID == DSPROPERTY_EAXBUFFER_FLAGS)
+        {
+            *pTypeSupport = KSPROPERTY_SUPPORT_GET|KSPROPERTY_SUPPORT_SET;
+            hr = DS_OK;
+        }
+        else
+            FIXME("Unhandled buffer propid: 0x%08lx\n", dwPropID);
+
+        LeaveCriticalSection(This->crst);
     }
     else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX20_ListenerProperties))
     {
@@ -2959,7 +3315,7 @@ static HRESULT WINAPI DS8BufferProp_QuerySupport(IKsPropertySet *iface,
             hr = DS_OK;
         }
         else
-            FIXME("Unhandled propid: 0x%08lx\n", dwPropID);
+            FIXME("Unhandled listener propid: 0x%08lx\n", dwPropID);
 
         LeaveCriticalSection(This->crst);
     }
