@@ -924,6 +924,7 @@ HRESULT WINAPI DS8Buffer_GetStatus(IDirectSoundBuffer8 *iface, DWORD *status)
 HRESULT WINAPI DS8Buffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSound *ds, const DSBUFFERDESC *desc)
 {
     DS8Buffer *This = impl_from_IDirectSoundBuffer8(iface);
+    EAX20BUFFERPROPERTIES *eaxbuffer;
     DS3DBUFFER *ds3dbuffer;
     DS8Primary *prim;
     DS8Data *data;
@@ -1023,13 +1024,25 @@ HRESULT WINAPI DS8Buffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSound *ds
     ds3dbuffer->flMinDistance = DS3D_DEFAULTMINDISTANCE;
     ds3dbuffer->flMaxDistance = DS3D_DEFAULTMAXDISTANCE;
     ds3dbuffer->dwMode = DS3DMODE_NORMAL;
+    eaxbuffer = &This->eax_prop;
+    eaxbuffer->lDirect = 0;
+    eaxbuffer->lDirectHF = 0;
+    eaxbuffer->lRoom = 0;
+    eaxbuffer->lRoomHF = 0;
+    eaxbuffer->flRoomRolloffFactor = 0.0f;
+    eaxbuffer->lObstruction = 0;
+    eaxbuffer->flObstructionLFRatio = 1.0f;
+    eaxbuffer->lOcclusion = 0;
+    eaxbuffer->flOcclusionLFRatio = 1.0f;
+    eaxbuffer->flOcclusionRoomRatio = 1.0f;
+    eaxbuffer->lOutsideVolumeHF = 0;
+    eaxbuffer->flAirAbsorptionFactor = 0.0f;
+    eaxbuffer->dwFlags = EAXBUFFERFLAGS_DIRECTHFAUTO | EAXBUFFERFLAGS_ROOMAUTO |
+                         EAXBUFFERFLAGS_ROOMHFAUTO;
 
     if((data->dsbflags&DSBCAPS_CTRL3D))
     {
         union BufferParamFlags dirty = { 0 };
-
-        if(prim->auxslot != 0)
-            alSource3i(This->source, AL_AUXILIARY_SEND_FILTER, prim->auxslot, 0, AL_FILTER_NULL);
 
         dirty.bit.pos = 1;
         dirty.bit.vel = 1;
@@ -1039,19 +1052,21 @@ HRESULT WINAPI DS8Buffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSound *ds
         dirty.bit.min_distance = 1;
         dirty.bit.max_distance = 1;
         dirty.bit.mode = 1;
-        DS8Buffer_SetParams(This, ds3dbuffer, dirty.flags);
+        if(prim->SupportedExt[EXT_EFX])
+        {
+            dirty.bit.dry_filter = 1;
+            dirty.bit.wet_filter = 1;
+            dirty.bit.room_rolloff = 1;
+            dirty.bit.out_cone_vol = 1;
+            dirty.bit.air_absorb = 1;
+            dirty.bit.flags = 1;
+        }
+        DS8Buffer_SetParams(This, ds3dbuffer, eaxbuffer, dirty.flags);
         checkALError();
     }
     else
     {
         ALuint source = This->source;
-
-        if(prim->auxslot != 0)
-        {
-            /* Simple hack to make reverb affect non-3D sounds too */
-            alSource3i(source, AL_AUXILIARY_SEND_FILTER, prim->auxslot, 0, AL_FILTER_NULL);
-            /*alSource3i(source, AL_AUXILIARY_SEND_FILTER, 0, 0, AL_FILTER_NULL);*/
-        }
 
         /* Non-3D sources aren't distance attenuated */
         This->ds3dmode = DS3DMODE_DISABLE;
@@ -1065,6 +1080,19 @@ HRESULT WINAPI DS8Buffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSound *ds
         alSourcei(source, AL_CONE_INNER_ANGLE, 360);
         alSourcei(source, AL_CONE_OUTER_ANGLE, 360);
         alSourcei(source, AL_SOURCE_RELATIVE, AL_TRUE);
+        if(prim->SupportedExt[EXT_EFX])
+        {
+            alSourcef(source, AL_ROOM_ROLLOFF_FACTOR, 0.0f);
+            alSourcef(source, AL_CONE_OUTER_GAINHF, 1.0f);
+            alSourcef(source, AL_AIR_ABSORPTION_FACTOR, 0.0f);
+            alSourcei(source, AL_DIRECT_FILTER_GAINHF_AUTO, AL_TRUE);
+            alSourcei(source, AL_AUXILIARY_SEND_FILTER_GAIN_AUTO, AL_TRUE);
+            alSourcei(source, AL_AUXILIARY_SEND_FILTER_GAINHF_AUTO, AL_TRUE);
+            alSourcei(source, AL_DIRECT_FILTER, AL_FILTER_NULL);
+            /* Simple hack to make reverb affect non-3D sounds too */
+            alSource3i(source, AL_AUXILIARY_SEND_FILTER, prim->auxslot, 0, AL_FILTER_NULL);
+            /*alSource3i(source, AL_AUXILIARY_SEND_FILTER, 0, 0, AL_FILTER_NULL);*/
+        }
         checkALError();
     }
     hr = S_OK;
@@ -1595,7 +1623,7 @@ static const IDirectSoundBuffer8Vtbl DS8Buffer_Vtbl = {
 };
 
 
-void DS8Buffer_SetParams(DS8Buffer *This, const DS3DBUFFER *params, LONG flags)
+void DS8Buffer_SetParams(DS8Buffer *This, const DS3DBUFFER *params, const EAX20BUFFERPROPERTIES *eax_params, LONG flags)
 {
     const ALuint source = This->source;
     union BufferParamFlags dirty = { flags };
@@ -1628,6 +1656,26 @@ void DS8Buffer_SetParams(DS8Buffer *This, const DS3DBUFFER *params, LONG flags)
                                               AL_TRUE : AL_FALSE);
         alSourcef(source, AL_ROLLOFF_FACTOR, (params->dwMode==DS3DMODE_DISABLE) ?
                                              0.0f : This->primary->rollofffactor);
+    }
+
+    if(dirty.bit.dry_filter)
+        alSourcei(source, AL_DIRECT_FILTER, AL_FILTER_NULL);/*TODO*/
+    if(dirty.bit.wet_filter)
+        alSource3i(source, AL_AUXILIARY_SEND_FILTER, This->primary->auxslot, 0, AL_FILTER_NULL);/*TODO*/
+    if(dirty.bit.room_rolloff)
+        alSourcef(source, AL_ROOM_ROLLOFF_FACTOR, eax_params->flRoomRolloffFactor);
+    if(dirty.bit.out_cone_vol)
+        alSourcef(source, AL_CONE_OUTER_GAINHF, mB_to_gain(eax_params->lOutsideVolumeHF));
+    if(dirty.bit.air_absorb)
+        alSourcef(source, AL_AIR_ABSORPTION_FACTOR, eax_params->flAirAbsorptionFactor);
+    if(dirty.bit.flags)
+    {
+        alSourcei(source, AL_DIRECT_FILTER_GAINHF_AUTO,
+                  (eax_params->dwFlags&EAXBUFFERFLAGS_DIRECTHFAUTO) ? AL_TRUE : AL_FALSE);
+        alSourcei(source, AL_AUXILIARY_SEND_FILTER_GAIN_AUTO,
+                  (eax_params->dwFlags&EAXBUFFERFLAGS_ROOMAUTO) ? AL_TRUE : AL_FALSE);
+        alSourcei(source, AL_AUXILIARY_SEND_FILTER_GAINHF_AUTO,
+                  (eax_params->dwFlags&EAXBUFFERFLAGS_ROOMHFAUTO) ? AL_TRUE : AL_FALSE);
     }
 }
 
@@ -2175,7 +2223,7 @@ static HRESULT WINAPI DS8Buffer3D_SetAllParameters(IDirectSound3DBuffer *iface, 
 
         EnterCriticalSection(This->crst);
         setALContext(This->ctx);
-        DS8Buffer_SetParams(This, ds3dbuffer, dirty.flags);
+        DS8Buffer_SetParams(This, ds3dbuffer, NULL, dirty.flags);
         checkALError();
         popALContext();
         LeaveCriticalSection(This->crst);

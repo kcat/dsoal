@@ -509,6 +509,14 @@ union BufferParamFlags {
         BOOL min_distance : 1;
         BOOL max_distance : 1;
         BOOL mode : 1;
+
+        /* EAX2 */
+        BOOL dry_filter : 1;
+        BOOL wet_filter : 1;
+        BOOL room_rolloff : 1;
+        BOOL out_cone_vol : 1;
+        BOOL air_absorb : 1;
+        BOOL flags : 1;
     } bit;
 };
 
@@ -544,6 +552,7 @@ struct DS8Buffer {
     DWORD ds3dmode;
 
     DS3DBUFFER params;
+    EAX20BUFFERPROPERTIES eax_prop;
     union BufferParamFlags dirty;
 
     DWORD nnotify, lastpos;
@@ -643,7 +652,7 @@ HRESULT WINAPI DS8Primary3D_CommitDeferredSettings(IDirectSound3DListener *iface
 
 HRESULT DS8Buffer_Create(DS8Buffer **ppv, DS8Primary *parent, IDirectSoundBuffer *orig, BOOL prim_emu);
 void DS8Buffer_Destroy(DS8Buffer *buf);
-void DS8Buffer_SetParams(DS8Buffer *buffer, const DS3DBUFFER *params, LONG flags);
+void DS8Buffer_SetParams(DS8Buffer *buffer, const DS3DBUFFER *params, const EAX20BUFFERPROPERTIES *eax_params, LONG flags);
 HRESULT WINAPI DS8Buffer_GetCurrentPosition(IDirectSoundBuffer8 *iface, DWORD *playpos, DWORD *curpos);
 HRESULT WINAPI DS8Buffer_GetStatus(IDirectSoundBuffer8 *iface, DWORD *status);
 HRESULT WINAPI DS8Buffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSound *ds, const DSBUFFERDESC *desc);

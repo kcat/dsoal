@@ -1613,7 +1613,7 @@ HRESULT WINAPI DS8Primary3D_CommitDeferredSettings(IDirectSound3DListener *iface
             usemask &= ~(U64(1) << idx);
 
             if((flags=InterlockedExchange(&buf->dirty.flags, 0)) != 0)
-                DS8Buffer_SetParams(buf, &buf->params, flags);
+                DS8Buffer_SetParams(buf, &buf->params, &buf->eax_prop, flags);
         }
     }
     checkALError();
