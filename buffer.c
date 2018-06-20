@@ -1296,6 +1296,7 @@ static HRESULT WINAPI DS8Buffer_SetCurrentPosition(IDirectSoundBuffer8 *iface, D
     {
         setALContext(This->ctx);
         alSourcei(This->source, AL_BYTE_OFFSET, pos);
+        checkALError();
         popALContext();
     }
     This->lastpos = pos;
