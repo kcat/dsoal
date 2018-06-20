@@ -296,7 +296,7 @@ HRESULT DS8Primary_PreInit(DS8Primary *This, DS8Impl *parent)
     This->crst = &parent->share->crst;
     This->ctx = parent->share->ctx;
     This->refresh = parent->share->refresh;
-    This->SupportedExt = parent->share->SupportedExt;
+    This->Exts = parent->share->Exts;
     This->sources = parent->share->sources;
     This->auxslot = parent->share->auxslot;
 
@@ -1082,7 +1082,7 @@ static void DS8Primary_SetParams(DS8Primary *This, const DS3DLISTENER *params, L
     if(dirty.bit.distancefactor)
     {
         alSpeedOfSound(343.3f/params->flDistanceFactor);
-        if(This->SupportedExt[EXT_EFX])
+        if(BITFIELD_TEST(This->Exts, EXT_EFX))
             alListenerf(AL_METERS_PER_UNIT, params->flDistanceFactor);
     }
     if(dirty.bit.rollofffactor)
@@ -1325,7 +1325,7 @@ static HRESULT WINAPI DS8Primary3D_SetDistanceFactor(IDirectSound3DListener *ifa
     {
         setALContext(This->ctx);
         alSpeedOfSound(343.3f/factor);
-        if(This->SupportedExt[EXT_EFX])
+        if(BITFIELD_TEST(This->Exts, EXT_EFX))
             alListenerf(AL_METERS_PER_UNIT, factor);
         checkALError();
         popALContext();

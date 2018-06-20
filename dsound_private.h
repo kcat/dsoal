@@ -468,6 +468,11 @@ enum {
 };
 
 
+#define BITFIELD_ARRAY_SIZE(b) ((b+7) / 8)
+#define BITFIELD_SET(arr, b) ((arr)[(b)>>3] |= 1<<((b)&7))
+#define BITFIELD_TEST(arr, b) ((arr)[(b)>>3] & (1<<((b)&7)))
+
+
 #define MAX_SOURCES 256
 typedef struct DeviceShare {
     LONG ref;
@@ -476,7 +481,7 @@ typedef struct DeviceShare {
     ALCcontext *ctx;
     ALCint refresh;
 
-    ALboolean SupportedExt[MAX_EXTENSIONS];
+    ALboolean Exts[BITFIELD_ARRAY_SIZE(MAX_EXTENSIONS)];
 
     CRITICAL_SECTION crst;
 
@@ -613,7 +618,7 @@ struct DS8Primary {
 
     /* Taken from the share */
     ALCcontext *ctx;
-    const ALboolean *SupportedExt;
+    const ALboolean *Exts;
     CRITICAL_SECTION *crst;
     ALCint refresh;
     ALuint *sources;
