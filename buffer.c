@@ -3289,31 +3289,34 @@ static HRESULT WINAPI DS8BufferProp_QuerySupport(IKsPropertySet *iface,
 
         if(This->filter[0] == 0)
             hr = E_PROP_ID_UNSUPPORTED;
-        else if(dwPropID == DSPROPERTY_EAXBUFFER_NONE)
+        else switch(dwPropID)
         {
+        case DSPROPERTY_EAXBUFFER_NONE:
             *pTypeSupport = KSPROPERTY_SUPPORT_SET;
             hr = DS_OK;
-        }
-        else if(dwPropID == DSPROPERTY_EAXBUFFER_ALLPARAMETERS ||
-                dwPropID == DSPROPERTY_EAXBUFFER_DIRECT ||
-                dwPropID == DSPROPERTY_EAXBUFFER_DIRECTHF ||
-                dwPropID == DSPROPERTY_EAXBUFFER_ROOM ||
-                dwPropID == DSPROPERTY_EAXBUFFER_ROOMHF ||
-                dwPropID == DSPROPERTY_EAXBUFFER_ROOMROLLOFFFACTOR ||
-                dwPropID == DSPROPERTY_EAXBUFFER_OBSTRUCTION ||
-                dwPropID == DSPROPERTY_EAXBUFFER_OBSTRUCTIONLFRATIO ||
-                dwPropID == DSPROPERTY_EAXBUFFER_OCCLUSION ||
-                dwPropID == DSPROPERTY_EAXBUFFER_OCCLUSIONLFRATIO ||
-                dwPropID == DSPROPERTY_EAXBUFFER_OCCLUSIONROOMRATIO ||
-                dwPropID == DSPROPERTY_EAXBUFFER_OUTSIDEVOLUMEHF ||
-                dwPropID == DSPROPERTY_EAXBUFFER_AIRABSORPTIONFACTOR ||
-                dwPropID == DSPROPERTY_EAXBUFFER_FLAGS)
-        {
-            *pTypeSupport = KSPROPERTY_SUPPORT_GET|KSPROPERTY_SUPPORT_SET;
+            break;
+        case DSPROPERTY_EAXBUFFER_ALLPARAMETERS:
+        case DSPROPERTY_EAXBUFFER_DIRECT:
+        case DSPROPERTY_EAXBUFFER_DIRECTHF:
+        case DSPROPERTY_EAXBUFFER_ROOM:
+        case DSPROPERTY_EAXBUFFER_ROOMHF:
+        case DSPROPERTY_EAXBUFFER_ROOMROLLOFFFACTOR:
+        case DSPROPERTY_EAXBUFFER_OBSTRUCTION:
+        case DSPROPERTY_EAXBUFFER_OBSTRUCTIONLFRATIO:
+        case DSPROPERTY_EAXBUFFER_OCCLUSION:
+        case DSPROPERTY_EAXBUFFER_OCCLUSIONLFRATIO:
+        case DSPROPERTY_EAXBUFFER_OCCLUSIONROOMRATIO:
+        case DSPROPERTY_EAXBUFFER_OUTSIDEVOLUMEHF:
+        case DSPROPERTY_EAXBUFFER_AIRABSORPTIONFACTOR:
+        case DSPROPERTY_EAXBUFFER_FLAGS:
+            *pTypeSupport = KSPROPERTY_SUPPORT_GET | KSPROPERTY_SUPPORT_SET;
             hr = DS_OK;
-        }
-        else
+            break;
+        default:
+            hr = E_PROP_ID_UNSUPPORTED;
             FIXME("Unhandled buffer propid: 0x%08lx\n", dwPropID);
+            break;
+        }
 
         LeaveCriticalSection(This->crst);
     }
@@ -3325,32 +3328,35 @@ static HRESULT WINAPI DS8BufferProp_QuerySupport(IKsPropertySet *iface,
 
         if(prim->effect == 0)
             hr = E_PROP_ID_UNSUPPORTED;
-        else if(dwPropID == DSPROPERTY_EAXLISTENER_NONE)
+        else switch(dwPropID)
         {
+        case DSPROPERTY_EAXLISTENER_NONE:
             *pTypeSupport = KSPROPERTY_SUPPORT_SET;
             hr = DS_OK;
-        }
-        else if(dwPropID == DSPROPERTY_EAXLISTENER_ALLPARAMETERS ||
-                dwPropID == DSPROPERTY_EAXLISTENER_ROOM ||
-                dwPropID == DSPROPERTY_EAXLISTENER_ROOMHF ||
-                dwPropID == DSPROPERTY_EAXLISTENER_ROOMROLLOFFFACTOR ||
-                dwPropID == DSPROPERTY_EAXLISTENER_DECAYTIME ||
-                dwPropID == DSPROPERTY_EAXLISTENER_DECAYHFRATIO ||
-                dwPropID == DSPROPERTY_EAXLISTENER_REFLECTIONS ||
-                dwPropID == DSPROPERTY_EAXLISTENER_REFLECTIONSDELAY ||
-                dwPropID == DSPROPERTY_EAXLISTENER_REVERB ||
-                dwPropID == DSPROPERTY_EAXLISTENER_REVERBDELAY ||
-                dwPropID == DSPROPERTY_EAXLISTENER_ENVIRONMENT ||
-                dwPropID == DSPROPERTY_EAXLISTENER_ENVIRONMENTSIZE ||
-                dwPropID == DSPROPERTY_EAXLISTENER_ENVIRONMENTDIFFUSION ||
-                dwPropID == DSPROPERTY_EAXLISTENER_AIRABSORPTIONHF ||
-                dwPropID == DSPROPERTY_EAXLISTENER_FLAGS)
-        {
-            *pTypeSupport = KSPROPERTY_SUPPORT_GET|KSPROPERTY_SUPPORT_SET;
+            break;
+        case DSPROPERTY_EAXLISTENER_ALLPARAMETERS:
+        case DSPROPERTY_EAXLISTENER_ROOM:
+        case DSPROPERTY_EAXLISTENER_ROOMHF:
+        case DSPROPERTY_EAXLISTENER_ROOMROLLOFFFACTOR:
+        case DSPROPERTY_EAXLISTENER_DECAYTIME:
+        case DSPROPERTY_EAXLISTENER_DECAYHFRATIO:
+        case DSPROPERTY_EAXLISTENER_REFLECTIONS:
+        case DSPROPERTY_EAXLISTENER_REFLECTIONSDELAY:
+        case DSPROPERTY_EAXLISTENER_REVERB:
+        case DSPROPERTY_EAXLISTENER_REVERBDELAY:
+        case DSPROPERTY_EAXLISTENER_ENVIRONMENT:
+        case DSPROPERTY_EAXLISTENER_ENVIRONMENTSIZE:
+        case DSPROPERTY_EAXLISTENER_ENVIRONMENTDIFFUSION:
+        case DSPROPERTY_EAXLISTENER_AIRABSORPTIONHF:
+        case DSPROPERTY_EAXLISTENER_FLAGS:
+            *pTypeSupport = KSPROPERTY_SUPPORT_GET | KSPROPERTY_SUPPORT_SET;
             hr = DS_OK;
-        }
-        else
+            break;
+        default:
+            hr = E_PROP_ID_UNSUPPORTED;
             FIXME("Unhandled listener propid: 0x%08lx\n", dwPropID);
+            break;
+        }
 
         LeaveCriticalSection(This->crst);
     }
