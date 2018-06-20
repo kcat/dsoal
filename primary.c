@@ -297,7 +297,7 @@ HRESULT DS8Primary_PreInit(DS8Primary *This, DS8Impl *parent)
     This->ctx = parent->share->ctx;
     This->refresh = parent->share->refresh;
     This->Exts = parent->share->Exts;
-    This->sources = parent->share->sources;
+    This->sources = &parent->share->sources;
     This->auxslot = parent->share->auxslot;
 
     wfx = &This->format.Format;
@@ -331,7 +331,7 @@ HRESULT DS8Primary_PreInit(DS8Primary *This, DS8Impl *parent)
     }
     popALContext();
 
-    num_srcs = parent->share->max_sources;
+    num_srcs = This->sources->max_alloc;
 
     hr = DSERR_OUTOFMEMORY;
     This->notifies = HeapAlloc(GetProcessHeap(), 0, num_srcs*sizeof(*This->notifies));

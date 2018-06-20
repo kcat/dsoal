@@ -541,7 +541,7 @@ void DS8Buffer_Destroy(DS8Buffer *This)
         alSourcei(This->source, AL_BUFFER, 0);
         checkALError();
 
-        prim->sources[prim->parent->share->nsources++] = This->source;
+        prim->sources->ids[prim->sources->avail_num++] = This->source;
         This->source = 0;
     }
     if(This->stream_bids[0])
@@ -999,10 +999,10 @@ HRESULT WINAPI DS8Buffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSound *ds
     }
 
     hr = DSERR_ALLOCATED;
-    if(!prim->parent->share->nsources)
+    if(!prim->sources->avail_num)
         goto out;
 
-    This->source = prim->sources[--(prim->parent->share->nsources)];
+    This->source = prim->sources->ids[--(prim->sources->avail_num)];
     alSourceRewind(This->source);
     alSourcef(This->source, AL_GAIN, 1.0f);
     alSourcef(This->source, AL_PITCH, 1.0f);

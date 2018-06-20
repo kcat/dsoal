@@ -146,9 +146,9 @@ static void DSShare_Destroy(DeviceShare *share)
         EnterCriticalSection(&openal_crst);
         set_context(share->ctx);
 
-        if(share->nsources)
-            alDeleteSources(share->nsources, share->sources);
-        share->nsources = 0;
+        if(share->sources.max_alloc)
+            alDeleteSources(share->sources.max_alloc, share->sources.ids);
+        share->sources.max_alloc = 0;
 
         if(share->auxslot)
             alDeleteAuxiliaryEffectSlots(1, &share->auxslot);
@@ -250,19 +250,19 @@ static HRESULT DSShare_Create(REFIID guid, DeviceShare **out)
     if(BITFIELD_TEST(share->Exts, EXT_EFX))
         alGenAuxiliaryEffectSlots(1, &share->auxslot);
 
-    share->max_sources = 0;
-    while(share->max_sources < MAX_SOURCES)
+    share->sources.max_alloc = 0;
+    while(share->sources.max_alloc < MAX_SOURCES)
     {
-        alGenSources(1, &share->sources[share->max_sources]);
+        alGenSources(1, &share->sources.ids[share->sources.max_alloc]);
         if(alGetError() != AL_NO_ERROR)
             break;
-        share->max_sources++;
+        share->sources.max_alloc++;
     }
     popALContext();
     /* As long as we have at least 64 sources, keep it a multiple of 64. */
-    if(share->max_sources > 64)
-        share->max_sources &= ~63u;
-    share->nsources = share->max_sources;
+    if(share->sources.max_alloc > 64)
+        share->sources.max_alloc &= ~63u;
+    share->sources.avail_num = share->sources.max_alloc;
 
     if(sharelist)
         temp = HeapReAlloc(GetProcessHeap(), 0, sharelist, sizeof(*sharelist)*(sharelistsize+1));
@@ -660,7 +660,7 @@ static HRESULT WINAPI DS8_GetCaps(IDirectSound8 *iface, LPDSCAPS caps)
         caps->dwMaxHwMixingStreamingBuffers =
         caps->dwMaxHw3DAllBuffers =
         caps->dwMaxHw3DStaticBuffers =
-        caps->dwMaxHw3DStreamingBuffers = This->share->max_sources;
+        caps->dwMaxHw3DStreamingBuffers = This->share->sources.max_alloc;
     caps->dwFreeHwMixingAllBuffers =
         caps->dwFreeHwMixingStaticBuffers =
         caps->dwFreeHwMixingStreamingBuffers =

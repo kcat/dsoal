@@ -474,6 +474,11 @@ enum {
 
 
 #define MAX_SOURCES 256
+typedef struct SourceCollection {
+    DWORD max_alloc, avail_num;
+    ALuint ids[MAX_SOURCES];
+} SourceCollection;
+
 typedef struct DeviceShare {
     LONG ref;
 
@@ -485,8 +490,7 @@ typedef struct DeviceShare {
 
     CRITICAL_SECTION crst;
 
-    ALuint sources[MAX_SOURCES];
-    DWORD nsources, max_sources;
+    SourceCollection sources;
 
     ALuint auxslot;
 
@@ -621,7 +625,7 @@ struct DS8Primary {
     const ALboolean *Exts;
     CRITICAL_SECTION *crst;
     ALCint refresh;
-    ALuint *sources;
+    SourceCollection *sources;
     ALuint auxslot;
 
     DWORD buf_size;
