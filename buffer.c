@@ -2419,13 +2419,13 @@ static void ApplyFilterParams(DS8Buffer *buf, const EAX20BUFFERPROPERTIES *props
      * levels are specified relative to the low, they should increase as the
      * low frequency levels reduce.
      */
-    FLOAT obstr   = props->lObstruction *       props->flObstructionLFRatio;
-    FLOAT obstrhf = props->lObstruction * (1.0f-props->flObstructionLFRatio);
     FLOAT occl   = props->lOcclusion *       props->flOcclusionLFRatio;
     FLOAT occlhf = props->lOcclusion * (1.0f-props->flOcclusionLFRatio);
 
     if((apply&APPLY_DRY_PARAMS))
     {
+        FLOAT obstr   = props->lObstruction *       props->flObstructionLFRatio;
+        FLOAT obstrhf = props->lObstruction * (1.0f-props->flObstructionLFRatio);
         FLOAT mb   = props->lDirect   + obstr   + occl;
         FLOAT mbhf = props->lDirectHF + obstrhf + occlhf;
 
@@ -2435,8 +2435,8 @@ static void ApplyFilterParams(DS8Buffer *buf, const EAX20BUFFERPROPERTIES *props
     if((apply&APPLY_WET_PARAMS))
     {
         FLOAT occlroom = props->flOcclusionRoomRatio;
-        FLOAT mb   = props->lRoom   + obstr   + occlroom*occl;
-        FLOAT mbhf = props->lRoomHF + obstrhf + occlroom*occlhf;
+        FLOAT mb   = props->lRoom   + occlroom*occl;
+        FLOAT mbhf = props->lRoomHF + occlroom*occlhf;
 
         alFilterf(buf->filter[1], AL_LOWPASS_GAIN, mBF_to_gain(mb));
         alFilterf(buf->filter[1], AL_LOWPASS_GAINHF, mBF_to_gain(mbhf));
