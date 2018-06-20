@@ -2441,6 +2441,7 @@ static void ApplyFilterParams(DS8Buffer *buf, const EAX20BUFFERPROPERTIES *props
         alFilterf(buf->filter[1], AL_LOWPASS_GAIN, mBF_to_gain(mb));
         alFilterf(buf->filter[1], AL_LOWPASS_GAINHF, mBF_to_gain(mbhf));
     }
+    checkALError();
 }
 
 static HRESULT WINAPI DS8BufferProp_QueryInterface(IKsPropertySet *iface, REFIID riid, void **ppv)
