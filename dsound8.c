@@ -173,11 +173,23 @@ static void DSShare_Destroy(DeviceShare *share)
 
 static HRESULT DSShare_Create(REFIID guid, DeviceShare **out)
 {
+    static const struct {
+        const char extname[64];
+        int extenum;
+    } extensions[MAX_EXTENSIONS] = {
+        { "ALC_EXT_EFX",      EXT_EFX },
+        { "AL_EXT_FLOAT32",   EXT_FLOAT32 },
+        { "AL_EXT_MCFORMATS", EXT_MCFORMATS },
+        { "AL_SOFT_deferred_updates",  SOFT_DEFERRED_UPDATES },
+        { "AL_SOFT_source_spatialize", SOFT_SOURCE_SPATIALIZE },
+        { "AL_SOFTX_map_buffer",       SOFTX_MAP_BUFFER },
+    };
     OLECHAR *guid_str = NULL;
     ALchar drv_name[64];
     DeviceShare *share;
     void *temp;
     HRESULT hr;
+    size_t i;
 
     share = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(*share));
     if(!share) return DSERR_OUTOFMEMORY;
@@ -224,39 +236,19 @@ static HRESULT DSShare_Create(REFIID guid, DeviceShare **out)
     alcGetIntegerv(share->device, ALC_REFRESH, 1, &share->refresh);
     checkALCError(share->device);
 
-    if(alIsExtensionPresent("AL_EXT_FLOAT32"))
+    for(i = 0;i < MAX_EXTENSIONS;i++)
     {
-        TRACE("Found AL_EXT_FLOAT32\n");
-        share->SupportedExt[EXT_FLOAT32] = AL_TRUE;
-    }
-    if(alIsExtensionPresent("AL_EXT_MCFORMATS"))
-    {
-        TRACE("Found AL_EXT_MCFORMATS\n");
-        share->SupportedExt[EXT_MCFORMATS] = AL_TRUE;
-    }
-    if(alIsExtensionPresent("AL_SOFT_deferred_updates"))
-    {
-        TRACE("Found AL_SOFT_deferred_updates\n");
-        share->SupportedExt[SOFT_DEFERRED_UPDATES] = AL_TRUE;
-    }
-    if(alIsExtensionPresent("AL_SOFT_source_spatialize"))
-    {
-        TRACE("Found AL_SOFT_source_spatialize\n");
-        share->SupportedExt[SOFT_SOURCE_SPATIALIZE] = AL_TRUE;
-    }
-    if(alIsExtensionPresent("AL_SOFTX_map_buffer"))
-    {
-        TRACE("Found AL_SOFTX_map_buffer\n");
-        share->SupportedExt[SOFTX_MAP_BUFFER] = AL_TRUE;
+        if((strncmp(extensions[i].extname, "ALC", 3) == 0) ?
+           alcIsExtensionPresent(share->device, extensions[i].extname) :
+           alIsExtensionPresent(extensions[i].extname))
+        {
+            TRACE("Found %s\n", extensions[i].extname);
+            share->SupportedExt[extensions[i].extenum] = AL_TRUE;
+        }
     }
 
-    if(alcIsExtensionPresent(share->device, "ALC_EXT_EFX"))
-    {
-        TRACE("Found ALC_EXT_EFX\n");
-        share->SupportedExt[EXT_EFX] = AL_TRUE;
-
+    if(share->SupportedExt[EXT_EFX])
         alGenAuxiliaryEffectSlots(1, &share->auxslot);
-    }
 
     share->max_sources = 0;
     while(share->max_sources < MAX_SOURCES)
