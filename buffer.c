@@ -939,6 +939,7 @@ HRESULT WINAPI DS8Buffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSound *ds
     hr = DSERR_ALREADYINITIALIZED;
     if(This->source) goto out;
 
+    prim = This->primary;
     if(!This->buffer)
     {
         hr = DSERR_INVALIDPARAM;
@@ -954,7 +955,7 @@ HRESULT WINAPI DS8Buffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSound *ds
         }
         if((desc->dwFlags&DSBCAPS_CTRL3D) && desc->lpwfxFormat->nChannels != 1)
         {
-            if(This->primary->parent->is_8)
+            if(prim->parent->is_8)
             {
                 /* DirectSoundBuffer8 objects aren't allowed non-mono 3D
                  * buffers */
@@ -975,7 +976,7 @@ HRESULT WINAPI DS8Buffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSound *ds
                 ERR("Panning for multi-channel buffers is not supported\n");
         }
 
-        hr = DS8Data_Create(&This->buffer, desc, This->primary);
+        hr = DS8Data_Create(&This->buffer, desc, prim);
         if(FAILED(hr)) goto out;
 
         data = This->buffer;
@@ -985,7 +986,6 @@ HRESULT WINAPI DS8Buffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSound *ds
             memset(data->data, 0x00, data->buf_size);
     }
 
-    prim = This->primary;
     data = This->buffer;
     if(!(data->dsbflags&DSBCAPS_STATIC) && !BITFIELD_TEST(prim->Exts, SOFTX_MAP_BUFFER))
     {
