@@ -239,6 +239,11 @@ static HRESULT DSShare_Create(REFIID guid, DeviceShare **out)
         TRACE("Found AL_SOFT_deferred_updates\n");
         share->SupportedExt[SOFT_DEFERRED_UPDATES] = AL_TRUE;
     }
+    if(alIsExtensionPresent("AL_SOFT_source_spatialize"))
+    {
+        TRACE("Found AL_SOFT_source_spatialize\n");
+        share->SupportedExt[SOFT_SOURCE_SPATIALIZE] = AL_TRUE;
+    }
     if(alIsExtensionPresent("AL_SOFTX_map_buffer"))
     {
         TRACE("Found AL_SOFTX_map_buffer\n");

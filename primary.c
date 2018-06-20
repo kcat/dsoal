@@ -1448,6 +1448,8 @@ static HRESULT WINAPI DS8Primary3D_SetRolloffFactor(IDirectSound3DListener *ifac
         struct DSBufferGroup *bufgroup = This->BufferGroups;
         DWORD i;
 
+        This->rollofffactor = factor;
+
         setALContext(This->ctx);
         for(i = 0;i < This->NumBufferGroups;++i)
         {
@@ -1464,8 +1466,6 @@ static HRESULT WINAPI DS8Primary3D_SetRolloffFactor(IDirectSound3DListener *ifac
         }
         checkALError();
         popALContext();
-
-        This->rollofffactor = factor;
     }
     LeaveCriticalSection(This->crst);
 

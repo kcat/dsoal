@@ -1099,6 +1099,13 @@ HRESULT WINAPI DS8Buffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSound *ds
             alSourcei(source, AL_DIRECT_FILTER, AL_FILTER_NULL);
             alSource3i(source, AL_AUXILIARY_SEND_FILTER, 0, 0, AL_FILTER_NULL);
         }
+        if(prim->SupportedExt[SOFT_SOURCE_SPATIALIZE])
+        {
+            /* Set to auto so panning works for mono, and multi-channel works
+             * as expected.
+             */
+            alSourcei(source, AL_SOURCE_SPATIALIZE_SOFT, AL_AUTO_SOFT);
+        }
         checkALError();
     }
     hr = S_OK;
@@ -1658,6 +1665,9 @@ void DS8Buffer_SetParams(DS8Buffer *This, const DS3DBUFFER *params, const EAX20B
     if(dirty.bit.mode)
     {
         This->ds3dmode = params->dwMode;
+        if(This->primary->SupportedExt[SOFT_SOURCE_SPATIALIZE])
+            alSourcei(source, AL_SOURCE_SPATIALIZE_SOFT,
+                      (params->dwMode==DS3DMODE_DISABLE) ? AL_FALSE : AL_TRUE);
         alSourcei(source, AL_SOURCE_RELATIVE, (params->dwMode!=DS3DMODE_NORMAL) ?
                                               AL_TRUE : AL_FALSE);
         alSourcef(source, AL_ROLLOFF_FACTOR, (params->dwMode==DS3DMODE_DISABLE) ?
@@ -2089,11 +2099,14 @@ static HRESULT WINAPI DS8Buffer3D_SetMode(IDirectSound3DBuffer *iface, DWORD mod
     else
     {
         setALContext(This->ctx);
+        This->ds3dmode = mode;
+        if(This->primary->SupportedExt[SOFT_SOURCE_SPATIALIZE])
+            alSourcei(This->source, AL_SOURCE_SPATIALIZE_SOFT,
+                      (mode==DS3DMODE_DISABLE) ? AL_FALSE : AL_TRUE);
         alSourcei(This->source, AL_SOURCE_RELATIVE,
                   (mode != DS3DMODE_NORMAL) ? AL_TRUE : AL_FALSE);
         alSourcef(This->source, AL_ROLLOFF_FACTOR,
                   (mode == DS3DMODE_DISABLE) ? 0.0f : This->primary->rollofffactor);
-        This->ds3dmode = mode;
         checkALError();
         popALContext();
     }
