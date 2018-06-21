@@ -1302,14 +1302,13 @@ DECLSPEC_EXPORT HRESULT WINAPI DllGetClassObject(REFCLSID rclsid, REFIID riid, L
     while (NULL != DSOUND_CF[i].rclsid) {
         if (IsEqualGUID(rclsid, DSOUND_CF[i].rclsid)) {
             DSCF_AddRef(&DSOUND_CF[i].IClassFactory_iface);
-            *ppv = &DSOUND_CF[i];
+            *ppv = &DSOUND_CF[i].IClassFactory_iface;
             return S_OK;
         }
         i++;
     }
 
-    WARN("(%s, %s, %p): no class found.\n", debugstr_guid(rclsid),
-         debugstr_guid(riid), ppv);
+    WARN("No class found for %s\n", debugstr_guid(rclsid));
     return CLASS_E_CLASSNOTAVAILABLE;
 }
 
