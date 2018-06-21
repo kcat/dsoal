@@ -2493,6 +2493,12 @@ static HRESULT WINAPI DS8BufferProp_Get(IKsPropertySet *iface,
         return E_POINTER;
     *pcbReturned = 0;
 
+    if(cbPropData > 0 && !pPropData)
+    {
+        WARN("pPropData is NULL with cbPropData > 0\n");
+        return E_POINTER;
+    }
+
 #define GET_PROP(hr, retsize, dst, dstsize, src, Type) do {  \
     if(cbPropData >= sizeof(Type))                           \
     {                                                        \
@@ -2694,6 +2700,12 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
 
     TRACE("(%p)->(%s, %lu, %p, %lu, %p, %lu)\n", iface, debugstr_guid(guidPropSet),
           dwPropID, pInstanceData, cbInstanceData, pPropData, cbPropData);
+
+    if(cbPropData > 0 && !pPropData)
+    {
+        WARN("pPropData is NULL with cbPropData > 0\n");
+        return E_POINTER;
+    }
 
     if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX20_BufferProperties))
     {
