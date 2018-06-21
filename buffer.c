@@ -2399,7 +2399,7 @@ static void ApplyReverbParams(DS8Primary *prim, const EAXLISTENERPROPERTIES *pro
     alEffectf(prim->effect, AL_REVERB_LATE_REVERB_DELAY, props->flReverbDelay);
 
     alEffectf(prim->effect, AL_REVERB_AIR_ABSORPTION_GAINHF,
-              mBF_to_gain(props->flAirAbsorptionHF));
+              mB_to_gain(props->flAirAbsorptionHF));
 
     alEffecti(prim->effect, AL_REVERB_DECAY_HFLIMIT,
               (props->dwFlags&EAXLISTENERFLAGS_DECAYHFLIMIT) ?
@@ -2429,8 +2429,8 @@ static void ApplyFilterParams(DS8Buffer *buf, const EAX20BUFFERPROPERTIES *props
         FLOAT mb   = props->lDirect   + obstr   + occl;
         FLOAT mbhf = props->lDirectHF + obstrhf + occlhf;
 
-        alFilterf(buf->filter[0], AL_LOWPASS_GAIN, mBF_to_gain(mb));
-        alFilterf(buf->filter[0], AL_LOWPASS_GAINHF, mBF_to_gain(mbhf));
+        alFilterf(buf->filter[0], AL_LOWPASS_GAIN, mB_to_gain(mb));
+        alFilterf(buf->filter[0], AL_LOWPASS_GAINHF, mB_to_gain(mbhf));
     }
     if((apply&APPLY_WET_PARAMS))
     {
@@ -2438,8 +2438,8 @@ static void ApplyFilterParams(DS8Buffer *buf, const EAX20BUFFERPROPERTIES *props
         FLOAT mb   = props->lRoom   + occlroom*occl;
         FLOAT mbhf = props->lRoomHF + occlroom*occlhf;
 
-        alFilterf(buf->filter[1], AL_LOWPASS_GAIN, mBF_to_gain(mb));
-        alFilterf(buf->filter[1], AL_LOWPASS_GAINHF, mBF_to_gain(mbhf));
+        alFilterf(buf->filter[1], AL_LOWPASS_GAIN, mB_to_gain(mb));
+        alFilterf(buf->filter[1], AL_LOWPASS_GAINHF, mB_to_gain(mbhf));
     }
     checkALError();
 }
@@ -3225,7 +3225,7 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
 
                 prim->eax_prop.flAirAbsorptionHF = *data.fl;
                 alEffectf(prim->effect, AL_REVERB_AIR_ABSORPTION_GAINHF,
-                          mBF_to_gain(prim->eax_prop.flAirAbsorptionHF));
+                          mB_to_gain(prim->eax_prop.flAirAbsorptionHF));
                 checkALError();
 
                 prim->dirty.bit.effect = 1;

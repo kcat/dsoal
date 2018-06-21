@@ -688,11 +688,7 @@ static inline LONG gain_to_mB(float gain)
 {
     return (LONG)(log10f(gain) * 2000.0f);
 }
-static inline float mB_to_gain(LONG millibels)
-{
-    return powf(10.0f, (float)millibels/2000.0f);
-}
-static inline float mBF_to_gain(float millibels)
+static inline float mB_to_gain(float millibels)
 {
     return powf(10.0f, millibels/2000.0f);
 }
