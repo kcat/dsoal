@@ -741,7 +741,7 @@ static inline DSCBuffer *impl_from_IDirectSoundNotify(IDirectSoundNotify *iface)
 static HRESULT WINAPI DSCBufferNot_QueryInterface(IDirectSoundNotify *iface, REFIID riid, void **ppv)
 {
     DSCBuffer *This = impl_from_IDirectSoundNotify(iface);
-    return IDirectSoundCaptureBuffer_QueryInterface((IDirectSoundCaptureBuffer*)This, riid, ppv);
+    return IDirectSoundCaptureBuffer_QueryInterface(&This->IDirectSoundCaptureBuffer8_iface, riid, ppv);
 }
 
 static ULONG WINAPI DSCBufferNot_AddRef(IDirectSoundNotify *iface)
@@ -783,8 +783,7 @@ static HRESULT WINAPI DSCBufferNot_SetNotificationPositions(IDirectSoundNotify *
         goto out;
 
     hr = DSCBuffer_GetStatus(&This->IDirectSoundCaptureBuffer8_iface, &state);
-    if (FAILED(hr))
-        goto out;
+    if(FAILED(hr)) goto out;
 
     hr = DSERR_INVALIDCALL;
     if (state & DSCBSTATUS_CAPTURING)
