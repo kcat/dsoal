@@ -393,6 +393,7 @@ static HRESULT DS8Data_Create(DS8Data **ppv, const DSBUFFERDESC *desc, DS8Primar
         ERR("Unhandled formattag 0x%04x\n", format->wFormatTag);
     if(!fmt_str) goto fail;
 
+    alGetError();
     pBuffer->buf_format = alGetEnumValue(fmt_str);
     if(alGetError() != AL_NO_ERROR || pBuffer->buf_format == 0 ||
        pBuffer->buf_format == -1)
