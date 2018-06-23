@@ -642,7 +642,8 @@ struct DS8Primary {
     DS3DLISTENER params;
     union PrimaryParamFlags dirty;
 
-    EAXLISTENERPROPERTIES eax_prop;
+    EAX20LISTENERPROPERTIES eax_prop;
+    float eax1_dampening; /* Not used. */
 
     DWORD NumBufferGroups;
     struct DSBufferGroup *BufferGroups;
@@ -686,7 +687,7 @@ HRESULT WINAPI DS8Buffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSound *ds
 
 static inline LONG gain_to_mB(float gain)
 {
-    return (LONG)(log10f(gain) * 2000.0f);
+    return (gain > 1e-5f) ? (LONG)(log10f(gain) * 2000.0f) : -10000l;
 }
 static inline float mB_to_gain(float millibels)
 {

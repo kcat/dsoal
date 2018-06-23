@@ -2684,6 +2684,139 @@ static HRESULT WINAPI DS8BufferProp_Get(IKsPropertySet *iface,
 
         LeaveCriticalSection(This->crst);
     }
+    else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX_ReverbProperties))
+    {
+        DS8Primary *prim = This->primary;
+
+        EnterCriticalSection(This->crst);
+
+        hr = DSERR_INVALIDPARAM;
+        if(prim->effect == 0)
+            hr = E_PROP_ID_UNSUPPORTED;
+        else switch(dwPropID)
+        {
+        case DSPROPERTY_EAX1_ALL:
+            if(cbPropData >= sizeof(EAX1_REVERBPROPERTIES))
+            {
+                union {
+                    void *v;
+                    EAX1_REVERBPROPERTIES *props;
+                } data = { pPropData };
+
+                data.props->dwEnvironment = prim->eax_prop.dwEnvironment;
+                data.props->fVolume = mB_to_gain(prim->eax_prop.lRoom);
+                data.props->fDecayTime = prim->eax_prop.flDecayTime;
+                data.props->fDamping = prim->eax1_dampening;
+
+                *pcbReturned = sizeof(EAX1_REVERBPROPERTIES);
+                hr = DS_OK;
+            }
+            break;
+
+        case DSPROPERTY_EAX1_ENVIRONMENT:
+            if(cbPropData >= sizeof(DWORD))
+            {
+                union {
+                    void *v;
+                    DWORD *props;
+                } data = { pPropData };
+
+                *data.props = prim->eax_prop.dwEnvironment;
+
+                *pcbReturned = sizeof(DWORD);
+                hr = DS_OK;
+            }
+            break;
+
+        case DSPROPERTY_EAX1_VOLUME:
+            if(cbPropData >= sizeof(float))
+            {
+                union {
+                    void *v;
+                    float *props;
+                } data = { pPropData };
+
+                *data.props = mB_to_gain(prim->eax_prop.lRoom);
+
+                *pcbReturned = sizeof(float);
+                hr = DS_OK;
+            }
+            break;
+
+        case DSPROPERTY_EAX1_DECAYTIME:
+            if(cbPropData >= sizeof(float))
+            {
+                union {
+                    void *v;
+                    float *props;
+                } data = { pPropData };
+
+                *data.props = prim->eax_prop.flDecayTime;
+
+                *pcbReturned = sizeof(float);
+                hr = DS_OK;
+            }
+            break;
+
+        case DSPROPERTY_EAX1_DAMPING:
+            if(cbPropData >= sizeof(float))
+            {
+                union {
+                    void *v;
+                    float *props;
+                } data = { pPropData };
+
+                *data.props = prim->eax1_dampening;
+
+                *pcbReturned = sizeof(float);
+                hr = DS_OK;
+            }
+            break;
+
+        default:
+            hr = E_PROP_ID_UNSUPPORTED;
+            FIXME("Unhandled EAX1 listener propid: 0x%08lx\n", dwPropID);
+            break;
+        }
+
+        LeaveCriticalSection(This->crst);
+    }
+    else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAXBUFFER_ReverbProperties))
+    {
+        EnterCriticalSection(This->crst);
+
+        hr = DSERR_INVALIDPARAM;
+        if(This->filter[0] == 0)
+            hr = E_PROP_ID_UNSUPPORTED;
+        else switch(dwPropID)
+        {
+        /* NOTE: DSPROPERTY_EAX1BUFFER_ALL is for EAX1BUFFER_REVERBPROPERTIES,
+         * however that struct just contains the single ReverbMix float
+         * property.
+         */
+        case DSPROPERTY_EAX1BUFFER_ALL:
+        case DSPROPERTY_EAX1BUFFER_REVERBMIX:
+            if(cbPropData >= sizeof(float))
+            {
+                union {
+                    void *v;
+                    float *props;
+                } data = { pPropData };
+
+                *data.props = mB_to_gain(This->eax_prop.lRoom);
+                *pcbReturned = sizeof(float);
+                hr = DS_OK;
+            }
+            break;
+
+        default:
+            hr = E_PROP_ID_UNSUPPORTED;
+            FIXME("Unhandled EAX1 buffer propid: 0x%08lx\n", dwPropID);
+            break;
+        }
+
+        LeaveCriticalSection(This->crst);
+    }
     else
         FIXME("Unhandled propset: %s\n", debugstr_guid(guidPropSet));
 #undef GET_PROP
@@ -3277,6 +3410,164 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
         popALContext();
         LeaveCriticalSection(prim->crst);
     }
+    else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX_ReverbProperties))
+    {
+        static const float eax1_env_dampening[EAX_ENVIRONMENT_COUNT] = {
+            0.5f, 0.0f, 0.666f, 0.166f, 0.0f, 0.888f, 0.5f, 0.5f, 1.304f,
+            0.332f, 0.3f, 2.0f, 0.0f, 0.638f, 0.776f, 0.472f, 0.224f, 0.472f,
+            0.5f, 0.224f, 1.5f, 0.25f, 0.0f, 1.388f, 0.666f, 0.806f
+        };
+        DS8Primary *prim = This->primary;
+        DWORD propid = dwPropID & ~DSPROPERTY_EAXLISTENER_DEFERRED;
+        BOOL immediate = !(dwPropID&DSPROPERTY_EAXLISTENER_DEFERRED);
+
+        EnterCriticalSection(prim->crst);
+        setALContext(prim->ctx);
+
+        hr = DSERR_INVALIDPARAM;
+        if(prim->effect == 0)
+            hr = E_PROP_ID_UNSUPPORTED;
+        else switch(propid)
+        {
+        case DSPROPERTY_EAX1_ALL:
+            if(cbPropData >= sizeof(EAX1_REVERBPROPERTIES))
+            {
+                union {
+                    const void *v;
+                    const EAX1_REVERBPROPERTIES *props;
+                } data = { pPropData };
+
+                if(data.props->dwEnvironment < EAX_ENVIRONMENT_COUNT)
+                {
+                    EAX20LISTENERPROPERTIES env = EnvironmentDefaults[data.props->dwEnvironment];
+                    env.lRoom = gain_to_mB(data.props->fVolume);
+                    env.flDecayTime = data.props->fDecayTime;
+                    prim->eax1_dampening = data.props->fDamping;
+                    ApplyReverbParams(prim, &env);
+                    hr = DS_OK;
+                }
+            }
+            break;
+
+        case DSPROPERTY_EAX1_ENVIRONMENT:
+            if(cbPropData >= sizeof(DWORD))
+            {
+                union {
+                    const void *v;
+                    const DWORD *dw;
+                } data = { pPropData };
+
+                if(*data.dw < EAX_ENVIRONMENT_COUNT)
+                {
+                    prim->eax1_dampening = eax1_env_dampening[*data.dw];
+                    ApplyReverbParams(prim, &EnvironmentDefaults[*data.dw]);
+                    hr = DS_OK;
+                }
+            }
+            break;
+
+        case DSPROPERTY_EAX1_VOLUME:
+            if(cbPropData >= sizeof(FLOAT))
+            {
+                union {
+                    const void *v;
+                    const FLOAT *l;
+                } data = { pPropData };
+
+                prim->eax_prop.lRoom = gain_to_mB(*data.l);
+                alEffectf(prim->effect, AL_REVERB_GAIN,
+                          mB_to_gain(prim->eax_prop.lRoom));
+                checkALError();
+
+                prim->dirty.bit.effect = 1;
+                hr = DS_OK;
+            }
+            break;
+        case DSPROPERTY_EAX1_DECAYTIME:
+            if(cbPropData >= sizeof(FLOAT))
+            {
+                union {
+                    const void *v;
+                    const FLOAT *fl;
+                } data = { pPropData };
+
+                prim->eax_prop.flDecayTime = *data.fl;
+                alEffectf(prim->effect, AL_REVERB_DECAY_TIME,
+                          prim->eax_prop.flDecayTime);
+                checkALError();
+
+                prim->dirty.bit.effect = 1;
+                hr = DS_OK;
+            }
+            break;
+        case DSPROPERTY_EAX1_DAMPING:
+            if(cbPropData >= sizeof(FLOAT))
+            {
+                union {
+                    const void *v;
+                    const FLOAT *fl;
+                } data = { pPropData };
+
+                prim->eax1_dampening = *data.fl;
+
+                hr = DS_OK;
+            }
+            break;
+
+        default:
+            hr = E_PROP_ID_UNSUPPORTED;
+            FIXME("Unhandled EAX1 listener propid: 0x%08lx\n", propid);
+            break;
+        }
+
+        if(hr == DS_OK && immediate)
+            DS8Primary3D_CommitDeferredSettings(&prim->IDirectSound3DListener_iface);
+
+        popALContext();
+        LeaveCriticalSection(prim->crst);
+    }
+    else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAXBUFFER_ReverbProperties))
+    {
+        DWORD propid = dwPropID & ~DSPROPERTY_EAXBUFFER_DEFERRED;
+        BOOL immediate = !(dwPropID&DSPROPERTY_EAXBUFFER_DEFERRED);
+
+        EnterCriticalSection(This->crst);
+        setALContext(This->ctx);
+
+        hr = DSERR_INVALIDPARAM;
+        if(This->filter[0] == 0)
+            hr = E_PROP_ID_UNSUPPORTED;
+        else switch(propid)
+        {
+        case DSPROPERTY_EAX1BUFFER_ALL:
+        case DSPROPERTY_EAX1BUFFER_REVERBMIX:
+            if(cbPropData >= sizeof(FLOAT))
+            {
+                union {
+                    const void *v;
+                    const FLOAT *props;
+                } data = { pPropData };
+
+                This->eax_prop.lRoom = gain_to_mB(*data.props);
+                ApplyFilterParams(This, &This->eax_prop, APPLY_WET_PARAMS);
+
+                This->dirty.bit.wet_filter = 1;
+                hr = DS_OK;
+            }
+            break;
+
+        default:
+            hr = E_PROP_ID_UNSUPPORTED;
+            FIXME("Unhandled EAX1 buffer propid: 0x%08lx\n", propid);
+            break;
+        }
+
+        if(hr == DS_OK && immediate)
+            DS8Primary3D_CommitDeferredSettings(&This->primary->IDirectSound3DListener_iface);
+
+        popALContext();
+        LeaveCriticalSection(This->crst);
+    }
     else
         FIXME("Unhandled propset: %s\n", debugstr_guid(guidPropSet));
 
@@ -3327,7 +3618,7 @@ static HRESULT WINAPI DS8BufferProp_QuerySupport(IKsPropertySet *iface,
             break;
         default:
             hr = E_PROP_ID_UNSUPPORTED;
-            FIXME("Unhandled buffer propid: 0x%08lx\n", dwPropID);
+            FIXME("Unhandled EAX2 buffer propid: 0x%08lx\n", dwPropID);
             break;
         }
 
@@ -3367,7 +3658,54 @@ static HRESULT WINAPI DS8BufferProp_QuerySupport(IKsPropertySet *iface,
             break;
         default:
             hr = E_PROP_ID_UNSUPPORTED;
-            FIXME("Unhandled listener propid: 0x%08lx\n", dwPropID);
+            FIXME("Unhandled EAX2 listener propid: 0x%08lx\n", dwPropID);
+            break;
+        }
+
+        LeaveCriticalSection(This->crst);
+    }
+    else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX_ReverbProperties))
+    {
+        DS8Primary *prim = This->primary;
+
+        EnterCriticalSection(This->crst);
+
+        if(prim->effect == 0)
+            hr = E_PROP_ID_UNSUPPORTED;
+        else switch(dwPropID)
+        {
+        case DSPROPERTY_EAX1_ALL:
+        case DSPROPERTY_EAX1_ENVIRONMENT:
+        case DSPROPERTY_EAX1_VOLUME:
+        case DSPROPERTY_EAX1_DECAYTIME:
+        case DSPROPERTY_EAX1_DAMPING:
+            *pTypeSupport = KSPROPERTY_SUPPORT_GET | KSPROPERTY_SUPPORT_SET;
+            hr = DS_OK;
+            break;
+        default:
+            hr = E_PROP_ID_UNSUPPORTED;
+            FIXME("Unhandled EAX1 listener propid: 0x%08lx\n", dwPropID);
+            break;
+        }
+
+        LeaveCriticalSection(This->crst);
+    }
+    else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAXBUFFER_ReverbProperties))
+    {
+        EnterCriticalSection(This->crst);
+
+        if(This->filter[0] == 0)
+            hr = E_PROP_ID_UNSUPPORTED;
+        else switch(dwPropID)
+        {
+        case DSPROPERTY_EAX1BUFFER_ALL:
+        case DSPROPERTY_EAX1BUFFER_REVERBMIX:
+            *pTypeSupport = KSPROPERTY_SUPPORT_GET | KSPROPERTY_SUPPORT_SET;
+            hr = DS_OK;
+            break;
+        default:
+            hr = E_PROP_ID_UNSUPPORTED;
+            FIXME("Unhandled EAX1 buffer propid: 0x%08lx\n", dwPropID);
             break;
         }
 
