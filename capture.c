@@ -993,6 +993,7 @@ static ULONG WINAPI DSCImpl_Release(IDirectSoundCapture *iface)
 static HRESULT WINAPI DSCImpl_CreateCaptureBuffer(IDirectSoundCapture *iface, const DSCBUFFERDESC *desc, IDirectSoundCaptureBuffer **ppv, IUnknown *unk)
 {
     DSCImpl *This = impl_from_IDirectSoundCapture(iface);
+    DSCBuffer *buffer;
     HRESULT hr;
 
     TRACE("(%p)->(%p, %p, %p)\n", iface, desc, ppv, unk);
@@ -1029,16 +1030,16 @@ static HRESULT WINAPI DSCImpl_CreateCaptureBuffer(IDirectSoundCapture *iface, co
         goto out;
     }
 
-    hr = DSCBuffer_Create(&This->buf, This);
+    hr = DSCBuffer_Create(&buffer, This);
     if(SUCCEEDED(hr))
     {
-        hr = DSCBuffer_Initialize(&This->buf->IDirectSoundCaptureBuffer8_iface, iface, desc);
-        if(SUCCEEDED(hr))
-            *ppv = (IDirectSoundCaptureBuffer*)&This->buf->IDirectSoundCaptureBuffer8_iface;
+        hr = DSCBuffer_Initialize(&buffer->IDirectSoundCaptureBuffer8_iface, iface, desc);
+        if(FAILED(hr))
+            DSCBuffer_Release(&buffer->IDirectSoundCaptureBuffer8_iface);
         else
         {
-            DSCBuffer_Destroy(This->buf);
-            This->buf = NULL;
+            This->buf = buffer;
+            *ppv = (IDirectSoundCaptureBuffer*)&buffer->IDirectSoundCaptureBuffer8_iface;
         }
     }
 
