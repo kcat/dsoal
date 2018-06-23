@@ -43,7 +43,7 @@ struct DSCImpl {
 
     BOOL is_8;
 
-    ALCchar *device;
+    ALCchar *device_name;
     DSCBuffer *buf;
 
     CRITICAL_SECTION crst;
@@ -56,7 +56,7 @@ struct DSCBuffer {
     LONG all_ref;
 
     DSCImpl *parent;
-    ALCdevice *dev;
+    ALCdevice *device;
 
     DWORD buf_size;
     BYTE *buf;
@@ -133,7 +133,7 @@ static DWORD CALLBACK DSCBuffer_thread(void *param)
     {
         ALCint avail = 0;
 
-        alcGetIntegerv(This->dev, ALC_CAPTURE_SAMPLES, 1, &avail);
+        alcGetIntegerv(This->device, ALC_CAPTURE_SAMPLES, 1, &avail);
         if(avail == 0 || !This->playing) continue;
 
         EnterCriticalSection(crst);
@@ -147,7 +147,8 @@ static DWORD CALLBACK DSCBuffer_thread(void *param)
         if((DWORD)avail > This->buf_size - This->pos)
             avail = This->buf_size - This->pos;
 
-        alcCaptureSamples(This->dev, This->buf+This->pos, avail/This->format.Format.nBlockAlign);
+        alcCaptureSamples(This->device, This->buf+This->pos,
+                          avail/This->format.Format.nBlockAlign);
         trigger_notifies(This, This->pos, This->pos + avail);
         This->pos += avail;
 
@@ -164,11 +165,11 @@ static DWORD CALLBACK DSCBuffer_thread(void *param)
                 }
 
                 This->playing = 0;
-                alcCaptureStop(This->dev);
+                alcCaptureStop(This->device);
             }
             else
             {
-                alcGetIntegerv(This->dev, ALC_CAPTURE_SAMPLES, 1, &avail);
+                alcGetIntegerv(This->device, ALC_CAPTURE_SAMPLES, 1, &avail);
                 if(avail) goto more_samples;
             }
         }
@@ -256,11 +257,11 @@ static void DSCBuffer_Destroy(DSCBuffer *This)
         CloseHandle(This->timer_evt);
     This->timer_evt = NULL;
 
-    if(This->dev)
+    if(This->device)
     {
         if(This->playing)
-            alcCaptureStop(This->dev);
-        alcCaptureCloseDevice(This->dev);
+            alcCaptureStop(This->device);
+        alcCaptureCloseDevice(This->device);
     }
     This->parent->buf = NULL;
 
@@ -424,7 +425,7 @@ static HRESULT WINAPI DSCBuffer_Initialize(IDirectSoundCaptureBuffer8 *iface, ID
 
     TRACE("(%p)->(%p, %p)\n", iface, parent, desc);
 
-    if(This->dev)
+    if(This->device)
         return DSERR_ALREADYINITIALIZED;
 
     if (!desc->lpwfxFormat)
@@ -563,10 +564,14 @@ static HRESULT WINAPI DSCBuffer_Initialize(IDirectSoundCaptureBuffer8 *iface, ID
         return DSERR_INVALIDPARAM;
     }
 
-    This->dev = alcCaptureOpenDevice(This->parent->device, This->format.Format.nSamplesPerSec, buf_format, This->format.Format.nSamplesPerSec / FAKE_REFRESH_COUNT * 2);
-    if(!This->dev)
+    This->device = alcCaptureOpenDevice(This->parent->device_name,
+        This->format.Format.nSamplesPerSec, buf_format,
+        This->format.Format.nSamplesPerSec / FAKE_REFRESH_COUNT * 2
+    );
+    if(!This->device)
     {
-        ERR("Couldn't open device %s 0x%x@%lu, reason: %04x\n", This->parent->device, buf_format, This->format.Format.nSamplesPerSec, alcGetError(NULL));
+        ERR("Couldn't open device %s 0x%x@%lu, reason: %04x\n", This->parent->device_name,
+            buf_format, This->format.Format.nSamplesPerSec, alcGetError(NULL));
         return DSERR_INVALIDPARAM;
     }
 
@@ -643,7 +648,7 @@ static HRESULT WINAPI DSCBuffer_Start(IDirectSoundCaptureBuffer8 *iface, DWORD f
     {
         DSCBuffer_starttimer(This);
         This->playing = 1;
-        alcCaptureStart(This->dev);
+        alcCaptureStart(This->device);
     }
     This->looping |= !!(flags & DSCBSTART_LOOPING);
     LeaveCriticalSection(&This->parent->crst);
@@ -667,7 +672,7 @@ static HRESULT WINAPI DSCBuffer_Stop(IDirectSoundCaptureBuffer8 *iface)
         }
 
         This->playing = This->looping = 0;
-        alcCaptureStop(This->dev);
+        alcCaptureStop(This->device);
     }
     LeaveCriticalSection(&This->parent->crst);
     return S_OK;
@@ -894,7 +899,7 @@ static void DSCImpl_Destroy(DSCImpl *This)
         DSCBuffer_Destroy(This->buf);
     LeaveCriticalSection(&This->crst);
 
-    HeapFree(GetProcessHeap(), 0, This->device);
+    HeapFree(GetProcessHeap(), 0, This->device_name);
 
     DeleteCriticalSection(&This->crst);
 
@@ -1011,7 +1016,7 @@ static HRESULT WINAPI DSCImpl_CreateCaptureBuffer(IDirectSoundCapture *iface, co
     *ppv = NULL;
 
     EnterCriticalSection(&This->crst);
-    if(!This->device)
+    if(!This->device_name)
     {
         hr = DSERR_UNINITIALIZED;
         WARN("Not initialized\n");
@@ -1048,7 +1053,8 @@ static HRESULT WINAPI DSCImpl_GetCaps(IDirectSoundCapture *iface, DSCCAPS *caps)
 
     TRACE("(%p)->(%p)\n", iface, caps);
 
-    if(!This->device) {
+    if(!This->device_name)
+    {
         WARN("Not initialized\n");
         return DSERR_UNINITIALIZED;
     }
@@ -1086,7 +1092,7 @@ static HRESULT WINAPI DSCImpl_Initialize(IDirectSoundCapture *iface, const GUID 
         return DSERR_NODRIVER;
     }
 
-    if(This->device)
+    if(This->device_name)
     {
         WARN("Already initialized\n");
         return DSERR_ALREADYINITIALIZED;
@@ -1121,13 +1127,13 @@ static HRESULT WINAPI DSCImpl_Initialize(IDirectSoundCapture *iface, const GUID 
         goto out;
     }
 
-    This->device = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, len+1);
-    if(!This->device)
+    This->device_name = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, len+1);
+    if(!This->device_name)
     {
-        WARN("Out of memory to allocate %ls\n", guid_str);
+        WARN("Out of memory to duplicate string \"%ls\"\n", guid_str);
         goto out;
     }
-    WideCharToMultiByte(CP_UTF8, 0, guid_str, -1, This->device, len, NULL, NULL);
+    WideCharToMultiByte(CP_UTF8, 0, guid_str, -1, This->device_name, len, NULL, NULL);
 
     hr = S_OK;
 out:
