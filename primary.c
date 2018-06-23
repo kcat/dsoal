@@ -904,6 +904,9 @@ static HRESULT WINAPI DS8Primary_SetFormat(IDirectSoundBuffer *iface, const WAVE
         DS8Buffer *buf;
         DSBUFFERDESC desc;
 
+        IDirectSoundBuffer8_Release(This->write_emu);
+        This->write_emu = NULL;
+
         memset(&desc, 0, sizeof(desc));
         desc.dwSize = sizeof(desc);
         desc.dwFlags = DSBCAPS_LOCHARDWARE|DSBCAPS_CTRLPAN;
@@ -913,13 +916,12 @@ static HRESULT WINAPI DS8Primary_SetFormat(IDirectSoundBuffer *iface, const WAVE
         hr = DS8Buffer_Create(&buf, This, NULL, TRUE);
         if(FAILED(hr)) goto out;
 
-        hr = DS8Buffer_Initialize(&buf->IDirectSoundBuffer8_iface, &This->parent->IDirectSound_iface, &desc);
+        This->write_emu = &buf->IDirectSoundBuffer8_iface;
+        hr = DS8Buffer_Initialize(This->write_emu, &This->parent->IDirectSound_iface, &desc);
         if(FAILED(hr))
-            DS8Buffer_Destroy(buf);
-        else
         {
             IDirectSoundBuffer8_Release(This->write_emu);
-            This->write_emu = &buf->IDirectSoundBuffer8_iface;
+            This->write_emu = NULL;
         }
     }
 
