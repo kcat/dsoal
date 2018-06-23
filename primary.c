@@ -318,7 +318,8 @@ HRESULT DS8Primary_PreInit(DS8Primary *This, DS8Impl *parent)
     This->buf_size = 32768;
 
     setALContext(This->ctx);
-    This->eax_prop = EnvironmentDefaults[EAX_ENVIRONMENT_GENERIC];
+    This->deferred.eax = EnvironmentDefaults[EAX_ENVIRONMENT_GENERIC];
+    This->deferred.eax1_dampening = 0.5f;
     if(This->auxslot != 0)
     {
         ALint revid = alGetEnumValue("AL_EFFECT_REVERB");
@@ -686,8 +687,8 @@ HRESULT WINAPI DS8Primary_Initialize(IDirectSoundBuffer *iface, IDirectSound *ds
 
     if(SUCCEEDED(hr))
     {
-        DS3DLISTENER *listener = &This->params;
-        listener->dwSize = sizeof(This->params);
+        DS3DLISTENER *listener = &This->deferred.ds3d;
+        listener->dwSize = sizeof(This->deferred.ds3d);
         listener->vPosition.x = 0.0f;
         listener->vPosition.y = 0.0f;
         listener->vPosition.z = 0.0f;
@@ -1319,7 +1320,7 @@ static HRESULT WINAPI DS8Primary3D_SetDistanceFactor(IDirectSound3DListener *ifa
     if(apply == DS3D_DEFERRED)
     {
         EnterCriticalSection(This->crst);
-        This->params.flDistanceFactor = factor;
+        This->deferred.ds3d.flDistanceFactor = factor;
         This->dirty.bit.distancefactor = 1;
         LeaveCriticalSection(This->crst);
     }
@@ -1352,7 +1353,7 @@ static HRESULT WINAPI DS8Primary3D_SetDopplerFactor(IDirectSound3DListener *ifac
     if(apply == DS3D_DEFERRED)
     {
         EnterCriticalSection(This->crst);
-        This->params.flDopplerFactor = factor;
+        This->deferred.ds3d.flDopplerFactor = factor;
         This->dirty.bit.dopplerfactor = 1;
         LeaveCriticalSection(This->crst);
     }
@@ -1376,12 +1377,12 @@ static HRESULT WINAPI DS8Primary3D_SetOrientation(IDirectSound3DListener *iface,
     if(apply == DS3D_DEFERRED)
     {
         EnterCriticalSection(This->crst);
-        This->params.vOrientFront.x = xFront;
-        This->params.vOrientFront.y = yFront;
-        This->params.vOrientFront.z = zFront;
-        This->params.vOrientTop.x = xTop;
-        This->params.vOrientTop.y = yTop;
-        This->params.vOrientTop.z = zTop;
+        This->deferred.ds3d.vOrientFront.x = xFront;
+        This->deferred.ds3d.vOrientFront.y = yFront;
+        This->deferred.ds3d.vOrientFront.z = zFront;
+        This->deferred.ds3d.vOrientTop.x = xTop;
+        This->deferred.ds3d.vOrientTop.y = yTop;
+        This->deferred.ds3d.vOrientTop.z = zTop;
         This->dirty.bit.orientation = 1;
         LeaveCriticalSection(This->crst);
     }
@@ -1409,9 +1410,9 @@ static HRESULT WINAPI DS8Primary3D_SetPosition(IDirectSound3DListener *iface, D3
     if(apply == DS3D_DEFERRED)
     {
         EnterCriticalSection(This->crst);
-        This->params.vPosition.x = x;
-        This->params.vPosition.y = y;
-        This->params.vPosition.z = z;
+        This->deferred.ds3d.vPosition.x = x;
+        This->deferred.ds3d.vPosition.y = y;
+        This->deferred.ds3d.vPosition.z = z;
         This->dirty.bit.pos = 1;
         LeaveCriticalSection(This->crst);
     }
@@ -1442,7 +1443,7 @@ static HRESULT WINAPI DS8Primary3D_SetRolloffFactor(IDirectSound3DListener *ifac
     EnterCriticalSection(This->crst);
     if(apply == DS3D_DEFERRED)
     {
-        This->params.flRolloffFactor = factor;
+        This->deferred.ds3d.flRolloffFactor = factor;
         This->dirty.bit.rollofffactor = 1;
     }
     else
@@ -1483,9 +1484,9 @@ static HRESULT WINAPI DS8Primary3D_SetVelocity(IDirectSound3DListener *iface, D3
     if(apply == DS3D_DEFERRED)
     {
         EnterCriticalSection(This->crst);
-        This->params.vVelocity.x = x;
-        This->params.vVelocity.y = y;
-        This->params.vVelocity.z = z;
+        This->deferred.ds3d.vVelocity.x = x;
+        This->deferred.ds3d.vVelocity.y = y;
+        This->deferred.ds3d.vVelocity.z = z;
         This->dirty.bit.vel = 1;
         LeaveCriticalSection(This->crst);
     }
@@ -1536,8 +1537,8 @@ static HRESULT WINAPI DS8Primary3D_SetAllParameters(IDirectSound3DListener *ifac
     if(apply == DS3D_DEFERRED)
     {
         EnterCriticalSection(This->crst);
-        This->params = *listen;
-        This->params.dwSize = sizeof(This->params);
+        This->deferred.ds3d = *listen;
+        This->deferred.ds3d.dwSize = sizeof(This->deferred.ds3d);
         This->dirty.bit.pos = 1;
         This->dirty.bit.vel = 1;
         This->dirty.bit.orientation = 1;
@@ -1580,7 +1581,7 @@ HRESULT WINAPI DS8Primary3D_CommitDeferredSettings(IDirectSound3DListener *iface
 
     if((flags=InterlockedExchange(&This->dirty.flags, 0)) != 0)
     {
-        DS8Primary_SetParams(This, &This->params, flags);
+        DS8Primary_SetParams(This, &This->deferred.ds3d, flags);
         /* checkALError is here for debugging */
         checkALError();
     }
@@ -1597,7 +1598,7 @@ HRESULT WINAPI DS8Primary3D_CommitDeferredSettings(IDirectSound3DListener *iface
             usemask &= ~(U64(1) << idx);
 
             if((flags=InterlockedExchange(&buf->dirty.flags, 0)) != 0)
-                DS8Buffer_SetParams(buf, &buf->params, &buf->eax_prop, flags);
+                DS8Buffer_SetParams(buf, &buf->deferred.ds3d, &buf->deferred.eax, flags);
         }
     }
     alProcessUpdatesSOFT();

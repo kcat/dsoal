@@ -580,8 +580,10 @@ struct DS8Buffer {
     DWORD playflags : 29;
     DWORD ds3dmode;
 
-    DS3DBUFFER params;
-    EAX20BUFFERPROPERTIES eax_prop;
+    struct {
+        DS3DBUFFER ds3d;
+        EAX20BUFFERPROPERTIES eax;
+    } deferred;
     union BufferParamFlags dirty;
 
     ALuint filter[2];
@@ -639,11 +641,12 @@ struct DS8Primary {
     ALuint effect;
     ALfloat rollofffactor;
 
-    DS3DLISTENER params;
+    struct {
+        DS3DLISTENER ds3d;
+        EAX20LISTENERPROPERTIES eax;
+        float eax1_dampening; /* Not used. */
+    } deferred;
     union PrimaryParamFlags dirty;
-
-    EAX20LISTENERPROPERTIES eax_prop;
-    float eax1_dampening; /* Not used. */
 
     DWORD NumBufferGroups;
     struct DSBufferGroup *BufferGroups;

@@ -1009,8 +1009,8 @@ HRESULT WINAPI DS8Buffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSound *ds
     alSourcef(This->source, AL_PITCH, 1.0f);
     checkALError();
 
-    ds3dbuffer = &This->params;
-    ds3dbuffer->dwSize = sizeof(This->params);
+    ds3dbuffer = &This->deferred.ds3d;
+    ds3dbuffer->dwSize = sizeof(This->deferred.ds3d);
     ds3dbuffer->vPosition.x = 0.0f;
     ds3dbuffer->vPosition.y = 0.0f;
     ds3dbuffer->vPosition.z = 0.0f;
@@ -1026,7 +1026,7 @@ HRESULT WINAPI DS8Buffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSound *ds
     ds3dbuffer->flMinDistance = DS3D_DEFAULTMINDISTANCE;
     ds3dbuffer->flMaxDistance = DS3D_DEFAULTMAXDISTANCE;
     ds3dbuffer->dwMode = DS3DMODE_NORMAL;
-    eaxbuffer = &This->eax_prop;
+    eaxbuffer = &This->deferred.eax;
     eaxbuffer->lDirect = 0;
     eaxbuffer->lDirectHF = 0;
     eaxbuffer->lRoom = 0;
@@ -1950,8 +1950,8 @@ static HRESULT WINAPI DS8Buffer3D_SetConeAngles(IDirectSound3DBuffer *iface, DWO
     EnterCriticalSection(This->crst);
     if(apply == DS3D_DEFERRED)
     {
-        This->params.dwInsideConeAngle = dwInsideConeAngle;
-        This->params.dwOutsideConeAngle = dwOutsideConeAngle;
+        This->deferred.ds3d.dwInsideConeAngle = dwInsideConeAngle;
+        This->deferred.ds3d.dwOutsideConeAngle = dwOutsideConeAngle;
         This->dirty.bit.cone_angles = 1;
     }
     else
@@ -1976,9 +1976,9 @@ static HRESULT WINAPI DS8Buffer3D_SetConeOrientation(IDirectSound3DBuffer *iface
     if(apply == DS3D_DEFERRED)
     {
         EnterCriticalSection(This->crst);
-        This->params.vConeOrientation.x = x;
-        This->params.vConeOrientation.y = y;
-        This->params.vConeOrientation.z = z;
+        This->deferred.ds3d.vConeOrientation.x = x;
+        This->deferred.ds3d.vConeOrientation.y = y;
+        This->deferred.ds3d.vConeOrientation.z = z;
         This->dirty.bit.cone_orient = 1;
         LeaveCriticalSection(This->crst);
     }
@@ -2007,7 +2007,7 @@ static HRESULT WINAPI DS8Buffer3D_SetConeOutsideVolume(IDirectSound3DBuffer *ifa
     if(apply == DS3D_DEFERRED)
     {
         EnterCriticalSection(This->crst);
-        This->params.lConeOutsideVolume = vol;
+        This->deferred.ds3d.lConeOutsideVolume = vol;
         This->dirty.bit.cone_outsidevolume = 1;
         LeaveCriticalSection(This->crst);
     }
@@ -2036,7 +2036,7 @@ static HRESULT WINAPI DS8Buffer3D_SetMaxDistance(IDirectSound3DBuffer *iface, D3
     if(apply == DS3D_DEFERRED)
     {
         EnterCriticalSection(This->crst);
-        This->params.flMaxDistance = maxdist;
+        This->deferred.ds3d.flMaxDistance = maxdist;
         This->dirty.bit.max_distance = 1;
         LeaveCriticalSection(This->crst);
     }
@@ -2065,7 +2065,7 @@ static HRESULT WINAPI DS8Buffer3D_SetMinDistance(IDirectSound3DBuffer *iface, D3
     if(apply == DS3D_DEFERRED)
     {
         EnterCriticalSection(This->crst);
-        This->params.flMinDistance = mindist;
+        This->deferred.ds3d.flMinDistance = mindist;
         This->dirty.bit.min_distance = 1;
         LeaveCriticalSection(This->crst);
     }
@@ -2095,7 +2095,7 @@ static HRESULT WINAPI DS8Buffer3D_SetMode(IDirectSound3DBuffer *iface, DWORD mod
     EnterCriticalSection(This->crst);
     if(apply == DS3D_DEFERRED)
     {
-        This->params.dwMode = mode;
+        This->deferred.ds3d.dwMode = mode;
         This->dirty.bit.mode = 1;
     }
     else
@@ -2126,9 +2126,9 @@ static HRESULT WINAPI DS8Buffer3D_SetPosition(IDirectSound3DBuffer *iface, D3DVA
     if(apply == DS3D_DEFERRED)
     {
         EnterCriticalSection(This->crst);
-        This->params.vPosition.x = x;
-        This->params.vPosition.y = y;
-        This->params.vPosition.z = z;
+        This->deferred.ds3d.vPosition.x = x;
+        This->deferred.ds3d.vPosition.y = y;
+        This->deferred.ds3d.vPosition.z = z;
         This->dirty.bit.pos = 1;
         LeaveCriticalSection(This->crst);
     }
@@ -2152,9 +2152,9 @@ static HRESULT WINAPI DS8Buffer3D_SetVelocity(IDirectSound3DBuffer *iface, D3DVA
     if(apply == DS3D_DEFERRED)
     {
         EnterCriticalSection(This->crst);
-        This->params.vVelocity.x = x;
-        This->params.vVelocity.y = y;
-        This->params.vVelocity.z = z;
+        This->deferred.ds3d.vVelocity.x = x;
+        This->deferred.ds3d.vVelocity.y = y;
+        This->deferred.ds3d.vVelocity.z = z;
         This->dirty.bit.vel = 1;
         LeaveCriticalSection(This->crst);
     }
@@ -2218,8 +2218,8 @@ static HRESULT WINAPI DS8Buffer3D_SetAllParameters(IDirectSound3DBuffer *iface, 
     if(apply == DS3D_DEFERRED)
     {
         EnterCriticalSection(This->crst);
-        This->params = *ds3dbuffer;
-        This->params.dwSize = sizeof(This->params);
+        This->deferred.ds3d = *ds3dbuffer;
+        This->deferred.ds3d.dwSize = sizeof(This->deferred.ds3d);
         This->dirty.bit.pos = 1;
         This->dirty.bit.vel = 1;
         This->dirty.bit.cone_angles = 1;
@@ -2379,7 +2379,7 @@ static const IDirectSoundNotifyVtbl DS8BufferNot_Vtbl =
 static void ApplyReverbParams(DS8Primary *prim, const EAXLISTENERPROPERTIES *props)
 {
     /* FIXME: Need to validate property values... Ignore? Clamp? Error? */
-    prim->eax_prop = *props;
+    prim->deferred.eax = *props;
     alEffectf(prim->effect, AL_REVERB_DENSITY,
         clampF(powf(props->flEnvironmentSize, 3.0f) / 16.0f, 0.0f, 1.0f)
     );
@@ -2523,67 +2523,67 @@ static HRESULT WINAPI DS8BufferProp_Get(IKsPropertySet *iface,
         else switch(dwPropID)
         {
         case DSPROPERTY_EAXBUFFER_ALLPARAMETERS:
-            GET_PROP(&hr, pcbReturned, pPropData, cbPropData, This->eax_prop,
+            GET_PROP(&hr, pcbReturned, pPropData, cbPropData, This->deferred.eax,
                      EAX20BUFFERPROPERTIES);
             break;
 
         case DSPROPERTY_EAXBUFFER_DIRECT:
-            GET_PROP(&hr, pcbReturned, pPropData, cbPropData, This->eax_prop.lDirect,
+            GET_PROP(&hr, pcbReturned, pPropData, cbPropData, This->deferred.eax.lDirect,
                      LONG);
             break;
         case DSPROPERTY_EAXBUFFER_DIRECTHF:
-            GET_PROP(&hr, pcbReturned, pPropData, cbPropData, This->eax_prop.lDirectHF,
+            GET_PROP(&hr, pcbReturned, pPropData, cbPropData, This->deferred.eax.lDirectHF,
                      LONG);
             break;
 
         case DSPROPERTY_EAXBUFFER_ROOM:
-            GET_PROP(&hr, pcbReturned, pPropData, cbPropData, This->eax_prop.lRoom,
+            GET_PROP(&hr, pcbReturned, pPropData, cbPropData, This->deferred.eax.lRoom,
                      LONG);
             break;
         case DSPROPERTY_EAXBUFFER_ROOMHF:
-            GET_PROP(&hr, pcbReturned, pPropData, cbPropData, This->eax_prop.lRoomHF,
+            GET_PROP(&hr, pcbReturned, pPropData, cbPropData, This->deferred.eax.lRoomHF,
                      LONG);
             break;
 
         case DSPROPERTY_EAXBUFFER_ROOMROLLOFFFACTOR:
-            GET_PROP(&hr, pcbReturned, pPropData, cbPropData, This->eax_prop.flRoomRolloffFactor,
-                     FLOAT);
+            GET_PROP(&hr, pcbReturned, pPropData, cbPropData,
+                     This->deferred.eax.flRoomRolloffFactor, FLOAT);
             break;
 
         case DSPROPERTY_EAXBUFFER_OBSTRUCTION:
-            GET_PROP(&hr, pcbReturned, pPropData, cbPropData, This->eax_prop.lObstruction,
+            GET_PROP(&hr, pcbReturned, pPropData, cbPropData, This->deferred.eax.lObstruction,
                      LONG);
             break;
         case DSPROPERTY_EAXBUFFER_OBSTRUCTIONLFRATIO:
-            GET_PROP(&hr, pcbReturned, pPropData, cbPropData, This->eax_prop.flObstructionLFRatio,
-                     FLOAT);
+            GET_PROP(&hr, pcbReturned, pPropData, cbPropData,
+                     This->deferred.eax.flObstructionLFRatio, FLOAT);
             break;
 
         case DSPROPERTY_EAXBUFFER_OCCLUSION:
-            GET_PROP(&hr, pcbReturned, pPropData, cbPropData, This->eax_prop.lOcclusion,
+            GET_PROP(&hr, pcbReturned, pPropData, cbPropData, This->deferred.eax.lOcclusion,
                      LONG);
             break;
         case DSPROPERTY_EAXBUFFER_OCCLUSIONLFRATIO:
-            GET_PROP(&hr, pcbReturned, pPropData, cbPropData, This->eax_prop.flOcclusionLFRatio,
-                     FLOAT);
+            GET_PROP(&hr, pcbReturned, pPropData, cbPropData,
+                     This->deferred.eax.flOcclusionLFRatio, FLOAT);
             break;
         case DSPROPERTY_EAXBUFFER_OCCLUSIONROOMRATIO:
-            GET_PROP(&hr, pcbReturned, pPropData, cbPropData, This->eax_prop.flOcclusionRoomRatio,
-                     FLOAT);
+            GET_PROP(&hr, pcbReturned, pPropData, cbPropData,
+                     This->deferred.eax.flOcclusionRoomRatio, FLOAT);
             break;
 
         case DSPROPERTY_EAXBUFFER_OUTSIDEVOLUMEHF:
-            GET_PROP(&hr, pcbReturned, pPropData, cbPropData, This->eax_prop.lOutsideVolumeHF,
+            GET_PROP(&hr, pcbReturned, pPropData, cbPropData, This->deferred.eax.lOutsideVolumeHF,
                      LONG);
             break;
 
         case DSPROPERTY_EAXBUFFER_AIRABSORPTIONFACTOR:
-            GET_PROP(&hr, pcbReturned, pPropData, cbPropData, This->eax_prop.flAirAbsorptionFactor,
-                     FLOAT);
+            GET_PROP(&hr, pcbReturned, pPropData, cbPropData,
+                     This->deferred.eax.flAirAbsorptionFactor, FLOAT);
             break;
 
         case DSPROPERTY_EAXBUFFER_FLAGS:
-            GET_PROP(&hr, pcbReturned, pPropData, cbPropData, This->eax_prop.dwFlags,
+            GET_PROP(&hr, pcbReturned, pPropData, cbPropData, This->deferred.eax.dwFlags,
                      DWORD);
             break;
 
@@ -2607,73 +2607,73 @@ static HRESULT WINAPI DS8BufferProp_Get(IKsPropertySet *iface,
         else switch(dwPropID)
         {
         case DSPROPERTY_EAXLISTENER_ALLPARAMETERS:
-            GET_PROP(&hr, pcbReturned, pPropData, cbPropData, prim->eax_prop,
+            GET_PROP(&hr, pcbReturned, pPropData, cbPropData, prim->deferred.eax,
                      EAXLISTENERPROPERTIES);
             break;
 
         case DSPROPERTY_EAXLISTENER_ROOM:
             GET_PROP(&hr, pcbReturned, pPropData, cbPropData,
-                     prim->eax_prop.lRoom, LONG);
+                     prim->deferred.eax.lRoom, LONG);
             break;
         case DSPROPERTY_EAXLISTENER_ROOMHF:
             GET_PROP(&hr, pcbReturned, pPropData, cbPropData,
-                     prim->eax_prop.lRoomHF, LONG);
+                     prim->deferred.eax.lRoomHF, LONG);
             break;
 
         case DSPROPERTY_EAXLISTENER_ROOMROLLOFFFACTOR:
             GET_PROP(&hr, pcbReturned, pPropData, cbPropData,
-                     prim->eax_prop.flRoomRolloffFactor, FLOAT);
+                     prim->deferred.eax.flRoomRolloffFactor, FLOAT);
             break;
 
         case DSPROPERTY_EAXLISTENER_DECAYTIME:
             GET_PROP(&hr, pcbReturned, pPropData, cbPropData,
-                     prim->eax_prop.flDecayTime, FLOAT);
+                     prim->deferred.eax.flDecayTime, FLOAT);
             break;
         case DSPROPERTY_EAXLISTENER_DECAYHFRATIO:
             GET_PROP(&hr, pcbReturned, pPropData, cbPropData,
-                     prim->eax_prop.flDecayHFRatio, FLOAT);
+                     prim->deferred.eax.flDecayHFRatio, FLOAT);
             break;
 
         case DSPROPERTY_EAXLISTENER_REFLECTIONS:
             GET_PROP(&hr, pcbReturned, pPropData, cbPropData,
-                     prim->eax_prop.lReflections, LONG);
+                     prim->deferred.eax.lReflections, LONG);
             break;
         case DSPROPERTY_EAXLISTENER_REFLECTIONSDELAY:
             GET_PROP(&hr, pcbReturned, pPropData, cbPropData,
-                     prim->eax_prop.flReflectionsDelay, FLOAT);
+                     prim->deferred.eax.flReflectionsDelay, FLOAT);
             break;
 
         case DSPROPERTY_EAXLISTENER_REVERB:
             GET_PROP(&hr, pcbReturned, pPropData, cbPropData,
-                     prim->eax_prop.lReverb, LONG);
+                     prim->deferred.eax.lReverb, LONG);
             break;
         case DSPROPERTY_EAXLISTENER_REVERBDELAY:
             GET_PROP(&hr, pcbReturned, pPropData, cbPropData,
-                     prim->eax_prop.flReverbDelay, FLOAT);
+                     prim->deferred.eax.flReverbDelay, FLOAT);
             break;
 
         case DSPROPERTY_EAXLISTENER_ENVIRONMENT:
             GET_PROP(&hr, pcbReturned, pPropData, cbPropData,
-                     prim->eax_prop.dwEnvironment, DWORD);
+                     prim->deferred.eax.dwEnvironment, DWORD);
             break;
 
         case DSPROPERTY_EAXLISTENER_ENVIRONMENTSIZE:
             GET_PROP(&hr, pcbReturned, pPropData, cbPropData,
-                     prim->eax_prop.flEnvironmentSize, FLOAT);
+                     prim->deferred.eax.flEnvironmentSize, FLOAT);
             break;
         case DSPROPERTY_EAXLISTENER_ENVIRONMENTDIFFUSION:
             GET_PROP(&hr, pcbReturned, pPropData, cbPropData,
-                     prim->eax_prop.flEnvironmentDiffusion, FLOAT);
+                     prim->deferred.eax.flEnvironmentDiffusion, FLOAT);
             break;
 
         case DSPROPERTY_EAXLISTENER_AIRABSORPTIONHF:
             GET_PROP(&hr, pcbReturned, pPropData, cbPropData,
-                     prim->eax_prop.flAirAbsorptionHF, FLOAT);
+                     prim->deferred.eax.flAirAbsorptionHF, FLOAT);
             break;
 
         case DSPROPERTY_EAXLISTENER_FLAGS:
             GET_PROP(&hr, pcbReturned, pPropData, cbPropData,
-                     prim->eax_prop.dwFlags, DWORD);
+                     prim->deferred.eax.dwFlags, DWORD);
             break;
 
         default:
@@ -2703,10 +2703,10 @@ static HRESULT WINAPI DS8BufferProp_Get(IKsPropertySet *iface,
                     EAX1_REVERBPROPERTIES *props;
                 } data = { pPropData };
 
-                data.props->dwEnvironment = prim->eax_prop.dwEnvironment;
-                data.props->fVolume = mB_to_gain(prim->eax_prop.lRoom);
-                data.props->fDecayTime = prim->eax_prop.flDecayTime;
-                data.props->fDamping = prim->eax1_dampening;
+                data.props->dwEnvironment = prim->deferred.eax.dwEnvironment;
+                data.props->fVolume = mB_to_gain(prim->deferred.eax.lRoom);
+                data.props->fDecayTime = prim->deferred.eax.flDecayTime;
+                data.props->fDamping = prim->deferred.eax1_dampening;
 
                 *pcbReturned = sizeof(EAX1_REVERBPROPERTIES);
                 hr = DS_OK;
@@ -2721,7 +2721,7 @@ static HRESULT WINAPI DS8BufferProp_Get(IKsPropertySet *iface,
                     DWORD *props;
                 } data = { pPropData };
 
-                *data.props = prim->eax_prop.dwEnvironment;
+                *data.props = prim->deferred.eax.dwEnvironment;
 
                 *pcbReturned = sizeof(DWORD);
                 hr = DS_OK;
@@ -2736,7 +2736,7 @@ static HRESULT WINAPI DS8BufferProp_Get(IKsPropertySet *iface,
                     float *props;
                 } data = { pPropData };
 
-                *data.props = mB_to_gain(prim->eax_prop.lRoom);
+                *data.props = mB_to_gain(prim->deferred.eax.lRoom);
 
                 *pcbReturned = sizeof(float);
                 hr = DS_OK;
@@ -2751,7 +2751,7 @@ static HRESULT WINAPI DS8BufferProp_Get(IKsPropertySet *iface,
                     float *props;
                 } data = { pPropData };
 
-                *data.props = prim->eax_prop.flDecayTime;
+                *data.props = prim->deferred.eax.flDecayTime;
 
                 *pcbReturned = sizeof(float);
                 hr = DS_OK;
@@ -2766,7 +2766,7 @@ static HRESULT WINAPI DS8BufferProp_Get(IKsPropertySet *iface,
                     float *props;
                 } data = { pPropData };
 
-                *data.props = prim->eax1_dampening;
+                *data.props = prim->deferred.eax1_dampening;
 
                 *pcbReturned = sizeof(float);
                 hr = DS_OK;
@@ -2803,7 +2803,7 @@ static HRESULT WINAPI DS8BufferProp_Get(IKsPropertySet *iface,
                     float *props;
                 } data = { pPropData };
 
-                *data.props = mB_to_gain(This->eax_prop.lRoom);
+                *data.props = mB_to_gain(This->deferred.eax.lRoom);
                 *pcbReturned = sizeof(float);
                 hr = DS_OK;
             }
@@ -2866,7 +2866,7 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
                     const EAX20BUFFERPROPERTIES *props;
                 } data = { pPropData };
 
-                This->eax_prop = *data.props;
+                This->deferred.eax = *data.props;
                 ApplyFilterParams(This, data.props, APPLY_DRY_PARAMS|APPLY_WET_PARAMS);
 
                 This->dirty.bit.dry_filter = 1;
@@ -2887,8 +2887,8 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
                     const LONG *props;
                 } data = { pPropData };
 
-                This->eax_prop.lDirect = *data.props;
-                ApplyFilterParams(This, &This->eax_prop, APPLY_DRY_PARAMS);
+                This->deferred.eax.lDirect = *data.props;
+                ApplyFilterParams(This, &This->deferred.eax, APPLY_DRY_PARAMS);
 
                 This->dirty.bit.dry_filter = 1;
                 hr = DS_OK;
@@ -2902,8 +2902,8 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
                     const LONG *props;
                 } data = { pPropData };
 
-                This->eax_prop.lDirectHF = *data.props;
-                ApplyFilterParams(This, &This->eax_prop, APPLY_DRY_PARAMS);
+                This->deferred.eax.lDirectHF = *data.props;
+                ApplyFilterParams(This, &This->deferred.eax, APPLY_DRY_PARAMS);
 
                 This->dirty.bit.dry_filter = 1;
                 hr = DS_OK;
@@ -2918,8 +2918,8 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
                     const LONG *props;
                 } data = { pPropData };
 
-                This->eax_prop.lRoom = *data.props;
-                ApplyFilterParams(This, &This->eax_prop, APPLY_WET_PARAMS);
+                This->deferred.eax.lRoom = *data.props;
+                ApplyFilterParams(This, &This->deferred.eax, APPLY_WET_PARAMS);
 
                 This->dirty.bit.wet_filter = 1;
                 hr = DS_OK;
@@ -2933,8 +2933,8 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
                     const LONG *props;
                 } data = { pPropData };
 
-                This->eax_prop.lRoomHF = *data.props;
-                ApplyFilterParams(This, &This->eax_prop, APPLY_WET_PARAMS);
+                This->deferred.eax.lRoomHF = *data.props;
+                ApplyFilterParams(This, &This->deferred.eax, APPLY_WET_PARAMS);
 
                 This->dirty.bit.wet_filter = 1;
                 hr = DS_OK;
@@ -2949,7 +2949,7 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
                     const FLOAT *props;
                 } data = { pPropData };
 
-                This->eax_prop.flRoomRolloffFactor = *data.props;
+                This->deferred.eax.flRoomRolloffFactor = *data.props;
 
                 This->dirty.bit.room_rolloff = 1;
                 hr = DS_OK;
@@ -2964,8 +2964,8 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
                     const LONG *props;
                 } data = { pPropData };
 
-                This->eax_prop.lObstruction = *data.props;
-                ApplyFilterParams(This, &This->eax_prop, APPLY_DRY_PARAMS);
+                This->deferred.eax.lObstruction = *data.props;
+                ApplyFilterParams(This, &This->deferred.eax, APPLY_DRY_PARAMS);
 
                 This->dirty.bit.dry_filter = 1;
                 hr = DS_OK;
@@ -2979,8 +2979,8 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
                     const FLOAT *props;
                 } data = { pPropData };
 
-                This->eax_prop.flObstructionLFRatio = *data.props;
-                ApplyFilterParams(This, &This->eax_prop, APPLY_DRY_PARAMS);
+                This->deferred.eax.flObstructionLFRatio = *data.props;
+                ApplyFilterParams(This, &This->deferred.eax, APPLY_DRY_PARAMS);
 
                 This->dirty.bit.dry_filter = 1;
                 hr = DS_OK;
@@ -2995,8 +2995,8 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
                     const LONG *props;
                 } data = { pPropData };
 
-                This->eax_prop.lOcclusion = *data.props;
-                ApplyFilterParams(This, &This->eax_prop, APPLY_DRY_PARAMS|APPLY_WET_PARAMS);
+                This->deferred.eax.lOcclusion = *data.props;
+                ApplyFilterParams(This, &This->deferred.eax, APPLY_DRY_PARAMS|APPLY_WET_PARAMS);
 
                 This->dirty.bit.dry_filter = 1;
                 This->dirty.bit.wet_filter = 1;
@@ -3011,8 +3011,8 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
                     const FLOAT *props;
                 } data = { pPropData };
 
-                This->eax_prop.flOcclusionLFRatio = *data.props;
-                ApplyFilterParams(This, &This->eax_prop, APPLY_DRY_PARAMS|APPLY_WET_PARAMS);
+                This->deferred.eax.flOcclusionLFRatio = *data.props;
+                ApplyFilterParams(This, &This->deferred.eax, APPLY_DRY_PARAMS|APPLY_WET_PARAMS);
 
                 This->dirty.bit.dry_filter = 1;
                 This->dirty.bit.wet_filter = 1;
@@ -3027,8 +3027,8 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
                     const FLOAT *props;
                 } data = { pPropData };
 
-                This->eax_prop.flOcclusionRoomRatio = *data.props;
-                ApplyFilterParams(This, &This->eax_prop, APPLY_DRY_PARAMS|APPLY_WET_PARAMS);
+                This->deferred.eax.flOcclusionRoomRatio = *data.props;
+                ApplyFilterParams(This, &This->deferred.eax, APPLY_DRY_PARAMS|APPLY_WET_PARAMS);
 
                 This->dirty.bit.dry_filter = 1;
                 This->dirty.bit.wet_filter = 1;
@@ -3044,7 +3044,7 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
                     const LONG *props;
                 } data = { pPropData };
 
-                This->eax_prop.lOutsideVolumeHF = *data.props;
+                This->deferred.eax.lOutsideVolumeHF = *data.props;
 
                 This->dirty.bit.cone_outsidevolumehf = 1;
                 hr = DS_OK;
@@ -3059,7 +3059,7 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
                     const FLOAT *props;
                 } data = { pPropData };
 
-                This->eax_prop.flAirAbsorptionFactor = *data.props;
+                This->deferred.eax.flAirAbsorptionFactor = *data.props;
 
                 This->dirty.bit.air_absorb = 1;
                 hr = DS_OK;
@@ -3074,7 +3074,7 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
                     const DWORD *props;
                 } data = { pPropData };
 
-                This->eax_prop.dwFlags = *data.props;
+                This->deferred.eax.dwFlags = *data.props;
 
                 This->dirty.bit.flags = 1;
                 hr = DS_OK;
@@ -3132,9 +3132,9 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
                     const LONG *l;
                 } data = { pPropData };
 
-                prim->eax_prop.lRoom = *data.l;
+                prim->deferred.eax.lRoom = *data.l;
                 alEffectf(prim->effect, AL_REVERB_GAIN,
-                          mB_to_gain(prim->eax_prop.lRoom));
+                          mB_to_gain(prim->deferred.eax.lRoom));
                 checkALError();
 
                 prim->dirty.bit.effect = 1;
@@ -3149,9 +3149,9 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
                     const LONG *l;
                 } data = { pPropData };
 
-                prim->eax_prop.lRoomHF = *data.l;
+                prim->deferred.eax.lRoomHF = *data.l;
                 alEffectf(prim->effect, AL_REVERB_GAINHF,
-                          mB_to_gain(prim->eax_prop.lRoomHF));
+                          mB_to_gain(prim->deferred.eax.lRoomHF));
                 checkALError();
 
                 prim->dirty.bit.effect = 1;
@@ -3167,9 +3167,9 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
                     const FLOAT *fl;
                 } data = { pPropData };
 
-                prim->eax_prop.flRoomRolloffFactor = *data.fl;
+                prim->deferred.eax.flRoomRolloffFactor = *data.fl;
                 alEffectf(prim->effect, AL_REVERB_ROOM_ROLLOFF_FACTOR,
-                          prim->eax_prop.flRoomRolloffFactor);
+                          prim->deferred.eax.flRoomRolloffFactor);
                 checkALError();
 
                 prim->dirty.bit.effect = 1;
@@ -3185,9 +3185,9 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
                     const FLOAT *fl;
                 } data = { pPropData };
 
-                prim->eax_prop.flDecayTime = *data.fl;
+                prim->deferred.eax.flDecayTime = *data.fl;
                 alEffectf(prim->effect, AL_REVERB_DECAY_TIME,
-                          prim->eax_prop.flDecayTime);
+                          prim->deferred.eax.flDecayTime);
                 checkALError();
 
                 prim->dirty.bit.effect = 1;
@@ -3202,9 +3202,9 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
                     const FLOAT *fl;
                 } data = { pPropData };
 
-                prim->eax_prop.flDecayHFRatio = *data.fl;
+                prim->deferred.eax.flDecayHFRatio = *data.fl;
                 alEffectf(prim->effect, AL_REVERB_DECAY_HFRATIO,
-                          prim->eax_prop.flDecayHFRatio);
+                          prim->deferred.eax.flDecayHFRatio);
                 checkALError();
 
                 prim->dirty.bit.effect = 1;
@@ -3220,9 +3220,9 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
                     const LONG *l;
                 } data = { pPropData };
 
-                prim->eax_prop.lReflections = *data.l;
+                prim->deferred.eax.lReflections = *data.l;
                 alEffectf(prim->effect, AL_REVERB_REFLECTIONS_GAIN,
-                          mB_to_gain(prim->eax_prop.lReflections));
+                          mB_to_gain(prim->deferred.eax.lReflections));
                 checkALError();
 
                 prim->dirty.bit.effect = 1;
@@ -3237,9 +3237,9 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
                     const FLOAT *fl;
                 } data = { pPropData };
 
-                prim->eax_prop.flReflectionsDelay = *data.fl;
+                prim->deferred.eax.flReflectionsDelay = *data.fl;
                 alEffectf(prim->effect, AL_REVERB_REFLECTIONS_DELAY,
-                          prim->eax_prop.flReflectionsDelay);
+                          prim->deferred.eax.flReflectionsDelay);
                 checkALError();
 
                 prim->dirty.bit.effect = 1;
@@ -3255,9 +3255,9 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
                     const LONG *l;
                 } data = { pPropData };
 
-                prim->eax_prop.lReverb = *data.l;
+                prim->deferred.eax.lReverb = *data.l;
                 alEffectf(prim->effect, AL_REVERB_LATE_REVERB_GAIN,
-                          mB_to_gain(prim->eax_prop.lReverb));
+                          mB_to_gain(prim->deferred.eax.lReverb));
                 checkALError();
 
                 prim->dirty.bit.effect = 1;
@@ -3272,9 +3272,9 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
                     const FLOAT *fl;
                 } data = { pPropData };
 
-                prim->eax_prop.flReverbDelay = *data.fl;
+                prim->deferred.eax.flReverbDelay = *data.fl;
                 alEffectf(prim->effect, AL_REVERB_LATE_REVERB_DELAY,
-                          prim->eax_prop.flReverbDelay);
+                          prim->deferred.eax.flReverbDelay);
                 checkALError();
 
                 prim->dirty.bit.effect = 1;
@@ -3308,37 +3308,37 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
 
                 if(*data.fl >= 1.0f && *data.fl <= 100.0f)
                 {
-                    float scale = (*data.fl)/prim->eax_prop.flEnvironmentSize;
+                    float scale = (*data.fl)/prim->deferred.eax.flEnvironmentSize;
 
-                    prim->eax_prop.flEnvironmentSize = *data.fl;
+                    prim->deferred.eax.flEnvironmentSize = *data.fl;
 
-                    if((prim->eax_prop.dwFlags&EAXLISTENERFLAGS_DECAYTIMESCALE))
+                    if((prim->deferred.eax.dwFlags&EAXLISTENERFLAGS_DECAYTIMESCALE))
                     {
-                        prim->eax_prop.flDecayTime *= scale;
-                        prim->eax_prop.flDecayTime = clampF(prim->eax_prop.flDecayTime, 0.1f, 20.0f);
+                        prim->deferred.eax.flDecayTime *= scale;
+                        prim->deferred.eax.flDecayTime = clampF(prim->deferred.eax.flDecayTime, 0.1f, 20.0f);
                     }
-                    if((prim->eax_prop.dwFlags&EAXLISTENERFLAGS_REFLECTIONSSCALE))
+                    if((prim->deferred.eax.dwFlags&EAXLISTENERFLAGS_REFLECTIONSSCALE))
                     {
-                        prim->eax_prop.lReflections -= gain_to_mB(scale);
-                        prim->eax_prop.lReflections = clampI(prim->eax_prop.lReflections, -10000, 1000);
+                        prim->deferred.eax.lReflections -= gain_to_mB(scale);
+                        prim->deferred.eax.lReflections = clampI(prim->deferred.eax.lReflections, -10000, 1000);
                     }
-                    if((prim->eax_prop.dwFlags&EAXLISTENERFLAGS_REFLECTIONSDELAYSCALE))
+                    if((prim->deferred.eax.dwFlags&EAXLISTENERFLAGS_REFLECTIONSDELAYSCALE))
                     {
-                        prim->eax_prop.flReflectionsDelay *= scale;
-                        prim->eax_prop.flReflectionsDelay = clampF(prim->eax_prop.flReflectionsDelay, 0.0f, 0.3f);
+                        prim->deferred.eax.flReflectionsDelay *= scale;
+                        prim->deferred.eax.flReflectionsDelay = clampF(prim->deferred.eax.flReflectionsDelay, 0.0f, 0.3f);
                     }
-                    if((prim->eax_prop.dwFlags&EAXLISTENERFLAGS_REVERBSCALE))
+                    if((prim->deferred.eax.dwFlags&EAXLISTENERFLAGS_REVERBSCALE))
                     {
-                        prim->eax_prop.lReverb -= gain_to_mB(scale);
-                        prim->eax_prop.lReverb = clampI(prim->eax_prop.lReverb, -10000, 2000);
+                        prim->deferred.eax.lReverb -= gain_to_mB(scale);
+                        prim->deferred.eax.lReverb = clampI(prim->deferred.eax.lReverb, -10000, 2000);
                     }
-                    if((prim->eax_prop.dwFlags&EAXLISTENERFLAGS_REVERBDELAYSCALE))
+                    if((prim->deferred.eax.dwFlags&EAXLISTENERFLAGS_REVERBDELAYSCALE))
                     {
-                        prim->eax_prop.flReverbDelay *= scale;
-                        prim->eax_prop.flReverbDelay = clampF(prim->eax_prop.flReverbDelay, 0.0f, 0.1f);
+                        prim->deferred.eax.flReverbDelay *= scale;
+                        prim->deferred.eax.flReverbDelay = clampF(prim->deferred.eax.flReverbDelay, 0.0f, 0.1f);
                     }
 
-                    ApplyReverbParams(prim, &prim->eax_prop);
+                    ApplyReverbParams(prim, &prim->deferred.eax);
                     hr = DS_OK;
                 }
             }
@@ -3351,9 +3351,9 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
                     const FLOAT *fl;
                 } data = { pPropData };
 
-                prim->eax_prop.flEnvironmentDiffusion = *data.fl;
+                prim->deferred.eax.flEnvironmentDiffusion = *data.fl;
                 alEffectf(prim->effect, AL_REVERB_DIFFUSION,
-                          prim->eax_prop.flEnvironmentDiffusion);
+                          prim->deferred.eax.flEnvironmentDiffusion);
                 checkALError();
 
                 prim->dirty.bit.effect = 1;
@@ -3369,9 +3369,9 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
                     const FLOAT *fl;
                 } data = { pPropData };
 
-                prim->eax_prop.flAirAbsorptionHF = *data.fl;
+                prim->deferred.eax.flAirAbsorptionHF = *data.fl;
                 alEffectf(prim->effect, AL_REVERB_AIR_ABSORPTION_GAINHF,
-                          mB_to_gain(prim->eax_prop.flAirAbsorptionHF));
+                          mB_to_gain(prim->deferred.eax.flAirAbsorptionHF));
                 checkALError();
 
                 prim->dirty.bit.effect = 1;
@@ -3387,9 +3387,9 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
                     const DWORD *dw;
                 } data = { pPropData };
 
-                prim->eax_prop.dwFlags = *data.dw;
+                prim->deferred.eax.dwFlags = *data.dw;
                 alEffecti(prim->effect, AL_REVERB_DECAY_HFLIMIT,
-                          (prim->eax_prop.dwFlags&EAXLISTENERFLAGS_DECAYHFLIMIT) ?
+                          (prim->deferred.eax.dwFlags&EAXLISTENERFLAGS_DECAYHFLIMIT) ?
                           AL_TRUE : AL_FALSE);
                 checkALError();
 
@@ -3442,7 +3442,7 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
                     EAX20LISTENERPROPERTIES env = EnvironmentDefaults[data.props->dwEnvironment];
                     env.lRoom = gain_to_mB(data.props->fVolume);
                     env.flDecayTime = data.props->fDecayTime;
-                    prim->eax1_dampening = data.props->fDamping;
+                    prim->deferred.eax1_dampening = data.props->fDamping;
                     ApplyReverbParams(prim, &env);
                     hr = DS_OK;
                 }
@@ -3459,7 +3459,7 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
 
                 if(*data.dw < EAX_ENVIRONMENT_COUNT)
                 {
-                    prim->eax1_dampening = eax1_env_dampening[*data.dw];
+                    prim->deferred.eax1_dampening = eax1_env_dampening[*data.dw];
                     ApplyReverbParams(prim, &EnvironmentDefaults[*data.dw]);
                     hr = DS_OK;
                 }
@@ -3474,9 +3474,9 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
                     const FLOAT *l;
                 } data = { pPropData };
 
-                prim->eax_prop.lRoom = gain_to_mB(*data.l);
+                prim->deferred.eax.lRoom = gain_to_mB(*data.l);
                 alEffectf(prim->effect, AL_REVERB_GAIN,
-                          mB_to_gain(prim->eax_prop.lRoom));
+                          mB_to_gain(prim->deferred.eax.lRoom));
                 checkALError();
 
                 prim->dirty.bit.effect = 1;
@@ -3491,9 +3491,9 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
                     const FLOAT *fl;
                 } data = { pPropData };
 
-                prim->eax_prop.flDecayTime = *data.fl;
+                prim->deferred.eax.flDecayTime = *data.fl;
                 alEffectf(prim->effect, AL_REVERB_DECAY_TIME,
-                          prim->eax_prop.flDecayTime);
+                          prim->deferred.eax.flDecayTime);
                 checkALError();
 
                 prim->dirty.bit.effect = 1;
@@ -3508,7 +3508,7 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
                     const FLOAT *fl;
                 } data = { pPropData };
 
-                prim->eax1_dampening = *data.fl;
+                prim->deferred.eax1_dampening = *data.fl;
 
                 hr = DS_OK;
             }
@@ -3548,8 +3548,8 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
                     const FLOAT *props;
                 } data = { pPropData };
 
-                This->eax_prop.lRoom = gain_to_mB(*data.props);
-                ApplyFilterParams(This, &This->eax_prop, APPLY_WET_PARAMS);
+                This->deferred.eax.lRoom = gain_to_mB(*data.props);
+                ApplyFilterParams(This, &This->deferred.eax, APPLY_WET_PARAMS);
 
                 This->dirty.bit.wet_filter = 1;
                 hr = DS_OK;
