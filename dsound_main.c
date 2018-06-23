@@ -540,7 +540,7 @@ static HRESULT get_mmdevice_guid(IMMDevice *device, IPropertyStore *ps, GUID *gu
 }
 
 
-static BOOL send_device(IMMDevice *device, LPDSENUMCALLBACKW cb, void *user)
+static BOOL send_device(IMMDevice *device, const GUID *defguid, LPDSENUMCALLBACKW cb, void *user)
 {
     IPropertyStore *ps;
     PROPVARIANT pv;
@@ -558,7 +558,7 @@ static BOOL send_device(IMMDevice *device, LPDSENUMCALLBACKW cb, void *user)
     }
 
     hr = get_mmdevice_guid(device, ps, &guid);
-    if(FAILED(hr))
+    if(FAILED(hr) || (defguid && IsEqualGUID(defguid, &guid)))
     {
         IPropertyStore_Release(ps);
         return TRUE;
@@ -649,8 +649,8 @@ HRESULT enumerate_mmdevices(EDataFlow flow, LPDSENUMCALLBACKW cb, void *user)
 
     IMMDeviceEnumerator *devenum;
     IMMDeviceCollection *coll;
-    IMMDevice *defdev = NULL;
-    UINT count, i, n;
+    GUID defguid = GUID_NULL;
+    UINT count, i;
     BOOL keep_going;
     HRESULT hr, init_hr;
 
@@ -676,6 +676,7 @@ HRESULT enumerate_mmdevices(EDataFlow flow, LPDSENUMCALLBACKW cb, void *user)
 
     if(count == 0)
     {
+        IMMDeviceCollection_Release(coll);
         release_mmdevenum(devenum, init_hr);
         return DS_OK;
     }
@@ -686,16 +687,13 @@ HRESULT enumerate_mmdevices(EDataFlow flow, LPDSENUMCALLBACKW cb, void *user)
     /* always send the default device first */
     if(keep_going)
     {
-        hr = IMMDeviceEnumerator_GetDefaultAudioEndpoint(devenum, flow, eMultimedia, &defdev);
-        if(FAILED(hr))
+        IMMDevice *device;
+        hr = IMMDeviceEnumerator_GetDefaultAudioEndpoint(devenum, flow, eMultimedia, &device);
+        if(SUCCEEDED(hr))
         {
-            defdev = NULL;
-            n = 0;
-        }
-        else
-        {
-            keep_going = send_device(defdev, cb, user);
-            n = 1;
+            keep_going = send_device(device, NULL, cb, user);
+            get_mmdevice_guid(device, NULL, &defguid);
+            IMMDevice_Release(device);
         }
     }
 
@@ -710,17 +708,10 @@ HRESULT enumerate_mmdevices(EDataFlow flow, LPDSENUMCALLBACKW cb, void *user)
             continue;
         }
 
-        if(device != defdev)
-        {
-            keep_going = send_device(device, cb, user);
-            ++n;
-        }
+        keep_going = send_device(device, &defguid, cb, user);
 
         IMMDevice_Release(device);
     }
-
-    if(defdev)
-        IMMDevice_Release(defdev);
     IMMDeviceCollection_Release(coll);
 
     release_mmdevenum(devenum, init_hr);
