@@ -19,14 +19,13 @@
 #include <stdarg.h>
 #include <string.h>
 
-#define INITGUID
 #include "windows.h"
 #include "dsound.h"
 
 #include "dsound_private.h"
 
 
-static void ApplyReverbParams(DS8Primary *prim, const EAXLISTENERPROPERTIES *props)
+static void ApplyReverbParams(DS8Primary *prim, const EAX20LISTENERPROPERTIES *props)
 {
     /* FIXME: Need to validate property values... Ignore? Clamp? Error? */
     prim->deferred.eax = *props;
