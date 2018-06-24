@@ -341,24 +341,22 @@ HRESULT DS8Primary_PreInit(DS8Primary *This, DS8Impl *parent)
     This->BufferGroups = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY,
                                    count*sizeof(*This->BufferGroups));
     if(!This->BufferGroups) goto fail;
-    This->NumBufferGroups = count;
 
-    /* Only flag usable buffers as free. */
-    count = 0;
-    for(i = 0;i < This->NumBufferGroups;++i)
+    for(i = 0;i < count;++i)
     {
-        DWORD count_rem = num_srcs - count;
-        if(count_rem >= 64)
+        This->BufferGroups[i].Buffers = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY,
+                                                  64*sizeof(This->BufferGroups[0].Buffers[0]));
+        if(!This->BufferGroups[i].Buffers)
         {
-            This->BufferGroups[i].FreeBuffers = ~(DWORD64)0;
-            count += 64;
+            while(i > 0)
+                HeapFree(GetProcessHeap(), 0, This->BufferGroups[--i].Buffers);
+            HeapFree(GetProcessHeap(), 0, This->BufferGroups);
+            This->BufferGroups = NULL;
+            goto fail;
         }
-        else
-        {
-            This->BufferGroups[i].FreeBuffers = (U64(1) << count_rem) - 1;
-            count += count_rem;
-        }
+        This->BufferGroups[i].FreeBuffers = ~(DWORD64)0;
     }
+    This->NumBufferGroups = count;
 
     return S_OK;
 
@@ -394,6 +392,7 @@ void DS8Primary_Clear(DS8Primary *This)
 
             DS8Buffer_Destroy(buf);
         }
+        HeapFree(GetProcessHeap(), 0, This->BufferGroups[i].Buffers);
     }
 
     HeapFree(GetProcessHeap(), 0, This->BufferGroups);

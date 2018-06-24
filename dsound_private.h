@@ -598,7 +598,7 @@ struct DS8Buffer {
 
 struct DSBufferGroup {
     DWORD64 FreeBuffers;
-    DS8Buffer Buffers[64];
+    DS8Buffer *Buffers;
 };
 
 
