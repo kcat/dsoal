@@ -576,10 +576,11 @@ struct DS8Buffer {
     ALsizei curidx;
     ALuint stream_bids[QBUFFERS];
 
+    DWORD init_done : 1;
     DWORD isplaying : 1;
     DWORD islooping : 1;
     DWORD bufferlost : 1;
-    DWORD playflags : 29;
+    DWORD playflags : 28;
     DWORD ds3dmode;
 
     struct {

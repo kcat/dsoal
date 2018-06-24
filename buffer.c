@@ -928,7 +928,7 @@ HRESULT WINAPI DS8Buffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSound *ds
     setALContext(This->ctx);
 
     hr = DSERR_ALREADYINITIALIZED;
-    if(This->source) goto out;
+    if(This->init_done) goto out;
 
     prim = This->primary;
     if(!This->buffer)
@@ -1102,6 +1102,8 @@ HRESULT WINAPI DS8Buffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSound *ds
     hr = S_OK;
 
 out:
+    This->init_done = SUCCEEDED(hr);
+
     popALContext();
     LeaveCriticalSection(This->crst);
 
