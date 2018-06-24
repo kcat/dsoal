@@ -2476,7 +2476,7 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
         BOOL immediate = !(dwPropID&DSPROPERTY_EAXLISTENER_DEFERRED);
 
         setALContext(prim->ctx);
-        EAX2_Set(prim, propid, pPropData, cbPropData);
+        hr = EAX2_Set(prim, propid, pPropData, cbPropData);
         if(hr == DS_OK && immediate)
             DS8Primary3D_CommitDeferredSettings(&prim->IDirectSound3DListener_iface);
         popALContext();
