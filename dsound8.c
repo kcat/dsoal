@@ -26,6 +26,7 @@
 
 #include <windows.h>
 #include <dsound.h>
+#include <ksmedia.h>
 
 #include "dsound_private.h"
 
@@ -187,6 +188,7 @@ static HRESULT DSShare_Create(REFIID guid, DeviceShare **out)
     OLECHAR *guid_str = NULL;
     ALchar drv_name[64];
     DeviceShare *share;
+    IMMDevice *mmdev;
     void *temp;
     HRESULT hr;
     size_t i;
@@ -195,6 +197,83 @@ static HRESULT DSShare_Create(REFIID guid, DeviceShare **out)
     if(!share) return DSERR_OUTOFMEMORY;
     share->ref = 1;
     share->refresh = FAKE_REFRESH_COUNT;
+
+    share->speaker_config = DSSPEAKER_7POINT1_SURROUND;
+
+    hr = get_mmdevice(eRender, guid, &mmdev);
+    if(SUCCEEDED(hr))
+    {
+        IPropertyStore *store;
+
+        hr = IMMDevice_OpenPropertyStore(mmdev, STGM_READ, &store);
+        if(FAILED(hr))
+            WARN("IMMDevice_OpenPropertyStore failed: %08lx\n", hr);
+        else
+        {
+            ULONG phys_speakers = 0;
+            PROPVARIANT pv;
+
+            PropVariantInit(&pv);
+
+            hr = IPropertyStore_GetValue(store, &PKEY_AudioEndpoint_PhysicalSpeakers, &pv);
+            if(FAILED(hr))
+                WARN("IPropertyStore_GetValue failed: %08lx\n", hr);
+            else
+            {
+                if(pv.vt != VT_UI4)
+                    WARN("PKEY_AudioEndpoint_PhysicalSpeakers is not a ULONG: 0x%04x\n", pv.vt);
+                else
+                {
+                    phys_speakers = pv.ulVal;
+
+#define BIT_MATCH(v, b) (((v)&(b)) == (b))
+                    if(BIT_MATCH(phys_speakers, KSAUDIO_SPEAKER_7POINT1))
+                        share->speaker_config = DSSPEAKER_7POINT1;
+                    else if(BIT_MATCH(phys_speakers, KSAUDIO_SPEAKER_7POINT1_SURROUND))
+                        share->speaker_config = DSSPEAKER_7POINT1_SURROUND;
+                    else if(BIT_MATCH(phys_speakers, KSAUDIO_SPEAKER_5POINT1))
+                        share->speaker_config = DSSPEAKER_5POINT1_BACK;
+                    else if(BIT_MATCH(phys_speakers, KSAUDIO_SPEAKER_5POINT1_SURROUND))
+                        share->speaker_config = DSSPEAKER_5POINT1_SURROUND;
+                    else if(BIT_MATCH(phys_speakers, KSAUDIO_SPEAKER_QUAD))
+                        share->speaker_config = DSSPEAKER_QUAD;
+                    else if(BIT_MATCH(phys_speakers, KSAUDIO_SPEAKER_STEREO))
+                        share->speaker_config = DSSPEAKER_COMBINED(DSSPEAKER_STEREO, DSSPEAKER_GEOMETRY_WIDE);
+                    else if(BIT_MATCH(phys_speakers, KSAUDIO_SPEAKER_MONO))
+                        share->speaker_config = DSSPEAKER_MONO;
+                    else
+                        FIXME("Unhandled physical speaker layout: 0x%08lx\n", phys_speakers);
+#undef BIT_MATCH
+                }
+            }
+
+            /* If the device has a stereo layout, check the formfactor to see
+             * if it's really headphones/headset.
+             */
+            if(DSSPEAKER_CONFIG(share->speaker_config) == DSSPEAKER_STEREO)
+            {
+                hr = IPropertyStore_GetValue(store, &PKEY_AudioEndpoint_FormFactor, &pv);
+                if(FAILED(hr))
+                    WARN("IPropertyStore_GetValue failed: %08lx\n", hr);
+                else
+                {
+                    if(pv.vt != VT_UI4)
+                        WARN("PKEY_AudioEndpoint_FormFactor is not a ULONG: 0x%04x\n", pv.vt);
+                    else
+                    {
+                        if(pv.ulVal == Headphones || pv.ulVal == Headset)
+                            share->speaker_config = DSSPEAKER_HEADPHONE;
+                    }
+                }
+            }
+
+            PropVariantClear(&pv);
+            IPropertyStore_Release(store);
+        }
+
+        IMMDevice_Release(mmdev);
+        mmdev = NULL;
+    }
 
     InitializeCriticalSection(&share->crst);
 
@@ -389,14 +468,9 @@ HRESULT DSOUND_Create(REFIID riid, void **ds)
 }
 
 
-static const WCHAR speakerconfigkey[] =
-    L"SYSTEM\\CurrentControlSet\\Control\\MediaResources\\DirectSound\\Speaker Configuration";
-static const WCHAR speakerconfig[] = L"Speaker Configuration";
-
 HRESULT DSOUND_Create8(REFIID riid, LPVOID *ds)
 {
     DS8Impl *This;
-    HKEY regkey;
     HRESULT hr;
 
     *ds = NULL;
@@ -408,25 +482,9 @@ HRESULT DSOUND_Create8(REFIID riid, LPVOID *ds)
     This->IUnknown_iface.lpVtbl = &DS8_Unknown_Vtbl;
 
     This->is_8 = TRUE;
-    This->speaker_config = DSSPEAKER_COMBINED(DSSPEAKER_5POINT1, DSSPEAKER_GEOMETRY_WIDE);
-
-    if(RegOpenKeyExW(HKEY_LOCAL_MACHINE, speakerconfigkey, 0, KEY_READ, &regkey) == ERROR_SUCCESS)
-    {
-        DWORD type, conf, confsize = sizeof(DWORD);
-
-        if(RegQueryValueExW(regkey, speakerconfig, NULL, &type, (BYTE*)&conf, &confsize) == ERROR_SUCCESS)
-        {
-            if(type == REG_DWORD)
-                This->speaker_config = conf;
-        }
-
-        RegCloseKey(regkey);
-    }
-    /*RegGetValueW(HKEY_LOCAL_MACHINE, speakerconfigkey, speakerconfig, RRF_RT_REG_DWORD, NULL, &This->speaker_config, NULL);*/
 
     hr = IDirectSound8_QueryInterface(&This->IDirectSound8_iface, riid, ds);
-    if(FAILED(hr))
-        DS8Impl_Destroy(This);
+    if(FAILED(hr)) DS8Impl_Destroy(This);
     return hr;
 }
 
@@ -887,7 +945,6 @@ static HRESULT WINAPI DS8_Compact(IDirectSound8 *iface)
 static HRESULT WINAPI DS8_GetSpeakerConfig(IDirectSound8 *iface, DWORD *config)
 {
     DS8Impl *This = impl_from_IDirectSound8(iface);
-    HRESULT hr = S_OK;
 
     TRACE("(%p)->(%p)\n", iface, config);
 
@@ -901,19 +958,15 @@ static HRESULT WINAPI DS8_GetSpeakerConfig(IDirectSound8 *iface, DWORD *config)
         return DSERR_UNINITIALIZED;
     }
 
-    EnterCriticalSection(&This->share->crst);
-    *config = This->speaker_config;
-    LeaveCriticalSection(&This->share->crst);
+    *config = This->share->speaker_config;
 
-    return hr;
+    return DS_OK;
 }
 
 static HRESULT WINAPI DS8_SetSpeakerConfig(IDirectSound8 *iface, DWORD config)
 {
     DS8Impl *This = impl_from_IDirectSound8(iface);
     DWORD geo, speaker;
-    HKEY key;
-    HRESULT hr;
 
     TRACE("(%p)->(0x%08lx)\n", iface, config);
 
@@ -937,19 +990,8 @@ static HRESULT WINAPI DS8_SetSpeakerConfig(IDirectSound8 *iface, DWORD config)
         return DSERR_INVALIDPARAM;
     }
 
-    EnterCriticalSection(&This->share->crst);
-
-    hr = DSERR_GENERIC;
-    if(!RegCreateKeyExW(HKEY_LOCAL_MACHINE, speakerconfigkey, 0, NULL, 0, KEY_WRITE, NULL, &key, NULL))
-    {
-        RegSetValueExW(key, speakerconfig, 0, REG_DWORD, (const BYTE*)&config, sizeof(DWORD));
-        This->speaker_config = config;
-        RegCloseKey(key);
-        hr = S_OK;
-    }
-
-    LeaveCriticalSection(&This->share->crst);
-    return hr;
+    /* No-op on Vista+. */
+    return DS_OK;
 }
 
 static HRESULT WINAPI DS8_Initialize(IDirectSound8 *iface, const GUID *devguid)

@@ -506,6 +506,7 @@ typedef struct DeviceShare {
     DS8Primary **primaries;
 
     GUID guid;
+    DWORD speaker_config;
 } DeviceShare;
 
 
@@ -670,7 +671,6 @@ struct DS8Impl {
 
     DS8Primary primary;
 
-    DWORD speaker_config;
     DWORD prio_level;
 };
 
