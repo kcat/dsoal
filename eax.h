@@ -17,7 +17,7 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-extern const IID DSPROPSETID_EAX20_ListenerProperties;
+DEFINE_GUID(DSPROPSETID_EAX20_ListenerProperties, 0x0306a6a8, 0xb224, 0x11d2, 0x99, 0xe5, 0x00, 0x00, 0xe8, 0xd8, 0xc7, 0x22);
 typedef enum {
     DSPROPERTY_EAXLISTENER_NONE,
     DSPROPERTY_EAXLISTENER_ALLPARAMETERS,
@@ -166,7 +166,7 @@ enum {
 extern const EAXLISTENERPROPERTIES EnvironmentDefaults[EAX_ENVIRONMENT_COUNT];
 
 
-extern const IID DSPROPSETID_EAX20_BufferProperties;
+DEFINE_GUID(DSPROPSETID_EAX20_BufferProperties, 0x0306a6a7, 0xb224, 0x11d2, 0x99, 0xe5, 0x00, 0x00, 0xe8, 0xd8, 0xc7, 0x22);
 typedef enum {
     DSPROPERTY_EAXBUFFER_NONE,
     DSPROPERTY_EAXBUFFER_ALLPARAMETERS,
@@ -216,7 +216,7 @@ typedef struct _EAX20BUFFERPROPERTIES {
 #define EAXBUFFERFLAGS_ROOMHFAUTO   0x00000004
 
 /* EAX 1.0 stuff. */
-extern const IID DSPROPSETID_EAX_ReverbProperties;
+DEFINE_GUID(DSPROPSETID_EAX_ReverbProperties, 0x4a4e6fc1, 0xc341, 0x11d1, 0xb7, 0x3a, 0x44, 0x45, 0x53, 0x54, 0x00, 0x00);
 typedef enum {
     DSPROPERTY_EAX1_ALL,
     DSPROPERTY_EAX1_ENVIRONMENT,
@@ -233,7 +233,7 @@ typedef struct {
 } EAX1_REVERBPROPERTIES;
 
 
-extern const IID DSPROPSETID_EAXBUFFER_ReverbProperties;
+DEFINE_GUID(DSPROPSETID_EAXBUFFER_ReverbProperties, 0x4a4e6fc0, 0xc341, 0x11d1, 0xb7, 0x3a, 0x44, 0x45, 0x53, 0x54, 0x00, 0x00);
 typedef enum {
     DSPROPERTY_EAX1BUFFER_ALL,
     DSPROPERTY_EAX1BUFFER_REVERBMIX
