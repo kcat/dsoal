@@ -110,7 +110,7 @@ static const char *get_fmtstr_PCM(const DS8Primary *prim, const WAVEFORMATEX *fo
     out->Format.cbSize = 0;
 
     if(out->Format.nChannels != 1 && out->Format.nChannels != 2 &&
-       !BITFIELD_TEST(prim->Exts, EXT_MCFORMATS))
+       !BITFIELD_TEST(prim->share->Exts, EXT_MCFORMATS))
     {
         WARN("Multi-channel not available\n");
         return NULL;
@@ -152,13 +152,13 @@ static const char *get_fmtstr_FLOAT(const DS8Primary *prim, const WAVEFORMATEX *
     out->Format.cbSize = 0;
 
     if(out->Format.nChannels != 1 && out->Format.nChannels != 2 &&
-       !BITFIELD_TEST(prim->Exts, EXT_MCFORMATS))
+       !BITFIELD_TEST(prim->share->Exts, EXT_MCFORMATS))
     {
         WARN("Multi-channel not available\n");
         return NULL;
     }
 
-    if(format->wBitsPerSample == 32 && BITFIELD_TEST(prim->Exts, EXT_FLOAT32))
+    if(format->wBitsPerSample == 32 && BITFIELD_TEST(prim->share->Exts, EXT_FLOAT32))
     {
         switch(format->nChannels)
         {
@@ -204,7 +204,7 @@ static const char *get_fmtstr_EXT(const DS8Primary *prim, const WAVEFORMATEX *fo
     }
 
     if(out->dwChannelMask != MONO && out->dwChannelMask != STEREO &&
-       !BITFIELD_TEST(prim->Exts, EXT_MCFORMATS))
+       !BITFIELD_TEST(prim->share->Exts, EXT_MCFORMATS))
     {
         WARN("Multi-channel not available\n");
         return NULL;
@@ -244,7 +244,7 @@ static const char *get_fmtstr_EXT(const DS8Primary *prim, const WAVEFORMATEX *fo
         return NULL;
     }
     else if(IsEqualGUID(&out->SubFormat, &KSDATAFORMAT_SUBTYPE_IEEE_FLOAT) &&
-            BITFIELD_TEST(prim->Exts, EXT_FLOAT32))
+            BITFIELD_TEST(prim->share->Exts, EXT_FLOAT32))
     {
         if(out->Samples.wValidBitsPerSample == 32)
         {
@@ -344,7 +344,7 @@ static HRESULT DS8Data_Create(DS8Data **ppv, const DSBUFFERDESC *desc, DS8Primar
     /* Generate a new buffer. Supporting the DSBCAPS_LOC* flags properly
      * will need the EAX-RAM extension. Currently, we just tell the app it
      * gets what it wanted. */
-    if(!BITFIELD_TEST(prim->Exts, SOFTX_MAP_BUFFER))
+    if(!BITFIELD_TEST(prim->share->Exts, SOFTX_MAP_BUFFER))
         pBuffer = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(*pBuffer)+buf_size);
     else
         pBuffer = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(*pBuffer));
@@ -393,7 +393,7 @@ static HRESULT DS8Data_Create(DS8Data **ppv, const DSBUFFERDESC *desc, DS8Primar
     }
 
     hr = E_OUTOFMEMORY;
-    if(!BITFIELD_TEST(prim->Exts, SOFTX_MAP_BUFFER))
+    if(!BITFIELD_TEST(prim->share->Exts, SOFTX_MAP_BUFFER))
     {
         pBuffer->data = (BYTE*)(pBuffer+1);
 
@@ -435,7 +435,7 @@ static void DS8Data_Release(DS8Data *This)
     if(This->bid)
     {
         DS8Primary *prim = This->primary;
-        if(BITFIELD_TEST(prim->Exts, SOFTX_MAP_BUFFER))
+        if(BITFIELD_TEST(prim->share->Exts, SOFTX_MAP_BUFFER))
             alUnmapBufferSOFT(This->bid);
         alDeleteBuffers(1, &This->bid);
         checkALError();
@@ -451,7 +451,7 @@ HRESULT DS8Buffer_Create(DS8Buffer **ppv, DS8Primary *prim, IDirectSoundBuffer *
     DWORD i;
 
     *ppv = NULL;
-    EnterCriticalSection(prim->crst);
+    EnterCriticalSection(&prim->share->crst);
     if(prim_emu)
     {
         This = &prim->writable_buf;
@@ -468,7 +468,7 @@ HRESULT DS8Buffer_Create(DS8Buffer **ppv, DS8Primary *prim, IDirectSoundBuffer *
             break;
         }
     }
-    LeaveCriticalSection(prim->crst);
+    LeaveCriticalSection(&prim->share->crst);
     if(!This)
     {
         WARN("Out of buffers\n");
@@ -480,9 +480,9 @@ HRESULT DS8Buffer_Create(DS8Buffer **ppv, DS8Primary *prim, IDirectSoundBuffer *
     This->IDirectSoundNotify_iface.lpVtbl = &DS8BufferNot_Vtbl;
     This->IKsPropertySet_iface.lpVtbl = &DS8BufferProp_Vtbl;
 
+    This->share = prim->share;
     This->primary = prim;
     This->ctx = prim->ctx;
-    This->crst = prim->crst;
     This->ref = This->all_ref = 1;
 
     if(orig)
@@ -514,7 +514,7 @@ void DS8Buffer_Destroy(DS8Buffer *This)
     if(!prim) return;
     TRACE("Destroying %p\n", This);
 
-    EnterCriticalSection(prim->crst);
+    EnterCriticalSection(&prim->share->crst);
     /* Remove from list, if in list */
     for(i = 0;i < prim->nnotifies;++i)
     {
@@ -532,7 +532,7 @@ void DS8Buffer_Destroy(DS8Buffer *This)
         alSourcei(This->source, AL_BUFFER, 0);
         checkALError();
 
-        prim->sources->ids[prim->sources->avail_num++] = This->source;
+        prim->share->sources.ids[prim->share->sources.avail_num++] = This->source;
         This->source = 0;
     }
     if(This->stream_bids[0])
@@ -557,7 +557,7 @@ void DS8Buffer_Destroy(DS8Buffer *This)
             break;
         }
     }
-    LeaveCriticalSection(prim->crst);
+    LeaveCriticalSection(&prim->share->crst);
 }
 
 
@@ -660,7 +660,7 @@ HRESULT WINAPI DS8Buffer_GetCurrentPosition(IDirectSoundBuffer8 *iface, DWORD *p
         ALint status = 0;
         ALint ofs = 0;
 
-        EnterCriticalSection(This->crst);
+        EnterCriticalSection(&This->share->crst);
 
         setALContext(This->ctx);
         alGetSourcei(This->source, AL_BUFFERS_QUEUED, &queued);
@@ -691,7 +691,7 @@ HRESULT WINAPI DS8Buffer_GetCurrentPosition(IDirectSoundBuffer8 *iface, DWORD *p
         else
             writecursor = pos % data->buf_size;
 
-        LeaveCriticalSection(This->crst);
+        LeaveCriticalSection(&This->share->crst);
     }
     else
     {
@@ -893,10 +893,10 @@ HRESULT WINAPI DS8Buffer_GetStatus(IDirectSoundBuffer8 *iface, DWORD *status)
     }
     else
     {
-        EnterCriticalSection(This->crst);
+        EnterCriticalSection(&This->share->crst);
         state = This->isplaying ? AL_PLAYING : AL_PAUSED;
         looping = This->islooping;
-        LeaveCriticalSection(This->crst);
+        LeaveCriticalSection(&This->share->crst);
     }
 
     if((This->buffer->dsbflags&DSBCAPS_LOCDEFER))
@@ -924,7 +924,7 @@ HRESULT WINAPI DS8Buffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSound *ds
 
     TRACE("(%p)->(%p, %p)\n", iface, ds, desc);
 
-    EnterCriticalSection(This->crst);
+    EnterCriticalSection(&This->share->crst);
     setALContext(This->ctx);
 
     hr = DSERR_ALREADYINITIALIZED;
@@ -978,7 +978,7 @@ HRESULT WINAPI DS8Buffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSound *ds
     }
 
     data = This->buffer;
-    if(!(data->dsbflags&DSBCAPS_STATIC) && !BITFIELD_TEST(prim->Exts, SOFTX_MAP_BUFFER))
+    if(!(data->dsbflags&DSBCAPS_STATIC) && !BITFIELD_TEST(prim->share->Exts, SOFTX_MAP_BUFFER))
     {
         This->segsize = (data->format.Format.nAvgBytesPerSec+prim->refresh-1) / prim->refresh;
         This->segsize = clampI(This->segsize, data->format.Format.nBlockAlign, 2048);
@@ -990,10 +990,10 @@ HRESULT WINAPI DS8Buffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSound *ds
     }
 
     hr = DSERR_ALLOCATED;
-    if(!prim->sources->avail_num)
+    if(!prim->share->sources.avail_num)
         goto out;
 
-    This->source = prim->sources->ids[--(prim->sources->avail_num)];
+    This->source = prim->share->sources.ids[--(prim->share->sources.avail_num)];
     alSourceRewind(This->source);
     alSourcef(This->source, AL_GAIN, 1.0f);
     alSourcef(This->source, AL_PITCH, 1.0f);
@@ -1036,7 +1036,7 @@ HRESULT WINAPI DS8Buffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSound *ds
     {
         union BufferParamFlags dirty = { 0 };
 
-        if(BITFIELD_TEST(prim->Exts, EXT_EFX))
+        if(BITFIELD_TEST(prim->share->Exts, EXT_EFX))
         {
             alGenFilters(2, This->filter);
             alFilteri(This->filter[0], AL_FILTER_TYPE, AL_FILTER_LOWPASS);
@@ -1051,7 +1051,7 @@ HRESULT WINAPI DS8Buffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSound *ds
         dirty.bit.min_distance = 1;
         dirty.bit.max_distance = 1;
         dirty.bit.mode = 1;
-        if(BITFIELD_TEST(prim->Exts, EXT_EFX))
+        if(BITFIELD_TEST(prim->share->Exts, EXT_EFX))
         {
             dirty.bit.dry_filter = 1;
             dirty.bit.wet_filter = 1;
@@ -1079,7 +1079,7 @@ HRESULT WINAPI DS8Buffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSound *ds
         alSourcei(source, AL_CONE_INNER_ANGLE, 360);
         alSourcei(source, AL_CONE_OUTER_ANGLE, 360);
         alSourcei(source, AL_SOURCE_RELATIVE, AL_TRUE);
-        if(BITFIELD_TEST(prim->Exts, EXT_EFX))
+        if(BITFIELD_TEST(prim->share->Exts, EXT_EFX))
         {
             alSourcef(source, AL_ROOM_ROLLOFF_FACTOR, 0.0f);
             alSourcef(source, AL_CONE_OUTER_GAINHF, 1.0f);
@@ -1090,7 +1090,7 @@ HRESULT WINAPI DS8Buffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSound *ds
             alSourcei(source, AL_DIRECT_FILTER, AL_FILTER_NULL);
             alSource3i(source, AL_AUXILIARY_SEND_FILTER, 0, 0, AL_FILTER_NULL);
         }
-        if(BITFIELD_TEST(prim->Exts, SOFT_SOURCE_SPATIALIZE))
+        if(BITFIELD_TEST(prim->share->Exts, SOFT_SOURCE_SPATIALIZE))
         {
             /* Set to auto so panning works for mono, and multi-channel works
              * as expected.
@@ -1105,7 +1105,7 @@ out:
     This->init_done = SUCCEEDED(hr);
 
     popALContext();
-    LeaveCriticalSection(This->crst);
+    LeaveCriticalSection(&This->share->crst);
 
     return hr;
 }
@@ -1179,7 +1179,7 @@ static HRESULT WINAPI DS8Buffer_Play(IDirectSoundBuffer8 *iface, DWORD res1, DWO
 
     TRACE("(%p)->(%lu, %lu, %lu)\n", iface, res1, prio, flags);
 
-    EnterCriticalSection(This->crst);
+    EnterCriticalSection(&This->share->crst);
     setALContext(This->ctx);
 
     hr = DSERR_BUFFERLOST;
@@ -1252,7 +1252,7 @@ static HRESULT WINAPI DS8Buffer_Play(IDirectSoundBuffer8 *iface, DWORD res1, DWO
 
 out:
     popALContext();
-    LeaveCriticalSection(This->crst);
+    LeaveCriticalSection(&This->share->crst);
     return hr;
 }
 
@@ -1268,7 +1268,7 @@ static HRESULT WINAPI DS8Buffer_SetCurrentPosition(IDirectSoundBuffer8 *iface, D
         return DSERR_INVALIDPARAM;
     pos -= pos%data->format.Format.nBlockAlign;
 
-    EnterCriticalSection(This->crst);
+    EnterCriticalSection(&This->share->crst);
 
     if(This->segsize != 0)
     {
@@ -1294,7 +1294,7 @@ static HRESULT WINAPI DS8Buffer_SetCurrentPosition(IDirectSoundBuffer8 *iface, D
     }
     This->lastpos = pos;
 
-    LeaveCriticalSection(This->crst);
+    LeaveCriticalSection(&This->share->crst);
     return DS_OK;
 }
 
@@ -1405,7 +1405,7 @@ static HRESULT WINAPI DS8Buffer_Stop(IDirectSoundBuffer8 *iface)
 
     TRACE("(%p)->()\n", iface);
 
-    EnterCriticalSection(This->crst);
+    EnterCriticalSection(&This->share->crst);
     setALContext(This->ctx);
 
     alSourcePause(This->source);
@@ -1415,7 +1415,7 @@ static HRESULT WINAPI DS8Buffer_Stop(IDirectSoundBuffer8 *iface)
     DS8Primary_triggernots(This->primary);
 
     popALContext();
-    LeaveCriticalSection(This->crst);
+    LeaveCriticalSection(&This->share->crst);
 
     return S_OK;
 }
@@ -1431,7 +1431,7 @@ static HRESULT WINAPI DS8Buffer_Unlock(IDirectSoundBuffer8 *iface, void *ptr1, D
 
     TRACE("(%p)->(%p, %lu, %p, %lu)\n", iface, ptr1, len1, ptr2, len2);
 
-    if(InterlockedExchange(&This->buffer->locked, FALSE) == FALSE)
+    if(InterlockedExchange(&buf->locked, FALSE) == FALSE)
     {
         WARN("Not locked\n");
         return DSERR_INVALIDPARAM;
@@ -1454,7 +1454,7 @@ static HRESULT WINAPI DS8Buffer_Unlock(IDirectSoundBuffer8 *iface, void *ptr1, D
     if(!len1 && !len2)
         goto out;
 
-    if(BITFIELD_TEST(This->primary->Exts, SOFTX_MAP_BUFFER))
+    if(BITFIELD_TEST(This->share->Exts, SOFTX_MAP_BUFFER))
     {
         setALContext(This->ctx);
         alFlushMappedBufferSOFT(buf->bid, 0, buf->buf_size);
@@ -1483,7 +1483,7 @@ static HRESULT WINAPI DS8Buffer_Restore(IDirectSoundBuffer8 *iface)
 
     TRACE("(%p)->()\n", iface);
 
-    EnterCriticalSection(This->crst);
+    EnterCriticalSection(&This->share->crst);
     if(This->primary->parent->prio_level < DSSCL_WRITEPRIMARY ||
        iface == This->primary->write_emu)
     {
@@ -1492,7 +1492,7 @@ static HRESULT WINAPI DS8Buffer_Restore(IDirectSoundBuffer8 *iface)
     }
     else
         hr = DSERR_BUFFERLOST;
-    LeaveCriticalSection(This->crst);
+    LeaveCriticalSection(&This->share->crst);
 
     return hr;
 }
@@ -1520,7 +1520,7 @@ static HRESULT WINAPI DS8Buffer_SetFX(IDirectSoundBuffer8 *iface, DWORD fxcount,
         return DSERR_INVALIDCALL;
     }
 
-    EnterCriticalSection(This->crst);
+    EnterCriticalSection(&This->share->crst);
     setALContext(This->ctx);
 
     alGetSourcei(This->source, AL_SOURCE_STATE, &state);
@@ -1564,7 +1564,7 @@ static HRESULT WINAPI DS8Buffer_SetFX(IDirectSoundBuffer8 *iface, DWORD fxcount,
 
 done:
     popALContext();
-    LeaveCriticalSection(This->crst);
+    LeaveCriticalSection(&This->share->crst);
 
     return hr;
 }
@@ -1582,7 +1582,7 @@ static HRESULT WINAPI DS8Buffer_AcquireResources(IDirectSoundBuffer8 *iface, DWO
         return DSERR_INVALIDPARAM;
     }
 
-    EnterCriticalSection(This->crst);
+    EnterCriticalSection(&This->share->crst);
     if((This->buffer->dsbflags&DSBCAPS_LOCDEFER))
     {
         This->buffer->dsbflags &= ~(DSBCAPS_LOCSOFTWARE|DSBCAPS_LOCHARDWARE);
@@ -1591,7 +1591,7 @@ static HRESULT WINAPI DS8Buffer_AcquireResources(IDirectSoundBuffer8 *iface, DWO
         else
             This->buffer->dsbflags |= DSBCAPS_LOCHARDWARE;
     }
-    LeaveCriticalSection(This->crst);
+    LeaveCriticalSection(&This->share->crst);
 
     return S_OK;
 }
@@ -1632,6 +1632,7 @@ static const IDirectSoundBuffer8Vtbl DS8Buffer_Vtbl = {
 
 void DS8Buffer_SetParams(DS8Buffer *This, const DS3DBUFFER *params, const EAX20BUFFERPROPERTIES *eax_params, LONG flags)
 {
+    DS8Primary *prim = This->primary;
     const ALuint source = This->source;
     union BufferParamFlags dirty = { flags };
 
@@ -1659,19 +1660,19 @@ void DS8Buffer_SetParams(DS8Buffer *This, const DS3DBUFFER *params, const EAX20B
     if(dirty.bit.mode)
     {
         This->ds3dmode = params->dwMode;
-        if(BITFIELD_TEST(This->primary->Exts, SOFT_SOURCE_SPATIALIZE))
+        if(BITFIELD_TEST(prim->share->Exts, SOFT_SOURCE_SPATIALIZE))
             alSourcei(source, AL_SOURCE_SPATIALIZE_SOFT,
                       (params->dwMode==DS3DMODE_DISABLE) ? AL_FALSE : AL_TRUE);
         alSourcei(source, AL_SOURCE_RELATIVE, (params->dwMode!=DS3DMODE_NORMAL) ?
                                               AL_TRUE : AL_FALSE);
         alSourcef(source, AL_ROLLOFF_FACTOR, (params->dwMode==DS3DMODE_DISABLE) ?
-                                             0.0f : This->primary->rollofffactor);
+                                             0.0f : prim->rollofffactor);
     }
 
     if(dirty.bit.dry_filter)
         alSourcei(source, AL_DIRECT_FILTER, This->filter[0]);
     if(dirty.bit.wet_filter)
-        alSource3i(source, AL_AUXILIARY_SEND_FILTER, This->primary->auxslot, 0, This->filter[1]);
+        alSource3i(source, AL_AUXILIARY_SEND_FILTER, prim->auxslot, 0, This->filter[1]);
     if(dirty.bit.room_rolloff)
         alSourcef(source, AL_ROOM_ROLLOFF_FACTOR, eax_params->flRoomRolloffFactor);
     if(dirty.bit.cone_outsidevolumehf)
@@ -1732,7 +1733,7 @@ static HRESULT WINAPI DS8Buffer3D_GetConeAngles(IDirectSound3DBuffer *iface, DWO
         return DSERR_INVALIDPARAM;
     }
 
-    EnterCriticalSection(This->crst);
+    EnterCriticalSection(&This->share->crst);
     setALContext(This->ctx);
 
     alGetSourcei(This->source, AL_CONE_INNER_ANGLE, &inangle);
@@ -1740,7 +1741,7 @@ static HRESULT WINAPI DS8Buffer3D_GetConeAngles(IDirectSound3DBuffer *iface, DWO
     checkALError();
 
     popALContext();
-    LeaveCriticalSection(This->crst);
+    LeaveCriticalSection(&This->share->crst);
 
     *pdwInsideConeAngle = inangle;
     *pdwOutsideConeAngle = outangle;
@@ -1844,9 +1845,9 @@ static HRESULT WINAPI DS8Buffer3D_GetMode(IDirectSound3DBuffer *iface, DWORD *mo
         return DSERR_INVALIDPARAM;
     }
 
-    EnterCriticalSection(This->crst);
+    EnterCriticalSection(&This->share->crst);
     *mode = This->ds3dmode;
-    LeaveCriticalSection(This->crst);
+    LeaveCriticalSection(&This->share->crst);
 
     return S_OK;
 }
@@ -1909,7 +1910,7 @@ static HRESULT WINAPI DS8Buffer3D_GetAllParameters(IDirectSound3DBuffer *iface, 
         return DSERR_INVALIDPARAM;
     }
 
-    EnterCriticalSection(This->crst);
+    EnterCriticalSection(&This->share->crst);
     setALContext(This->ctx);
 
     DS8Buffer3D_GetPosition(iface, &ds3dbuffer->vPosition);
@@ -1922,7 +1923,7 @@ static HRESULT WINAPI DS8Buffer3D_GetAllParameters(IDirectSound3DBuffer *iface, 
     DS8Buffer3D_GetMode(iface, &ds3dbuffer->dwMode);
 
     popALContext();
-    LeaveCriticalSection(This->crst);
+    LeaveCriticalSection(&This->share->crst);
 
     return DS_OK;
 }
@@ -1939,7 +1940,7 @@ static HRESULT WINAPI DS8Buffer3D_SetConeAngles(IDirectSound3DBuffer *iface, DWO
         return DSERR_INVALIDPARAM;
     }
 
-    EnterCriticalSection(This->crst);
+    EnterCriticalSection(&This->share->crst);
     if(apply == DS3D_DEFERRED)
     {
         This->deferred.ds3d.dwInsideConeAngle = dwInsideConeAngle;
@@ -1954,7 +1955,7 @@ static HRESULT WINAPI DS8Buffer3D_SetConeAngles(IDirectSound3DBuffer *iface, DWO
         checkALError();
         popALContext();
     }
-    LeaveCriticalSection(This->crst);
+    LeaveCriticalSection(&This->share->crst);
 
     return S_OK;
 }
@@ -1967,12 +1968,12 @@ static HRESULT WINAPI DS8Buffer3D_SetConeOrientation(IDirectSound3DBuffer *iface
 
     if(apply == DS3D_DEFERRED)
     {
-        EnterCriticalSection(This->crst);
+        EnterCriticalSection(&This->share->crst);
         This->deferred.ds3d.vConeOrientation.x = x;
         This->deferred.ds3d.vConeOrientation.y = y;
         This->deferred.ds3d.vConeOrientation.z = z;
         This->dirty.bit.cone_orient = 1;
-        LeaveCriticalSection(This->crst);
+        LeaveCriticalSection(&This->share->crst);
     }
     else
     {
@@ -1998,10 +1999,10 @@ static HRESULT WINAPI DS8Buffer3D_SetConeOutsideVolume(IDirectSound3DBuffer *ifa
 
     if(apply == DS3D_DEFERRED)
     {
-        EnterCriticalSection(This->crst);
+        EnterCriticalSection(&This->share->crst);
         This->deferred.ds3d.lConeOutsideVolume = vol;
         This->dirty.bit.cone_outsidevolume = 1;
-        LeaveCriticalSection(This->crst);
+        LeaveCriticalSection(&This->share->crst);
     }
     else
     {
@@ -2027,10 +2028,10 @@ static HRESULT WINAPI DS8Buffer3D_SetMaxDistance(IDirectSound3DBuffer *iface, D3
 
     if(apply == DS3D_DEFERRED)
     {
-        EnterCriticalSection(This->crst);
+        EnterCriticalSection(&This->share->crst);
         This->deferred.ds3d.flMaxDistance = maxdist;
         This->dirty.bit.max_distance = 1;
-        LeaveCriticalSection(This->crst);
+        LeaveCriticalSection(&This->share->crst);
     }
     else
     {
@@ -2056,10 +2057,10 @@ static HRESULT WINAPI DS8Buffer3D_SetMinDistance(IDirectSound3DBuffer *iface, D3
 
     if(apply == DS3D_DEFERRED)
     {
-        EnterCriticalSection(This->crst);
+        EnterCriticalSection(&This->share->crst);
         This->deferred.ds3d.flMinDistance = mindist;
         This->dirty.bit.min_distance = 1;
-        LeaveCriticalSection(This->crst);
+        LeaveCriticalSection(&This->share->crst);
     }
     else
     {
@@ -2084,7 +2085,7 @@ static HRESULT WINAPI DS8Buffer3D_SetMode(IDirectSound3DBuffer *iface, DWORD mod
         return DSERR_INVALIDPARAM;
     }
 
-    EnterCriticalSection(This->crst);
+    EnterCriticalSection(&This->share->crst);
     if(apply == DS3D_DEFERRED)
     {
         This->deferred.ds3d.dwMode = mode;
@@ -2092,19 +2093,21 @@ static HRESULT WINAPI DS8Buffer3D_SetMode(IDirectSound3DBuffer *iface, DWORD mod
     }
     else
     {
+        DS8Primary *prim = This->primary;
+
         setALContext(This->ctx);
         This->ds3dmode = mode;
-        if(BITFIELD_TEST(This->primary->Exts, SOFT_SOURCE_SPATIALIZE))
+        if(BITFIELD_TEST(prim->share->Exts, SOFT_SOURCE_SPATIALIZE))
             alSourcei(This->source, AL_SOURCE_SPATIALIZE_SOFT,
                       (mode==DS3DMODE_DISABLE) ? AL_FALSE : AL_TRUE);
         alSourcei(This->source, AL_SOURCE_RELATIVE,
                   (mode != DS3DMODE_NORMAL) ? AL_TRUE : AL_FALSE);
         alSourcef(This->source, AL_ROLLOFF_FACTOR,
-                  (mode == DS3DMODE_DISABLE) ? 0.0f : This->primary->rollofffactor);
+                  (mode == DS3DMODE_DISABLE) ? 0.0f : prim->rollofffactor);
         checkALError();
         popALContext();
     }
-    LeaveCriticalSection(This->crst);
+    LeaveCriticalSection(&This->share->crst);
 
     return S_OK;
 }
@@ -2117,12 +2120,12 @@ static HRESULT WINAPI DS8Buffer3D_SetPosition(IDirectSound3DBuffer *iface, D3DVA
 
     if(apply == DS3D_DEFERRED)
     {
-        EnterCriticalSection(This->crst);
+        EnterCriticalSection(&This->share->crst);
         This->deferred.ds3d.vPosition.x = x;
         This->deferred.ds3d.vPosition.y = y;
         This->deferred.ds3d.vPosition.z = z;
         This->dirty.bit.pos = 1;
-        LeaveCriticalSection(This->crst);
+        LeaveCriticalSection(&This->share->crst);
     }
     else
     {
@@ -2143,12 +2146,12 @@ static HRESULT WINAPI DS8Buffer3D_SetVelocity(IDirectSound3DBuffer *iface, D3DVA
 
     if(apply == DS3D_DEFERRED)
     {
-        EnterCriticalSection(This->crst);
+        EnterCriticalSection(&This->share->crst);
         This->deferred.ds3d.vVelocity.x = x;
         This->deferred.ds3d.vVelocity.y = y;
         This->deferred.ds3d.vVelocity.z = z;
         This->dirty.bit.vel = 1;
-        LeaveCriticalSection(This->crst);
+        LeaveCriticalSection(&This->share->crst);
     }
     else
     {
@@ -2209,7 +2212,7 @@ static HRESULT WINAPI DS8Buffer3D_SetAllParameters(IDirectSound3DBuffer *iface, 
 
     if(apply == DS3D_DEFERRED)
     {
-        EnterCriticalSection(This->crst);
+        EnterCriticalSection(&This->share->crst);
         This->deferred.ds3d = *ds3dbuffer;
         This->deferred.ds3d.dwSize = sizeof(This->deferred.ds3d);
         This->dirty.bit.pos = 1;
@@ -2220,7 +2223,7 @@ static HRESULT WINAPI DS8Buffer3D_SetAllParameters(IDirectSound3DBuffer *iface, 
         This->dirty.bit.min_distance = 1;
         This->dirty.bit.max_distance = 1;
         This->dirty.bit.mode = 1;
-        LeaveCriticalSection(This->crst);
+        LeaveCriticalSection(&This->share->crst);
     }
     else
     {
@@ -2234,12 +2237,12 @@ static HRESULT WINAPI DS8Buffer3D_SetAllParameters(IDirectSound3DBuffer *iface, 
         dirty.bit.max_distance = 1;
         dirty.bit.mode = 1;
 
-        EnterCriticalSection(This->crst);
+        EnterCriticalSection(&This->share->crst);
         setALContext(This->ctx);
         DS8Buffer_SetParams(This, ds3dbuffer, NULL, dirty.flags);
         checkALError();
         popALContext();
-        LeaveCriticalSection(This->crst);
+        LeaveCriticalSection(&This->share->crst);
     }
 
     return S_OK;
@@ -2311,7 +2314,7 @@ static HRESULT WINAPI DS8BufferNot_SetNotificationPositions(IDirectSoundNotify *
 
     TRACE("(%p)->(%lu, %p))\n", iface, count, notifications);
 
-    EnterCriticalSection(This->crst);
+    EnterCriticalSection(&This->share->crst);
     hr = DSERR_INVALIDPARAM;
     if(count && !notifications)
         goto out;
@@ -2355,7 +2358,7 @@ static HRESULT WINAPI DS8BufferNot_SetNotificationPositions(IDirectSoundNotify *
     }
 
 out:
-    LeaveCriticalSection(This->crst);
+    LeaveCriticalSection(&This->share->crst);
     return hr;
 }
 
@@ -2423,7 +2426,7 @@ static HRESULT WINAPI DS8BufferProp_Get(IKsPropertySet *iface,
         return E_POINTER;
     }
 
-    EnterCriticalSection(This->crst);
+    EnterCriticalSection(&This->share->crst);
     if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX20_BufferProperties))
         hr = EAX2Buffer_Get(This, dwPropID, pPropData, cbPropData, pcbReturned);
     else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX20_ListenerProperties))
@@ -2434,7 +2437,7 @@ static HRESULT WINAPI DS8BufferProp_Get(IKsPropertySet *iface,
         hr = EAX1_Get(This->primary, dwPropID, pPropData, cbPropData, pcbReturned);
     else
         FIXME("Unhandled propset: %s\n", debugstr_guid(guidPropSet));
-    LeaveCriticalSection(This->crst);
+    LeaveCriticalSection(&This->share->crst);
 
     return hr;
 }
@@ -2456,7 +2459,7 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
         return E_POINTER;
     }
 
-    EnterCriticalSection(This->crst);
+    EnterCriticalSection(&This->share->crst);
     if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX20_BufferProperties))
     {
         DWORD propid = dwPropID & ~DSPROPERTY_EAXBUFFER_DEFERRED;
@@ -2511,7 +2514,7 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
     }
     else
         FIXME("Unhandled propset: %s\n", debugstr_guid(guidPropSet));
-    LeaveCriticalSection(This->crst);
+    LeaveCriticalSection(&This->share->crst);
 
     return hr;
 }
@@ -2531,7 +2534,7 @@ static HRESULT WINAPI DS8BufferProp_QuerySupport(IKsPropertySet *iface,
 
     if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX20_BufferProperties))
     {
-        EnterCriticalSection(This->crst);
+        EnterCriticalSection(&This->share->crst);
 
         if(This->filter[0] == 0)
             hr = E_PROP_ID_UNSUPPORTED;
@@ -2564,13 +2567,13 @@ static HRESULT WINAPI DS8BufferProp_QuerySupport(IKsPropertySet *iface,
             break;
         }
 
-        LeaveCriticalSection(This->crst);
+        LeaveCriticalSection(&This->share->crst);
     }
     else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX20_ListenerProperties))
     {
         DS8Primary *prim = This->primary;
 
-        EnterCriticalSection(This->crst);
+        EnterCriticalSection(&This->share->crst);
 
         if(prim->effect == 0)
             hr = E_PROP_ID_UNSUPPORTED;
@@ -2604,13 +2607,13 @@ static HRESULT WINAPI DS8BufferProp_QuerySupport(IKsPropertySet *iface,
             break;
         }
 
-        LeaveCriticalSection(This->crst);
+        LeaveCriticalSection(&This->share->crst);
     }
     else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX_ReverbProperties))
     {
         DS8Primary *prim = This->primary;
 
-        EnterCriticalSection(This->crst);
+        EnterCriticalSection(&This->share->crst);
 
         if(prim->effect == 0)
             hr = E_PROP_ID_UNSUPPORTED;
@@ -2630,11 +2633,11 @@ static HRESULT WINAPI DS8BufferProp_QuerySupport(IKsPropertySet *iface,
             break;
         }
 
-        LeaveCriticalSection(This->crst);
+        LeaveCriticalSection(&This->share->crst);
     }
     else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAXBUFFER_ReverbProperties))
     {
-        EnterCriticalSection(This->crst);
+        EnterCriticalSection(&This->share->crst);
 
         if(This->filter[0] == 0)
             hr = E_PROP_ID_UNSUPPORTED;
@@ -2651,7 +2654,7 @@ static HRESULT WINAPI DS8BufferProp_QuerySupport(IKsPropertySet *iface,
             break;
         }
 
-        LeaveCriticalSection(This->crst);
+        LeaveCriticalSection(&This->share->crst);
     }
     else
         FIXME("Unhandled propset: %s\n", debugstr_guid(guidPropSet));

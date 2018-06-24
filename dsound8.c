@@ -640,7 +640,7 @@ static HRESULT WINAPI DS8_CreateSoundBuffer(IDirectSound8 *iface, LPCDSBUFFERDES
         }
     }
 
-    EnterCriticalSection(This->primary.crst);
+    EnterCriticalSection(&This->share->crst);
     if((desc->dwFlags&DSBCAPS_PRIMARYBUFFER))
     {
         IDirectSoundBuffer *prim = &This->primary.IDirectSoundBuffer_iface;
@@ -674,7 +674,7 @@ static HRESULT WINAPI DS8_CreateSoundBuffer(IDirectSound8 *iface, LPCDSBUFFERDES
             }
         }
     }
-    LeaveCriticalSection(This->primary.crst);
+    LeaveCriticalSection(&This->share->crst);
 
     TRACE("%08lx\n", hr);
     return hr;
@@ -842,7 +842,7 @@ static HRESULT WINAPI DS8_SetCooperativeLevel(IDirectSound8 *iface, HWND hwnd, D
         return DSERR_INVALIDPARAM;
     }
 
-    EnterCriticalSection(This->primary.crst);
+    EnterCriticalSection(&This->share->crst);
     if(level == DSSCL_WRITEPRIMARY && (This->prio_level != DSSCL_WRITEPRIMARY))
     {
         struct DSBufferGroup *bufgroup = This->primary.BufferGroups;
@@ -913,7 +913,7 @@ static HRESULT WINAPI DS8_SetCooperativeLevel(IDirectSound8 *iface, HWND hwnd, D
     if(SUCCEEDED(hr))
         This->prio_level = level;
 out:
-    LeaveCriticalSection(This->primary.crst);
+    LeaveCriticalSection(&This->share->crst);
 
     return hr;
 }

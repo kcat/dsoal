@@ -561,11 +561,11 @@ struct DS8Buffer {
     LONG ref, ds3d_ref, not_ref, prop_ref;
     LONG all_ref;
 
+    DeviceShare *share;
     DS8Primary *primary;
 
     /* From the primary */
     ALCcontext *ctx;
-    CRITICAL_SECTION *crst;
 
     DS8Data *buffer;
     ALuint source;
@@ -625,12 +625,10 @@ struct DS8Primary {
     DS8Buffer writable_buf;
     DS8Impl *parent;
 
+    DeviceShare *share;
     /* Taken from the share */
     ALCcontext *ctx;
-    const ALboolean *Exts;
-    CRITICAL_SECTION *crst;
     ALCint refresh;
-    SourceCollection *sources;
     ALuint auxslot;
 
     DWORD buf_size;
