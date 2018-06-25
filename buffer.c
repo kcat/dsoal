@@ -468,11 +468,39 @@ HRESULT DS8Buffer_Create(DS8Buffer **ppv, DS8Primary *prim, IDirectSoundBuffer *
             break;
         }
     }
+    if(!This)
+    {
+        struct DSBufferGroup *grp = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY,
+            (prim->NumBufferGroups+1)*sizeof(prim->BufferGroups[0]));
+        if(grp)
+        {
+            for(i = 0;i < prim->NumBufferGroups;i++)
+                grp[i] = prim->BufferGroups[i];
+            grp[i].FreeBuffers = ~U64(0);
+            grp[i].Buffers = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY,
+                                       64*sizeof(grp[0].Buffers[0]));
+            if(!grp[i].Buffers)
+            {
+                HeapFree(GetProcessHeap(), 0, grp);
+                grp = NULL;
+            }
+            else
+            {
+                HeapFree(GetProcessHeap(), 0, prim->BufferGroups);
+                prim->BufferGroups = grp;
+                prim->NumBufferGroups++;
+
+                This = prim->BufferGroups[i].Buffers + 0;
+                memset(This, 0, sizeof(*This));
+                prim->BufferGroups[i].FreeBuffers &= ~(U64(1) << 0);
+            }
+        }
+    }
     LeaveCriticalSection(&prim->share->crst);
     if(!This)
     {
-        WARN("Out of buffers\n");
-        return DSERR_ALLOCATED;
+        WARN("Out of memory allocating buffers\n");
+        return DSERR_OUTOFMEMORY;
     }
 
     This->IDirectSoundBuffer8_iface.lpVtbl = &DS8Buffer_Vtbl;
