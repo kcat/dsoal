@@ -583,6 +583,11 @@ struct DS8Buffer {
     DWORD playflags : 28;
     DWORD ds3dmode;
 
+    /* Must be 0 (deferred, not yet placed), DSBSTATUS_LOCSOFTWARE, or
+     * DSBSTATUS_LOCHARDWARE.
+     */
+    DWORD loc_status;
+
     struct {
         DS3DBUFFER ds3d;
         EAX20BUFFERPROPERTIES eax;

@@ -629,6 +629,7 @@ static ULONG WINAPI DS8Buffer_Release(IDirectSoundBuffer8 *iface)
 static HRESULT WINAPI DS8Buffer_GetCaps(IDirectSoundBuffer8 *iface, DSBCAPS *caps)
 {
     DS8Buffer *This = impl_from_IDirectSoundBuffer8(iface);
+    DS8Data *data;
 
     TRACE("(%p)->(%p)\n", iface, caps);
 
@@ -637,11 +638,20 @@ static HRESULT WINAPI DS8Buffer_GetCaps(IDirectSoundBuffer8 *iface, DSBCAPS *cap
         WARN("Invalid DSBCAPS (%p, %lu)\n", caps, (caps ? caps->dwSize : 0));
         return DSERR_INVALIDPARAM;
     }
+    data = This->buffer;
 
-    caps->dwFlags = This->buffer->dsbflags;
-    caps->dwBufferBytes = This->buffer->buf_size;
+    caps->dwFlags = data->dsbflags;
+    if((data->dsbflags&DSBCAPS_LOCDEFER))
+    {
+        if(This->loc_status == DSBSTATUS_LOCHARDWARE)
+            caps->dwFlags |= DSBCAPS_LOCHARDWARE;
+        else if(This->loc_status == DSBSTATUS_LOCSOFTWARE)
+            caps->dwFlags |= DSBCAPS_LOCSOFTWARE;
+    }
+    caps->dwBufferBytes = data->buf_size;
     caps->dwUnlockTransferRate = 4096;
     caps->dwPlayCpuOverhead = 0;
+
     return S_OK;
 }
 
@@ -900,12 +910,7 @@ HRESULT WINAPI DS8Buffer_GetStatus(IDirectSoundBuffer8 *iface, DWORD *status)
     }
 
     if((This->buffer->dsbflags&DSBCAPS_LOCDEFER))
-    {
-        if((This->buffer->dsbflags&DSBCAPS_LOCSOFTWARE))
-            *status |= DSBSTATUS_LOCSOFTWARE;
-        else if((This->buffer->dsbflags&DSBCAPS_LOCHARDWARE))
-            *status |= DSBSTATUS_LOCHARDWARE;
-    }
+        *status |= This->loc_status;
     if(state == AL_PLAYING)
         *status |= DSBSTATUS_PLAYING | (looping ? DSBSTATUS_LOOPING : 0);
 
@@ -978,6 +983,11 @@ HRESULT WINAPI DS8Buffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSound *ds
     }
 
     data = This->buffer;
+    if((data->dsbflags&DSBCAPS_LOCHARDWARE))
+        This->loc_status = DSBSTATUS_LOCHARDWARE;
+    else if((data->dsbflags&DSBCAPS_LOCSOFTWARE))
+        This->loc_status = DSBSTATUS_LOCSOFTWARE;
+
     if(!(data->dsbflags&DSBCAPS_STATIC) && !BITFIELD_TEST(prim->share->Exts, SOFTX_MAP_BUFFER))
     {
         This->segsize = (data->format.Format.nAvgBytesPerSec+prim->refresh-1) / prim->refresh;
@@ -1192,13 +1202,10 @@ static HRESULT WINAPI DS8Buffer_Play(IDirectSoundBuffer8 *iface, DWORD res1, DWO
     data = This->buffer;
     if((data->dsbflags&DSBCAPS_LOCDEFER))
     {
-        if(!(data->dsbflags&(DSBCAPS_LOCHARDWARE|DSBCAPS_LOCSOFTWARE)))
-        {
-            if(flags & DSBPLAY_LOCSOFTWARE)
-                data->dsbflags |= DSBCAPS_LOCSOFTWARE;
-            else
-                data->dsbflags |= DSBCAPS_LOCHARDWARE;
-        }
+        if((flags&DSBPLAY_LOCSOFTWARE))
+            This->loc_status = DSBSTATUS_LOCSOFTWARE;
+        else
+            This->loc_status = DSBSTATUS_LOCHARDWARE;
     }
     else if(prio)
     {
@@ -1585,11 +1592,10 @@ static HRESULT WINAPI DS8Buffer_AcquireResources(IDirectSoundBuffer8 *iface, DWO
     EnterCriticalSection(&This->share->crst);
     if((This->buffer->dsbflags&DSBCAPS_LOCDEFER))
     {
-        This->buffer->dsbflags &= ~(DSBCAPS_LOCSOFTWARE|DSBCAPS_LOCHARDWARE);
         if((flags&DSBPLAY_LOCSOFTWARE))
-            This->buffer->dsbflags |= DSBCAPS_LOCSOFTWARE;
+            This->loc_status = DSBSTATUS_LOCSOFTWARE;
         else
-            This->buffer->dsbflags |= DSBCAPS_LOCHARDWARE;
+            This->loc_status = DSBSTATUS_LOCHARDWARE;
     }
     LeaveCriticalSection(&This->share->crst);
 
