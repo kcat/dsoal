@@ -2575,9 +2575,6 @@ static HRESULT WINAPI DS8BufferProp_QuerySupport(IKsPropertySet *iface,
         else switch(dwPropID)
         {
         case DSPROPERTY_EAXBUFFER_NONE:
-            *pTypeSupport = KSPROPERTY_SUPPORT_SET;
-            hr = DS_OK;
-            break;
         case DSPROPERTY_EAXBUFFER_ALLPARAMETERS:
         case DSPROPERTY_EAXBUFFER_DIRECT:
         case DSPROPERTY_EAXBUFFER_DIRECTHF:
@@ -2614,9 +2611,6 @@ static HRESULT WINAPI DS8BufferProp_QuerySupport(IKsPropertySet *iface,
         else switch(dwPropID)
         {
         case DSPROPERTY_EAXLISTENER_NONE:
-            *pTypeSupport = KSPROPERTY_SUPPORT_SET;
-            hr = DS_OK;
-            break;
         case DSPROPERTY_EAXLISTENER_ALLPARAMETERS:
         case DSPROPERTY_EAXLISTENER_ROOM:
         case DSPROPERTY_EAXLISTENER_ROOMHF:

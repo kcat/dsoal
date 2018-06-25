@@ -380,6 +380,11 @@ HRESULT EAX2_Get(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
     hr = DSERR_INVALIDPARAM;
     switch(propid)
     {
+    case DSPROPERTY_EAXLISTENER_NONE:
+        *pcbReturned = 0;
+        hr = DS_OK;
+        break;
+
     case DSPROPERTY_EAXLISTENER_ALLPARAMETERS:
         GET_PROP(prim->deferred.eax, EAX20LISTENERPROPERTIES);
         break;
@@ -672,6 +677,11 @@ HRESULT EAX2Buffer_Get(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
     hr = DSERR_INVALIDPARAM;
     switch(propid)
     {
+    case DSPROPERTY_EAXBUFFER_NONE:
+        *pcbReturned = 0;
+        hr = DS_OK;
+        break;
+
     case DSPROPERTY_EAXBUFFER_ALLPARAMETERS:
         GET_PROP(buf->deferred.eax, EAX20BUFFERPROPERTIES);
         break;
