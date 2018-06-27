@@ -17,117 +17,143 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-DEFINE_GUID(DSPROPSETID_EAX20_ListenerProperties, 0x0306a6a8, 0xb224, 0x11d2, 0x99, 0xe5, 0x00, 0x00, 0xe8, 0xd8, 0xc7, 0x22);
+typedef struct _EAXVECTOR {
+    FLOAT x, y, z;
+} EAXVECTOR;
+
+DEFINE_GUID(DSPROPSETID_EAX30_ListenerProperties, 0xa8fa6882, 0xb476, 0x11d3, 0xbd, 0xb9, 0x00, 0xc0, 0xf0, 0x2d, 0xdf, 0x87);
 typedef enum {
-    DSPROPERTY_EAX20LISTENER_NONE,
-    DSPROPERTY_EAX20LISTENER_ALLPARAMETERS,
-    DSPROPERTY_EAX20LISTENER_ROOM,
-    DSPROPERTY_EAX20LISTENER_ROOMHF,
-    DSPROPERTY_EAX20LISTENER_ROOMROLLOFFFACTOR,
-    DSPROPERTY_EAX20LISTENER_DECAYTIME,
-    DSPROPERTY_EAX20LISTENER_DECAYHFRATIO,
-    DSPROPERTY_EAX20LISTENER_REFLECTIONS,
-    DSPROPERTY_EAX20LISTENER_REFLECTIONSDELAY,
-    DSPROPERTY_EAX20LISTENER_REVERB,
-    DSPROPERTY_EAX20LISTENER_REVERBDELAY,
-    DSPROPERTY_EAX20LISTENER_ENVIRONMENT,
-    DSPROPERTY_EAX20LISTENER_ENVIRONMENTSIZE,
-    DSPROPERTY_EAX20LISTENER_ENVIRONMENTDIFFUSION,
-    DSPROPERTY_EAX20LISTENER_AIRABSORPTIONHF,
-    DSPROPERTY_EAX20LISTENER_FLAGS
-} DSPROPERTY_EAX20_LISTENERPROPERTY;
+    DSPROPERTY_EAX30LISTENER_NONE,
+    DSPROPERTY_EAX30LISTENER_ALLPARAMETERS,
+    DSPROPERTY_EAX30LISTENER_ENVIRONMENT,
+    DSPROPERTY_EAX30LISTENER_ENVIRONMENTSIZE,
+    DSPROPERTY_EAX30LISTENER_ENVIRONMENTDIFFUSION,
+    DSPROPERTY_EAX30LISTENER_ROOM,
+    DSPROPERTY_EAX30LISTENER_ROOMHF,
+    DSPROPERTY_EAX30LISTENER_ROOMLF,
+    DSPROPERTY_EAX30LISTENER_DECAYTIME,
+    DSPROPERTY_EAX30LISTENER_DECAYHFRATIO,
+    DSPROPERTY_EAX30LISTENER_DECAYLFRATIO,
+    DSPROPERTY_EAX30LISTENER_REFLECTIONS,
+    DSPROPERTY_EAX30LISTENER_REFLECTIONSDELAY,
+    DSPROPERTY_EAX30LISTENER_REFLECTIONSPAN,
+    DSPROPERTY_EAX30LISTENER_REVERB,
+    DSPROPERTY_EAX30LISTENER_REVERBDELAY,
+    DSPROPERTY_EAX30LISTENER_REVERBPAN,
+    DSPROPERTY_EAX30LISTENER_ECHOTIME,
+    DSPROPERTY_EAX30LISTENER_ECHODEPTH,
+    DSPROPERTY_EAX30LISTENER_MODULATIONTIME,
+    DSPROPERTY_EAX30LISTENER_MODULATIONDEPTH,
+    DSPROPERTY_EAX30LISTENER_AIRABSORPTIONHF,
+    DSPROPERTY_EAX30LISTENER_HFREFERENCE,
+    DSPROPERTY_EAX30LISTENER_LFREFERENCE,
+    DSPROPERTY_EAX30LISTENER_ROOMROLLOFFFACTOR,
+    DSPROPERTY_EAX30LISTENER_FLAGS
+} DSPROPERTY_EAX30_LISTENERPROPERTY;
 
 /* Stores the value being set, but does not apply it */
-#define DSPROPERTY_EAX20LISTENER_DEFERRED               0x80000000
+#define DSPROPERTY_EAX30LISTENER_DEFERRED               0x80000000
 /* The lack of the deferred flag forces a call to CommitDeferredSettings(),
  * applying *all* deferred settings, including the EAX property being set */
-#define DSPROPERTY_EAX20LISTENER_IMMEDIATE              0x00000000
+#define DSPROPERTY_EAX30LISTENER_IMMEDIATE              0x00000000
 /* Same as IMMEDIATE; causes a commit of deferred properties but implies no
  * extra property being set */
-#define DSPROPERTY_EAX20LISTENER_COMMITDEFERREDSETTINGS 0x00000000
+#define DSPROPERTY_EAX30LISTENER_COMMITDEFERREDSETTINGS 0x00000000
 
-typedef struct _EAX20LISTENERPROPERTIES {
-    LONG lRoom;
-    LONG lRoomHF;
-    FLOAT flRoomRolloffFactor;
-    FLOAT flDecayTime;
-    FLOAT flDecayHFRatio;
-    LONG lReflections;
-    FLOAT flReflectionsDelay;
-    LONG lReverb;
-    FLOAT flReverbDelay;
+typedef struct _EAX30LISTENERPROPERTIES {
     DWORD dwEnvironment;
     FLOAT flEnvironmentSize;
     FLOAT flEnvironmentDiffusion;
+    LONG lRoom;
+    LONG lRoomHF;
+    LONG lRoomLF;
+    FLOAT flDecayTime;
+    FLOAT flDecayHFRatio;
+    FLOAT flDecayLFRatio;
+    LONG lReflections;
+    FLOAT flReflectionsDelay;
+    EAXVECTOR vReflectionsPan;
+    LONG lReverb;
+    FLOAT flReverbDelay;
+    EAXVECTOR vReverbPan;
+    FLOAT flEchoTime;
+    FLOAT flEchoDepth;
+    FLOAT flModulationTime;
+    FLOAT flModulationDepth;
     FLOAT flAirAbsorptionHF;
+    FLOAT flHFReference;
+    FLOAT flLFReference;
+    FLOAT flRoomRolloffFactor;
     DWORD dwFlags;
-} EAX20LISTENERPROPERTIES, *LPEAX20LISTENERPROPERTIES;
+} EAX30LISTENERPROPERTIES, *LPEAX30LISTENERPROPERTIES;
 
 /* These flags determine what properties are modified when the environment size
    is changed */
-#define EAX20LISTENERFLAGS_DECAYTIMESCALE        0x00000001
-#define EAX20LISTENERFLAGS_REFLECTIONSSCALE      0x00000002
-#define EAX20LISTENERFLAGS_REFLECTIONSDELAYSCALE 0x00000004
-#define EAX20LISTENERFLAGS_REVERBSCALE           0x00000008
-#define EAX20LISTENERFLAGS_REVERBDELAYSCALE      0x00000010
+#define EAX30LISTENERFLAGS_DECAYTIMESCALE        0x00000001
+#define EAX30LISTENERFLAGS_REFLECTIONSSCALE      0x00000002
+#define EAX30LISTENERFLAGS_REFLECTIONSDELAYSCALE 0x00000004
+#define EAX30LISTENERFLAGS_REVERBSCALE           0x00000008
+#define EAX30LISTENERFLAGS_REVERBDELAYSCALE      0x00000010
 /* This flag limits the high frequency decay according to air absorption */
-#define EAX20LISTENERFLAGS_DECAYHFLIMIT          0x00000020
+#define EAX30LISTENERFLAGS_DECAYHFLIMIT          0x00000020
+#define EAX30LISTENERFLAGS_ECHOTIMESCALE         0x00000040
+#define EAX30LISTENERFLAGS_MODTIMESCALE          0x00000080
 
 
 /* EAX environment presets */
-/*    Room   RoomHF   RRlOff  DecTm   DcHF   Refl    RefDel  Revb   RevDel  Env Size    Diffuse  AirAbs  Flags */
+//  Env   Size   Diffus    Room    RoomHF  RoomLF  DecTm   DcHF    DcLF    Refl    RefDel  Ref Pan             Revb    RevDel   Rev Pan            EchTm   EchDp   ModTm   ModDp   AirAbs  HFRef     LFRef   RRlOff  FLAGS
 #define REVERB_PRESET_GENERIC \
-    { -1000, -100,    0.0f,   1.49f,  0.83f, -2602,  0.007f, 200,   0.011f, 0,  7.5f,   1.000f,  -5.0f,  0x3f }
+    {0,   7.5f,   1.000f,  -1000,  -100,   0,      1.49f,  0.83f,  1.00f,  -2602,  0.007f,  {0.0f,0.0f,0.0f},  200,    0.011f,  {0.0f,0.0f,0.0f},  0.250f, 0.000f, 0.250f, 0.000f, -5.0f,  5000.0f,  250.0f, 0.00f,  0x3f }
 #define REVERB_PRESET_PADDEDCELL \
-    { -1000, -6000,   0.00f,  0.17f,  0.10f, -1204,  0.001f, 207,   0.002f, 1,  1.4f,   1.000f,  -5.0f,  0x3f }
+    {1,   1.4f,   1.000f,  -1000,  -6000,  0,      0.17f,  0.10f,  1.00f,  -1204,  0.001f,  {0.0f,0.0f,0.0f},  207,    0.002f,  {0.0f,0.0f,0.0f},  0.250f, 0.000f, 0.250f, 0.000f, -5.0f,  5000.0f,  250.0f, 0.00f,  0x3f }
 #define REVERB_PRESET_ROOM \
-    { -1000, -454,    0.00f,  0.40f,  0.83f, -1646,  0.002f, 53,    0.003f, 2,  1.9f,   1.000f,  -5.0f,  0x3f }
+    {2,   1.9f,   1.000f,  -1000,  -454,   0,      0.40f,  0.83f,  1.00f,  -1646,  0.002f,  {0.0f,0.0f,0.0f},  53,     0.003f,  {0.0f,0.0f,0.0f},  0.250f, 0.000f, 0.250f, 0.000f, -5.0f,  5000.0f,  250.0f, 0.00f,  0x3f }
 #define REVERB_PRESET_BATHROOM \
-    { -1000, -1200,   0.00f,  1.49f,  0.54f, -370,   0.007f, 1030,  0.011f, 3,  1.4f,   1.000f,  -5.0f,  0x3f }
+    {3,   1.4f,   1.000f,  -1000,  -1200,  0,      1.49f,  0.54f,  1.00f,  -370,   0.007f,  {0.0f,0.0f,0.0f},  1030,   0.011f,  {0.0f,0.0f,0.0f},  0.250f, 0.000f, 0.250f, 0.000f, -5.0f,  5000.0f,  250.0f, 0.00f,  0x3f }
 #define REVERB_PRESET_LIVINGROOM \
-    { -1000, -6000,   0.00f,  0.50f,  0.10f, -1376,  0.003f, -1104, 0.004f, 4,  2.5f,   1.000f,  -5.0f,  0x3f }
+    {4,   2.5f,   1.000f,  -1000,  -6000,  0,      0.50f,  0.10f,  1.00f,  -1376,  0.003f,  {0.0f,0.0f,0.0f},  -1104,  0.004f,  {0.0f,0.0f,0.0f},  0.250f, 0.000f, 0.250f, 0.000f, -5.0f,  5000.0f,  250.0f, 0.00f,  0x3f }
 #define REVERB_PRESET_STONEROOM \
-    { -1000, -300,    0.00f,  2.31f,  0.64f, -711,   0.012f, 83,    0.017f, 5,  11.6f,  1.000f,  -5.0f,  0x3f }
+    {5,   11.6f,  1.000f,  -1000,  -300,   0,      2.31f,  0.64f,  1.00f,  -711,   0.012f,  {0.0f,0.0f,0.0f},  83,     0.017f,  {0.0f,0.0f,0.0f},  0.250f, 0.000f, 0.250f, 0.000f, -5.0f,  5000.0f,  250.0f, 0.00f,  0x3f }
 #define REVERB_PRESET_AUDITORIUM \
-    { -1000, -476,    0.00f,  4.32f,  0.59f, -789,   0.020f, -289,  0.030f, 6,  21.6f,  1.000f,  -5.0f,  0x3f }
+    {6,   21.6f,  1.000f,  -1000,  -476,   0,      4.32f,  0.59f,  1.00f,  -789,   0.020f,  {0.0f,0.0f,0.0f},  -289,   0.030f,  {0.0f,0.0f,0.0f},  0.250f, 0.000f, 0.250f, 0.000f, -5.0f,  5000.0f,  250.0f, 0.00f,  0x3f }
 #define REVERB_PRESET_CONCERTHALL \
-    { -1000, -500,    0.00f,  3.92f,  0.70f, -1230,  0.020f, -2,    0.029f, 7,  19.6f,  1.000f,  -5.0f,  0x3f }
+    {7,   19.6f,  1.000f,  -1000,  -500,   0,      3.92f,  0.70f,  1.00f,  -1230,  0.020f,  {0.0f,0.0f,0.0f},  -02,    0.029f,  {0.0f,0.0f,0.0f},  0.250f, 0.000f, 0.250f, 0.000f, -5.0f,  5000.0f,  250.0f, 0.00f,  0x3f }
 #define REVERB_PRESET_CAVE \
-    { -1000, 0,       0.00f,  2.91f,  1.30f, -602,   0.015f, -302,  0.022f, 8,  14.6f,  1.000f,  -5.0f,  0x1f }
+    {8,   14.6f,  1.000f,  -1000,  0,      0,      2.91f,  1.30f,  1.00f,  -602,   0.015f,  {0.0f,0.0f,0.0f},  -302,   0.022f,  {0.0f,0.0f,0.0f},  0.250f, 0.000f, 0.250f, 0.000f, -5.0f,  5000.0f,  250.0f, 0.00f,  0x1f }
 #define REVERB_PRESET_ARENA \
-    { -1000, -698,    0.00f,  7.24f,  0.33f, -1166,  0.020f, 16,    0.030f, 9,  36.2f,  1.000f,  -5.0f,  0x3f }
+    {9,   36.2f,  1.000f,  -1000,  -698,   0,      7.24f,  0.33f,  1.00f,  -1166,  0.020f,  {0.0f,0.0f,0.0f},  16,     0.030f,  {0.0f,0.0f,0.0f},  0.250f, 0.000f, 0.250f, 0.000f, -5.0f,  5000.0f,  250.0f, 0.00f,  0x3f }
 #define REVERB_PRESET_HANGAR \
-    { -1000, -1000,   0.00f,  10.05f, 0.23f, -602,   0.020f, 198,   0.030f, 10, 50.3f,  1.000f,  -5.0f,  0x3f }
+    {10,  50.3f,  1.000f,  -1000,  -1000,  0,      10.05f, 0.23f,  1.00f,  -602,   0.020f,  {0.0f,0.0f,0.0f},  198,    0.030f,  {0.0f,0.0f,0.0f},  0.250f, 0.000f, 0.250f, 0.000f, -5.0f,  5000.0f,  250.0f, 0.00f,  0x3f }
 #define REVERB_PRESET_CARPETEDHALLWAY \
-    { -1000, -4000,   0.00f,  0.30f,  0.10f, -1831,  0.002f, -1630, 0.030f, 11, 1.9f,   1.000f,  -5.0f,  0x3f }
+    {11,  1.9f,   1.000f,  -1000,  -4000,  0,      0.30f,  0.10f,  1.00f,  -1831,  0.002f,  {0.0f,0.0f,0.0f},  -1630,  0.030f,  {0.0f,0.0f,0.0f},  0.250f, 0.000f, 0.250f, 0.000f, -5.0f,  5000.0f,  250.0f, 0.00f,  0x3f }
 #define REVERB_PRESET_HALLWAY \
-    { -1000, -300,    0.00f,  1.49f,  0.59f, -1219,  0.007f, 441,   0.011f, 12, 1.8f,   1.000f,  -5.0f,  0x3f }
+    {12,  1.8f,   1.000f,  -1000,  -300,   0,      1.49f,  0.59f,  1.00f,  -1219,  0.007f,  {0.0f,0.0f,0.0f},  441,    0.011f,  {0.0f,0.0f,0.0f},  0.250f, 0.000f, 0.250f, 0.000f, -5.0f,  5000.0f,  250.0f, 0.00f,  0x3f }
 #define REVERB_PRESET_STONECORRIDOR \
-    { -1000, -237,    0.00f,  2.70f,  0.79f, -1214,  0.013f, 395,   0.020f, 13, 13.5f,  1.000f,  -5.0f,  0x3f }
+    {13,  13.5f,  1.000f,  -1000,  -237,   0,      2.70f,  0.79f,  1.00f,  -1214,  0.013f,  {0.0f,0.0f,0.0f},  395,    0.020f,  {0.0f,0.0f,0.0f},  0.250f, 0.000f, 0.250f, 0.000f, -5.0f,  5000.0f,  250.0f, 0.00f,  0x3f }
 #define REVERB_PRESET_ALLEY \
-    { -1000, -270,    0.00f,  1.49f,  0.86f, -1204,  0.007f, -4,    0.011f, 14, 7.5f,   0.300f,  -5.0f,  0x3f }
+    {14,  7.5f,   0.300f,  -1000,  -270,   0,      1.49f,  0.86f,  1.00f,  -1204,  0.007f,  {0.0f,0.0f,0.0f},  -4,     0.011f,  {0.0f,0.0f,0.0f},  0.125f, 0.950f, 0.250f, 0.000f, -5.0f,  5000.0f,  250.0f, 0.00f,  0x3f }
 #define REVERB_PRESET_FOREST \
-    { -1000, -3300,   0.00f,  1.49f,  0.54f, -2560,  0.162f, -229,  0.088f, 15, 38.0f,  0.300f,  -5.0f,  0x3f }
+    {15,  38.0f,  0.300f,  -1000,  -3300,  0,      1.49f,  0.54f,  1.00f,  -2560,  0.162f,  {0.0f,0.0f,0.0f},  -229,   0.088f,  {0.0f,0.0f,0.0f},  0.125f, 1.000f, 0.250f, 0.000f, -5.0f,  5000.0f,  250.0f, 0.00f,  0x3f }
 #define REVERB_PRESET_CITY \
-    { -1000, -800,    0.00f,  1.49f,  0.67f, -2273,  0.007f, -1691, 0.011f, 16, 7.5f,   0.500f,  -5.0f,  0x3f }
+    {16,  7.5f,   0.500f,  -1000,  -800,   0,      1.49f,  0.67f,  1.00f,  -2273,  0.007f,  {0.0f,0.0f,0.0f},  -1691,  0.011f,  {0.0f,0.0f,0.0f},  0.250f, 0.000f, 0.250f, 0.000f, -5.0f,  5000.0f,  250.0f, 0.00f,  0x3f }
 #define REVERB_PRESET_MOUNTAINS \
-    { -1000, -2500,   0.00f,  1.49f,  0.21f, -2780,  0.300f, -1434, 0.100f, 17, 100.0f, 0.270f,  -5.0f,  0x1f }
+    {17,  100.0f, 0.270f,  -1000,  -2500,  0,      1.49f,  0.21f,  1.00f,  -2780,  0.300f,  {0.0f,0.0f,0.0f},  -1434,  0.100f,  {0.0f,0.0f,0.0f},  0.250f, 1.000f, 0.250f, 0.000f, -5.0f,  5000.0f,  250.0f, 0.00f,  0x1f }
 #define REVERB_PRESET_QUARRY \
-    { -1000, -1000,   0.00f,  1.49f,  0.83f, -10000, 0.061f, 500,   0.025f, 18, 17.5f,  1.000f,  -5.0f,  0x3f }
+    {18,  17.5f,  1.000f,  -1000,  -1000,  0,      1.49f,  0.83f,  1.00f,  -10000, 0.061f,  {0.0f,0.0f,0.0f},  500,    0.025f,  {0.0f,0.0f,0.0f},  0.125f, 0.700f, 0.250f, 0.000f, -5.0f,  5000.0f,  250.0f, 0.00f,  0x3f }
 #define REVERB_PRESET_PLAIN \
-    { -1000, -2000,   0.00f,  1.49f,  0.50f, -2466,  0.179f, -1926, 0.100f, 19, 42.5f,  0.210f,  -5.0f,  0x3f }
+    {19,  42.5f,  0.210f,  -1000,  -2000,  0,      1.49f,  0.50f,  1.00f,  -2466,  0.179f,  {0.0f,0.0f,0.0f},  -1926,  0.100f,  {0.0f,0.0f,0.0f},  0.250f, 1.000f, 0.250f, 0.000f, -5.0f,  5000.0f,  250.0f, 0.00f,  0x3f }
 #define REVERB_PRESET_PARKINGLOT \
-    { -1000, 0,       0.00f,  1.65f,  1.50f, -1363,  0.008f, -1153, 0.012f, 20, 8.3f,   1.000f,  -5.0f,  0x1f }
+    {20,  8.3f,   1.000f,  -1000,  0,      0,      1.65f,  1.50f,  1.00f,  -1363,  0.008f,  {0.0f,0.0f,0.0f},  -1153,  0.012f,  {0.0f,0.0f,0.0f},  0.250f, 0.000f, 0.250f, 0.000f, -5.0f,  5000.0f,  250.0f, 0.00f,  0x1f }
 #define REVERB_PRESET_SEWERPIPE \
-    { -1000, -1000,   0.00f,  2.81f,  0.14f, 429,    0.014f, 1023,  0.021f, 21, 1.7f,   0.800f,  -5.0f,  0x3f }
+    {21,  1.7f,   0.800f,  -1000,  -1000,  0,      2.81f,  0.14f,  1.00f,  429,    0.014f,  {0.0f,0.0f,0.0f},  1023,   0.021f,  {0.0f,0.0f,0.0f},  0.250f, 0.000f, 0.250f, 0.000f, -5.0f,  5000.0f,  250.0f, 0.00f,  0x3f }
 #define REVERB_PRESET_UNDERWATER \
-    { -1000, -4000,   0.00f,  1.49f,  0.10f, -449,   0.007f, 1700,  0.011f, 22, 1.8f,   1.000f,  -5.0f,  0x3f }
+    {22,  1.8f,   1.000f,  -1000,  -4000,  0,      1.49f,  0.10f,  1.00f,  -449,   0.007f,  {0.0f,0.0f,0.0f},  1700,   0.011f,  {0.0f,0.0f,0.0f},  0.250f, 0.000f, 1.180f, 0.348f, -5.0f,  5000.0f,  250.0f, 0.00f,  0x3f }
 #define REVERB_PRESET_DRUGGED \
-    { -1000, 0,       0.00f,  8.39f,  1.39f, -115,   0.002f, 985,   0.030f, 23, 1.9f,   0.500f,  -5.0f,  0x1f }
+    {23,  1.9f,   0.500f,  -1000,  0,      0,      8.39f,  1.39f,  1.00f,  -115,   0.002f,  {0.0f,0.0f,0.0f},  985,    0.030f,  {0.0f,0.0f,0.0f},  0.250f, 0.000f, 0.250f, 1.000f, -5.0f,  5000.0f,  250.0f, 0.00f,  0x1f }
 #define REVERB_PRESET_DIZZY \
-    { -1000, -400,    0.00f, 17.23f,  0.56f, -1713,  0.020f, -613,  0.030f, 24, 1.8f,   0.600f,  -5.0f,  0x1f }
+    {24,  1.8f,   0.600f,  -1000,  -400,   0,      17.23f, 0.56f,  1.00f,  -1713,  0.020f,  {0.0f,0.0f,0.0f},  -613,   0.030f,  {0.0f,0.0f,0.0f},  0.250f, 1.000f, 0.810f, 0.310f, -5.0f,  5000.0f,  250.0f, 0.00f,  0x1f }
 #define REVERB_PRESET_PSYCHOTIC \
-    { -1000, -151,    0.00f, 7.56f,   0.91f, -626,   0.020f, 774,   0.030f, 25, 1.0f,   0.500f,  -5.0f,  0x1f }
+    {25,  1.0f,   0.500f,  -1000,  -151,   0,      7.56f,  0.91f,  1.00f,  -626,   0.020f,  {0.0f,0.0f,0.0f},  774,    0.030f,  {0.0f,0.0f,0.0f},  0.250f, 0.000f, 4.000f, 1.000f, -5.0f,  5000.0f,  250.0f, 0.00f,  0x1f }
 
 enum {
     EAX_ENVIRONMENT_GENERIC,
@@ -158,10 +184,61 @@ enum {
     EAX_ENVIRONMENT_PSYCHOTIC,
 
     EAX_ENVIRONMENT_COUNT,
-    EAX_MAX_ENVIRONMENT = EAX_ENVIRONMENT_COUNT-1
 };
 
-extern const EAX20LISTENERPROPERTIES EnvironmentDefaults[EAX_ENVIRONMENT_COUNT];
+extern const EAX30LISTENERPROPERTIES EnvironmentDefaults[EAX_ENVIRONMENT_COUNT];
+
+/* TODO: Define enums and structures for EAX3 buffer properties. */
+DEFINE_GUID(DSPROPSETID_EAX30_BufferProperties, 0xa8fa6881, 0xb476, 0x11d3, 0xbd, 0xb9, 0x00, 0xc0, 0xf0, 0x2d, 0xdf, 0x87);
+
+
+DEFINE_GUID(DSPROPSETID_EAX20_ListenerProperties, 0x0306a6a8, 0xb224, 0x11d2, 0x99, 0xe5, 0x00, 0x00, 0xe8, 0xd8, 0xc7, 0x22);
+typedef enum {
+    DSPROPERTY_EAX20LISTENER_NONE,
+    DSPROPERTY_EAX20LISTENER_ALLPARAMETERS,
+    DSPROPERTY_EAX20LISTENER_ROOM,
+    DSPROPERTY_EAX20LISTENER_ROOMHF,
+    DSPROPERTY_EAX20LISTENER_ROOMROLLOFFFACTOR,
+    DSPROPERTY_EAX20LISTENER_DECAYTIME,
+    DSPROPERTY_EAX20LISTENER_DECAYHFRATIO,
+    DSPROPERTY_EAX20LISTENER_REFLECTIONS,
+    DSPROPERTY_EAX20LISTENER_REFLECTIONSDELAY,
+    DSPROPERTY_EAX20LISTENER_REVERB,
+    DSPROPERTY_EAX20LISTENER_REVERBDELAY,
+    DSPROPERTY_EAX20LISTENER_ENVIRONMENT,
+    DSPROPERTY_EAX20LISTENER_ENVIRONMENTSIZE,
+    DSPROPERTY_EAX20LISTENER_ENVIRONMENTDIFFUSION,
+    DSPROPERTY_EAX20LISTENER_AIRABSORPTIONHF,
+    DSPROPERTY_EAX20LISTENER_FLAGS
+} DSPROPERTY_EAX20_LISTENERPROPERTY;
+
+#define DSPROPERTY_EAX20LISTENER_DEFERRED               0x80000000
+#define DSPROPERTY_EAX20LISTENER_IMMEDIATE              0x00000000
+#define DSPROPERTY_EAX20LISTENER_COMMITDEFERREDSETTINGS 0x00000000
+
+typedef struct _EAX20LISTENERPROPERTIES {
+    LONG lRoom;
+    LONG lRoomHF;
+    FLOAT flRoomRolloffFactor;
+    FLOAT flDecayTime;
+    FLOAT flDecayHFRatio;
+    LONG lReflections;
+    FLOAT flReflectionsDelay;
+    LONG lReverb;
+    FLOAT flReverbDelay;
+    DWORD dwEnvironment;
+    FLOAT flEnvironmentSize;
+    FLOAT flEnvironmentDiffusion;
+    FLOAT flAirAbsorptionHF;
+    DWORD dwFlags;
+} EAX20LISTENERPROPERTIES, *LPEAX20LISTENERPROPERTIES;
+
+#define EAX20LISTENERFLAGS_DECAYTIMESCALE        0x00000001
+#define EAX20LISTENERFLAGS_REFLECTIONSSCALE      0x00000002
+#define EAX20LISTENERFLAGS_REFLECTIONSDELAYSCALE 0x00000004
+#define EAX20LISTENERFLAGS_REVERBSCALE           0x00000008
+#define EAX20LISTENERFLAGS_REVERBDELAYSCALE      0x00000010
+#define EAX20LISTENERFLAGS_DECAYHFLIMIT          0x00000020
 
 
 DEFINE_GUID(DSPROPSETID_EAX20_BufferProperties, 0x0306a6a7, 0xb224, 0x11d2, 0x99, 0xe5, 0x00, 0x00, 0xe8, 0xd8, 0xc7, 0x22);
@@ -183,13 +260,9 @@ typedef enum {
     DSPROPERTY_EAX20BUFFER_FLAGS
 } DSPROPERTY_EAX20_BUFFERPROPERTY;
 
-/* Stores the value being set, but does not apply it */
 #define DSPROPERTY_EAX20BUFFER_DEFERRED               0x80000000
-/* The lack of the deferred flag forces a call to CommitDeferredSettings(),
- * applying *all* deferred settings, including the EAX property being set */
+/* NOTE: This applies all deferred changes, not just the buffer's. */
 #define DSPROPERTY_EAX20BUFFER_IMMEDIATE              0x00000000
-/* Same as IMMEDIATE; causes a commit of deferred properties but implies no
- * extra property being set */
 #define DSPROPERTY_EAX20BUFFER_COMMITDEFERREDSETTINGS 0x00000000
 
 typedef struct _EAX20BUFFERPROPERTIES {

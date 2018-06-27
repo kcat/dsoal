@@ -25,7 +25,34 @@
 #include "dsound_private.h"
 
 
-static void ApplyReverbParams(DS8Primary *prim, const EAX20LISTENERPROPERTIES *props)
+#define EAX2LISTENERFLAGS_MASK (EAX20LISTENERFLAGS_DECAYTIMESCALE        | \
+                                EAX20LISTENERFLAGS_REFLECTIONSSCALE      | \
+                                EAX20LISTENERFLAGS_REFLECTIONSDELAYSCALE | \
+                                EAX20LISTENERFLAGS_REVERBSCALE           | \
+                                EAX20LISTENERFLAGS_REVERBDELAYSCALE      | \
+                                EAX20LISTENERFLAGS_DECAYHFLIMIT)
+
+static EAX20LISTENERPROPERTIES EAX3To2(const EAX30LISTENERPROPERTIES *props)
+{
+    EAX20LISTENERPROPERTIES ret;
+    ret.lRoom = props->lRoom;
+    ret.lRoomHF = props->lRoomHF;
+    ret.flRoomRolloffFactor = props->flRoomRolloffFactor;
+    ret.flDecayTime = props->flDecayTime;
+    ret.flDecayHFRatio = props->flDecayHFRatio;
+    ret.lReflections = props->lReflections;
+    ret.flReflectionsDelay = props->flReflectionsDelay;
+    ret.lReverb = props->lReverb;
+    ret.flReverbDelay = props->flReverbDelay;
+    ret.dwEnvironment = props->dwEnvironment;
+    ret.flEnvironmentSize = props->flEnvironmentSize;
+    ret.flEnvironmentDiffusion = props->flEnvironmentDiffusion;
+    ret.flAirAbsorptionHF = props->flAirAbsorptionHF;
+    ret.dwFlags = props->dwFlags & EAX2LISTENERFLAGS_MASK;
+    return ret;
+}
+
+static void ApplyReverbParams(DS8Primary *prim, const EAX30LISTENERPROPERTIES *props)
 {
     /* FIXME: Need to validate property values... Ignore? Clamp? Error? */
     prim->deferred.eax = *props;
@@ -36,8 +63,6 @@ static void ApplyReverbParams(DS8Primary *prim, const EAX20LISTENERPROPERTIES *p
 
     alEffectf(prim->effect, AL_REVERB_GAIN, mB_to_gain(props->lRoom));
     alEffectf(prim->effect, AL_REVERB_GAINHF, mB_to_gain(props->lRoomHF));
-
-    alEffectf(prim->effect, AL_REVERB_ROOM_ROLLOFF_FACTOR, props->flRoomRolloffFactor);
 
     alEffectf(prim->effect, AL_REVERB_DECAY_TIME, props->flDecayTime);
     alEffectf(prim->effect, AL_REVERB_DECAY_HFRATIO, props->flDecayHFRatio);
@@ -51,8 +76,10 @@ static void ApplyReverbParams(DS8Primary *prim, const EAX20LISTENERPROPERTIES *p
     alEffectf(prim->effect, AL_REVERB_AIR_ABSORPTION_GAINHF,
               mB_to_gain(props->flAirAbsorptionHF));
 
+    alEffectf(prim->effect, AL_REVERB_ROOM_ROLLOFF_FACTOR, props->flRoomRolloffFactor);
+
     alEffecti(prim->effect, AL_REVERB_DECAY_HFLIMIT,
-              (props->dwFlags&EAX20LISTENERFLAGS_DECAYHFLIMIT) ?
+              (props->dwFlags&EAX30LISTENERFLAGS_DECAYHFLIMIT) ?
               AL_TRUE : AL_FALSE);
 
     checkALError();
@@ -116,8 +143,27 @@ HRESULT EAX2_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
                 const void *v;
                 const EAX20LISTENERPROPERTIES *props;
             } data = { pPropData };
+            EAX30LISTENERPROPERTIES props3 = REVERB_PRESET_GENERIC;
+            if(data.props->dwEnvironment < EAX_ENVIRONMENT_COUNT)
+            {
+                props3 = EnvironmentDefaults[data.props->dwEnvironment];
+                props3.dwEnvironment = data.props->dwEnvironment;
+            }
+            props3.flEnvironmentSize = data.props->flEnvironmentSize;
+            props3.flEnvironmentDiffusion = data.props->flEnvironmentDiffusion;
+            props3.lRoom = data.props->lRoom;
+            props3.lRoomHF = data.props->lRoomHF;
+            props3.flDecayTime = data.props->flDecayTime;
+            props3.flDecayHFRatio = data.props->flDecayHFRatio;
+            props3.lReflections = data.props->lReflections;
+            props3.flReflectionsDelay = data.props->flReflectionsDelay;
+            props3.lReverb = data.props->lReverb;
+            props3.flReverbDelay = data.props->flReverbDelay;
+            props3.flAirAbsorptionHF = data.props->flAirAbsorptionHF;
+            props3.flRoomRolloffFactor = data.props->flRoomRolloffFactor;
+            props3.dwFlags = data.props->dwFlags;
 
-            ApplyReverbParams(prim, data.props);
+            ApplyReverbParams(prim, &props3);
             hr = DS_OK;
         }
         break;
@@ -275,30 +321,40 @@ HRESULT EAX2_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
 
                 prim->deferred.eax.flEnvironmentSize = *data.fl;
 
-                if((prim->deferred.eax.dwFlags&EAX20LISTENERFLAGS_DECAYTIMESCALE))
+                if((prim->deferred.eax.dwFlags&EAX30LISTENERFLAGS_DECAYTIMESCALE))
                 {
                     prim->deferred.eax.flDecayTime *= scale;
                     prim->deferred.eax.flDecayTime = clampF(prim->deferred.eax.flDecayTime, 0.1f, 20.0f);
                 }
-                if((prim->deferred.eax.dwFlags&EAX20LISTENERFLAGS_REFLECTIONSSCALE))
+                if((prim->deferred.eax.dwFlags&EAX30LISTENERFLAGS_REFLECTIONSSCALE))
                 {
                     prim->deferred.eax.lReflections -= gain_to_mB(scale);
                     prim->deferred.eax.lReflections = clampI(prim->deferred.eax.lReflections, -10000, 1000);
                 }
-                if((prim->deferred.eax.dwFlags&EAX20LISTENERFLAGS_REFLECTIONSDELAYSCALE))
+                if((prim->deferred.eax.dwFlags&EAX30LISTENERFLAGS_REFLECTIONSDELAYSCALE))
                 {
                     prim->deferred.eax.flReflectionsDelay *= scale;
                     prim->deferred.eax.flReflectionsDelay = clampF(prim->deferred.eax.flReflectionsDelay, 0.0f, 0.3f);
                 }
-                if((prim->deferred.eax.dwFlags&EAX20LISTENERFLAGS_REVERBSCALE))
+                if((prim->deferred.eax.dwFlags&EAX30LISTENERFLAGS_REVERBSCALE))
                 {
                     prim->deferred.eax.lReverb -= gain_to_mB(scale);
                     prim->deferred.eax.lReverb = clampI(prim->deferred.eax.lReverb, -10000, 2000);
                 }
-                if((prim->deferred.eax.dwFlags&EAX20LISTENERFLAGS_REVERBDELAYSCALE))
+                if((prim->deferred.eax.dwFlags&EAX30LISTENERFLAGS_REVERBDELAYSCALE))
                 {
                     prim->deferred.eax.flReverbDelay *= scale;
                     prim->deferred.eax.flReverbDelay = clampF(prim->deferred.eax.flReverbDelay, 0.0f, 0.1f);
+                }
+                if((prim->deferred.eax.dwFlags&EAX30LISTENERFLAGS_ECHOTIMESCALE))
+                {
+                    prim->deferred.eax.flEchoTime *= scale;
+                    prim->deferred.eax.flEchoTime = clampF(prim->deferred.eax.flEchoTime, 0.075f, 0.25f);
+                }
+                if((prim->deferred.eax.dwFlags&EAX30LISTENERFLAGS_MODTIMESCALE))
+                {
+                    prim->deferred.eax.flModulationTime *= scale;
+                    prim->deferred.eax.flModulationTime = clampF(prim->deferred.eax.flModulationTime, 0.04f, 4.0f);
                 }
 
                 ApplyReverbParams(prim, &prim->deferred.eax);
@@ -343,7 +399,7 @@ HRESULT EAX2_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
 
             prim->deferred.eax.dwFlags = *data.dw;
             alEffecti(prim->effect, AL_REVERB_DECAY_HFLIMIT,
-                      (prim->deferred.eax.dwFlags&EAX20LISTENERFLAGS_DECAYHFLIMIT) ?
+                      (prim->deferred.eax.dwFlags&EAX30LISTENERFLAGS_DECAYHFLIMIT) ?
                       AL_TRUE : AL_FALSE);
             checkALError();
 
@@ -386,7 +442,7 @@ HRESULT EAX2_Get(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         break;
 
     case DSPROPERTY_EAX20LISTENER_ALLPARAMETERS:
-        GET_PROP(prim->deferred.eax, EAX20LISTENERPROPERTIES);
+        GET_PROP(EAX3To2(&prim->deferred.eax), EAX20LISTENERPROPERTIES);
         break;
 
     case DSPROPERTY_EAX20LISTENER_ROOM:
@@ -437,7 +493,7 @@ HRESULT EAX2_Get(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         break;
 
     case DSPROPERTY_EAX20LISTENER_FLAGS:
-        GET_PROP(prim->deferred.eax.dwFlags, DWORD);
+        GET_PROP(prim->deferred.eax.dwFlags&EAX2LISTENERFLAGS_MASK, DWORD);
         break;
 
     default:
@@ -769,7 +825,7 @@ HRESULT EAX1_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
 
             if(data.props->dwEnvironment < EAX_ENVIRONMENT_COUNT)
             {
-                EAX20LISTENERPROPERTIES env = EnvironmentDefaults[data.props->dwEnvironment];
+                EAX30LISTENERPROPERTIES env = EnvironmentDefaults[data.props->dwEnvironment];
                 env.lRoom = gain_to_mB(data.props->fVolume);
                 env.flDecayTime = data.props->fDecayTime;
                 prim->deferred.eax1_dampening = data.props->fDamping;

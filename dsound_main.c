@@ -60,7 +60,7 @@ FILE *LogFile;
 
 const WCHAR wine_vxd_drv[] = L"winemm.vxd";
 
-const EAX20LISTENERPROPERTIES EnvironmentDefaults[EAX_ENVIRONMENT_COUNT] =
+const EAX30LISTENERPROPERTIES EnvironmentDefaults[EAX_ENVIRONMENT_COUNT] =
 {
     REVERB_PRESET_GENERIC,
     REVERB_PRESET_PADDEDCELL,

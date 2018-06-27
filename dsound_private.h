@@ -649,7 +649,7 @@ struct DS8Primary {
 
     struct {
         DS3DLISTENER ds3d;
-        EAX20LISTENERPROPERTIES eax;
+        EAX30LISTENERPROPERTIES eax;
         float eax1_dampening; /* Not used. */
     } deferred;
     union PrimaryParamFlags dirty;
