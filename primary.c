@@ -319,11 +319,11 @@ HRESULT DS8Primary_PreInit(DS8Primary *This, DS8Impl *parent)
     This->deferred.eax1_dampening = 0.5f;
     if(This->auxslot != 0)
     {
-        ALint revid = alGetEnumValue("AL_EFFECT_REVERB");
+        ALint revid = alGetEnumValue("AL_EFFECT_EAXREVERB");
         if(revid != 0 && revid != -1)
         {
             alGenEffects(1, &This->effect);
-            alEffecti(This->effect, AL_EFFECT_TYPE, AL_EFFECT_REVERB);
+            alEffecti(This->effect, AL_EFFECT_TYPE, AL_EFFECT_EAXREVERB);
             checkALError();
         }
     }

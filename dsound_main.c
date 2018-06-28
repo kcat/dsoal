@@ -203,6 +203,7 @@ LPALGENEFFECTS palGenEffects = NULL;
 LPALDELETEEFFECTS palDeleteEffects = NULL;
 LPALEFFECTI palEffecti = NULL;
 LPALEFFECTF palEffectf = NULL;
+LPALEFFECTFV palEffectfv = NULL;
 LPALGENAUXILIARYEFFECTSLOTS palGenAuxiliaryEffectSlots = NULL;
 LPALDELETEAUXILIARYEFFECTSLOTS palDeleteAuxiliaryEffectSlots = NULL;
 LPALAUXILIARYEFFECTSLOTI palAuxiliaryEffectSloti = NULL;
@@ -373,6 +374,7 @@ static BOOL load_libopenal(void)
     LOAD_FUNCPTR(alDeleteEffects);
     LOAD_FUNCPTR(alEffecti);
     LOAD_FUNCPTR(alEffectf);
+    LOAD_FUNCPTR(alEffectfv);
     LOAD_FUNCPTR(alGenAuxiliaryEffectSlots);
     LOAD_FUNCPTR(alDeleteAuxiliaryEffectSlots);
     LOAD_FUNCPTR(alAuxiliaryEffectSloti);

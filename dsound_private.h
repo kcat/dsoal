@@ -406,6 +406,7 @@ extern LPALGENEFFECTS palGenEffects;
 extern LPALDELETEEFFECTS palDeleteEffects;
 extern LPALEFFECTI palEffecti;
 extern LPALEFFECTF palEffectf;
+extern LPALEFFECTFV palEffectfv;
 extern LPALGENAUXILIARYEFFECTSLOTS palGenAuxiliaryEffectSlots;
 extern LPALDELETEAUXILIARYEFFECTSLOTS palDeleteAuxiliaryEffectSlots;
 extern LPALAUXILIARYEFFECTSLOTI palAuxiliaryEffectSloti;
@@ -424,6 +425,7 @@ extern LPALFLUSHMAPPEDBUFFERSOFT palFlushMappedBufferSOFT;
 #define alDeleteEffects palDeleteEffects
 #define alEffecti palEffecti
 #define alEffectf palEffectf
+#define alEffectfv palEffectfv
 #define alGenAuxiliaryEffectSlots palGenAuxiliaryEffectSlots
 #define alDeleteAuxiliaryEffectSlots palDeleteAuxiliaryEffectSlots
 #define alAuxiliaryEffectSloti palAuxiliaryEffectSloti

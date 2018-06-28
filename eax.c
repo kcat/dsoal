@@ -56,29 +56,42 @@ static void ApplyReverbParams(DS8Primary *prim, const EAX30LISTENERPROPERTIES *p
 {
     /* FIXME: Need to validate property values... Ignore? Clamp? Error? */
     prim->deferred.eax = *props;
-    alEffectf(prim->effect, AL_REVERB_DENSITY,
+    alEffectf(prim->effect, AL_EAXREVERB_DENSITY,
         clampF(powf(props->flEnvironmentSize, 3.0f) / 16.0f, 0.0f, 1.0f)
     );
-    alEffectf(prim->effect, AL_REVERB_DIFFUSION, props->flEnvironmentDiffusion);
+    alEffectf(prim->effect, AL_EAXREVERB_DIFFUSION, props->flEnvironmentDiffusion);
 
-    alEffectf(prim->effect, AL_REVERB_GAIN, mB_to_gain(props->lRoom));
-    alEffectf(prim->effect, AL_REVERB_GAINHF, mB_to_gain(props->lRoomHF));
+    alEffectf(prim->effect, AL_EAXREVERB_GAIN, mB_to_gain(props->lRoom));
+    alEffectf(prim->effect, AL_EAXREVERB_GAINHF, mB_to_gain(props->lRoomHF));
+    alEffectf(prim->effect, AL_EAXREVERB_GAINLF, mB_to_gain(props->lRoomLF));
 
-    alEffectf(prim->effect, AL_REVERB_DECAY_TIME, props->flDecayTime);
-    alEffectf(prim->effect, AL_REVERB_DECAY_HFRATIO, props->flDecayHFRatio);
+    alEffectf(prim->effect, AL_EAXREVERB_DECAY_TIME, props->flDecayTime);
+    alEffectf(prim->effect, AL_EAXREVERB_DECAY_HFRATIO, props->flDecayHFRatio);
+    alEffectf(prim->effect, AL_EAXREVERB_DECAY_LFRATIO, props->flDecayLFRatio);
 
-    alEffectf(prim->effect, AL_REVERB_REFLECTIONS_GAIN, mB_to_gain(props->lReflections));
-    alEffectf(prim->effect, AL_REVERB_REFLECTIONS_DELAY, props->flReflectionsDelay);
+    alEffectf(prim->effect, AL_EAXREVERB_REFLECTIONS_GAIN, mB_to_gain(props->lReflections));
+    alEffectf(prim->effect, AL_EAXREVERB_REFLECTIONS_DELAY, props->flReflectionsDelay);
+    alEffectfv(prim->effect, AL_EAXREVERB_REFLECTIONS_PAN, &props->vReflectionsPan.x);
 
-    alEffectf(prim->effect, AL_REVERB_LATE_REVERB_GAIN, mB_to_gain(props->lReverb));
-    alEffectf(prim->effect, AL_REVERB_LATE_REVERB_DELAY, props->flReverbDelay);
+    alEffectf(prim->effect, AL_EAXREVERB_LATE_REVERB_GAIN, mB_to_gain(props->lReverb));
+    alEffectf(prim->effect, AL_EAXREVERB_LATE_REVERB_DELAY, props->flReverbDelay);
+    alEffectfv(prim->effect, AL_EAXREVERB_LATE_REVERB_PAN, &props->vReverbPan.x);
 
-    alEffectf(prim->effect, AL_REVERB_AIR_ABSORPTION_GAINHF,
+    alEffectf(prim->effect, AL_EAXREVERB_ECHO_TIME, props->flEchoTime);
+    alEffectf(prim->effect, AL_EAXREVERB_ECHO_DEPTH, props->flEchoDepth);
+
+    alEffectf(prim->effect, AL_EAXREVERB_MODULATION_TIME, props->flModulationTime);
+    alEffectf(prim->effect, AL_EAXREVERB_MODULATION_DEPTH, props->flModulationDepth);
+
+    alEffectf(prim->effect, AL_EAXREVERB_AIR_ABSORPTION_GAINHF,
               mB_to_gain(props->flAirAbsorptionHF));
 
-    alEffectf(prim->effect, AL_REVERB_ROOM_ROLLOFF_FACTOR, props->flRoomRolloffFactor);
+    alEffectf(prim->effect, AL_EAXREVERB_HFREFERENCE, props->flHFReference);
+    alEffectf(prim->effect, AL_EAXREVERB_LFREFERENCE, props->flLFReference);
 
-    alEffecti(prim->effect, AL_REVERB_DECAY_HFLIMIT,
+    alEffectf(prim->effect, AL_EAXREVERB_ROOM_ROLLOFF_FACTOR, props->flRoomRolloffFactor);
+
+    alEffecti(prim->effect, AL_EAXREVERB_DECAY_HFLIMIT,
               (props->dwFlags&EAX30LISTENERFLAGS_DECAYHFLIMIT) ?
               AL_TRUE : AL_FALSE);
 
@@ -174,7 +187,7 @@ HRESULT EAX2_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
             union { const void *v; const LONG *l; } data = { pPropData };
 
             prim->deferred.eax.lRoom = *data.l;
-            alEffectf(prim->effect, AL_REVERB_GAIN,
+            alEffectf(prim->effect, AL_EAXREVERB_GAIN,
                       mB_to_gain(prim->deferred.eax.lRoom));
             checkALError();
 
@@ -188,7 +201,7 @@ HRESULT EAX2_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
             union { const void *v; const LONG *l; } data = { pPropData };
 
             prim->deferred.eax.lRoomHF = *data.l;
-            alEffectf(prim->effect, AL_REVERB_GAINHF,
+            alEffectf(prim->effect, AL_EAXREVERB_GAINHF,
                       mB_to_gain(prim->deferred.eax.lRoomHF));
             checkALError();
 
@@ -203,7 +216,7 @@ HRESULT EAX2_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
             union { const void *v; const FLOAT *fl; } data = { pPropData };
 
             prim->deferred.eax.flRoomRolloffFactor = *data.fl;
-            alEffectf(prim->effect, AL_REVERB_ROOM_ROLLOFF_FACTOR,
+            alEffectf(prim->effect, AL_EAXREVERB_ROOM_ROLLOFF_FACTOR,
                       prim->deferred.eax.flRoomRolloffFactor);
             checkALError();
 
@@ -218,7 +231,7 @@ HRESULT EAX2_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
             union { const void *v; const FLOAT *fl; } data = { pPropData };
 
             prim->deferred.eax.flDecayTime = *data.fl;
-            alEffectf(prim->effect, AL_REVERB_DECAY_TIME,
+            alEffectf(prim->effect, AL_EAXREVERB_DECAY_TIME,
                       prim->deferred.eax.flDecayTime);
             checkALError();
 
@@ -232,7 +245,7 @@ HRESULT EAX2_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
             union { const void *v; const FLOAT *fl; } data = { pPropData };
 
             prim->deferred.eax.flDecayHFRatio = *data.fl;
-            alEffectf(prim->effect, AL_REVERB_DECAY_HFRATIO,
+            alEffectf(prim->effect, AL_EAXREVERB_DECAY_HFRATIO,
                       prim->deferred.eax.flDecayHFRatio);
             checkALError();
 
@@ -247,7 +260,7 @@ HRESULT EAX2_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
             union { const void *v; const LONG *l; } data = { pPropData };
 
             prim->deferred.eax.lReflections = *data.l;
-            alEffectf(prim->effect, AL_REVERB_REFLECTIONS_GAIN,
+            alEffectf(prim->effect, AL_EAXREVERB_REFLECTIONS_GAIN,
                       mB_to_gain(prim->deferred.eax.lReflections));
             checkALError();
 
@@ -261,7 +274,7 @@ HRESULT EAX2_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
             union { const void *v; const FLOAT *fl; } data = { pPropData };
 
             prim->deferred.eax.flReflectionsDelay = *data.fl;
-            alEffectf(prim->effect, AL_REVERB_REFLECTIONS_DELAY,
+            alEffectf(prim->effect, AL_EAXREVERB_REFLECTIONS_DELAY,
                       prim->deferred.eax.flReflectionsDelay);
             checkALError();
 
@@ -276,7 +289,7 @@ HRESULT EAX2_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
             union { const void *v; const LONG *l; } data = { pPropData };
 
             prim->deferred.eax.lReverb = *data.l;
-            alEffectf(prim->effect, AL_REVERB_LATE_REVERB_GAIN,
+            alEffectf(prim->effect, AL_EAXREVERB_LATE_REVERB_GAIN,
                       mB_to_gain(prim->deferred.eax.lReverb));
             checkALError();
 
@@ -290,7 +303,7 @@ HRESULT EAX2_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
             union { const void *v; const FLOAT *fl; } data = { pPropData };
 
             prim->deferred.eax.flReverbDelay = *data.fl;
-            alEffectf(prim->effect, AL_REVERB_LATE_REVERB_DELAY,
+            alEffectf(prim->effect, AL_EAXREVERB_LATE_REVERB_DELAY,
                       prim->deferred.eax.flReverbDelay);
             checkALError();
 
@@ -368,7 +381,7 @@ HRESULT EAX2_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
             union { const void *v; const FLOAT *fl; } data = { pPropData };
 
             prim->deferred.eax.flEnvironmentDiffusion = *data.fl;
-            alEffectf(prim->effect, AL_REVERB_DIFFUSION,
+            alEffectf(prim->effect, AL_EAXREVERB_DIFFUSION,
                       prim->deferred.eax.flEnvironmentDiffusion);
             checkALError();
 
@@ -383,7 +396,7 @@ HRESULT EAX2_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
             union { const void *v; const FLOAT *fl; } data = { pPropData };
 
             prim->deferred.eax.flAirAbsorptionHF = *data.fl;
-            alEffectf(prim->effect, AL_REVERB_AIR_ABSORPTION_GAINHF,
+            alEffectf(prim->effect, AL_EAXREVERB_AIR_ABSORPTION_GAINHF,
                       mB_to_gain(prim->deferred.eax.flAirAbsorptionHF));
             checkALError();
 
@@ -398,7 +411,7 @@ HRESULT EAX2_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
             union { const void *v; const DWORD *dw; } data = { pPropData };
 
             prim->deferred.eax.dwFlags = *data.dw;
-            alEffecti(prim->effect, AL_REVERB_DECAY_HFLIMIT,
+            alEffecti(prim->effect, AL_EAXREVERB_DECAY_HFLIMIT,
                       (prim->deferred.eax.dwFlags&EAX30LISTENERFLAGS_DECAYHFLIMIT) ?
                       AL_TRUE : AL_FALSE);
             checkALError();
@@ -888,7 +901,7 @@ HRESULT EAX1_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
 
             prim->deferred.eax.lRoom = room_vol;
             prim->deferred.eax1_volume = *data.fl;
-            alEffectf(prim->effect, AL_REVERB_GAIN, mB_to_gain(room_vol));
+            alEffectf(prim->effect, AL_EAXREVERB_GAIN, mB_to_gain(room_vol));
             checkALError();
 
             prim->dirty.bit.effect = 1;
@@ -901,7 +914,7 @@ HRESULT EAX1_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
             union { const void *v; const FLOAT *fl; } data = { pPropData };
 
             prim->deferred.eax.flDecayTime = *data.fl;
-            alEffectf(prim->effect, AL_REVERB_DECAY_TIME,
+            alEffectf(prim->effect, AL_EAXREVERB_DECAY_TIME,
                       prim->deferred.eax.flDecayTime);
             checkALError();
 
