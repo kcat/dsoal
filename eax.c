@@ -802,6 +802,11 @@ HRESULT EAX2Buffer_Get(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
 
 HRESULT EAX1_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropData)
 {
+    static const float eax1_env_volume[EAX_ENVIRONMENT_COUNT] = {
+        0.5f, 0.25f, 0.417f, 0.653f, 0.208f, 0.5f, 0.403f, 0.5f, 0.5f,
+        0.361f, 0.5f, 0.153f, 0.361f, 0.444f, 0.25f, 0.111f, 0.111f,
+        0.194f, 1.0f, 0.097f, 0.208f, 0.652f, 1.0f, 0.875f, 0.139f, 0.486f
+    };
     static const float eax1_env_dampening[EAX_ENVIRONMENT_COUNT] = {
         0.5f, 0.0f, 0.666f, 0.166f, 0.0f, 0.888f, 0.5f, 0.5f, 1.304f,
         0.332f, 0.3f, 2.0f, 0.0f, 0.638f, 0.776f, 0.472f, 0.224f, 0.472f,
@@ -825,9 +830,27 @@ HRESULT EAX1_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
 
             if(data.props->dwEnvironment < EAX_ENVIRONMENT_COUNT)
             {
+                /* NOTE: I'm not quite sure how to handle the volume. It's
+                 * important to deal with since it can have a notable impact on
+                 * the output levels, but given the default EAX1 environment
+                 * volumes, they don't align with the gain/room volume for
+                 * EAX2+ environments. Presuming the default volumes are
+                 * correct, it's possible the reverb implementation was
+                 * different and relied on different gains to get the intended
+                 * output levels.
+                 *
+                 * Rather than just blindly applying the volume, we take the
+                 * difference from the EAX1 environment's default volume and
+                 * apply that as an offset to the EAX2 environment's volume.
+                 */
                 EAX30LISTENERPROPERTIES env = EnvironmentDefaults[data.props->dwEnvironment];
-                env.lRoom = gain_to_mB(data.props->fVolume);
+                LONG db_vol = clampI(
+                    gain_to_mB(data.props->fVolume / eax1_env_volume[data.props->dwEnvironment]),
+                    -10000, 10000
+                );
+                env.lRoom = clampI(env.lRoom + db_vol, -10000, 0);
                 env.flDecayTime = data.props->fDecayTime;
+                prim->deferred.eax1_volume = data.props->fVolume;
                 prim->deferred.eax1_dampening = data.props->fDamping;
                 ApplyReverbParams(prim, &env);
                 hr = DS_OK;
@@ -842,6 +865,7 @@ HRESULT EAX1_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
 
             if(*data.dw < EAX_ENVIRONMENT_COUNT)
             {
+                prim->deferred.eax1_volume = eax1_env_volume[*data.dw];
                 prim->deferred.eax1_dampening = eax1_env_dampening[*data.dw];
                 ApplyReverbParams(prim, &EnvironmentDefaults[*data.dw]);
                 hr = DS_OK;
@@ -853,10 +877,18 @@ HRESULT EAX1_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         if(cbPropData >= sizeof(FLOAT))
         {
             union { const void *v; const FLOAT *fl; } data = { pPropData };
+            LONG db_vol = clampI(
+                gain_to_mB(*data.fl / eax1_env_volume[prim->deferred.eax.dwEnvironment]),
+                -10000, 10000
+            );
+            LONG room_vol = clampI(
+                EnvironmentDefaults[prim->deferred.eax.dwEnvironment].lRoom + db_vol,
+                -10000, 0
+            );
 
-            prim->deferred.eax.lRoom = gain_to_mB(*data.fl);
-            alEffectf(prim->effect, AL_REVERB_GAIN,
-                      mB_to_gain(prim->deferred.eax.lRoom));
+            prim->deferred.eax.lRoom = room_vol;
+            prim->deferred.eax1_volume = *data.fl;
+            alEffectf(prim->effect, AL_REVERB_GAIN, mB_to_gain(room_vol));
             checkALError();
 
             prim->dirty.bit.effect = 1;
@@ -916,7 +948,7 @@ HRESULT EAX1_Get(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
             } data = { pPropData };
 
             data.props->dwEnvironment = prim->deferred.eax.dwEnvironment;
-            data.props->fVolume = mB_to_gain(prim->deferred.eax.lRoom);
+            data.props->fVolume = prim->deferred.eax1_volume;
             data.props->fDecayTime = prim->deferred.eax.flDecayTime;
             data.props->fDamping = prim->deferred.eax1_dampening;
 
@@ -942,7 +974,7 @@ HRESULT EAX1_Get(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         {
             union { void *v; FLOAT *fl; } data = { pPropData };
 
-            *data.fl = mB_to_gain(prim->deferred.eax.lRoom);
+            *data.fl = prim->deferred.eax1_volume;
 
             *pcbReturned = sizeof(FLOAT);
             hr = DS_OK;
@@ -1002,6 +1034,7 @@ HRESULT EAX1Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
             union { const void *v; const FLOAT *fl; } data = { pPropData };
 
             buf->deferred.eax.lRoom = gain_to_mB(*data.fl);
+            buf->deferred.eax1_reverbmix = *data.fl;
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_WET_PARAMS);
 
             buf->dirty.bit.wet_filter = 1;
@@ -1034,7 +1067,7 @@ HRESULT EAX1Buffer_Get(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
         {
             union { void *v; FLOAT *fl; } data = { pPropData };
 
-            *data.fl = mB_to_gain(buf->deferred.eax.lRoom);
+            *data.fl = buf->deferred.eax1_reverbmix;
             *pcbReturned = sizeof(FLOAT);
             hr = DS_OK;
         }

@@ -315,6 +315,7 @@ HRESULT DS8Primary_PreInit(DS8Primary *This, DS8Impl *parent)
 
     setALContext(This->ctx);
     This->deferred.eax = EnvironmentDefaults[EAX_ENVIRONMENT_GENERIC];
+    This->deferred.eax1_volume = 0.5f;
     This->deferred.eax1_dampening = 0.5f;
     if(This->auxslot != 0)
     {

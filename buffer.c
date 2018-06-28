@@ -1069,6 +1069,7 @@ HRESULT WINAPI DS8Buffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSound *ds
     eaxbuffer->flAirAbsorptionFactor = 0.0f;
     eaxbuffer->dwFlags = EAX20BUFFERFLAGS_DIRECTHFAUTO | EAX20BUFFERFLAGS_ROOMAUTO |
                          EAX20BUFFERFLAGS_ROOMHFAUTO;
+    This->deferred.eax1_reverbmix = 1.0f;
 
     if((data->dsbflags&DSBCAPS_CTRL3D))
     {

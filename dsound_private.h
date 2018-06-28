@@ -591,6 +591,7 @@ struct DS8Buffer {
     struct {
         DS3DBUFFER ds3d;
         EAX20BUFFERPROPERTIES eax;
+        float eax1_reverbmix; /* Mirrored by eax.lRoom. */
     } deferred;
     union BufferParamFlags dirty;
 
@@ -650,6 +651,7 @@ struct DS8Primary {
     struct {
         DS3DLISTENER ds3d;
         EAX30LISTENERPROPERTIES eax;
+        float eax1_volume; /* Mirrored by eax.lRoom. */
         float eax1_dampening; /* Not used. */
     } deferred;
     union PrimaryParamFlags dirty;
