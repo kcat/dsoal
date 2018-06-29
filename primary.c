@@ -1698,10 +1698,9 @@ static HRESULT WINAPI DS8PrimaryProp_QuerySupport(IKsPropertySet *iface,
   ULONG *pTypeSupport)
 {
     (void)iface;
-    (void)dwPropID;
     (void)pTypeSupport;
 
-    FIXME("Unhandled propset: %s\n", debugstr_guid(guidPropSet));
+    FIXME("Unhandled propset: %s (propid: %lu)\n", debugstr_guid(guidPropSet), dwPropID);
 
     return E_PROP_ID_UNSUPPORTED;
 }

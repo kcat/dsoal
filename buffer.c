@@ -2686,7 +2686,7 @@ static HRESULT WINAPI DS8BufferProp_QuerySupport(IKsPropertySet *iface,
         LeaveCriticalSection(&This->share->crst);
     }
     else
-        FIXME("Unhandled propset: %s\n", debugstr_guid(guidPropSet));
+        FIXME("Unhandled propset: %s (propid: %lu)\n", debugstr_guid(guidPropSet), dwPropID);
 
     return hr;
 }

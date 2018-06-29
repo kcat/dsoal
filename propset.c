@@ -599,7 +599,7 @@ static HRESULT WINAPI IKsPrivatePropertySetImpl_QuerySupport(
             break;
         }
     } else {
-        FIXME("unsupported property: %s\n",debugstr_guid(guidPropSet));
+        FIXME("unsupported property: %s (propid: %lu)\n",debugstr_guid(guidPropSet),dwPropID);
     }
 
     return E_PROP_ID_UNSUPPORTED;
