@@ -949,7 +949,7 @@ HRESULT WINAPI DS8Buffer_GetStatus(IDirectSoundBuffer8 *iface, DWORD *status)
 HRESULT WINAPI DS8Buffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSound *ds, const DSBUFFERDESC *desc)
 {
     DS8Buffer *This = impl_from_IDirectSoundBuffer8(iface);
-    EAX20BUFFERPROPERTIES *eaxbuffer;
+    EAX30BUFFERPROPERTIES *eaxbuffer;
     DS3DBUFFER *ds3dbuffer;
     DS8Primary *prim;
     DS8Data *data;
@@ -1057,18 +1057,23 @@ HRESULT WINAPI DS8Buffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSound *ds
     eaxbuffer = &This->deferred.eax;
     eaxbuffer->lDirect = 0;
     eaxbuffer->lDirectHF = 0;
+    eaxbuffer->lDirectLF = 0;
     eaxbuffer->lRoom = 0;
     eaxbuffer->lRoomHF = 0;
+    eaxbuffer->lRoomLF = 0;
     eaxbuffer->flRoomRolloffFactor = 0.0f;
     eaxbuffer->lObstruction = 0;
-    eaxbuffer->flObstructionLFRatio = 0.25f;
+    eaxbuffer->flObstructionLFRatio = 0.0f;
     eaxbuffer->lOcclusion = 0;
     eaxbuffer->flOcclusionLFRatio = 0.25f;
     eaxbuffer->flOcclusionRoomRatio = 0.5f;
+    eaxbuffer->flOcclusionDirectRatio = 1.0f;
+    eaxbuffer->lExclusion = 0;
+    eaxbuffer->flExclusionLFRatio = 0.0f;
     eaxbuffer->lOutsideVolumeHF = 0;
-    eaxbuffer->flAirAbsorptionFactor = 0.0f;
-    eaxbuffer->dwFlags = EAX20BUFFERFLAGS_DIRECTHFAUTO | EAX20BUFFERFLAGS_ROOMAUTO |
-                         EAX20BUFFERFLAGS_ROOMHFAUTO;
+    eaxbuffer->flAirAbsorptionFactor = 1.0f;
+    eaxbuffer->dwFlags = EAX30BUFFERFLAGS_DIRECTHFAUTO | EAX30BUFFERFLAGS_ROOMAUTO |
+                         EAX30BUFFERFLAGS_ROOMHFAUTO;
     This->deferred.eax1_reverbmix = 1.0f;
 
     if((data->dsbflags&DSBCAPS_CTRL3D))
@@ -1665,7 +1670,7 @@ static const IDirectSoundBuffer8Vtbl DS8Buffer_Vtbl = {
 };
 
 
-void DS8Buffer_SetParams(DS8Buffer *This, const DS3DBUFFER *params, const EAX20BUFFERPROPERTIES *eax_params, LONG flags)
+void DS8Buffer_SetParams(DS8Buffer *This, const DS3DBUFFER *params, const EAX30BUFFERPROPERTIES *eax_params, LONG flags)
 {
     DS8Primary *prim = This->primary;
     const ALuint source = This->source;
@@ -1717,11 +1722,11 @@ void DS8Buffer_SetParams(DS8Buffer *This, const DS3DBUFFER *params, const EAX20B
     if(dirty.bit.flags)
     {
         alSourcei(source, AL_DIRECT_FILTER_GAINHF_AUTO,
-                  (eax_params->dwFlags&EAX20BUFFERFLAGS_DIRECTHFAUTO) ? AL_TRUE : AL_FALSE);
+                  (eax_params->dwFlags&EAX30BUFFERFLAGS_DIRECTHFAUTO) ? AL_TRUE : AL_FALSE);
         alSourcei(source, AL_AUXILIARY_SEND_FILTER_GAIN_AUTO,
-                  (eax_params->dwFlags&EAX20BUFFERFLAGS_ROOMAUTO) ? AL_TRUE : AL_FALSE);
+                  (eax_params->dwFlags&EAX30BUFFERFLAGS_ROOMAUTO) ? AL_TRUE : AL_FALSE);
         alSourcei(source, AL_AUXILIARY_SEND_FILTER_GAINHF_AUTO,
-                  (eax_params->dwFlags&EAX20BUFFERFLAGS_ROOMHFAUTO) ? AL_TRUE : AL_FALSE);
+                  (eax_params->dwFlags&EAX30BUFFERFLAGS_ROOMHFAUTO) ? AL_TRUE : AL_FALSE);
     }
 }
 
@@ -2462,8 +2467,12 @@ static HRESULT WINAPI DS8BufferProp_Get(IKsPropertySet *iface,
     }
 
     EnterCriticalSection(&This->share->crst);
-    if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX20_BufferProperties))
+    if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX30_BufferProperties))
+        hr = EAX3Buffer_Get(This, dwPropID, pPropData, cbPropData, pcbReturned);
+    else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX20_BufferProperties))
         hr = EAX2Buffer_Get(This, dwPropID, pPropData, cbPropData, pcbReturned);
+    else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX30_ListenerProperties))
+        hr = EAX3_Get(This->primary, dwPropID, pPropData, cbPropData, pcbReturned);
     else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX20_ListenerProperties))
         hr = EAX2_Get(This->primary, dwPropID, pPropData, cbPropData, pcbReturned);
     else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAXBUFFER_ReverbProperties))
@@ -2495,7 +2504,21 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
     }
 
     EnterCriticalSection(&This->share->crst);
-    if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX20_BufferProperties))
+    if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX30_BufferProperties))
+    {
+        DWORD propid = dwPropID & ~DSPROPERTY_EAX30BUFFER_DEFERRED;
+        BOOL immediate = !(dwPropID&DSPROPERTY_EAX30BUFFER_DEFERRED);
+
+        setALContext(This->ctx);
+        hr = EAX3Buffer_Set(This, propid, pPropData, cbPropData);
+        if(hr == DS_OK && immediate)
+        {
+            DS8Primary *prim = This->primary;
+            DS8Primary3D_CommitDeferredSettings(&prim->IDirectSound3DListener_iface);
+        }
+        popALContext();
+    }
+    else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX20_BufferProperties))
     {
         DWORD propid = dwPropID & ~DSPROPERTY_EAX20BUFFER_DEFERRED;
         BOOL immediate = !(dwPropID&DSPROPERTY_EAX20BUFFER_DEFERRED);
@@ -2507,6 +2530,18 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
             DS8Primary *prim = This->primary;
             DS8Primary3D_CommitDeferredSettings(&prim->IDirectSound3DListener_iface);
         }
+        popALContext();
+    }
+    else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX30_ListenerProperties))
+    {
+        DS8Primary *prim = This->primary;
+        DWORD propid = dwPropID & ~DSPROPERTY_EAX30LISTENER_DEFERRED;
+        BOOL immediate = !(dwPropID&DSPROPERTY_EAX30LISTENER_DEFERRED);
+
+        setALContext(prim->ctx);
+        hr = EAX3_Set(prim, propid, pPropData, cbPropData);
+        if(hr == DS_OK && immediate)
+            DS8Primary3D_CommitDeferredSettings(&prim->IDirectSound3DListener_iface);
         popALContext();
     }
     else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX20_ListenerProperties))
@@ -2567,7 +2602,46 @@ static HRESULT WINAPI DS8BufferProp_QuerySupport(IKsPropertySet *iface,
         return E_POINTER;
     *pTypeSupport = 0;
 
-    if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX20_BufferProperties))
+    if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX30_BufferProperties))
+    {
+        EnterCriticalSection(&This->share->crst);
+
+        if(This->filter[0] == 0)
+            hr = E_PROP_ID_UNSUPPORTED;
+        else switch(dwPropID)
+        {
+        case DSPROPERTY_EAX30BUFFER_NONE:
+        case DSPROPERTY_EAX30BUFFER_ALLPARAMETERS:
+        case DSPROPERTY_EAX30BUFFER_DIRECT:
+        case DSPROPERTY_EAX30BUFFER_DIRECTHF:
+        case DSPROPERTY_EAX30BUFFER_DIRECTLF:
+        case DSPROPERTY_EAX30BUFFER_ROOM:
+        case DSPROPERTY_EAX30BUFFER_ROOMHF:
+        case DSPROPERTY_EAX30BUFFER_ROOMLF:
+        case DSPROPERTY_EAX30BUFFER_ROOMROLLOFFFACTOR:
+        case DSPROPERTY_EAX30BUFFER_OBSTRUCTION:
+        case DSPROPERTY_EAX30BUFFER_OBSTRUCTIONLFRATIO:
+        case DSPROPERTY_EAX30BUFFER_OCCLUSION:
+        case DSPROPERTY_EAX30BUFFER_OCCLUSIONLFRATIO:
+        case DSPROPERTY_EAX30BUFFER_OCCLUSIONROOMRATIO:
+        case DSPROPERTY_EAX30BUFFER_OCCLUSIONDIRECTRATIO:
+        case DSPROPERTY_EAX30BUFFER_EXCLUSION:
+        case DSPROPERTY_EAX30BUFFER_EXCLUSIONLFRATIO:
+        case DSPROPERTY_EAX30BUFFER_OUTSIDEVOLUMEHF:
+        case DSPROPERTY_EAX30BUFFER_AIRABSORPTIONFACTOR:
+        case DSPROPERTY_EAX30BUFFER_FLAGS:
+            *pTypeSupport = KSPROPERTY_SUPPORT_GET | KSPROPERTY_SUPPORT_SET;
+            hr = DS_OK;
+            break;
+        default:
+            hr = E_PROP_ID_UNSUPPORTED;
+            FIXME("Unhandled EAX3 buffer propid: 0x%08lx\n", dwPropID);
+            break;
+        }
+
+        LeaveCriticalSection(&This->share->crst);
+    }
+    else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX20_BufferProperties))
     {
         EnterCriticalSection(&This->share->crst);
 
@@ -2596,6 +2670,53 @@ static HRESULT WINAPI DS8BufferProp_QuerySupport(IKsPropertySet *iface,
         default:
             hr = E_PROP_ID_UNSUPPORTED;
             FIXME("Unhandled EAX2 buffer propid: 0x%08lx\n", dwPropID);
+            break;
+        }
+
+        LeaveCriticalSection(&This->share->crst);
+    }
+    else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX30_ListenerProperties))
+    {
+        DS8Primary *prim = This->primary;
+
+        EnterCriticalSection(&This->share->crst);
+
+        if(prim->effect == 0)
+            hr = E_PROP_ID_UNSUPPORTED;
+        else switch(dwPropID)
+        {
+        case DSPROPERTY_EAX30LISTENER_NONE:
+        case DSPROPERTY_EAX30LISTENER_ALLPARAMETERS:
+        case DSPROPERTY_EAX30LISTENER_ENVIRONMENT:
+        case DSPROPERTY_EAX30LISTENER_ENVIRONMENTSIZE:
+        case DSPROPERTY_EAX30LISTENER_ENVIRONMENTDIFFUSION:
+        case DSPROPERTY_EAX30LISTENER_ROOM:
+        case DSPROPERTY_EAX30LISTENER_ROOMHF:
+        case DSPROPERTY_EAX30LISTENER_ROOMLF:
+        case DSPROPERTY_EAX30LISTENER_DECAYTIME:
+        case DSPROPERTY_EAX30LISTENER_DECAYHFRATIO:
+        case DSPROPERTY_EAX30LISTENER_DECAYLFRATIO:
+        case DSPROPERTY_EAX30LISTENER_REFLECTIONS:
+        case DSPROPERTY_EAX30LISTENER_REFLECTIONSDELAY:
+        case DSPROPERTY_EAX30LISTENER_REFLECTIONSPAN:
+        case DSPROPERTY_EAX30LISTENER_REVERB:
+        case DSPROPERTY_EAX30LISTENER_REVERBDELAY:
+        case DSPROPERTY_EAX30LISTENER_REVERBPAN:
+        case DSPROPERTY_EAX30LISTENER_ECHOTIME:
+        case DSPROPERTY_EAX30LISTENER_ECHODEPTH:
+        case DSPROPERTY_EAX30LISTENER_MODULATIONTIME:
+        case DSPROPERTY_EAX30LISTENER_MODULATIONDEPTH:
+        case DSPROPERTY_EAX30LISTENER_AIRABSORPTIONHF:
+        case DSPROPERTY_EAX30LISTENER_HFREFERENCE:
+        case DSPROPERTY_EAX30LISTENER_LFREFERENCE:
+        case DSPROPERTY_EAX30LISTENER_ROOMROLLOFFFACTOR:
+        case DSPROPERTY_EAX30LISTENER_FLAGS:
+            *pTypeSupport = KSPROPERTY_SUPPORT_GET | KSPROPERTY_SUPPORT_SET;
+            hr = DS_OK;
+            break;
+        default:
+            hr = E_PROP_ID_UNSUPPORTED;
+            FIXME("Unhandled EAX3 listener propid: 0x%08lx\n", dwPropID);
             break;
         }
 

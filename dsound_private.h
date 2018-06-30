@@ -592,7 +592,7 @@ struct DS8Buffer {
 
     struct {
         DS3DBUFFER ds3d;
-        EAX20BUFFERPROPERTIES eax;
+        EAX30BUFFERPROPERTIES eax;
         float eax1_reverbmix; /* Mirrored by eax.lRoom. */
     } deferred;
     union BufferParamFlags dirty;
@@ -704,7 +704,7 @@ HRESULT WINAPI DS8Primary3D_CommitDeferredSettings(IDirectSound3DListener *iface
 
 HRESULT DS8Buffer_Create(DS8Buffer **ppv, DS8Primary *parent, IDirectSoundBuffer *orig, BOOL prim_emu);
 void DS8Buffer_Destroy(DS8Buffer *buf);
-void DS8Buffer_SetParams(DS8Buffer *buffer, const DS3DBUFFER *params, const EAX20BUFFERPROPERTIES *eax_params, LONG flags);
+void DS8Buffer_SetParams(DS8Buffer *buffer, const DS3DBUFFER *params, const EAX30BUFFERPROPERTIES *eax_params, LONG flags);
 HRESULT WINAPI DS8Buffer_GetCurrentPosition(IDirectSoundBuffer8 *iface, DWORD *playpos, DWORD *curpos);
 HRESULT WINAPI DS8Buffer_GetStatus(IDirectSoundBuffer8 *iface, DWORD *status);
 HRESULT WINAPI DS8Buffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSound *ds, const DSBUFFERDESC *desc);
@@ -718,6 +718,11 @@ HRESULT EAX2_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
 HRESULT EAX2_Get(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropData, ULONG *pcbReturned);
 HRESULT EAX2Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPropData);
 HRESULT EAX2Buffer_Get(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPropData, ULONG *pcbReturned);
+
+HRESULT EAX3_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropData);
+HRESULT EAX3_Get(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropData, ULONG *pcbReturned);
+HRESULT EAX3Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPropData);
+HRESULT EAX3Buffer_Get(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPropData, ULONG *pcbReturned);
 
 
 static inline LONG gain_to_mB(float gain)
