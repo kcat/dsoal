@@ -82,16 +82,16 @@ static void ApplyFilterParams(DS8Buffer *buf, const EAX30BUFFERPROPERTIES *props
      * levels are specified relative to the low, they should increase as the
      * low frequency levels reduce.
      */
-    FLOAT occl   = props->lOcclusion *       props->flOcclusionLFRatio;
-    FLOAT occlhf = props->lOcclusion * (1.0f-props->flOcclusionLFRatio);
+    float occl   = props->lOcclusion *       props->flOcclusionLFRatio;
+    float occlhf = props->lOcclusion * (1.0f-props->flOcclusionLFRatio);
 
     if((apply&APPLY_DRY_PARAMS))
     {
-        FLOAT obstr   = props->lObstruction *       props->flObstructionLFRatio;
-        FLOAT obstrhf = props->lObstruction * (1.0f-props->flObstructionLFRatio);
-        FLOAT occldirect = props->flOcclusionDirectRatio;
-        FLOAT mb   = props->lDirect   + obstr   + occldirect*occl;
-        FLOAT mbhf = props->lDirectHF + obstrhf + occldirect*occlhf;
+        float obstr   = props->lObstruction *       props->flObstructionLFRatio;
+        float obstrhf = props->lObstruction * (1.0f-props->flObstructionLFRatio);
+        float occldirect = props->flOcclusionDirectRatio;
+        float mb   = props->lDirect   + obstr   + occldirect*occl;
+        float mbhf = props->lDirectHF + obstrhf + occldirect*occlhf;
 
         alFilterf(buf->filter[0], AL_BANDPASS_GAIN, clampF(mB_to_gain(mb), 0.0f, 1.0f));
         alFilterf(buf->filter[0], AL_BANDPASS_GAINHF, mB_to_gain(mbhf));
@@ -99,11 +99,11 @@ static void ApplyFilterParams(DS8Buffer *buf, const EAX30BUFFERPROPERTIES *props
     }
     if((apply&APPLY_WET_PARAMS))
     {
-        FLOAT excl   = props->lExclusion *       props->flExclusionLFRatio;
-        FLOAT exclhf = props->lExclusion * (1.0f-props->flExclusionLFRatio);
-        FLOAT occlroom = props->flOcclusionRoomRatio;
-        FLOAT mb   = props->lRoom   + excl   + occlroom*occl;
-        FLOAT mbhf = props->lRoomHF + exclhf + occlroom*occlhf;
+        float excl   = props->lExclusion *       props->flExclusionLFRatio;
+        float exclhf = props->lExclusion * (1.0f-props->flExclusionLFRatio);
+        float occlroom = props->flOcclusionRoomRatio;
+        float mb   = props->lRoom   + excl   + occlroom*occl;
+        float mbhf = props->lRoomHF + exclhf + occlroom*occlhf;
 
         alFilterf(buf->filter[1], AL_BANDPASS_GAIN, clampF(mB_to_gain(mb), 0.0f, 1.0f));
         alFilterf(buf->filter[1], AL_BANDPASS_GAINHF, mB_to_gain(mbhf));
@@ -164,9 +164,9 @@ HRESULT EAX3_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         break;
 
     case DSPROPERTY_EAX30LISTENER_ENVIRONMENTSIZE:
-        if(cbPropData >= sizeof(FLOAT))
+        if(cbPropData >= sizeof(float))
         {
-            union { const void *v; const FLOAT *fl; } data = { pPropData };
+            union { const void *v; const float *fl; } data = { pPropData };
             if(*data.fl >= 1.0f && *data.fl <= 100.0f)
             {
                 float scale = (*data.fl)/prim->deferred.eax.flEnvironmentSize;
@@ -215,9 +215,9 @@ HRESULT EAX3_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         }
         break;
     case DSPROPERTY_EAX30LISTENER_ENVIRONMENTDIFFUSION:
-        if(cbPropData >= sizeof(FLOAT))
+        if(cbPropData >= sizeof(float))
         {
-            union { const void *v; const FLOAT *fl; } data = { pPropData };
+            union { const void *v; const float *fl; } data = { pPropData };
 
             prim->deferred.eax.flEnvironmentDiffusion = *data.fl;
             alEffectf(prim->effect, AL_EAXREVERB_DIFFUSION,
@@ -230,9 +230,9 @@ HRESULT EAX3_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         break;
 
     case DSPROPERTY_EAX30LISTENER_ROOM:
-        if(cbPropData >= sizeof(LONG))
+        if(cbPropData >= sizeof(long))
         {
-            union { const void *v; const LONG *l; } data = { pPropData };
+            union { const void *v; const long *l; } data = { pPropData };
 
             prim->deferred.eax.lRoom = *data.l;
             alEffectf(prim->effect, AL_EAXREVERB_GAIN,
@@ -244,9 +244,9 @@ HRESULT EAX3_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         }
         break;
     case DSPROPERTY_EAX30LISTENER_ROOMHF:
-        if(cbPropData >= sizeof(LONG))
+        if(cbPropData >= sizeof(long))
         {
-            union { const void *v; const LONG *l; } data = { pPropData };
+            union { const void *v; const long *l; } data = { pPropData };
 
             prim->deferred.eax.lRoomHF = *data.l;
             alEffectf(prim->effect, AL_EAXREVERB_GAINHF,
@@ -258,9 +258,9 @@ HRESULT EAX3_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         }
         break;
     case DSPROPERTY_EAX30LISTENER_ROOMLF:
-        if(cbPropData >= sizeof(LONG))
+        if(cbPropData >= sizeof(long))
         {
-            union { const void *v; const LONG *l; } data = { pPropData };
+            union { const void *v; const long *l; } data = { pPropData };
 
             prim->deferred.eax.lRoomLF = *data.l;
             alEffectf(prim->effect, AL_EAXREVERB_GAINLF,
@@ -273,9 +273,9 @@ HRESULT EAX3_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         break;
 
     case DSPROPERTY_EAX30LISTENER_DECAYTIME:
-        if(cbPropData >= sizeof(FLOAT))
+        if(cbPropData >= sizeof(float))
         {
-            union { const void *v; const FLOAT *fl; } data = { pPropData };
+            union { const void *v; const float *fl; } data = { pPropData };
 
             prim->deferred.eax.flDecayTime = *data.fl;
             alEffectf(prim->effect, AL_EAXREVERB_DECAY_TIME,
@@ -287,9 +287,9 @@ HRESULT EAX3_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         }
         break;
     case DSPROPERTY_EAX30LISTENER_DECAYHFRATIO:
-        if(cbPropData >= sizeof(FLOAT))
+        if(cbPropData >= sizeof(float))
         {
-            union { const void *v; const FLOAT *fl; } data = { pPropData };
+            union { const void *v; const float *fl; } data = { pPropData };
 
             prim->deferred.eax.flDecayHFRatio = *data.fl;
             alEffectf(prim->effect, AL_EAXREVERB_DECAY_HFRATIO,
@@ -301,9 +301,9 @@ HRESULT EAX3_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         }
         break;
     case DSPROPERTY_EAX30LISTENER_DECAYLFRATIO:
-        if(cbPropData >= sizeof(FLOAT))
+        if(cbPropData >= sizeof(float))
         {
-            union { const void *v; const FLOAT *fl; } data = { pPropData };
+            union { const void *v; const float *fl; } data = { pPropData };
 
             prim->deferred.eax.flDecayLFRatio = *data.fl;
             alEffectf(prim->effect, AL_EAXREVERB_DECAY_LFRATIO,
@@ -316,9 +316,9 @@ HRESULT EAX3_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         break;
 
     case DSPROPERTY_EAX30LISTENER_REFLECTIONS:
-        if(cbPropData >= sizeof(LONG))
+        if(cbPropData >= sizeof(long))
         {
-            union { const void *v; const LONG *l; } data = { pPropData };
+            union { const void *v; const long *l; } data = { pPropData };
 
             prim->deferred.eax.lReflections = *data.l;
             alEffectf(prim->effect, AL_EAXREVERB_REFLECTIONS_GAIN,
@@ -330,9 +330,9 @@ HRESULT EAX3_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         }
         break;
     case DSPROPERTY_EAX30LISTENER_REFLECTIONSDELAY:
-        if(cbPropData >= sizeof(FLOAT))
+        if(cbPropData >= sizeof(float))
         {
-            union { const void *v; const FLOAT *fl; } data = { pPropData };
+            union { const void *v; const float *fl; } data = { pPropData };
 
             prim->deferred.eax.flReflectionsDelay = *data.fl;
             alEffectf(prim->effect, AL_EAXREVERB_REFLECTIONS_DELAY,
@@ -359,9 +359,9 @@ HRESULT EAX3_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         break;
 
     case DSPROPERTY_EAX30LISTENER_REVERB:
-        if(cbPropData >= sizeof(LONG))
+        if(cbPropData >= sizeof(long))
         {
-            union { const void *v; const LONG *l; } data = { pPropData };
+            union { const void *v; const long *l; } data = { pPropData };
 
             prim->deferred.eax.lReverb = *data.l;
             alEffectf(prim->effect, AL_EAXREVERB_LATE_REVERB_GAIN,
@@ -373,9 +373,9 @@ HRESULT EAX3_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         }
         break;
     case DSPROPERTY_EAX30LISTENER_REVERBDELAY:
-        if(cbPropData >= sizeof(FLOAT))
+        if(cbPropData >= sizeof(float))
         {
-            union { const void *v; const FLOAT *fl; } data = { pPropData };
+            union { const void *v; const float *fl; } data = { pPropData };
 
             prim->deferred.eax.flReverbDelay = *data.fl;
             alEffectf(prim->effect, AL_EAXREVERB_LATE_REVERB_DELAY,
@@ -402,9 +402,9 @@ HRESULT EAX3_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         break;
 
     case DSPROPERTY_EAX30LISTENER_ECHOTIME:
-        if(cbPropData >= sizeof(FLOAT))
+        if(cbPropData >= sizeof(float))
         {
-            union { const void *v; const FLOAT *fl; } data = { pPropData };
+            union { const void *v; const float *fl; } data = { pPropData };
 
             prim->deferred.eax.flEchoTime = *data.fl;
             alEffectf(prim->effect, AL_EAXREVERB_ECHO_TIME,
@@ -416,9 +416,9 @@ HRESULT EAX3_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         }
         break;
     case DSPROPERTY_EAX30LISTENER_ECHODEPTH:
-        if(cbPropData >= sizeof(FLOAT))
+        if(cbPropData >= sizeof(float))
         {
-            union { const void *v; const FLOAT *fl; } data = { pPropData };
+            union { const void *v; const float *fl; } data = { pPropData };
 
             prim->deferred.eax.flEchoDepth = *data.fl;
             alEffectf(prim->effect, AL_EAXREVERB_ECHO_DEPTH,
@@ -431,9 +431,9 @@ HRESULT EAX3_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         break;
 
     case DSPROPERTY_EAX30LISTENER_MODULATIONTIME:
-        if(cbPropData >= sizeof(FLOAT))
+        if(cbPropData >= sizeof(float))
         {
-            union { const void *v; const FLOAT *fl; } data = { pPropData };
+            union { const void *v; const float *fl; } data = { pPropData };
 
             prim->deferred.eax.flModulationTime = *data.fl;
             alEffectf(prim->effect, AL_EAXREVERB_MODULATION_TIME,
@@ -445,9 +445,9 @@ HRESULT EAX3_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         }
         break;
     case DSPROPERTY_EAX30LISTENER_MODULATIONDEPTH:
-        if(cbPropData >= sizeof(FLOAT))
+        if(cbPropData >= sizeof(float))
         {
-            union { const void *v; const FLOAT *fl; } data = { pPropData };
+            union { const void *v; const float *fl; } data = { pPropData };
 
             prim->deferred.eax.flModulationDepth = *data.fl;
             alEffectf(prim->effect, AL_EAXREVERB_MODULATION_DEPTH,
@@ -460,9 +460,9 @@ HRESULT EAX3_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         break;
 
     case DSPROPERTY_EAX30LISTENER_AIRABSORPTIONHF:
-        if(cbPropData >= sizeof(FLOAT))
+        if(cbPropData >= sizeof(float))
         {
-            union { const void *v; const FLOAT *fl; } data = { pPropData };
+            union { const void *v; const float *fl; } data = { pPropData };
 
             prim->deferred.eax.flAirAbsorptionHF = *data.fl;
             alEffectf(prim->effect, AL_EAXREVERB_AIR_ABSORPTION_GAINHF,
@@ -475,9 +475,9 @@ HRESULT EAX3_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         break;
 
     case DSPROPERTY_EAX30LISTENER_HFREFERENCE:
-        if(cbPropData >= sizeof(FLOAT))
+        if(cbPropData >= sizeof(float))
         {
-            union { const void *v; const FLOAT *fl; } data = { pPropData };
+            union { const void *v; const float *fl; } data = { pPropData };
 
             prim->deferred.eax.flHFReference = *data.fl;
             alEffectf(prim->effect, AL_EAXREVERB_HFREFERENCE,
@@ -489,9 +489,9 @@ HRESULT EAX3_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         }
         break;
     case DSPROPERTY_EAX30LISTENER_LFREFERENCE:
-        if(cbPropData >= sizeof(FLOAT))
+        if(cbPropData >= sizeof(float))
         {
-            union { const void *v; const FLOAT *fl; } data = { pPropData };
+            union { const void *v; const float *fl; } data = { pPropData };
 
             prim->deferred.eax.flLFReference = *data.fl;
             alEffectf(prim->effect, AL_EAXREVERB_LFREFERENCE,
@@ -504,9 +504,9 @@ HRESULT EAX3_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         break;
 
     case DSPROPERTY_EAX30LISTENER_ROOMROLLOFFFACTOR:
-        if(cbPropData >= sizeof(FLOAT))
+        if(cbPropData >= sizeof(float))
         {
-            union { const void *v; const FLOAT *fl; } data = { pPropData };
+            union { const void *v; const float *fl; } data = { pPropData };
 
             prim->deferred.eax.flRoomRolloffFactor = *data.fl;
             alEffectf(prim->effect, AL_EAXREVERB_ROOM_ROLLOFF_FACTOR,
@@ -576,79 +576,79 @@ HRESULT EAX3_Get(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         break;
 
     case DSPROPERTY_EAX30LISTENER_ENVIRONMENTSIZE:
-        GET_PROP(prim->deferred.eax.flEnvironmentSize, FLOAT);
+        GET_PROP(prim->deferred.eax.flEnvironmentSize, float);
         break;
     case DSPROPERTY_EAX30LISTENER_ENVIRONMENTDIFFUSION:
-        GET_PROP(prim->deferred.eax.flEnvironmentDiffusion, FLOAT);
+        GET_PROP(prim->deferred.eax.flEnvironmentDiffusion, float);
         break;
 
     case DSPROPERTY_EAX30LISTENER_ROOM:
-        GET_PROP(prim->deferred.eax.lRoom, LONG);
+        GET_PROP(prim->deferred.eax.lRoom, long);
         break;
     case DSPROPERTY_EAX30LISTENER_ROOMHF:
-        GET_PROP(prim->deferred.eax.lRoomHF, LONG);
+        GET_PROP(prim->deferred.eax.lRoomHF, long);
         break;
     case DSPROPERTY_EAX30LISTENER_ROOMLF:
-        GET_PROP(prim->deferred.eax.lRoomLF, LONG);
+        GET_PROP(prim->deferred.eax.lRoomLF, long);
         break;
 
     case DSPROPERTY_EAX30LISTENER_DECAYTIME:
-        GET_PROP(prim->deferred.eax.flDecayTime, FLOAT);
+        GET_PROP(prim->deferred.eax.flDecayTime, float);
         break;
     case DSPROPERTY_EAX30LISTENER_DECAYHFRATIO:
-        GET_PROP(prim->deferred.eax.flDecayHFRatio, FLOAT);
+        GET_PROP(prim->deferred.eax.flDecayHFRatio, float);
         break;
     case DSPROPERTY_EAX30LISTENER_DECAYLFRATIO:
-        GET_PROP(prim->deferred.eax.flDecayLFRatio, FLOAT);
+        GET_PROP(prim->deferred.eax.flDecayLFRatio, float);
         break;
 
     case DSPROPERTY_EAX30LISTENER_REFLECTIONS:
-        GET_PROP(prim->deferred.eax.lReflections, LONG);
+        GET_PROP(prim->deferred.eax.lReflections, long);
         break;
     case DSPROPERTY_EAX30LISTENER_REFLECTIONSDELAY:
-        GET_PROP(prim->deferred.eax.flReflectionsDelay, FLOAT);
+        GET_PROP(prim->deferred.eax.flReflectionsDelay, float);
         break;
     case DSPROPERTY_EAX30LISTENER_REFLECTIONSPAN:
         GET_PROP(prim->deferred.eax.vReflectionsPan, EAXVECTOR);
         break;
 
     case DSPROPERTY_EAX30LISTENER_REVERB:
-        GET_PROP(prim->deferred.eax.lReverb, LONG);
+        GET_PROP(prim->deferred.eax.lReverb, long);
         break;
     case DSPROPERTY_EAX30LISTENER_REVERBDELAY:
-        GET_PROP(prim->deferred.eax.flReverbDelay, FLOAT);
+        GET_PROP(prim->deferred.eax.flReverbDelay, float);
         break;
     case DSPROPERTY_EAX30LISTENER_REVERBPAN:
         GET_PROP(prim->deferred.eax.vReverbPan, EAXVECTOR);
         break;
 
     case DSPROPERTY_EAX30LISTENER_ECHOTIME:
-        GET_PROP(prim->deferred.eax.flEchoTime, FLOAT);
+        GET_PROP(prim->deferred.eax.flEchoTime, float);
         break;
     case DSPROPERTY_EAX30LISTENER_ECHODEPTH:
-        GET_PROP(prim->deferred.eax.flEchoDepth, FLOAT);
+        GET_PROP(prim->deferred.eax.flEchoDepth, float);
         break;
 
     case DSPROPERTY_EAX30LISTENER_MODULATIONTIME:
-        GET_PROP(prim->deferred.eax.flModulationTime, FLOAT);
+        GET_PROP(prim->deferred.eax.flModulationTime, float);
         break;
     case DSPROPERTY_EAX30LISTENER_MODULATIONDEPTH:
-        GET_PROP(prim->deferred.eax.flModulationDepth, FLOAT);
+        GET_PROP(prim->deferred.eax.flModulationDepth, float);
         break;
 
     case DSPROPERTY_EAX30LISTENER_AIRABSORPTIONHF:
-        GET_PROP(prim->deferred.eax.flAirAbsorptionHF, FLOAT);
+        GET_PROP(prim->deferred.eax.flAirAbsorptionHF, float);
         break;
 
     case DSPROPERTY_EAX30LISTENER_HFREFERENCE:
-        GET_PROP(prim->deferred.eax.flHFReference, FLOAT);
+        GET_PROP(prim->deferred.eax.flHFReference, float);
         break;
     case DSPROPERTY_EAX30LISTENER_LFREFERENCE:
-        GET_PROP(prim->deferred.eax.flLFReference, FLOAT);
+        GET_PROP(prim->deferred.eax.flLFReference, float);
         break;
 
     case DSPROPERTY_EAX30LISTENER_ROOMROLLOFFFACTOR:
-        GET_PROP(prim->deferred.eax.flRoomRolloffFactor, FLOAT);
+        GET_PROP(prim->deferred.eax.flRoomRolloffFactor, float);
         break;
 
     case DSPROPERTY_EAX30LISTENER_FLAGS:
@@ -701,9 +701,9 @@ HRESULT EAX3Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
         break;
 
     case DSPROPERTY_EAX30BUFFER_DIRECT:
-        if(cbPropData >= sizeof(LONG))
+        if(cbPropData >= sizeof(long))
         {
-            union { const void *v; const LONG *l; } data = { pPropData };
+            union { const void *v; const long *l; } data = { pPropData };
 
             buf->deferred.eax.lDirect = *data.l;
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_DRY_PARAMS);
@@ -713,9 +713,9 @@ HRESULT EAX3Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
         }
         break;
     case DSPROPERTY_EAX30BUFFER_DIRECTHF:
-        if(cbPropData >= sizeof(LONG))
+        if(cbPropData >= sizeof(long))
         {
-            union { const void *v; const LONG *l; } data = { pPropData };
+            union { const void *v; const long *l; } data = { pPropData };
 
             buf->deferred.eax.lDirectHF = *data.l;
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_DRY_PARAMS);
@@ -725,9 +725,9 @@ HRESULT EAX3Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
         }
         break;
     case DSPROPERTY_EAX30BUFFER_DIRECTLF:
-        if(cbPropData >= sizeof(LONG))
+        if(cbPropData >= sizeof(long))
         {
-            union { const void *v; const LONG *l; } data = { pPropData };
+            union { const void *v; const long *l; } data = { pPropData };
 
             buf->deferred.eax.lDirectLF = *data.l;
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_DRY_PARAMS);
@@ -738,9 +738,9 @@ HRESULT EAX3Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
         break;
 
     case DSPROPERTY_EAX30BUFFER_ROOM:
-        if(cbPropData >= sizeof(LONG))
+        if(cbPropData >= sizeof(long))
         {
-            union { const void *v; const LONG *l; } data = { pPropData };
+            union { const void *v; const long *l; } data = { pPropData };
 
             buf->deferred.eax.lRoom = *data.l;
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_WET_PARAMS);
@@ -750,9 +750,9 @@ HRESULT EAX3Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
         }
         break;
     case DSPROPERTY_EAX30BUFFER_ROOMHF:
-        if(cbPropData >= sizeof(LONG))
+        if(cbPropData >= sizeof(long))
         {
-            union { const void *v; const LONG *l; } data = { pPropData };
+            union { const void *v; const long *l; } data = { pPropData };
 
             buf->deferred.eax.lRoomHF = *data.l;
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_WET_PARAMS);
@@ -762,9 +762,9 @@ HRESULT EAX3Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
         }
         break;
     case DSPROPERTY_EAX30BUFFER_ROOMLF:
-        if(cbPropData >= sizeof(LONG))
+        if(cbPropData >= sizeof(long))
         {
-            union { const void *v; const LONG *l; } data = { pPropData };
+            union { const void *v; const long *l; } data = { pPropData };
 
             buf->deferred.eax.lRoomLF = *data.l;
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_WET_PARAMS);
@@ -775,9 +775,9 @@ HRESULT EAX3Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
         break;
 
     case DSPROPERTY_EAX30BUFFER_ROOMROLLOFFFACTOR:
-        if(cbPropData >= sizeof(FLOAT))
+        if(cbPropData >= sizeof(float))
         {
-            union { const void *v; const FLOAT *fl; } data = { pPropData };
+            union { const void *v; const float *fl; } data = { pPropData };
 
             buf->deferred.eax.flRoomRolloffFactor = *data.fl;
 
@@ -787,9 +787,9 @@ HRESULT EAX3Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
         break;
 
     case DSPROPERTY_EAX30BUFFER_OBSTRUCTION:
-        if(cbPropData >= sizeof(LONG))
+        if(cbPropData >= sizeof(long))
         {
-            union { const void *v; const LONG *l; } data = { pPropData };
+            union { const void *v; const long *l; } data = { pPropData };
 
             buf->deferred.eax.lObstruction = *data.l;
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_DRY_PARAMS);
@@ -799,9 +799,9 @@ HRESULT EAX3Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
         }
         break;
     case DSPROPERTY_EAX30BUFFER_OBSTRUCTIONLFRATIO:
-        if(cbPropData >= sizeof(FLOAT))
+        if(cbPropData >= sizeof(float))
         {
-            union { const void *v; const FLOAT *fl; } data = { pPropData };
+            union { const void *v; const float *fl; } data = { pPropData };
 
             buf->deferred.eax.flObstructionLFRatio = *data.fl;
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_DRY_PARAMS);
@@ -812,9 +812,9 @@ HRESULT EAX3Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
         break;
 
     case DSPROPERTY_EAX30BUFFER_OCCLUSION:
-        if(cbPropData >= sizeof(LONG))
+        if(cbPropData >= sizeof(long))
         {
-            union { const void *v; const LONG *l; } data = { pPropData };
+            union { const void *v; const long *l; } data = { pPropData };
 
             buf->deferred.eax.lOcclusion = *data.l;
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_DRY_PARAMS|APPLY_WET_PARAMS);
@@ -825,9 +825,9 @@ HRESULT EAX3Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
         }
         break;
     case DSPROPERTY_EAX30BUFFER_OCCLUSIONLFRATIO:
-        if(cbPropData >= sizeof(FLOAT))
+        if(cbPropData >= sizeof(float))
         {
-            union { const void *v; const FLOAT *fl; } data = { pPropData };
+            union { const void *v; const float *fl; } data = { pPropData };
 
             buf->deferred.eax.flOcclusionLFRatio = *data.fl;
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_DRY_PARAMS|APPLY_WET_PARAMS);
@@ -838,9 +838,9 @@ HRESULT EAX3Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
         }
         break;
     case DSPROPERTY_EAX30BUFFER_OCCLUSIONROOMRATIO:
-        if(cbPropData >= sizeof(FLOAT))
+        if(cbPropData >= sizeof(float))
         {
-            union { const void *v; const FLOAT *fl; } data = { pPropData };
+            union { const void *v; const float *fl; } data = { pPropData };
 
             buf->deferred.eax.flOcclusionRoomRatio = *data.fl;
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_WET_PARAMS);
@@ -850,9 +850,9 @@ HRESULT EAX3Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
         }
         break;
     case DSPROPERTY_EAX30BUFFER_OCCLUSIONDIRECTRATIO:
-        if(cbPropData >= sizeof(FLOAT))
+        if(cbPropData >= sizeof(float))
         {
-            union { const void *v; const FLOAT *fl; } data = { pPropData };
+            union { const void *v; const float *fl; } data = { pPropData };
 
             buf->deferred.eax.flOcclusionDirectRatio = *data.fl;
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_DRY_PARAMS);
@@ -863,9 +863,9 @@ HRESULT EAX3Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
         break;
 
     case DSPROPERTY_EAX30BUFFER_EXCLUSION:
-        if(cbPropData >= sizeof(LONG))
+        if(cbPropData >= sizeof(long))
         {
-            union { const void *v; const LONG *l; } data = { pPropData };
+            union { const void *v; const long *l; } data = { pPropData };
 
             buf->deferred.eax.lExclusion = *data.l;
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_WET_PARAMS);
@@ -875,9 +875,9 @@ HRESULT EAX3Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
         }
         break;
     case DSPROPERTY_EAX30BUFFER_EXCLUSIONLFRATIO:
-        if(cbPropData >= sizeof(FLOAT))
+        if(cbPropData >= sizeof(float))
         {
-            union { const void *v; const FLOAT *fl; } data = { pPropData };
+            union { const void *v; const float *fl; } data = { pPropData };
 
             buf->deferred.eax.flExclusionLFRatio = *data.fl;
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_WET_PARAMS);
@@ -888,9 +888,9 @@ HRESULT EAX3Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
         break;
 
     case DSPROPERTY_EAX30BUFFER_OUTSIDEVOLUMEHF:
-        if(cbPropData >= sizeof(LONG))
+        if(cbPropData >= sizeof(long))
         {
-            union { const void *v; const LONG *l; } data = { pPropData };
+            union { const void *v; const long *l; } data = { pPropData };
 
             buf->deferred.eax.lOutsideVolumeHF = *data.l;
 
@@ -900,9 +900,9 @@ HRESULT EAX3Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
         break;
 
     case DSPROPERTY_EAX30BUFFER_AIRABSORPTIONFACTOR:
-        if(cbPropData >= sizeof(FLOAT))
+        if(cbPropData >= sizeof(float))
         {
-            union { const void *v; const FLOAT *fl; } data = { pPropData };
+            union { const void *v; const float *fl; } data = { pPropData };
 
             buf->deferred.eax.flAirAbsorptionFactor = *data.fl;
 
@@ -961,62 +961,62 @@ HRESULT EAX3Buffer_Get(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
         break;
 
     case DSPROPERTY_EAX30BUFFER_DIRECT:
-        GET_PROP(buf->deferred.eax.lDirect, LONG);
+        GET_PROP(buf->deferred.eax.lDirect, long);
         break;
     case DSPROPERTY_EAX30BUFFER_DIRECTHF:
-        GET_PROP(buf->deferred.eax.lDirectHF, LONG);
+        GET_PROP(buf->deferred.eax.lDirectHF, long);
         break;
     case DSPROPERTY_EAX30BUFFER_DIRECTLF:
-        GET_PROP(buf->deferred.eax.lDirectLF, LONG);
+        GET_PROP(buf->deferred.eax.lDirectLF, long);
         break;
 
     case DSPROPERTY_EAX30BUFFER_ROOM:
-        GET_PROP(buf->deferred.eax.lRoom, LONG);
+        GET_PROP(buf->deferred.eax.lRoom, long);
         break;
     case DSPROPERTY_EAX30BUFFER_ROOMHF:
-        GET_PROP(buf->deferred.eax.lRoomHF, LONG);
+        GET_PROP(buf->deferred.eax.lRoomHF, long);
         break;
     case DSPROPERTY_EAX30BUFFER_ROOMLF:
-        GET_PROP(buf->deferred.eax.lRoomLF, LONG);
+        GET_PROP(buf->deferred.eax.lRoomLF, long);
         break;
 
     case DSPROPERTY_EAX30BUFFER_ROOMROLLOFFFACTOR:
-        GET_PROP(buf->deferred.eax.flRoomRolloffFactor, FLOAT);
+        GET_PROP(buf->deferred.eax.flRoomRolloffFactor, float);
         break;
 
     case DSPROPERTY_EAX30BUFFER_OBSTRUCTION:
-        GET_PROP(buf->deferred.eax.lObstruction, LONG);
+        GET_PROP(buf->deferred.eax.lObstruction, long);
         break;
     case DSPROPERTY_EAX30BUFFER_OBSTRUCTIONLFRATIO:
-        GET_PROP(buf->deferred.eax.flObstructionLFRatio, FLOAT);
+        GET_PROP(buf->deferred.eax.flObstructionLFRatio, float);
         break;
 
     case DSPROPERTY_EAX30BUFFER_OCCLUSION:
-        GET_PROP(buf->deferred.eax.lOcclusion, LONG);
+        GET_PROP(buf->deferred.eax.lOcclusion, long);
         break;
     case DSPROPERTY_EAX30BUFFER_OCCLUSIONLFRATIO:
-        GET_PROP(buf->deferred.eax.flOcclusionLFRatio, FLOAT);
+        GET_PROP(buf->deferred.eax.flOcclusionLFRatio, float);
         break;
     case DSPROPERTY_EAX30BUFFER_OCCLUSIONROOMRATIO:
-        GET_PROP(buf->deferred.eax.flOcclusionRoomRatio, FLOAT);
+        GET_PROP(buf->deferred.eax.flOcclusionRoomRatio, float);
         break;
     case DSPROPERTY_EAX30BUFFER_OCCLUSIONDIRECTRATIO:
-        GET_PROP(buf->deferred.eax.flOcclusionDirectRatio, FLOAT);
+        GET_PROP(buf->deferred.eax.flOcclusionDirectRatio, float);
         break;
 
     case DSPROPERTY_EAX30BUFFER_EXCLUSION:
-        GET_PROP(buf->deferred.eax.lExclusion, LONG);
+        GET_PROP(buf->deferred.eax.lExclusion, long);
         break;
     case DSPROPERTY_EAX30BUFFER_EXCLUSIONLFRATIO:
-        GET_PROP(buf->deferred.eax.flExclusionLFRatio, FLOAT);
+        GET_PROP(buf->deferred.eax.flExclusionLFRatio, float);
         break;
 
     case DSPROPERTY_EAX30BUFFER_OUTSIDEVOLUMEHF:
-        GET_PROP(buf->deferred.eax.lOutsideVolumeHF, LONG);
+        GET_PROP(buf->deferred.eax.lOutsideVolumeHF, long);
         break;
 
     case DSPROPERTY_EAX30BUFFER_AIRABSORPTIONFACTOR:
-        GET_PROP(buf->deferred.eax.flAirAbsorptionFactor, FLOAT);
+        GET_PROP(buf->deferred.eax.flAirAbsorptionFactor, float);
         break;
 
     case DSPROPERTY_EAX30BUFFER_FLAGS:
@@ -1132,9 +1132,9 @@ HRESULT EAX2_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         break;
 
     case DSPROPERTY_EAX20LISTENER_ROOM:
-        if(cbPropData >= sizeof(LONG))
+        if(cbPropData >= sizeof(long))
         {
-            union { const void *v; const LONG *l; } data = { pPropData };
+            union { const void *v; const long *l; } data = { pPropData };
 
             prim->deferred.eax.lRoom = *data.l;
             alEffectf(prim->effect, AL_EAXREVERB_GAIN,
@@ -1146,9 +1146,9 @@ HRESULT EAX2_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         }
         break;
     case DSPROPERTY_EAX20LISTENER_ROOMHF:
-        if(cbPropData >= sizeof(LONG))
+        if(cbPropData >= sizeof(long))
         {
-            union { const void *v; const LONG *l; } data = { pPropData };
+            union { const void *v; const long *l; } data = { pPropData };
 
             prim->deferred.eax.lRoomHF = *data.l;
             alEffectf(prim->effect, AL_EAXREVERB_GAINHF,
@@ -1161,9 +1161,9 @@ HRESULT EAX2_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         break;
 
     case DSPROPERTY_EAX20LISTENER_ROOMROLLOFFFACTOR:
-        if(cbPropData >= sizeof(FLOAT))
+        if(cbPropData >= sizeof(float))
         {
-            union { const void *v; const FLOAT *fl; } data = { pPropData };
+            union { const void *v; const float *fl; } data = { pPropData };
 
             prim->deferred.eax.flRoomRolloffFactor = *data.fl;
             alEffectf(prim->effect, AL_EAXREVERB_ROOM_ROLLOFF_FACTOR,
@@ -1176,9 +1176,9 @@ HRESULT EAX2_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         break;
 
     case DSPROPERTY_EAX20LISTENER_DECAYTIME:
-        if(cbPropData >= sizeof(FLOAT))
+        if(cbPropData >= sizeof(float))
         {
-            union { const void *v; const FLOAT *fl; } data = { pPropData };
+            union { const void *v; const float *fl; } data = { pPropData };
 
             prim->deferred.eax.flDecayTime = *data.fl;
             alEffectf(prim->effect, AL_EAXREVERB_DECAY_TIME,
@@ -1190,9 +1190,9 @@ HRESULT EAX2_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         }
         break;
     case DSPROPERTY_EAX20LISTENER_DECAYHFRATIO:
-        if(cbPropData >= sizeof(FLOAT))
+        if(cbPropData >= sizeof(float))
         {
-            union { const void *v; const FLOAT *fl; } data = { pPropData };
+            union { const void *v; const float *fl; } data = { pPropData };
 
             prim->deferred.eax.flDecayHFRatio = *data.fl;
             alEffectf(prim->effect, AL_EAXREVERB_DECAY_HFRATIO,
@@ -1205,9 +1205,9 @@ HRESULT EAX2_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         break;
 
     case DSPROPERTY_EAX20LISTENER_REFLECTIONS:
-        if(cbPropData >= sizeof(LONG))
+        if(cbPropData >= sizeof(long))
         {
-            union { const void *v; const LONG *l; } data = { pPropData };
+            union { const void *v; const long *l; } data = { pPropData };
 
             prim->deferred.eax.lReflections = *data.l;
             alEffectf(prim->effect, AL_EAXREVERB_REFLECTIONS_GAIN,
@@ -1219,9 +1219,9 @@ HRESULT EAX2_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         }
         break;
     case DSPROPERTY_EAX20LISTENER_REFLECTIONSDELAY:
-        if(cbPropData >= sizeof(FLOAT))
+        if(cbPropData >= sizeof(float))
         {
-            union { const void *v; const FLOAT *fl; } data = { pPropData };
+            union { const void *v; const float *fl; } data = { pPropData };
 
             prim->deferred.eax.flReflectionsDelay = *data.fl;
             alEffectf(prim->effect, AL_EAXREVERB_REFLECTIONS_DELAY,
@@ -1234,9 +1234,9 @@ HRESULT EAX2_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         break;
 
     case DSPROPERTY_EAX20LISTENER_REVERB:
-        if(cbPropData >= sizeof(LONG))
+        if(cbPropData >= sizeof(long))
         {
-            union { const void *v; const LONG *l; } data = { pPropData };
+            union { const void *v; const long *l; } data = { pPropData };
 
             prim->deferred.eax.lReverb = *data.l;
             alEffectf(prim->effect, AL_EAXREVERB_LATE_REVERB_GAIN,
@@ -1248,9 +1248,9 @@ HRESULT EAX2_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         }
         break;
     case DSPROPERTY_EAX20LISTENER_REVERBDELAY:
-        if(cbPropData >= sizeof(FLOAT))
+        if(cbPropData >= sizeof(float))
         {
-            union { const void *v; const FLOAT *fl; } data = { pPropData };
+            union { const void *v; const float *fl; } data = { pPropData };
 
             prim->deferred.eax.flReverbDelay = *data.fl;
             alEffectf(prim->effect, AL_EAXREVERB_LATE_REVERB_DELAY,
@@ -1275,9 +1275,9 @@ HRESULT EAX2_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         break;
 
     case DSPROPERTY_EAX20LISTENER_ENVIRONMENTSIZE:
-        if(cbPropData >= sizeof(FLOAT))
+        if(cbPropData >= sizeof(float))
         {
-            union { const void *v; const FLOAT *fl; } data = { pPropData };
+            union { const void *v; const float *fl; } data = { pPropData };
             if(*data.fl >= 1.0f && *data.fl <= 100.0f)
             {
                 float scale = (*data.fl)/prim->deferred.eax.flEnvironmentSize;
@@ -1326,9 +1326,9 @@ HRESULT EAX2_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         }
         break;
     case DSPROPERTY_EAX20LISTENER_ENVIRONMENTDIFFUSION:
-        if(cbPropData >= sizeof(FLOAT))
+        if(cbPropData >= sizeof(float))
         {
-            union { const void *v; const FLOAT *fl; } data = { pPropData };
+            union { const void *v; const float *fl; } data = { pPropData };
 
             prim->deferred.eax.flEnvironmentDiffusion = *data.fl;
             alEffectf(prim->effect, AL_EAXREVERB_DIFFUSION,
@@ -1341,9 +1341,9 @@ HRESULT EAX2_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         break;
 
     case DSPROPERTY_EAX20LISTENER_AIRABSORPTIONHF:
-        if(cbPropData >= sizeof(FLOAT))
+        if(cbPropData >= sizeof(float))
         {
-            union { const void *v; const FLOAT *fl; } data = { pPropData };
+            union { const void *v; const float *fl; } data = { pPropData };
 
             prim->deferred.eax.flAirAbsorptionHF = *data.fl;
             alEffectf(prim->effect, AL_EAXREVERB_AIR_ABSORPTION_GAINHF,
@@ -1409,35 +1409,35 @@ HRESULT EAX2_Get(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         break;
 
     case DSPROPERTY_EAX20LISTENER_ROOM:
-        GET_PROP(prim->deferred.eax.lRoom, LONG);
+        GET_PROP(prim->deferred.eax.lRoom, long);
         break;
     case DSPROPERTY_EAX20LISTENER_ROOMHF:
-        GET_PROP(prim->deferred.eax.lRoomHF, LONG);
+        GET_PROP(prim->deferred.eax.lRoomHF, long);
         break;
 
     case DSPROPERTY_EAX20LISTENER_ROOMROLLOFFFACTOR:
-        GET_PROP(prim->deferred.eax.flRoomRolloffFactor, FLOAT);
+        GET_PROP(prim->deferred.eax.flRoomRolloffFactor, float);
         break;
 
     case DSPROPERTY_EAX20LISTENER_DECAYTIME:
-        GET_PROP(prim->deferred.eax.flDecayTime, FLOAT);
+        GET_PROP(prim->deferred.eax.flDecayTime, float);
         break;
     case DSPROPERTY_EAX20LISTENER_DECAYHFRATIO:
-        GET_PROP(prim->deferred.eax.flDecayHFRatio, FLOAT);
+        GET_PROP(prim->deferred.eax.flDecayHFRatio, float);
         break;
 
     case DSPROPERTY_EAX20LISTENER_REFLECTIONS:
-        GET_PROP(prim->deferred.eax.lReflections, LONG);
+        GET_PROP(prim->deferred.eax.lReflections, long);
         break;
     case DSPROPERTY_EAX20LISTENER_REFLECTIONSDELAY:
-        GET_PROP(prim->deferred.eax.flReflectionsDelay, FLOAT);
+        GET_PROP(prim->deferred.eax.flReflectionsDelay, float);
         break;
 
     case DSPROPERTY_EAX20LISTENER_REVERB:
-        GET_PROP(prim->deferred.eax.lReverb, LONG);
+        GET_PROP(prim->deferred.eax.lReverb, long);
         break;
     case DSPROPERTY_EAX20LISTENER_REVERBDELAY:
-        GET_PROP(prim->deferred.eax.flReverbDelay, FLOAT);
+        GET_PROP(prim->deferred.eax.flReverbDelay, float);
         break;
 
     case DSPROPERTY_EAX20LISTENER_ENVIRONMENT:
@@ -1445,14 +1445,14 @@ HRESULT EAX2_Get(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         break;
 
     case DSPROPERTY_EAX20LISTENER_ENVIRONMENTSIZE:
-        GET_PROP(prim->deferred.eax.flEnvironmentSize, FLOAT);
+        GET_PROP(prim->deferred.eax.flEnvironmentSize, float);
         break;
     case DSPROPERTY_EAX20LISTENER_ENVIRONMENTDIFFUSION:
-        GET_PROP(prim->deferred.eax.flEnvironmentDiffusion, FLOAT);
+        GET_PROP(prim->deferred.eax.flEnvironmentDiffusion, float);
         break;
 
     case DSPROPERTY_EAX20LISTENER_AIRABSORPTIONHF:
-        GET_PROP(prim->deferred.eax.flAirAbsorptionHF, FLOAT);
+        GET_PROP(prim->deferred.eax.flAirAbsorptionHF, float);
         break;
 
     case DSPROPERTY_EAX20LISTENER_FLAGS:
@@ -1518,9 +1518,9 @@ HRESULT EAX2Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
         break;
 
     case DSPROPERTY_EAX20BUFFER_DIRECT:
-        if(cbPropData >= sizeof(LONG))
+        if(cbPropData >= sizeof(long))
         {
-            union { const void *v; const LONG *l; } data = { pPropData };
+            union { const void *v; const long *l; } data = { pPropData };
 
             buf->deferred.eax.lDirect = *data.l;
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_DRY_PARAMS);
@@ -1530,9 +1530,9 @@ HRESULT EAX2Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
         }
         break;
     case DSPROPERTY_EAX20BUFFER_DIRECTHF:
-        if(cbPropData >= sizeof(LONG))
+        if(cbPropData >= sizeof(long))
         {
-            union { const void *v; const LONG *l; } data = { pPropData };
+            union { const void *v; const long *l; } data = { pPropData };
 
             buf->deferred.eax.lDirectHF = *data.l;
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_DRY_PARAMS);
@@ -1543,9 +1543,9 @@ HRESULT EAX2Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
         break;
 
     case DSPROPERTY_EAX20BUFFER_ROOM:
-        if(cbPropData >= sizeof(LONG))
+        if(cbPropData >= sizeof(long))
         {
-            union { const void *v; const LONG *l; } data = { pPropData };
+            union { const void *v; const long *l; } data = { pPropData };
 
             buf->deferred.eax.lRoom = *data.l;
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_WET_PARAMS);
@@ -1555,9 +1555,9 @@ HRESULT EAX2Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
         }
         break;
     case DSPROPERTY_EAX20BUFFER_ROOMHF:
-        if(cbPropData >= sizeof(LONG))
+        if(cbPropData >= sizeof(long))
         {
-            union { const void *v; const LONG *l; } data = { pPropData };
+            union { const void *v; const long *l; } data = { pPropData };
 
             buf->deferred.eax.lRoomHF = *data.l;
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_WET_PARAMS);
@@ -1568,9 +1568,9 @@ HRESULT EAX2Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
         break;
 
     case DSPROPERTY_EAX20BUFFER_ROOMROLLOFFFACTOR:
-        if(cbPropData >= sizeof(FLOAT))
+        if(cbPropData >= sizeof(float))
         {
-            union { const void *v; const FLOAT *fl; } data = { pPropData };
+            union { const void *v; const float *fl; } data = { pPropData };
 
             buf->deferred.eax.flRoomRolloffFactor = *data.fl;
 
@@ -1580,9 +1580,9 @@ HRESULT EAX2Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
         break;
 
     case DSPROPERTY_EAX20BUFFER_OBSTRUCTION:
-        if(cbPropData >= sizeof(LONG))
+        if(cbPropData >= sizeof(long))
         {
-            union { const void *v; const LONG *l; } data = { pPropData };
+            union { const void *v; const long *l; } data = { pPropData };
 
             buf->deferred.eax.lObstruction = *data.l;
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_DRY_PARAMS);
@@ -1592,9 +1592,9 @@ HRESULT EAX2Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
         }
         break;
     case DSPROPERTY_EAX20BUFFER_OBSTRUCTIONLFRATIO:
-        if(cbPropData >= sizeof(FLOAT))
+        if(cbPropData >= sizeof(float))
         {
-            union { const void *v; const FLOAT *fl; } data = { pPropData };
+            union { const void *v; const float *fl; } data = { pPropData };
 
             buf->deferred.eax.flObstructionLFRatio = *data.fl;
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_DRY_PARAMS);
@@ -1605,9 +1605,9 @@ HRESULT EAX2Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
         break;
 
     case DSPROPERTY_EAX20BUFFER_OCCLUSION:
-        if(cbPropData >= sizeof(LONG))
+        if(cbPropData >= sizeof(long))
         {
-            union { const void *v; const LONG *l; } data = { pPropData };
+            union { const void *v; const long *l; } data = { pPropData };
 
             buf->deferred.eax.lOcclusion = *data.l;
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_DRY_PARAMS|APPLY_WET_PARAMS);
@@ -1618,9 +1618,9 @@ HRESULT EAX2Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
         }
         break;
     case DSPROPERTY_EAX20BUFFER_OCCLUSIONLFRATIO:
-        if(cbPropData >= sizeof(FLOAT))
+        if(cbPropData >= sizeof(float))
         {
-            union { const void *v; const FLOAT *fl; } data = { pPropData };
+            union { const void *v; const float *fl; } data = { pPropData };
 
             buf->deferred.eax.flOcclusionLFRatio = *data.fl;
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_DRY_PARAMS|APPLY_WET_PARAMS);
@@ -1631,9 +1631,9 @@ HRESULT EAX2Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
         }
         break;
     case DSPROPERTY_EAX20BUFFER_OCCLUSIONROOMRATIO:
-        if(cbPropData >= sizeof(FLOAT))
+        if(cbPropData >= sizeof(float))
         {
-            union { const void *v; const FLOAT *fl; } data = { pPropData };
+            union { const void *v; const float *fl; } data = { pPropData };
 
             buf->deferred.eax.flOcclusionRoomRatio = *data.fl;
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_DRY_PARAMS|APPLY_WET_PARAMS);
@@ -1645,9 +1645,9 @@ HRESULT EAX2Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
         break;
 
     case DSPROPERTY_EAX20BUFFER_OUTSIDEVOLUMEHF:
-        if(cbPropData >= sizeof(LONG))
+        if(cbPropData >= sizeof(long))
         {
-            union { const void *v; const LONG *l; } data = { pPropData };
+            union { const void *v; const long *l; } data = { pPropData };
 
             buf->deferred.eax.lOutsideVolumeHF = *data.l;
 
@@ -1657,9 +1657,9 @@ HRESULT EAX2Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
         break;
 
     case DSPROPERTY_EAX20BUFFER_AIRABSORPTIONFACTOR:
-        if(cbPropData >= sizeof(FLOAT))
+        if(cbPropData >= sizeof(float))
         {
-            union { const void *v; const FLOAT *fl; } data = { pPropData };
+            union { const void *v; const float *fl; } data = { pPropData };
 
             buf->deferred.eax.flAirAbsorptionFactor = *data.fl;
 
@@ -1718,46 +1718,46 @@ HRESULT EAX2Buffer_Get(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
         break;
 
     case DSPROPERTY_EAX20BUFFER_DIRECT:
-        GET_PROP(buf->deferred.eax.lDirect, LONG);
+        GET_PROP(buf->deferred.eax.lDirect, long);
         break;
     case DSPROPERTY_EAX20BUFFER_DIRECTHF:
-        GET_PROP(buf->deferred.eax.lDirectHF, LONG);
+        GET_PROP(buf->deferred.eax.lDirectHF, long);
         break;
 
     case DSPROPERTY_EAX20BUFFER_ROOM:
-        GET_PROP(buf->deferred.eax.lRoom, LONG);
+        GET_PROP(buf->deferred.eax.lRoom, long);
         break;
     case DSPROPERTY_EAX20BUFFER_ROOMHF:
-        GET_PROP(buf->deferred.eax.lRoomHF, LONG);
+        GET_PROP(buf->deferred.eax.lRoomHF, long);
         break;
 
     case DSPROPERTY_EAX20BUFFER_ROOMROLLOFFFACTOR:
-        GET_PROP(buf->deferred.eax.flRoomRolloffFactor, FLOAT);
+        GET_PROP(buf->deferred.eax.flRoomRolloffFactor, float);
         break;
 
     case DSPROPERTY_EAX20BUFFER_OBSTRUCTION:
-        GET_PROP(buf->deferred.eax.lObstruction, LONG);
+        GET_PROP(buf->deferred.eax.lObstruction, long);
         break;
     case DSPROPERTY_EAX20BUFFER_OBSTRUCTIONLFRATIO:
-        GET_PROP(buf->deferred.eax.flObstructionLFRatio, FLOAT);
+        GET_PROP(buf->deferred.eax.flObstructionLFRatio, float);
         break;
 
     case DSPROPERTY_EAX20BUFFER_OCCLUSION:
-        GET_PROP(buf->deferred.eax.lOcclusion, LONG);
+        GET_PROP(buf->deferred.eax.lOcclusion, long);
         break;
     case DSPROPERTY_EAX20BUFFER_OCCLUSIONLFRATIO:
-        GET_PROP(buf->deferred.eax.flOcclusionLFRatio, FLOAT);
+        GET_PROP(buf->deferred.eax.flOcclusionLFRatio, float);
         break;
     case DSPROPERTY_EAX20BUFFER_OCCLUSIONROOMRATIO:
-        GET_PROP(buf->deferred.eax.flOcclusionRoomRatio, FLOAT);
+        GET_PROP(buf->deferred.eax.flOcclusionRoomRatio, float);
         break;
 
     case DSPROPERTY_EAX20BUFFER_OUTSIDEVOLUMEHF:
-        GET_PROP(buf->deferred.eax.lOutsideVolumeHF, LONG);
+        GET_PROP(buf->deferred.eax.lOutsideVolumeHF, long);
         break;
 
     case DSPROPERTY_EAX20BUFFER_AIRABSORPTIONFACTOR:
-        GET_PROP(buf->deferred.eax.flAirAbsorptionFactor, FLOAT);
+        GET_PROP(buf->deferred.eax.flAirAbsorptionFactor, float);
         break;
 
     case DSPROPERTY_EAX20BUFFER_FLAGS:
@@ -1823,7 +1823,7 @@ HRESULT EAX1_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
                  * apply that as an offset to the EAX2 environment's volume.
                  */
                 EAX30LISTENERPROPERTIES env = EnvironmentDefaults[data.props->dwEnvironment];
-                LONG db_vol = clampI(
+                long db_vol = clampI(
                     gain_to_mB(data.props->fVolume / eax1_env_volume[data.props->dwEnvironment]),
                     -10000, 10000
                 );
@@ -1853,14 +1853,14 @@ HRESULT EAX1_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         break;
 
     case DSPROPERTY_EAX1_VOLUME:
-        if(cbPropData >= sizeof(FLOAT))
+        if(cbPropData >= sizeof(float))
         {
-            union { const void *v; const FLOAT *fl; } data = { pPropData };
-            LONG db_vol = clampI(
+            union { const void *v; const float *fl; } data = { pPropData };
+            long db_vol = clampI(
                 gain_to_mB(*data.fl / eax1_env_volume[prim->deferred.eax.dwEnvironment]),
                 -10000, 10000
             );
-            LONG room_vol = clampI(
+            long room_vol = clampI(
                 EnvironmentDefaults[prim->deferred.eax.dwEnvironment].lRoom + db_vol,
                 -10000, 0
             );
@@ -1875,9 +1875,9 @@ HRESULT EAX1_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         }
         break;
     case DSPROPERTY_EAX1_DECAYTIME:
-        if(cbPropData >= sizeof(FLOAT))
+        if(cbPropData >= sizeof(float))
         {
-            union { const void *v; const FLOAT *fl; } data = { pPropData };
+            union { const void *v; const float *fl; } data = { pPropData };
 
             prim->deferred.eax.flDecayTime = *data.fl;
             alEffectf(prim->effect, AL_EAXREVERB_DECAY_TIME,
@@ -1889,9 +1889,9 @@ HRESULT EAX1_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         }
         break;
     case DSPROPERTY_EAX1_DAMPING:
-        if(cbPropData >= sizeof(FLOAT))
+        if(cbPropData >= sizeof(float))
         {
-            union { const void *v; const FLOAT *fl; } data = { pPropData };
+            union { const void *v; const float *fl; } data = { pPropData };
 
             prim->deferred.eax1_dampening = *data.fl;
 
@@ -1949,37 +1949,37 @@ HRESULT EAX1_Get(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         break;
 
     case DSPROPERTY_EAX1_VOLUME:
-        if(cbPropData >= sizeof(FLOAT))
+        if(cbPropData >= sizeof(float))
         {
-            union { void *v; FLOAT *fl; } data = { pPropData };
+            union { void *v; float *fl; } data = { pPropData };
 
             *data.fl = prim->deferred.eax1_volume;
 
-            *pcbReturned = sizeof(FLOAT);
+            *pcbReturned = sizeof(float);
             hr = DS_OK;
         }
         break;
 
     case DSPROPERTY_EAX1_DECAYTIME:
-        if(cbPropData >= sizeof(FLOAT))
+        if(cbPropData >= sizeof(float))
         {
-            union { void *v; FLOAT *fl; } data = { pPropData };
+            union { void *v; float *fl; } data = { pPropData };
 
             *data.fl = prim->deferred.eax.flDecayTime;
 
-            *pcbReturned = sizeof(FLOAT);
+            *pcbReturned = sizeof(float);
             hr = DS_OK;
         }
         break;
 
     case DSPROPERTY_EAX1_DAMPING:
-        if(cbPropData >= sizeof(FLOAT))
+        if(cbPropData >= sizeof(float))
         {
-            union { void *v; FLOAT *fl; } data = { pPropData };
+            union { void *v; float *fl; } data = { pPropData };
 
             *data.fl = prim->deferred.eax1_dampening;
 
-            *pcbReturned = sizeof(FLOAT);
+            *pcbReturned = sizeof(float);
             hr = DS_OK;
         }
         break;
@@ -2008,9 +2008,9 @@ HRESULT EAX1Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
      */
     case DSPROPERTY_EAX1BUFFER_ALL:
     case DSPROPERTY_EAX1BUFFER_REVERBMIX:
-        if(cbPropData >= sizeof(FLOAT))
+        if(cbPropData >= sizeof(float))
         {
-            union { const void *v; const FLOAT *fl; } data = { pPropData };
+            union { const void *v; const float *fl; } data = { pPropData };
 
             buf->deferred.eax.lRoom = gain_to_mB(*data.fl);
             buf->deferred.eax1_reverbmix = *data.fl;
@@ -2042,12 +2042,12 @@ HRESULT EAX1Buffer_Get(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
     {
     case DSPROPERTY_EAX1BUFFER_ALL:
     case DSPROPERTY_EAX1BUFFER_REVERBMIX:
-        if(cbPropData >= sizeof(FLOAT))
+        if(cbPropData >= sizeof(float))
         {
-            union { void *v; FLOAT *fl; } data = { pPropData };
+            union { void *v; float *fl; } data = { pPropData };
 
             *data.fl = buf->deferred.eax1_reverbmix;
-            *pcbReturned = sizeof(FLOAT);
+            *pcbReturned = sizeof(float);
             hr = DS_OK;
         }
         break;

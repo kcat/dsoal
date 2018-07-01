@@ -18,7 +18,7 @@
  */
 
 typedef struct _EAXVECTOR {
-    FLOAT x, y, z;
+    float x, y, z;
 } EAXVECTOR;
 
 DEFINE_GUID(DSPROPSETID_EAX30_ListenerProperties, 0xa8fa6882, 0xb476, 0x11d3, 0xbd, 0xb9, 0x00, 0xc0, 0xf0, 0x2d, 0xdf, 0x87);
@@ -62,28 +62,28 @@ typedef enum {
 
 typedef struct _EAX30LISTENERPROPERTIES {
     DWORD dwEnvironment;
-    FLOAT flEnvironmentSize;
-    FLOAT flEnvironmentDiffusion;
-    LONG lRoom;
-    LONG lRoomHF;
-    LONG lRoomLF;
-    FLOAT flDecayTime;
-    FLOAT flDecayHFRatio;
-    FLOAT flDecayLFRatio;
-    LONG lReflections;
-    FLOAT flReflectionsDelay;
+    float flEnvironmentSize;
+    float flEnvironmentDiffusion;
+    long lRoom;
+    long lRoomHF;
+    long lRoomLF;
+    float flDecayTime;
+    float flDecayHFRatio;
+    float flDecayLFRatio;
+    long lReflections;
+    float flReflectionsDelay;
     EAXVECTOR vReflectionsPan;
-    LONG lReverb;
-    FLOAT flReverbDelay;
+    long lReverb;
+    float flReverbDelay;
     EAXVECTOR vReverbPan;
-    FLOAT flEchoTime;
-    FLOAT flEchoDepth;
-    FLOAT flModulationTime;
-    FLOAT flModulationDepth;
-    FLOAT flAirAbsorptionHF;
-    FLOAT flHFReference;
-    FLOAT flLFReference;
-    FLOAT flRoomRolloffFactor;
+    float flEchoTime;
+    float flEchoDepth;
+    float flModulationTime;
+    float flModulationDepth;
+    float flAirAbsorptionHF;
+    float flHFReference;
+    float flLFReference;
+    float flRoomRolloffFactor;
     DWORD dwFlags;
 } EAX30LISTENERPROPERTIES, *LPEAX30LISTENERPROPERTIES;
 
@@ -225,23 +225,23 @@ typedef enum {
 #define DSPROPERTY_EAX30BUFFER_COMMITDEFERREDSETTINGS 0x00000000
 
 typedef struct _EAX30BUFFERPROPERTIES {
-    LONG lDirect;
-    LONG lDirectHF;
-    LONG lDirectLF;
-    LONG lRoom;
-    LONG lRoomHF;
-    LONG lRoomLF;
-    FLOAT flRoomRolloffFactor;
-    LONG lObstruction;
-    FLOAT flObstructionLFRatio;
-    LONG lOcclusion;
-    FLOAT flOcclusionLFRatio;
-    FLOAT flOcclusionRoomRatio;
-    FLOAT flOcclusionDirectRatio;
-    LONG lExclusion;
-    FLOAT flExclusionLFRatio;
-    LONG lOutsideVolumeHF;
-    FLOAT flAirAbsorptionFactor;
+    long lDirect;
+    long lDirectHF;
+    long lDirectLF;
+    long lRoom;
+    long lRoomHF;
+    long lRoomLF;
+    float flRoomRolloffFactor;
+    long lObstruction;
+    float flObstructionLFRatio;
+    long lOcclusion;
+    float flOcclusionLFRatio;
+    float flOcclusionRoomRatio;
+    float flOcclusionDirectRatio;
+    long lExclusion;
+    float flExclusionLFRatio;
+    long lOutsideVolumeHF;
+    float flAirAbsorptionFactor;
     DWORD dwFlags;
 } EAX30BUFFERPROPERTIES, *LPEAX30BUFFERPROPERTIES;
 
@@ -276,19 +276,19 @@ typedef enum {
 #define DSPROPERTY_EAX20LISTENER_COMMITDEFERREDSETTINGS 0x00000000
 
 typedef struct _EAX20LISTENERPROPERTIES {
-    LONG lRoom;
-    LONG lRoomHF;
-    FLOAT flRoomRolloffFactor;
-    FLOAT flDecayTime;
-    FLOAT flDecayHFRatio;
-    LONG lReflections;
-    FLOAT flReflectionsDelay;
-    LONG lReverb;
-    FLOAT flReverbDelay;
+    long lRoom;
+    long lRoomHF;
+    float flRoomRolloffFactor;
+    float flDecayTime;
+    float flDecayHFRatio;
+    long lReflections;
+    float flReflectionsDelay;
+    long lReverb;
+    float flReverbDelay;
     DWORD dwEnvironment;
-    FLOAT flEnvironmentSize;
-    FLOAT flEnvironmentDiffusion;
-    FLOAT flAirAbsorptionHF;
+    float flEnvironmentSize;
+    float flEnvironmentDiffusion;
+    float flAirAbsorptionHF;
     DWORD dwFlags;
 } EAX20LISTENERPROPERTIES, *LPEAX20LISTENERPROPERTIES;
 
@@ -324,18 +324,18 @@ typedef enum {
 #define DSPROPERTY_EAX20BUFFER_COMMITDEFERREDSETTINGS 0x00000000
 
 typedef struct _EAX20BUFFERPROPERTIES {
-    LONG lDirect;
-    LONG lDirectHF;
-    LONG lRoom;
-    LONG lRoomHF;
-    FLOAT flRoomRolloffFactor;
-    LONG lObstruction;
-    FLOAT flObstructionLFRatio;
-    LONG lOcclusion;
-    FLOAT flOcclusionLFRatio;
-    FLOAT flOcclusionRoomRatio;
-    LONG lOutsideVolumeHF;
-    FLOAT flAirAbsorptionFactor;
+    long lDirect;
+    long lDirectHF;
+    long lRoom;
+    long lRoomHF;
+    float flRoomRolloffFactor;
+    long lObstruction;
+    float flObstructionLFRatio;
+    long lOcclusion;
+    float flOcclusionLFRatio;
+    float flOcclusionRoomRatio;
+    long lOutsideVolumeHF;
+    float flAirAbsorptionFactor;
     DWORD dwFlags;
 } EAX20BUFFERPROPERTIES, *LPEAX20BUFFERPROPERTIES;
 
