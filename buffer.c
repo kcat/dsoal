@@ -2480,9 +2480,9 @@ static HRESULT WINAPI DS8BufferProp_Get(IKsPropertySet *iface,
         hr = EAX3_Get(This->primary, dwPropID, pPropData, cbPropData, pcbReturned);
     else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX20_ListenerProperties))
         hr = EAX2_Get(This->primary, dwPropID, pPropData, cbPropData, pcbReturned);
-    else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAXBUFFER_ReverbProperties))
+    else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX10_BufferProperties))
         hr = EAX1Buffer_Get(This, dwPropID, pPropData, cbPropData, pcbReturned);
-    else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX_ReverbProperties))
+    else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX10_ListenerProperties))
         hr = EAX1_Get(This->primary, dwPropID, pPropData, cbPropData, pcbReturned);
     else
         FIXME("Unhandled propset: %s\n", debugstr_guid(guidPropSet));
@@ -2561,7 +2561,7 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
             DS8Primary3D_CommitDeferredSettings(&prim->IDirectSound3DListener_iface);
         popALContext();
     }
-    else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAXBUFFER_ReverbProperties))
+    else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX10_BufferProperties))
     {
         DWORD propid = dwPropID & ~DSPROPERTY_EAX20BUFFER_DEFERRED;
         BOOL immediate = !(dwPropID&DSPROPERTY_EAX20BUFFER_DEFERRED);
@@ -2575,7 +2575,7 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
         }
         popALContext();
     }
-    else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX_ReverbProperties))
+    else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX10_ListenerProperties))
     {
         DS8Primary *prim = This->primary;
         DWORD propid = dwPropID & ~DSPROPERTY_EAX20LISTENER_DEFERRED;
@@ -2764,7 +2764,7 @@ static HRESULT WINAPI DS8BufferProp_QuerySupport(IKsPropertySet *iface,
 
         LeaveCriticalSection(&This->share->crst);
     }
-    else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX_ReverbProperties))
+    else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX10_ListenerProperties))
     {
         DS8Primary *prim = This->primary;
 
@@ -2774,11 +2774,11 @@ static HRESULT WINAPI DS8BufferProp_QuerySupport(IKsPropertySet *iface,
             hr = E_PROP_ID_UNSUPPORTED;
         else switch(dwPropID)
         {
-        case DSPROPERTY_EAX1_ALL:
-        case DSPROPERTY_EAX1_ENVIRONMENT:
-        case DSPROPERTY_EAX1_VOLUME:
-        case DSPROPERTY_EAX1_DECAYTIME:
-        case DSPROPERTY_EAX1_DAMPING:
+        case DSPROPERTY_EAX10LISTENER_ALL:
+        case DSPROPERTY_EAX10LISTENER_ENVIRONMENT:
+        case DSPROPERTY_EAX10LISTENER_VOLUME:
+        case DSPROPERTY_EAX10LISTENER_DECAYTIME:
+        case DSPROPERTY_EAX10LISTENER_DAMPING:
             *pTypeSupport = KSPROPERTY_SUPPORT_GET | KSPROPERTY_SUPPORT_SET;
             hr = DS_OK;
             break;
@@ -2790,7 +2790,7 @@ static HRESULT WINAPI DS8BufferProp_QuerySupport(IKsPropertySet *iface,
 
         LeaveCriticalSection(&This->share->crst);
     }
-    else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAXBUFFER_ReverbProperties))
+    else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX10_BufferProperties))
     {
         EnterCriticalSection(&This->share->crst);
 
@@ -2798,8 +2798,8 @@ static HRESULT WINAPI DS8BufferProp_QuerySupport(IKsPropertySet *iface,
             hr = E_PROP_ID_UNSUPPORTED;
         else switch(dwPropID)
         {
-        case DSPROPERTY_EAX1BUFFER_ALL:
-        case DSPROPERTY_EAX1BUFFER_REVERBMIX:
+        case DSPROPERTY_EAX10BUFFER_ALL:
+        case DSPROPERTY_EAX10BUFFER_REVERBMIX:
             *pTypeSupport = KSPROPERTY_SUPPORT_GET | KSPROPERTY_SUPPORT_SET;
             hr = DS_OK;
             break;

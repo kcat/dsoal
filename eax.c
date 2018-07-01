@@ -1885,12 +1885,12 @@ HRESULT EAX1_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
     hr = DSERR_INVALIDPARAM;
     switch(propid)
     {
-    case DSPROPERTY_EAX1_ALL:
-        if(cbPropData >= sizeof(EAX1_REVERBPROPERTIES))
+    case DSPROPERTY_EAX10LISTENER_ALL:
+        if(cbPropData >= sizeof(EAX10LISTENERPROPERTIES))
         {
             union {
                 const void *v;
-                const EAX1_REVERBPROPERTIES *props;
+                const EAX10LISTENERPROPERTIES *props;
             } data = { pPropData };
             TRACE("Parameters:\n\tEnvironment: %lu\n\tVolume: %f\n\tDecay Time: %f\n\t"
                 "Damping: %f\n", data.props->dwEnvironment, data.props->fVolume,
@@ -1927,7 +1927,7 @@ HRESULT EAX1_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         }
         break;
 
-    case DSPROPERTY_EAX1_ENVIRONMENT:
+    case DSPROPERTY_EAX10LISTENER_ENVIRONMENT:
         if(cbPropData >= sizeof(DWORD))
         {
             union { const void *v; const DWORD *dw; } data = { pPropData };
@@ -1943,7 +1943,7 @@ HRESULT EAX1_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         }
         break;
 
-    case DSPROPERTY_EAX1_VOLUME:
+    case DSPROPERTY_EAX10LISTENER_VOLUME:
         if(cbPropData >= sizeof(float))
         {
             union { const void *v; const float *fl; } data = { pPropData };
@@ -1966,7 +1966,7 @@ HRESULT EAX1_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
             hr = DS_OK;
         }
         break;
-    case DSPROPERTY_EAX1_DECAYTIME:
+    case DSPROPERTY_EAX10LISTENER_DECAYTIME:
         if(cbPropData >= sizeof(float))
         {
             union { const void *v; const float *fl; } data = { pPropData };
@@ -1981,7 +1981,7 @@ HRESULT EAX1_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
             hr = DS_OK;
         }
         break;
-    case DSPROPERTY_EAX1_DAMPING:
+    case DSPROPERTY_EAX10LISTENER_DAMPING:
         if(cbPropData >= sizeof(float))
         {
             union { const void *v; const float *fl; } data = { pPropData };
@@ -2012,12 +2012,12 @@ HRESULT EAX1_Get(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
     hr = DSERR_INVALIDPARAM;
     switch(propid)
     {
-    case DSPROPERTY_EAX1_ALL:
-        if(cbPropData >= sizeof(EAX1_REVERBPROPERTIES))
+    case DSPROPERTY_EAX10LISTENER_ALL:
+        if(cbPropData >= sizeof(EAX10LISTENERPROPERTIES))
         {
             union {
                 void *v;
-                EAX1_REVERBPROPERTIES *props;
+                EAX10LISTENERPROPERTIES *props;
             } data = { pPropData };
 
             data.props->dwEnvironment = prim->deferred.eax.dwEnvironment;
@@ -2025,12 +2025,12 @@ HRESULT EAX1_Get(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
             data.props->fDecayTime = prim->deferred.eax.flDecayTime;
             data.props->fDamping = prim->deferred.eax1_dampening;
 
-            *pcbReturned = sizeof(EAX1_REVERBPROPERTIES);
+            *pcbReturned = sizeof(EAX10LISTENERPROPERTIES);
             hr = DS_OK;
         }
         break;
 
-    case DSPROPERTY_EAX1_ENVIRONMENT:
+    case DSPROPERTY_EAX10LISTENER_ENVIRONMENT:
         if(cbPropData >= sizeof(DWORD))
         {
             union { void *v; DWORD *dw; } data = { pPropData };
@@ -2042,7 +2042,7 @@ HRESULT EAX1_Get(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         }
         break;
 
-    case DSPROPERTY_EAX1_VOLUME:
+    case DSPROPERTY_EAX10LISTENER_VOLUME:
         if(cbPropData >= sizeof(float))
         {
             union { void *v; float *fl; } data = { pPropData };
@@ -2054,7 +2054,7 @@ HRESULT EAX1_Get(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         }
         break;
 
-    case DSPROPERTY_EAX1_DECAYTIME:
+    case DSPROPERTY_EAX10LISTENER_DECAYTIME:
         if(cbPropData >= sizeof(float))
         {
             union { void *v; float *fl; } data = { pPropData };
@@ -2066,7 +2066,7 @@ HRESULT EAX1_Get(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         }
         break;
 
-    case DSPROPERTY_EAX1_DAMPING:
+    case DSPROPERTY_EAX10LISTENER_DAMPING:
         if(cbPropData >= sizeof(float))
         {
             union { void *v; float *fl; } data = { pPropData };
@@ -2097,11 +2097,11 @@ HRESULT EAX1Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
     hr = DSERR_INVALIDPARAM;
     switch(propid)
     {
-    /* NOTE: DSPROPERTY_EAX1BUFFER_ALL is for EAX1BUFFER_REVERBPROPERTIES,
-     * however that struct just contains the single ReverbMix float property.
+    /* NOTE: DSPROPERTY_EAX10BUFFER_ALL is for EAX10BUFFERPROPERTIES, however
+     * that struct just contains the single ReverbMix float property.
      */
-    case DSPROPERTY_EAX1BUFFER_ALL:
-    case DSPROPERTY_EAX1BUFFER_REVERBMIX:
+    case DSPROPERTY_EAX10BUFFER_ALL:
+    case DSPROPERTY_EAX10BUFFER_REVERBMIX:
         if(cbPropData >= sizeof(float))
         {
             union { const void *v; const float *fl; } data = { pPropData };
@@ -2135,8 +2135,8 @@ HRESULT EAX1Buffer_Get(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
     hr = DSERR_INVALIDPARAM;
     switch(propid)
     {
-    case DSPROPERTY_EAX1BUFFER_ALL:
-    case DSPROPERTY_EAX1BUFFER_REVERBMIX:
+    case DSPROPERTY_EAX10BUFFER_ALL:
+    case DSPROPERTY_EAX10BUFFER_REVERBMIX:
         if(cbPropData >= sizeof(float))
         {
             union { void *v; float *fl; } data = { pPropData };
