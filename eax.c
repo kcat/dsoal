@@ -138,6 +138,25 @@ HRESULT EAX3_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
                 const void *v;
                 const EAX30LISTENERPROPERTIES *props;
             } data = { pPropData };
+            TRACE("Parameters:\n\tEnvironment: %lu\n\tEnvSize: %f\n\tEnvDiffusion: %f\n\t"
+                "Room: %ld\n\tRoom HF: %ld\n\tRoom LF: %ld\n\tDecay Time: %f\n\t"
+                "Decay HF Ratio: %f\n\tDecay LF Ratio: %f\n\tReflections: %ld\n\t"
+                "Reflections Delay: %f\n\tReflections Pan: { %f, %f, %f }\n\tReverb: %ld\n\t"
+                "Reverb Delay: %f\n\tReverb Pan: { %f, %f, %f }\n\tEcho Time: %f\n\t"
+                "Echo Depth: %f\n\tMod Time: %f\n\tMod Depth: %f\n\tAir Absorption: %f\n\t"
+                "HF Reference: %f\n\tLF Reference: %f\n\tRoom Rolloff: %f\n\tFlags: 0x%02lx\n",
+                data.props->dwEnvironment, data.props->flEnvironmentSize,
+                data.props->flEnvironmentDiffusion, data.props->lRoom, data.props->lRoomHF,
+                data.props->lRoomLF, data.props->flDecayTime, data.props->flDecayHFRatio,
+                data.props->flDecayLFRatio, data.props->lReflections,
+                data.props->flReflectionsDelay, data.props->vReflectionsPan.x,
+                data.props->vReflectionsPan.y, data.props->vReflectionsPan.z, data.props->lReverb,
+                data.props->flReverbDelay, data.props->vReverbPan.x, data.props->vReverbPan.y,
+                data.props->vReverbPan.z, data.props->flEchoTime, data.props->flEchoDepth,
+                data.props->flModulationTime, data.props->flModulationDepth,
+                data.props->flAirAbsorptionHF, data.props->flHFReference,
+                data.props->flLFReference, data.props->flRoomRolloffFactor, data.props->dwFlags
+            );
 
             /* FIXME: There's some unknown behavior here. When RightMark3DSound
              * deals with environment panning and morphing, the current preset
@@ -686,6 +705,21 @@ HRESULT EAX3Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
                 const void *v;
                 const EAX30BUFFERPROPERTIES *props;
             } data = { pPropData };
+            TRACE("Parameters:\n\tDirect: %ld\n\tDirect HF: %ld\n\tDirect LF: %ld\n\tRoom: %ld\n\t"
+                "Room HF: %ld\n\tRoom LF: %ld\n\tRoom Rolloff Factor: %f\n\tObstruction: %ld\n\t"
+                "Obstruction LF Ratio: %f\n\tOcclusion: %ld\n\tOcclusion LF Ratio: %f\n\t"
+                "Occlusion Room Ratio: %f\n\tOcclusion Direct Ratio: %f\n\tExclusion: %ld\n\t"
+                "Exclusion LF Ratio: %f\n\tOutside Volume HF: %ld\n\tAir Absorb Factor: %f\n\t"
+                "Flags: 0x%02lx\n",
+                data.props->lDirect, data.props->lDirectHF, data.props->lDirectLF,
+                data.props->lRoom, data.props->lRoomHF, data.props->lRoomLF,
+                data.props->flRoomRolloffFactor, data.props->lObstruction,
+                data.props->flObstructionLFRatio, data.props->lOcclusion,
+                data.props->flOcclusionLFRatio, data.props->flOcclusionRoomRatio,
+                data.props->flOcclusionDirectRatio, data.props->lExclusion,
+                data.props->flExclusionLFRatio, data.props->lOutsideVolumeHF,
+                data.props->flAirAbsorptionFactor, data.props->dwFlags
+            );
 
             buf->deferred.eax = *data.props;
             ApplyFilterParams(buf, data.props, APPLY_DRY_PARAMS|APPLY_WET_PARAMS);
@@ -704,6 +738,7 @@ HRESULT EAX3Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
         if(cbPropData >= sizeof(long))
         {
             union { const void *v; const long *l; } data = { pPropData };
+            TRACE("Direct: %ld\n", *data.l);
 
             buf->deferred.eax.lDirect = *data.l;
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_DRY_PARAMS);
@@ -716,6 +751,7 @@ HRESULT EAX3Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
         if(cbPropData >= sizeof(long))
         {
             union { const void *v; const long *l; } data = { pPropData };
+            TRACE("Direct HF: %ld\n", *data.l);
 
             buf->deferred.eax.lDirectHF = *data.l;
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_DRY_PARAMS);
@@ -728,6 +764,7 @@ HRESULT EAX3Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
         if(cbPropData >= sizeof(long))
         {
             union { const void *v; const long *l; } data = { pPropData };
+            TRACE("Direct LF: %ld\n", *data.l);
 
             buf->deferred.eax.lDirectLF = *data.l;
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_DRY_PARAMS);
@@ -741,6 +778,7 @@ HRESULT EAX3Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
         if(cbPropData >= sizeof(long))
         {
             union { const void *v; const long *l; } data = { pPropData };
+            TRACE("Room: %ld\n", *data.l);
 
             buf->deferred.eax.lRoom = *data.l;
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_WET_PARAMS);
@@ -753,6 +791,7 @@ HRESULT EAX3Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
         if(cbPropData >= sizeof(long))
         {
             union { const void *v; const long *l; } data = { pPropData };
+            TRACE("Room HF: %ld\n", *data.l);
 
             buf->deferred.eax.lRoomHF = *data.l;
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_WET_PARAMS);
@@ -765,6 +804,7 @@ HRESULT EAX3Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
         if(cbPropData >= sizeof(long))
         {
             union { const void *v; const long *l; } data = { pPropData };
+            TRACE("Room LF: %ld\n", *data.l);
 
             buf->deferred.eax.lRoomLF = *data.l;
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_WET_PARAMS);
@@ -778,6 +818,7 @@ HRESULT EAX3Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
         if(cbPropData >= sizeof(float))
         {
             union { const void *v; const float *fl; } data = { pPropData };
+            TRACE("Room Rolloff Factor: %f\n", *data.fl);
 
             buf->deferred.eax.flRoomRolloffFactor = *data.fl;
 
@@ -790,6 +831,7 @@ HRESULT EAX3Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
         if(cbPropData >= sizeof(long))
         {
             union { const void *v; const long *l; } data = { pPropData };
+            TRACE("Obstruction: %ld\n", *data.l);
 
             buf->deferred.eax.lObstruction = *data.l;
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_DRY_PARAMS);
@@ -802,6 +844,7 @@ HRESULT EAX3Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
         if(cbPropData >= sizeof(float))
         {
             union { const void *v; const float *fl; } data = { pPropData };
+            TRACE("Obstruction LF Ratio: %f\n", *data.fl);
 
             buf->deferred.eax.flObstructionLFRatio = *data.fl;
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_DRY_PARAMS);
@@ -815,6 +858,7 @@ HRESULT EAX3Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
         if(cbPropData >= sizeof(long))
         {
             union { const void *v; const long *l; } data = { pPropData };
+            TRACE("Occlusion: %ld\n", *data.l);
 
             buf->deferred.eax.lOcclusion = *data.l;
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_DRY_PARAMS|APPLY_WET_PARAMS);
@@ -828,6 +872,7 @@ HRESULT EAX3Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
         if(cbPropData >= sizeof(float))
         {
             union { const void *v; const float *fl; } data = { pPropData };
+            TRACE("Occlusion LF Ratio: %f\n", *data.fl);
 
             buf->deferred.eax.flOcclusionLFRatio = *data.fl;
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_DRY_PARAMS|APPLY_WET_PARAMS);
@@ -841,6 +886,7 @@ HRESULT EAX3Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
         if(cbPropData >= sizeof(float))
         {
             union { const void *v; const float *fl; } data = { pPropData };
+            TRACE("Occlusion Room Ratio: %f\n", *data.fl);
 
             buf->deferred.eax.flOcclusionRoomRatio = *data.fl;
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_WET_PARAMS);
@@ -853,6 +899,7 @@ HRESULT EAX3Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
         if(cbPropData >= sizeof(float))
         {
             union { const void *v; const float *fl; } data = { pPropData };
+            TRACE("Occlusion Direct Ratio: %f\n", *data.fl);
 
             buf->deferred.eax.flOcclusionDirectRatio = *data.fl;
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_DRY_PARAMS);
@@ -866,6 +913,7 @@ HRESULT EAX3Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
         if(cbPropData >= sizeof(long))
         {
             union { const void *v; const long *l; } data = { pPropData };
+            TRACE("Exclusion: %ld\n", *data.l);
 
             buf->deferred.eax.lExclusion = *data.l;
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_WET_PARAMS);
@@ -878,6 +926,7 @@ HRESULT EAX3Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
         if(cbPropData >= sizeof(float))
         {
             union { const void *v; const float *fl; } data = { pPropData };
+            TRACE("Exclusion LF Ratio: %f\n", *data.fl);
 
             buf->deferred.eax.flExclusionLFRatio = *data.fl;
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_WET_PARAMS);
@@ -891,6 +940,7 @@ HRESULT EAX3Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
         if(cbPropData >= sizeof(long))
         {
             union { const void *v; const long *l; } data = { pPropData };
+            TRACE("Outisde Volume HF: %ld\n", *data.l);
 
             buf->deferred.eax.lOutsideVolumeHF = *data.l;
 
@@ -903,6 +953,7 @@ HRESULT EAX3Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
         if(cbPropData >= sizeof(float))
         {
             union { const void *v; const float *fl; } data = { pPropData };
+            TRACE("Air Absorb Factor: %f\n", *data.fl);
 
             buf->deferred.eax.flAirAbsorptionFactor = *data.fl;
 
@@ -915,6 +966,7 @@ HRESULT EAX3Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
         if(cbPropData >= sizeof(DWORD))
         {
             union { const void *v; const DWORD *dw; } data = { pPropData };
+            TRACE("Flags: 0x%lx\n", *data.dw);
 
             buf->deferred.eax.dwFlags = *data.dw;
 
@@ -1107,6 +1159,17 @@ HRESULT EAX2_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
                 const EAX20LISTENERPROPERTIES *props;
             } data = { pPropData };
             EAX30LISTENERPROPERTIES props3 = REVERB_PRESET_GENERIC;
+            TRACE("Parameters:\n\tEnvironment: %lu\n\tEnvSize: %f\n\tEnvDiffusion: %f\n\t"
+                "Room: %ld\n\tRoom HF: %ld\n\tDecay Time: %f\n\tDecay HF Ratio: %f\n\t"
+                "Reflections: %ld\n\tReflections Delay: %f\n\tReverb: %ld\n\tReverb Delay: %f\n\t"
+                "Air Absorption: %f\n\tRoom Rolloff: %f\n\tFlags: 0x%02lx\n",
+                data.props->dwEnvironment, data.props->flEnvironmentSize,
+                data.props->flEnvironmentDiffusion, data.props->lRoom, data.props->lRoomHF,
+                data.props->flDecayTime, data.props->flDecayHFRatio, data.props->lReflections,
+                data.props->flReflectionsDelay, data.props->lReverb, data.props->flReverbDelay,
+                data.props->flAirAbsorptionHF, data.props->flRoomRolloffFactor, data.props->dwFlags
+            );
+
             if(data.props->dwEnvironment < EAX_ENVIRONMENT_COUNT)
             {
                 props3 = EnvironmentDefaults[data.props->dwEnvironment];
@@ -1491,6 +1554,17 @@ HRESULT EAX2Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
                 const void *v;
                 const EAX20BUFFERPROPERTIES *props;
             } data = { pPropData };
+            TRACE("Parameters:\n\tDirect: %ld\n\tDirect HF: %ld\n\tRoom: %ld\n\tRoom HF: %ld\n\t"
+                "Room Rolloff Factor: %f\n\tObstruction: %ld\n\tObstruction LF Ratio: %f\n\t"
+                "Occlusion: %ld\n\tOcclusion LF Ratio: %f\n\tOcclusion Room Ratio: %f\n\t"
+                "Outside Volume HF: %ld\n\tAir Absorb Factor: %f\n\tFlags: 0x%02lx\n",
+                data.props->lDirect, data.props->lDirectHF, data.props->lRoom, data.props->lRoomHF,
+                data.props->flRoomRolloffFactor, data.props->lObstruction,
+                data.props->flObstructionLFRatio, data.props->lOcclusion,
+                data.props->flOcclusionLFRatio, data.props->flOcclusionRoomRatio,
+                data.props->lOutsideVolumeHF, data.props->flAirAbsorptionFactor,
+                data.props->dwFlags
+            );
 
             buf->deferred.eax.lDirect = data.props->lDirect;
             buf->deferred.eax.lDirectHF = data.props->lDirectHF;
@@ -1521,6 +1595,7 @@ HRESULT EAX2Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
         if(cbPropData >= sizeof(long))
         {
             union { const void *v; const long *l; } data = { pPropData };
+            TRACE("Direct: %ld\n", *data.l);
 
             buf->deferred.eax.lDirect = *data.l;
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_DRY_PARAMS);
@@ -1533,6 +1608,7 @@ HRESULT EAX2Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
         if(cbPropData >= sizeof(long))
         {
             union { const void *v; const long *l; } data = { pPropData };
+            TRACE("Direct HF: %ld\n", *data.l);
 
             buf->deferred.eax.lDirectHF = *data.l;
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_DRY_PARAMS);
@@ -1546,6 +1622,7 @@ HRESULT EAX2Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
         if(cbPropData >= sizeof(long))
         {
             union { const void *v; const long *l; } data = { pPropData };
+            TRACE("Room: %ld\n", *data.l);
 
             buf->deferred.eax.lRoom = *data.l;
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_WET_PARAMS);
@@ -1558,6 +1635,7 @@ HRESULT EAX2Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
         if(cbPropData >= sizeof(long))
         {
             union { const void *v; const long *l; } data = { pPropData };
+            TRACE("Room HF: %ld\n", *data.l);
 
             buf->deferred.eax.lRoomHF = *data.l;
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_WET_PARAMS);
@@ -1571,6 +1649,7 @@ HRESULT EAX2Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
         if(cbPropData >= sizeof(float))
         {
             union { const void *v; const float *fl; } data = { pPropData };
+            TRACE("Room Rolloff Factor: %f\n", *data.fl);
 
             buf->deferred.eax.flRoomRolloffFactor = *data.fl;
 
@@ -1583,6 +1662,7 @@ HRESULT EAX2Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
         if(cbPropData >= sizeof(long))
         {
             union { const void *v; const long *l; } data = { pPropData };
+            TRACE("Obstruction: %ld\n", *data.l);
 
             buf->deferred.eax.lObstruction = *data.l;
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_DRY_PARAMS);
@@ -1595,6 +1675,7 @@ HRESULT EAX2Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
         if(cbPropData >= sizeof(float))
         {
             union { const void *v; const float *fl; } data = { pPropData };
+            TRACE("Obstruction LF Ratio: %f\n", *data.fl);
 
             buf->deferred.eax.flObstructionLFRatio = *data.fl;
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_DRY_PARAMS);
@@ -1608,6 +1689,7 @@ HRESULT EAX2Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
         if(cbPropData >= sizeof(long))
         {
             union { const void *v; const long *l; } data = { pPropData };
+            TRACE("Occlusion: %ld\n", *data.l);
 
             buf->deferred.eax.lOcclusion = *data.l;
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_DRY_PARAMS|APPLY_WET_PARAMS);
@@ -1621,6 +1703,7 @@ HRESULT EAX2Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
         if(cbPropData >= sizeof(float))
         {
             union { const void *v; const float *fl; } data = { pPropData };
+            TRACE("Occlusion LF Ratio: %f\n", *data.fl);
 
             buf->deferred.eax.flOcclusionLFRatio = *data.fl;
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_DRY_PARAMS|APPLY_WET_PARAMS);
@@ -1634,11 +1717,11 @@ HRESULT EAX2Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
         if(cbPropData >= sizeof(float))
         {
             union { const void *v; const float *fl; } data = { pPropData };
+            TRACE("Occlusion Room Ratio: %f\n", *data.fl);
 
             buf->deferred.eax.flOcclusionRoomRatio = *data.fl;
-            ApplyFilterParams(buf, &buf->deferred.eax, APPLY_DRY_PARAMS|APPLY_WET_PARAMS);
+            ApplyFilterParams(buf, &buf->deferred.eax, APPLY_WET_PARAMS);
 
-            buf->dirty.bit.dry_filter = 1;
             buf->dirty.bit.wet_filter = 1;
             hr = DS_OK;
         }
@@ -1648,6 +1731,7 @@ HRESULT EAX2Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
         if(cbPropData >= sizeof(long))
         {
             union { const void *v; const long *l; } data = { pPropData };
+            TRACE("Outisde Volume HF: %ld\n", *data.l);
 
             buf->deferred.eax.lOutsideVolumeHF = *data.l;
 
@@ -1660,6 +1744,7 @@ HRESULT EAX2Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
         if(cbPropData >= sizeof(float))
         {
             union { const void *v; const float *fl; } data = { pPropData };
+            TRACE("Air Absorb Factor: %f\n", *data.fl);
 
             buf->deferred.eax.flAirAbsorptionFactor = *data.fl;
 
@@ -1672,6 +1757,7 @@ HRESULT EAX2Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
         if(cbPropData >= sizeof(DWORD))
         {
             union { const void *v; const DWORD *dw; } data = { pPropData };
+            TRACE("Flags: 0x%lx\n", *data.dw);
 
             buf->deferred.eax.dwFlags = *data.dw;
 
