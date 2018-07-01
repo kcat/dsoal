@@ -1892,6 +1892,10 @@ HRESULT EAX1_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
                 const void *v;
                 const EAX1_REVERBPROPERTIES *props;
             } data = { pPropData };
+            TRACE("Parameters:\n\tEnvironment: %lu\n\tVolume: %f\n\tDecay Time: %f\n\t"
+                "Damping: %f\n", data.props->dwEnvironment, data.props->fVolume,
+                data.props->fDecayTime, data.props->fDamping
+            );
 
             if(data.props->dwEnvironment < EAX_ENVIRONMENT_COUNT)
             {
@@ -1927,6 +1931,7 @@ HRESULT EAX1_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         if(cbPropData >= sizeof(DWORD))
         {
             union { const void *v; const DWORD *dw; } data = { pPropData };
+            TRACE("Environment: %lu\n", *data.dw);
 
             if(*data.dw < EAX_ENVIRONMENT_COUNT)
             {
@@ -1950,6 +1955,7 @@ HRESULT EAX1_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
                 EnvironmentDefaults[prim->deferred.eax.dwEnvironment].lRoom + db_vol,
                 -10000, 0
             );
+            TRACE("Volume: %f\n", *data.fl);
 
             prim->deferred.eax.lRoom = room_vol;
             prim->deferred.eax1_volume = *data.fl;
@@ -1964,6 +1970,7 @@ HRESULT EAX1_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         if(cbPropData >= sizeof(float))
         {
             union { const void *v; const float *fl; } data = { pPropData };
+            TRACE("Decay Time: %f\n", *data.fl);
 
             prim->deferred.eax.flDecayTime = *data.fl;
             alEffectf(prim->effect, AL_EAXREVERB_DECAY_TIME,
@@ -1978,6 +1985,7 @@ HRESULT EAX1_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         if(cbPropData >= sizeof(float))
         {
             union { const void *v; const float *fl; } data = { pPropData };
+            TRACE("Damping: %f\n", *data.fl);
 
             prim->deferred.eax1_dampening = *data.fl;
 
@@ -2097,6 +2105,7 @@ HRESULT EAX1Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
         if(cbPropData >= sizeof(float))
         {
             union { const void *v; const float *fl; } data = { pPropData };
+            TRACE("Reverb Mix: %f\n", *data.fl);
 
             buf->deferred.eax.lRoom = gain_to_mB(*data.fl);
             buf->deferred.eax1_reverbmix = *data.fl;
