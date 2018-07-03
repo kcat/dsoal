@@ -113,6 +113,50 @@ static void ApplyFilterParams(DS8Buffer *buf, const EAX30BUFFERPROPERTIES *props
 }
 
 
+static void RescaleEnvSize(EAX30LISTENERPROPERTIES *props, float newsize)
+{
+    float scale = newsize / props->flEnvironmentSize;
+
+    props->flEnvironmentSize = newsize;
+
+    if((props->dwFlags&EAX30LISTENERFLAGS_DECAYTIMESCALE))
+    {
+        props->flDecayTime *= scale;
+        props->flDecayTime = clampF(props->flDecayTime, 0.1f, 20.0f);
+    }
+    if((props->dwFlags&EAX30LISTENERFLAGS_REFLECTIONSSCALE))
+    {
+        props->lReflections -= gain_to_mB(scale);
+        props->lReflections = clampI(props->lReflections, -10000, 1000);
+    }
+    if((props->dwFlags&EAX30LISTENERFLAGS_REFLECTIONSDELAYSCALE))
+    {
+        props->flReflectionsDelay *= scale;
+        props->flReflectionsDelay = clampF(props->flReflectionsDelay, 0.0f, 0.3f);
+    }
+    if((props->dwFlags&EAX30LISTENERFLAGS_REVERBSCALE))
+    {
+        props->lReverb -= gain_to_mB(scale);
+        props->lReverb = clampI(props->lReverb, -10000, 2000);
+    }
+    if((props->dwFlags&EAX30LISTENERFLAGS_REVERBDELAYSCALE))
+    {
+        props->flReverbDelay *= scale;
+        props->flReverbDelay = clampF(props->flReverbDelay, 0.0f, 0.1f);
+    }
+    if((props->dwFlags&EAX30LISTENERFLAGS_ECHOTIMESCALE))
+    {
+        props->flEchoTime *= scale;
+        props->flEchoTime = clampF(props->flEchoTime, 0.075f, 0.25f);
+    }
+    if((props->dwFlags&EAX30LISTENERFLAGS_MODTIMESCALE))
+    {
+        props->flModulationTime *= scale;
+        props->flModulationTime = clampF(props->flModulationTime, 0.04f, 4.0f);
+    }
+}
+
+
 /*******************
  * EAX 3 stuff
  ******************/
@@ -188,45 +232,7 @@ HRESULT EAX3_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
             union { const void *v; const float *fl; } data = { pPropData };
             if(*data.fl >= 1.0f && *data.fl <= 100.0f)
             {
-                float scale = (*data.fl)/prim->deferred.eax.flEnvironmentSize;
-
-                prim->deferred.eax.flEnvironmentSize = *data.fl;
-
-                if((prim->deferred.eax.dwFlags&EAX30LISTENERFLAGS_DECAYTIMESCALE))
-                {
-                    prim->deferred.eax.flDecayTime *= scale;
-                    prim->deferred.eax.flDecayTime = clampF(prim->deferred.eax.flDecayTime, 0.1f, 20.0f);
-                }
-                if((prim->deferred.eax.dwFlags&EAX30LISTENERFLAGS_REFLECTIONSSCALE))
-                {
-                    prim->deferred.eax.lReflections -= gain_to_mB(scale);
-                    prim->deferred.eax.lReflections = clampI(prim->deferred.eax.lReflections, -10000, 1000);
-                }
-                if((prim->deferred.eax.dwFlags&EAX30LISTENERFLAGS_REFLECTIONSDELAYSCALE))
-                {
-                    prim->deferred.eax.flReflectionsDelay *= scale;
-                    prim->deferred.eax.flReflectionsDelay = clampF(prim->deferred.eax.flReflectionsDelay, 0.0f, 0.3f);
-                }
-                if((prim->deferred.eax.dwFlags&EAX30LISTENERFLAGS_REVERBSCALE))
-                {
-                    prim->deferred.eax.lReverb -= gain_to_mB(scale);
-                    prim->deferred.eax.lReverb = clampI(prim->deferred.eax.lReverb, -10000, 2000);
-                }
-                if((prim->deferred.eax.dwFlags&EAX30LISTENERFLAGS_REVERBDELAYSCALE))
-                {
-                    prim->deferred.eax.flReverbDelay *= scale;
-                    prim->deferred.eax.flReverbDelay = clampF(prim->deferred.eax.flReverbDelay, 0.0f, 0.1f);
-                }
-                if((prim->deferred.eax.dwFlags&EAX30LISTENERFLAGS_ECHOTIMESCALE))
-                {
-                    prim->deferred.eax.flEchoTime *= scale;
-                    prim->deferred.eax.flEchoTime = clampF(prim->deferred.eax.flEchoTime, 0.075f, 0.25f);
-                }
-                if((prim->deferred.eax.dwFlags&EAX30LISTENERFLAGS_MODTIMESCALE))
-                {
-                    prim->deferred.eax.flModulationTime *= scale;
-                    prim->deferred.eax.flModulationTime = clampF(prim->deferred.eax.flModulationTime, 0.04f, 4.0f);
-                }
+                RescaleEnvSize(&prim->deferred.eax, *data.fl);
 
                 ApplyReverbParams(prim, &prim->deferred.eax);
                 hr = DS_OK;
@@ -1343,45 +1349,7 @@ HRESULT EAX2_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
             union { const void *v; const float *fl; } data = { pPropData };
             if(*data.fl >= 1.0f && *data.fl <= 100.0f)
             {
-                float scale = (*data.fl)/prim->deferred.eax.flEnvironmentSize;
-
-                prim->deferred.eax.flEnvironmentSize = *data.fl;
-
-                if((prim->deferred.eax.dwFlags&EAX30LISTENERFLAGS_DECAYTIMESCALE))
-                {
-                    prim->deferred.eax.flDecayTime *= scale;
-                    prim->deferred.eax.flDecayTime = clampF(prim->deferred.eax.flDecayTime, 0.1f, 20.0f);
-                }
-                if((prim->deferred.eax.dwFlags&EAX30LISTENERFLAGS_REFLECTIONSSCALE))
-                {
-                    prim->deferred.eax.lReflections -= gain_to_mB(scale);
-                    prim->deferred.eax.lReflections = clampI(prim->deferred.eax.lReflections, -10000, 1000);
-                }
-                if((prim->deferred.eax.dwFlags&EAX30LISTENERFLAGS_REFLECTIONSDELAYSCALE))
-                {
-                    prim->deferred.eax.flReflectionsDelay *= scale;
-                    prim->deferred.eax.flReflectionsDelay = clampF(prim->deferred.eax.flReflectionsDelay, 0.0f, 0.3f);
-                }
-                if((prim->deferred.eax.dwFlags&EAX30LISTENERFLAGS_REVERBSCALE))
-                {
-                    prim->deferred.eax.lReverb -= gain_to_mB(scale);
-                    prim->deferred.eax.lReverb = clampI(prim->deferred.eax.lReverb, -10000, 2000);
-                }
-                if((prim->deferred.eax.dwFlags&EAX30LISTENERFLAGS_REVERBDELAYSCALE))
-                {
-                    prim->deferred.eax.flReverbDelay *= scale;
-                    prim->deferred.eax.flReverbDelay = clampF(prim->deferred.eax.flReverbDelay, 0.0f, 0.1f);
-                }
-                if((prim->deferred.eax.dwFlags&EAX30LISTENERFLAGS_ECHOTIMESCALE))
-                {
-                    prim->deferred.eax.flEchoTime *= scale;
-                    prim->deferred.eax.flEchoTime = clampF(prim->deferred.eax.flEchoTime, 0.075f, 0.25f);
-                }
-                if((prim->deferred.eax.dwFlags&EAX30LISTENERFLAGS_MODTIMESCALE))
-                {
-                    prim->deferred.eax.flModulationTime *= scale;
-                    prim->deferred.eax.flModulationTime = clampF(prim->deferred.eax.flModulationTime, 0.04f, 4.0f);
-                }
+                RescaleEnvSize(&prim->deferred.eax, *data.fl);
 
                 ApplyReverbParams(prim, &prim->deferred.eax);
                 hr = DS_OK;
