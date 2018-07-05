@@ -1081,7 +1081,7 @@ static void DS8Primary_SetParams(DS8Primary *This, const DS3DLISTENER *params, L
     if(dirty.bit.distancefactor)
     {
         alSpeedOfSound(343.3f/params->flDistanceFactor);
-        if(BITFIELD_TEST(This->share->Exts, EXT_EFX))
+        if(HAS_EXTENSION(This->share, EXT_EFX))
             alListenerf(AL_METERS_PER_UNIT, params->flDistanceFactor);
     }
     if(dirty.bit.rollofffactor)
@@ -1324,7 +1324,7 @@ static HRESULT WINAPI DS8Primary3D_SetDistanceFactor(IDirectSound3DListener *ifa
     {
         setALContext(This->ctx);
         alSpeedOfSound(343.3f/factor);
-        if(BITFIELD_TEST(This->share->Exts, EXT_EFX))
+        if(HAS_EXTENSION(This->share, EXT_EFX))
             alListenerf(AL_METERS_PER_UNIT, factor);
         checkALError();
         popALContext();

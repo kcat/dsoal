@@ -110,7 +110,7 @@ static const char *get_fmtstr_PCM(const DS8Primary *prim, const WAVEFORMATEX *fo
     out->Format.cbSize = 0;
 
     if(out->Format.nChannels != 1 && out->Format.nChannels != 2 &&
-       !BITFIELD_TEST(prim->share->Exts, EXT_MCFORMATS))
+       !HAS_EXTENSION(prim->share, EXT_MCFORMATS))
     {
         WARN("Multi-channel not available\n");
         return NULL;
@@ -152,13 +152,13 @@ static const char *get_fmtstr_FLOAT(const DS8Primary *prim, const WAVEFORMATEX *
     out->Format.cbSize = 0;
 
     if(out->Format.nChannels != 1 && out->Format.nChannels != 2 &&
-       !BITFIELD_TEST(prim->share->Exts, EXT_MCFORMATS))
+       !HAS_EXTENSION(prim->share, EXT_MCFORMATS))
     {
         WARN("Multi-channel not available\n");
         return NULL;
     }
 
-    if(format->wBitsPerSample == 32 && BITFIELD_TEST(prim->share->Exts, EXT_FLOAT32))
+    if(format->wBitsPerSample == 32 && HAS_EXTENSION(prim->share, EXT_FLOAT32))
     {
         switch(format->nChannels)
         {
@@ -204,7 +204,7 @@ static const char *get_fmtstr_EXT(const DS8Primary *prim, const WAVEFORMATEX *fo
     }
 
     if(out->dwChannelMask != MONO && out->dwChannelMask != STEREO &&
-       !BITFIELD_TEST(prim->share->Exts, EXT_MCFORMATS))
+       !HAS_EXTENSION(prim->share, EXT_MCFORMATS))
     {
         WARN("Multi-channel not available\n");
         return NULL;
@@ -244,7 +244,7 @@ static const char *get_fmtstr_EXT(const DS8Primary *prim, const WAVEFORMATEX *fo
         return NULL;
     }
     else if(IsEqualGUID(&out->SubFormat, &KSDATAFORMAT_SUBTYPE_IEEE_FLOAT) &&
-            BITFIELD_TEST(prim->share->Exts, EXT_FLOAT32))
+            HAS_EXTENSION(prim->share, EXT_FLOAT32))
     {
         if(out->Samples.wValidBitsPerSample == 32)
         {
@@ -344,7 +344,7 @@ static HRESULT DS8Data_Create(DS8Data **ppv, const DSBUFFERDESC *desc, DS8Primar
     /* Generate a new buffer. Supporting the DSBCAPS_LOC* flags properly
      * will need the EAX-RAM extension. Currently, we just tell the app it
      * gets what it wanted. */
-    if(!BITFIELD_TEST(prim->share->Exts, SOFTX_MAP_BUFFER))
+    if(!HAS_EXTENSION(prim->share, SOFTX_MAP_BUFFER))
         pBuffer = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(*pBuffer)+buf_size);
     else
         pBuffer = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(*pBuffer));
@@ -393,7 +393,7 @@ static HRESULT DS8Data_Create(DS8Data **ppv, const DSBUFFERDESC *desc, DS8Primar
     }
 
     hr = E_OUTOFMEMORY;
-    if(!BITFIELD_TEST(prim->share->Exts, SOFTX_MAP_BUFFER))
+    if(!HAS_EXTENSION(prim->share, SOFTX_MAP_BUFFER))
     {
         pBuffer->data = (BYTE*)(pBuffer+1);
 
@@ -435,7 +435,7 @@ static void DS8Data_Release(DS8Data *This)
     if(This->bid)
     {
         DS8Primary *prim = This->primary;
-        if(BITFIELD_TEST(prim->share->Exts, SOFTX_MAP_BUFFER))
+        if(HAS_EXTENSION(prim->share, SOFTX_MAP_BUFFER))
             alUnmapBufferSOFT(This->bid);
         alDeleteBuffers(1, &This->bid);
         checkALError();
@@ -1054,7 +1054,7 @@ HRESULT WINAPI DS8Buffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSound *ds
     else if((data->dsbflags&DSBCAPS_LOCSOFTWARE))
         This->loc_status = DSBSTATUS_LOCSOFTWARE;
 
-    if(!(data->dsbflags&DSBCAPS_STATIC) && !BITFIELD_TEST(This->share->Exts, SOFTX_MAP_BUFFER))
+    if(!(data->dsbflags&DSBCAPS_STATIC) && !HAS_EXTENSION(This->share, SOFTX_MAP_BUFFER))
     {
         This->segsize = (data->format.Format.nAvgBytesPerSec+prim->refresh-1) / prim->refresh;
         This->segsize = clampI(This->segsize, data->format.Format.nBlockAlign, 2048);
@@ -1082,7 +1082,7 @@ HRESULT WINAPI DS8Buffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSound *ds
     {
         union BufferParamFlags dirty = { 0 };
 
-        if(BITFIELD_TEST(This->share->Exts, EXT_EFX))
+        if(HAS_EXTENSION(This->share, EXT_EFX))
         {
             alGenFilters(2, This->filter);
             alFilteri(This->filter[0], AL_FILTER_TYPE, AL_FILTER_BANDPASS);
@@ -1102,7 +1102,7 @@ HRESULT WINAPI DS8Buffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSound *ds
         dirty.bit.min_distance = 1;
         dirty.bit.max_distance = 1;
         dirty.bit.mode = 1;
-        if(BITFIELD_TEST(This->share->Exts, EXT_EFX))
+        if(HAS_EXTENSION(This->share, EXT_EFX))
         {
             dirty.bit.dry_filter = 1;
             dirty.bit.wet_filter = 1;
@@ -1130,7 +1130,7 @@ HRESULT WINAPI DS8Buffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSound *ds
         alSourcei(source, AL_CONE_INNER_ANGLE, 360);
         alSourcei(source, AL_CONE_OUTER_ANGLE, 360);
         alSourcei(source, AL_SOURCE_RELATIVE, AL_TRUE);
-        if(BITFIELD_TEST(This->share->Exts, EXT_EFX))
+        if(HAS_EXTENSION(This->share, EXT_EFX))
         {
             alSourcef(source, AL_ROOM_ROLLOFF_FACTOR, 0.0f);
             alSourcef(source, AL_CONE_OUTER_GAINHF, 1.0f);
@@ -1141,7 +1141,7 @@ HRESULT WINAPI DS8Buffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSound *ds
             alSourcei(source, AL_DIRECT_FILTER, AL_FILTER_NULL);
             alSource3i(source, AL_AUXILIARY_SEND_FILTER, 0, 0, AL_FILTER_NULL);
         }
-        if(BITFIELD_TEST(This->share->Exts, SOFT_SOURCE_SPATIALIZE))
+        if(HAS_EXTENSION(This->share, SOFT_SOURCE_SPATIALIZE))
         {
             /* Set to auto so panning works for mono, and multi-channel works
              * as expected.
@@ -1502,7 +1502,7 @@ static HRESULT WINAPI DS8Buffer_Unlock(IDirectSoundBuffer8 *iface, void *ptr1, D
     if(!len1 && !len2)
         goto out;
 
-    if(BITFIELD_TEST(This->share->Exts, SOFTX_MAP_BUFFER))
+    if(HAS_EXTENSION(This->share, SOFTX_MAP_BUFFER))
     {
         setALContext(This->ctx);
         alFlushMappedBufferSOFT(buf->bid, 0, buf->buf_size);
@@ -1707,7 +1707,7 @@ void DS8Buffer_SetParams(DS8Buffer *This, const DS3DBUFFER *params, const EAX30B
     if(dirty.bit.mode)
     {
         This->ds3dmode = params->dwMode;
-        if(BITFIELD_TEST(This->share->Exts, SOFT_SOURCE_SPATIALIZE))
+        if(HAS_EXTENSION(This->share, SOFT_SOURCE_SPATIALIZE))
             alSourcei(source, AL_SOURCE_SPATIALIZE_SOFT,
                       (params->dwMode==DS3DMODE_DISABLE) ? AL_FALSE : AL_TRUE);
         alSourcei(source, AL_SOURCE_RELATIVE, (params->dwMode!=DS3DMODE_NORMAL) ?
@@ -2144,7 +2144,7 @@ static HRESULT WINAPI DS8Buffer3D_SetMode(IDirectSound3DBuffer *iface, DWORD mod
 
         setALContext(This->ctx);
         This->ds3dmode = mode;
-        if(BITFIELD_TEST(This->share->Exts, SOFT_SOURCE_SPATIALIZE))
+        if(HAS_EXTENSION(This->share, SOFT_SOURCE_SPATIALIZE))
             alSourcei(This->source, AL_SOURCE_SPATIALIZE_SOFT,
                       (mode==DS3DMODE_DISABLE) ? AL_FALSE : AL_TRUE);
         alSourcei(This->source, AL_SOURCE_RELATIVE,

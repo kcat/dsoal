@@ -511,6 +511,8 @@ typedef struct DeviceShare {
     DWORD speaker_config;
 } DeviceShare;
 
+#define HAS_EXTENSION(s, e) BITFIELD_TEST((s)->Exts, e)
+
 
 typedef struct DS8Data {
     LONG ref;

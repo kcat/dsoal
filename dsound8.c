@@ -52,7 +52,7 @@ static DWORD CALLBACK DSShare_thread(void *dwUser)
         for(i = 0;i < share->nprimaries;++i)
         {
             DS8Primary_triggernots(share->primaries[i]);
-            if(!BITFIELD_TEST(share->Exts, SOFTX_MAP_BUFFER))
+            if(!HAS_EXTENSION(share, SOFTX_MAP_BUFFER))
                 DS8Primary_streamfeeder(share->primaries[i], scratch_mem);
         }
 
@@ -326,7 +326,7 @@ static HRESULT DSShare_Create(REFIID guid, DeviceShare **out)
         }
     }
 
-    if(BITFIELD_TEST(share->Exts, EXT_EFX))
+    if(HAS_EXTENSION(share, EXT_EFX))
         alGenAuxiliaryEffectSlots(1, &share->auxslot);
 
     share->sources.max_alloc = 0;
