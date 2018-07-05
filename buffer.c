@@ -447,6 +447,8 @@ static void DS8Data_Release(DS8Data *This)
 HRESULT DS8Buffer_Create(DS8Buffer **ppv, DS8Primary *prim, IDirectSoundBuffer *orig, BOOL prim_emu)
 {
     DS8Buffer *This = NULL;
+    EAX30BUFFERPROPERTIES *eaxbuffer;
+    DS3DBUFFER *ds3dbuffer;
     HRESULT hr;
     DWORD i;
 
@@ -522,8 +524,46 @@ HRESULT DS8Buffer_Create(DS8Buffer **ppv, DS8Primary *prim, IDirectSoundBuffer *
         DS8Data_AddRef(org->buffer);
         This->buffer = org->buffer;
     }
+    ds3dbuffer = &This->deferred.ds3d;
+    ds3dbuffer->dwSize = sizeof(This->deferred.ds3d);
+    ds3dbuffer->vPosition.x = 0.0f;
+    ds3dbuffer->vPosition.y = 0.0f;
+    ds3dbuffer->vPosition.z = 0.0f;
+    ds3dbuffer->vVelocity.x = 0.0f;
+    ds3dbuffer->vVelocity.y = 0.0f;
+    ds3dbuffer->vVelocity.z = 0.0f;
+    ds3dbuffer->dwInsideConeAngle = DS3D_DEFAULTCONEANGLE;
+    ds3dbuffer->dwOutsideConeAngle = DS3D_DEFAULTCONEANGLE;
+    ds3dbuffer->vConeOrientation.x = 0.0f;
+    ds3dbuffer->vConeOrientation.y = 0.0f;
+    ds3dbuffer->vConeOrientation.z = 1.0f;
+    ds3dbuffer->lConeOutsideVolume = DS3D_DEFAULTCONEOUTSIDEVOLUME;
+    ds3dbuffer->flMinDistance = DS3D_DEFAULTMINDISTANCE;
+    ds3dbuffer->flMaxDistance = DS3D_DEFAULTMAXDISTANCE;
+    ds3dbuffer->dwMode = DS3DMODE_NORMAL;
+    eaxbuffer = &This->deferred.eax;
+    eaxbuffer->lDirect = 0;
+    eaxbuffer->lDirectHF = 0;
+    eaxbuffer->lDirectLF = 0;
+    eaxbuffer->lRoom = 0;
+    eaxbuffer->lRoomHF = 0;
+    eaxbuffer->lRoomLF = 0;
+    eaxbuffer->flRoomRolloffFactor = 0.0f;
+    eaxbuffer->lObstruction = 0;
+    eaxbuffer->flObstructionLFRatio = 0.0f;
+    eaxbuffer->lOcclusion = 0;
+    eaxbuffer->flOcclusionLFRatio = 0.25f;
+    eaxbuffer->flOcclusionRoomRatio = 1.5f;
+    eaxbuffer->flOcclusionDirectRatio = 1.0f;
+    eaxbuffer->lExclusion = 0;
+    eaxbuffer->flExclusionLFRatio = 0.0f;
+    eaxbuffer->lOutsideVolumeHF = 0;
+    eaxbuffer->flAirAbsorptionFactor = 0.0f;
+    eaxbuffer->dwFlags = EAX30BUFFERFLAGS_DIRECTHFAUTO | EAX30BUFFERFLAGS_ROOMAUTO |
+                         EAX30BUFFERFLAGS_ROOMHFAUTO;
+    This->deferred.eax1_reverbmix = 1.0f;
 
-    /* Disable until initialized.. */
+    /* Disable until initialized. */
     This->ds3dmode = DS3DMODE_DISABLE;
 
     *ppv = This;
@@ -949,8 +989,6 @@ HRESULT WINAPI DS8Buffer_GetStatus(IDirectSoundBuffer8 *iface, DWORD *status)
 HRESULT WINAPI DS8Buffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSound *ds, const DSBUFFERDESC *desc)
 {
     DS8Buffer *This = impl_from_IDirectSoundBuffer8(iface);
-    EAX30BUFFERPROPERTIES *eaxbuffer;
-    DS3DBUFFER *ds3dbuffer;
     DS8Primary *prim;
     DS8Data *data;
     HRESULT hr;
@@ -1037,45 +1075,6 @@ HRESULT WINAPI DS8Buffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSound *ds
     alSourcef(This->source, AL_PITCH, 1.0f);
     checkALError();
 
-    ds3dbuffer = &This->deferred.ds3d;
-    ds3dbuffer->dwSize = sizeof(This->deferred.ds3d);
-    ds3dbuffer->vPosition.x = 0.0f;
-    ds3dbuffer->vPosition.y = 0.0f;
-    ds3dbuffer->vPosition.z = 0.0f;
-    ds3dbuffer->vVelocity.x = 0.0f;
-    ds3dbuffer->vVelocity.y = 0.0f;
-    ds3dbuffer->vVelocity.z = 0.0f;
-    ds3dbuffer->dwInsideConeAngle = DS3D_DEFAULTCONEANGLE;
-    ds3dbuffer->dwOutsideConeAngle = DS3D_DEFAULTCONEANGLE;
-    ds3dbuffer->vConeOrientation.x = 0.0f;
-    ds3dbuffer->vConeOrientation.y = 0.0f;
-    ds3dbuffer->vConeOrientation.z = 1.0f;
-    ds3dbuffer->lConeOutsideVolume = DS3D_DEFAULTCONEOUTSIDEVOLUME;
-    ds3dbuffer->flMinDistance = DS3D_DEFAULTMINDISTANCE;
-    ds3dbuffer->flMaxDistance = DS3D_DEFAULTMAXDISTANCE;
-    ds3dbuffer->dwMode = DS3DMODE_NORMAL;
-    eaxbuffer = &This->deferred.eax;
-    eaxbuffer->lDirect = 0;
-    eaxbuffer->lDirectHF = 0;
-    eaxbuffer->lDirectLF = 0;
-    eaxbuffer->lRoom = 0;
-    eaxbuffer->lRoomHF = 0;
-    eaxbuffer->lRoomLF = 0;
-    eaxbuffer->flRoomRolloffFactor = 0.0f;
-    eaxbuffer->lObstruction = 0;
-    eaxbuffer->flObstructionLFRatio = 0.0f;
-    eaxbuffer->lOcclusion = 0;
-    eaxbuffer->flOcclusionLFRatio = 0.25f;
-    eaxbuffer->flOcclusionRoomRatio = 1.5f;
-    eaxbuffer->flOcclusionDirectRatio = 1.0f;
-    eaxbuffer->lExclusion = 0;
-    eaxbuffer->flExclusionLFRatio = 0.0f;
-    eaxbuffer->lOutsideVolumeHF = 0;
-    eaxbuffer->flAirAbsorptionFactor = 0.0f;
-    eaxbuffer->dwFlags = EAX30BUFFERFLAGS_DIRECTHFAUTO | EAX30BUFFERFLAGS_ROOMAUTO |
-                         EAX30BUFFERFLAGS_ROOMHFAUTO;
-    This->deferred.eax1_reverbmix = 1.0f;
-
     if((data->dsbflags&DSBCAPS_CTRL3D))
     {
         union BufferParamFlags dirty = { 0 };
@@ -1109,7 +1108,7 @@ HRESULT WINAPI DS8Buffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSound *ds
             dirty.bit.air_absorb = 1;
             dirty.bit.flags = 1;
         }
-        DS8Buffer_SetParams(This, ds3dbuffer, eaxbuffer, dirty.flags);
+        DS8Buffer_SetParams(This, &This->deferred.ds3d, &This->deferred.eax, dirty.flags);
         checkALError();
     }
     else
