@@ -1067,7 +1067,10 @@ HRESULT WINAPI DS8Buffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSound *ds
 
     hr = DSERR_ALLOCATED;
     if(!This->share->sources.avail_num)
+    {
+        ERR("Out of sources\n");
         goto out;
+    }
 
     This->source = This->share->sources.ids[--(This->share->sources.avail_num)];
     alSourceRewind(This->source);
