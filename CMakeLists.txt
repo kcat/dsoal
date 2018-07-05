@@ -29,6 +29,7 @@ set(DSOAL_OBJS buffer.c
                duplex.c
                eax.c
                eax.h
+               eax4.h
                primary.c
                propset.c)
 

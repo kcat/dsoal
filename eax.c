@@ -218,7 +218,7 @@ HRESULT EAX3_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         if(cbPropData >= sizeof(DWORD))
         {
             union { const void *v; const DWORD *dw; } data = { pPropData };
-            if(*data.dw < EAX_ENVIRONMENT_COUNT)
+            if(*data.dw < EAX_ENVIRONMENT_UNDEFINED)
             {
                 ApplyReverbParams(prim, &EnvironmentDefaults[*data.dw]);
                 hr = DS_OK;
@@ -1176,7 +1176,7 @@ HRESULT EAX2_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
                 data.props->flAirAbsorptionHF, data.props->flRoomRolloffFactor, data.props->dwFlags
             );
 
-            if(data.props->dwEnvironment < EAX_ENVIRONMENT_COUNT)
+            if(data.props->dwEnvironment < EAX_ENVIRONMENT_UNDEFINED)
             {
                 props3 = EnvironmentDefaults[data.props->dwEnvironment];
                 props3.dwEnvironment = data.props->dwEnvironment;
@@ -1335,7 +1335,7 @@ HRESULT EAX2_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         if(cbPropData >= sizeof(DWORD))
         {
             union { const void *v; const DWORD *dw; } data = { pPropData };
-            if(*data.dw < EAX_ENVIRONMENT_COUNT)
+            if(*data.dw < EAX_ENVIRONMENT_UNDEFINED)
             {
                 ApplyReverbParams(prim, &EnvironmentDefaults[*data.dw]);
                 hr = DS_OK;
@@ -1835,12 +1835,12 @@ HRESULT EAX2Buffer_Get(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
 
 HRESULT EAX1_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropData)
 {
-    static const float eax1_env_volume[EAX_ENVIRONMENT_COUNT] = {
+    static const float eax1_env_volume[EAX_ENVIRONMENT_UNDEFINED] = {
         0.5f, 0.25f, 0.417f, 0.653f, 0.208f, 0.5f, 0.403f, 0.5f, 0.5f,
         0.361f, 0.5f, 0.153f, 0.361f, 0.444f, 0.25f, 0.111f, 0.111f,
         0.194f, 1.0f, 0.097f, 0.208f, 0.652f, 1.0f, 0.875f, 0.139f, 0.486f
     };
-    static const float eax1_env_dampening[EAX_ENVIRONMENT_COUNT] = {
+    static const float eax1_env_dampening[EAX_ENVIRONMENT_UNDEFINED] = {
         0.5f, 0.0f, 0.666f, 0.166f, 0.0f, 0.888f, 0.5f, 0.5f, 1.304f,
         0.332f, 0.3f, 2.0f, 0.0f, 0.638f, 0.776f, 0.472f, 0.224f, 0.472f,
         0.5f, 0.224f, 1.5f, 0.25f, 0.0f, 1.388f, 0.666f, 0.806f
@@ -1865,7 +1865,7 @@ HRESULT EAX1_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
                 data.props->fDecayTime, data.props->fDamping
             );
 
-            if(data.props->dwEnvironment < EAX_ENVIRONMENT_COUNT)
+            if(data.props->dwEnvironment < EAX_ENVIRONMENT_UNDEFINED)
             {
                 /* NOTE: I'm not quite sure how to handle the volume. It's
                  * important to deal with since it can have a notable impact on
@@ -1901,7 +1901,7 @@ HRESULT EAX1_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
             union { const void *v; const DWORD *dw; } data = { pPropData };
             TRACE("Environment: %lu\n", *data.dw);
 
-            if(*data.dw < EAX_ENVIRONMENT_COUNT)
+            if(*data.dw < EAX_ENVIRONMENT_UNDEFINED)
             {
                 prim->deferred.eax1_volume = eax1_env_volume[*data.dw];
                 prim->deferred.eax1_dampening = eax1_env_dampening[*data.dw];
