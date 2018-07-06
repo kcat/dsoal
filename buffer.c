@@ -1088,8 +1088,8 @@ HRESULT WINAPI DS8Buffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSound *ds
         if(HAS_EXTENSION(This->share, EXT_EFX))
         {
             alGenFilters(2, This->filter);
-            alFilteri(This->filter[0], AL_FILTER_TYPE, AL_FILTER_BANDPASS);
-            alFilteri(This->filter[1], AL_FILTER_TYPE, AL_FILTER_BANDPASS);
+            alFilteri(This->filter[0], AL_FILTER_TYPE, AL_FILTER_LOWPASS);
+            alFilteri(This->filter[1], AL_FILTER_TYPE, AL_FILTER_LOWPASS);
             if(UNLIKELY(alGetError() != AL_NO_ERROR))
             {
                 alDeleteFilters(2, This->filter);

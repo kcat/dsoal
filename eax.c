@@ -106,8 +106,8 @@ static void ApplyFilterParams(DS8Buffer *buf, const EAX30BUFFERPROPERTIES *props
         float mb   = props->lDirect   + obstr   + occldirect*occl;
         float mbhf = props->lDirectHF + obstrhf + occldirect*occlhf;
 
-        alFilterf(buf->filter[0], AL_BANDPASS_GAIN, clampF(mB_to_gain(mb), 0.0f, 1.0f));
-        alFilterf(buf->filter[0], AL_BANDPASS_GAINHF, mB_to_gain(mbhf));
+        alFilterf(buf->filter[0], AL_LOWPASS_GAIN, clampF(mB_to_gain(mb), 0.0f, 1.0f));
+        alFilterf(buf->filter[0], AL_LOWPASS_GAINHF, mB_to_gain(mbhf));
     }
     if((apply&APPLY_WET_PARAMS))
     {
@@ -117,8 +117,8 @@ static void ApplyFilterParams(DS8Buffer *buf, const EAX30BUFFERPROPERTIES *props
         float mb   = props->lRoom   + excl   + occlroom*occl;
         float mbhf = props->lRoomHF + exclhf + occlroom*occlhf;
 
-        alFilterf(buf->filter[1], AL_BANDPASS_GAIN, clampF(mB_to_gain(mb), 0.0f, 1.0f));
-        alFilterf(buf->filter[1], AL_BANDPASS_GAINHF, mB_to_gain(mbhf));
+        alFilterf(buf->filter[1], AL_LOWPASS_GAIN, clampF(mB_to_gain(mb), 0.0f, 1.0f));
+        alFilterf(buf->filter[1], AL_LOWPASS_GAINHF, mB_to_gain(mbhf));
     }
     checkALError();
 }
