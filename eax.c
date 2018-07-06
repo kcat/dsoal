@@ -42,11 +42,22 @@ static void ApplyReverbParams(DS8Primary *prim, const EAX30LISTENERPROPERTIES *p
     alEffectf(prim->effect, AL_EAXREVERB_DECAY_HFRATIO, props->flDecayHFRatio);
     alEffectf(prim->effect, AL_EAXREVERB_DECAY_LFRATIO, props->flDecayLFRatio);
 
-    alEffectf(prim->effect, AL_EAXREVERB_REFLECTIONS_GAIN, mB_to_gain(props->lReflections));
+    /* NOTE: Imprecision can cause some converted volume levels to land outside
+     * EFX's gain limits (e.g. EAX's +1000mB volume limit gets converted to
+     * 3.162something, while EFX defines the limit as 3.16; close enough for
+     * practical uses, but still technically an error).
+     */
+    alEffectf(prim->effect, AL_EAXREVERB_REFLECTIONS_GAIN,
+        clampF(mB_to_gain(props->lReflections), AL_EAXREVERB_MIN_REFLECTIONS_GAIN,
+               AL_EAXREVERB_MAX_REFLECTIONS_GAIN)
+    );
     alEffectf(prim->effect, AL_EAXREVERB_REFLECTIONS_DELAY, props->flReflectionsDelay);
     alEffectfv(prim->effect, AL_EAXREVERB_REFLECTIONS_PAN, &props->vReflectionsPan.x);
 
-    alEffectf(prim->effect, AL_EAXREVERB_LATE_REVERB_GAIN, mB_to_gain(props->lReverb));
+    alEffectf(prim->effect, AL_EAXREVERB_LATE_REVERB_GAIN,
+        clampF(mB_to_gain(props->lReverb), AL_EAXREVERB_MIN_LATE_REVERB_GAIN,
+               AL_EAXREVERB_MAX_LATE_REVERB_GAIN)
+    );
     alEffectf(prim->effect, AL_EAXREVERB_LATE_REVERB_DELAY, props->flReverbDelay);
     alEffectfv(prim->effect, AL_EAXREVERB_LATE_REVERB_PAN, &props->vReverbPan.x);
 
@@ -57,7 +68,9 @@ static void ApplyReverbParams(DS8Primary *prim, const EAX30LISTENERPROPERTIES *p
     alEffectf(prim->effect, AL_EAXREVERB_MODULATION_DEPTH, props->flModulationDepth);
 
     alEffectf(prim->effect, AL_EAXREVERB_AIR_ABSORPTION_GAINHF,
-              mB_to_gain(props->flAirAbsorptionHF));
+        clampF(mB_to_gain(props->flAirAbsorptionHF), AL_EAXREVERB_MIN_AIR_ABSORPTION_GAINHF,
+               AL_EAXREVERB_MAX_AIR_ABSORPTION_GAINHF)
+    );
 
     alEffectf(prim->effect, AL_EAXREVERB_HFREFERENCE, props->flHFReference);
     alEffectf(prim->effect, AL_EAXREVERB_LFREFERENCE, props->flLFReference);
