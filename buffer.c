@@ -524,6 +524,9 @@ HRESULT DS8Buffer_Create(DS8Buffer **ppv, DS8Primary *prim, IDirectSoundBuffer *
         DS8Data_AddRef(org->buffer);
         This->buffer = org->buffer;
     }
+
+    This->rollofffactor = 0.0f;
+
     ds3dbuffer = &This->deferred.ds3d;
     ds3dbuffer->dwSize = sizeof(This->deferred.ds3d);
     ds3dbuffer->vPosition.x = 0.0f;
@@ -544,11 +547,8 @@ HRESULT DS8Buffer_Create(DS8Buffer **ppv, DS8Primary *prim, IDirectSoundBuffer *
     eaxbuffer = &This->deferred.eax;
     eaxbuffer->lDirect = 0;
     eaxbuffer->lDirectHF = 0;
-    eaxbuffer->lDirectLF = 0;
     eaxbuffer->lRoom = 0;
     eaxbuffer->lRoomHF = 0;
-    eaxbuffer->lRoomLF = 0;
-    eaxbuffer->flRoomRolloffFactor = 0.0f;
     eaxbuffer->lObstruction = 0;
     eaxbuffer->flObstructionLFRatio = 0.0f;
     eaxbuffer->lOcclusion = 0;
@@ -556,8 +556,11 @@ HRESULT DS8Buffer_Create(DS8Buffer **ppv, DS8Primary *prim, IDirectSoundBuffer *
     eaxbuffer->flOcclusionRoomRatio = 1.5f;
     eaxbuffer->flOcclusionDirectRatio = 1.0f;
     eaxbuffer->lExclusion = 0;
-    eaxbuffer->flExclusionLFRatio = 0.0f;
+    eaxbuffer->flExclusionLFRatio = 1.0f;
     eaxbuffer->lOutsideVolumeHF = 0;
+    eaxbuffer->flDopplerFactor = 1.0f;
+    eaxbuffer->flRolloffFactor = 0.0f;
+    eaxbuffer->flRoomRolloffFactor = 0.0f;
     eaxbuffer->flAirAbsorptionFactor = 0.0f;
     eaxbuffer->dwFlags = EAX30BUFFERFLAGS_DIRECTHFAUTO | EAX30BUFFERFLAGS_ROOMAUTO |
                          EAX30BUFFERFLAGS_ROOMHFAUTO;
@@ -1106,6 +1109,8 @@ HRESULT WINAPI DS8Buffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSound *ds
         {
             dirty.bit.dry_filter = 1;
             dirty.bit.wet_filter = 1;
+            dirty.bit.doppler = 1;
+            dirty.bit.rolloff = 1;
             dirty.bit.room_rolloff = 1;
             dirty.bit.cone_outsidevolumehf = 1;
             dirty.bit.air_absorb = 1;
@@ -1127,6 +1132,7 @@ HRESULT WINAPI DS8Buffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSound *ds
         alSourcef(source, AL_REFERENCE_DISTANCE, 1.0f);
         alSourcef(source, AL_MAX_DISTANCE, 1000.0f);
         alSourcef(source, AL_ROLLOFF_FACTOR, 0.0f);
+        alSourcef(source, AL_DOPPLER_FACTOR, 0.0f);
         alSourcei(source, AL_CONE_INNER_ANGLE, 360);
         alSourcei(source, AL_CONE_OUTER_ANGLE, 360);
         alSourcei(source, AL_SOURCE_RELATIVE, AL_TRUE);
@@ -1720,6 +1726,13 @@ void DS8Buffer_SetParams(DS8Buffer *This, const DS3DBUFFER *params, const EAX30B
         alSourcei(source, AL_DIRECT_FILTER, This->filter[0]);
     if(dirty.bit.wet_filter)
         alSource3i(source, AL_AUXILIARY_SEND_FILTER, prim->auxslot, 0, This->filter[1]);
+    if(dirty.bit.doppler)
+        alSourcef(source, AL_DOPPLER_FACTOR, eax_params->flDopplerFactor);
+    if(dirty.bit.rolloff)
+    {
+        This->rollofffactor = eax_params->flRolloffFactor;
+        alSourcef(source, AL_ROLLOFF_FACTOR, eax_params->flRolloffFactor + prim->rollofffactor);
+    }
     if(dirty.bit.room_rolloff)
         alSourcef(source, AL_ROOM_ROLLOFF_FACTOR, eax_params->flRoomRolloffFactor);
     if(dirty.bit.cone_outsidevolumehf)
@@ -2619,13 +2632,13 @@ static HRESULT WINAPI DS8BufferProp_QuerySupport(IKsPropertySet *iface,
         {
         case DSPROPERTY_EAX30BUFFER_NONE:
         case DSPROPERTY_EAX30BUFFER_ALLPARAMETERS:
+        case DSPROPERTY_EAX30BUFFER_OBSTRUCTIONPARAMETERS:
+        case DSPROPERTY_EAX30BUFFER_OCCLUSIONPARAMETERS:
+        case DSPROPERTY_EAX30BUFFER_EXCLUSIONPARAMETERS:
         case DSPROPERTY_EAX30BUFFER_DIRECT:
         case DSPROPERTY_EAX30BUFFER_DIRECTHF:
-        case DSPROPERTY_EAX30BUFFER_DIRECTLF:
         case DSPROPERTY_EAX30BUFFER_ROOM:
         case DSPROPERTY_EAX30BUFFER_ROOMHF:
-        case DSPROPERTY_EAX30BUFFER_ROOMLF:
-        case DSPROPERTY_EAX30BUFFER_ROOMROLLOFFFACTOR:
         case DSPROPERTY_EAX30BUFFER_OBSTRUCTION:
         case DSPROPERTY_EAX30BUFFER_OBSTRUCTIONLFRATIO:
         case DSPROPERTY_EAX30BUFFER_OCCLUSION:
@@ -2635,6 +2648,9 @@ static HRESULT WINAPI DS8BufferProp_QuerySupport(IKsPropertySet *iface,
         case DSPROPERTY_EAX30BUFFER_EXCLUSION:
         case DSPROPERTY_EAX30BUFFER_EXCLUSIONLFRATIO:
         case DSPROPERTY_EAX30BUFFER_OUTSIDEVOLUMEHF:
+        case DSPROPERTY_EAX30BUFFER_DOPPLERFACTOR:
+        case DSPROPERTY_EAX30BUFFER_ROLLOFFFACTOR:
+        case DSPROPERTY_EAX30BUFFER_ROOMROLLOFFFACTOR:
         case DSPROPERTY_EAX30BUFFER_AIRABSORPTIONFACTOR:
         case DSPROPERTY_EAX30BUFFER_FLAGS:
             *pTypeSupport = KSPROPERTY_SUPPORT_GET | KSPROPERTY_SUPPORT_SET;

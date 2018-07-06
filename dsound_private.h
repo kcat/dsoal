@@ -549,6 +549,8 @@ union BufferParamFlags {
         /* EAX2 */
         BOOL dry_filter : 1;
         BOOL wet_filter : 1;
+        BOOL doppler : 1;
+        BOOL rolloff : 1;
         BOOL room_rolloff : 1;
         BOOL cone_outsidevolumehf : 1;
         BOOL air_absorb : 1;
@@ -591,6 +593,8 @@ struct DS8Buffer {
      * DSBSTATUS_LOCHARDWARE.
      */
     DWORD loc_status;
+
+    ALfloat rollofffactor;
 
     struct {
         DS3DBUFFER ds3d;

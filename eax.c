@@ -95,7 +95,6 @@ static void ApplyFilterParams(DS8Buffer *buf, const EAX30BUFFERPROPERTIES *props
 
         alFilterf(buf->filter[0], AL_BANDPASS_GAIN, clampF(mB_to_gain(mb), 0.0f, 1.0f));
         alFilterf(buf->filter[0], AL_BANDPASS_GAINHF, mB_to_gain(mbhf));
-        alFilterf(buf->filter[0], AL_BANDPASS_GAINLF, mB_to_gain(props->lDirectLF));
     }
     if((apply&APPLY_WET_PARAMS))
     {
@@ -107,7 +106,6 @@ static void ApplyFilterParams(DS8Buffer *buf, const EAX30BUFFERPROPERTIES *props
 
         alFilterf(buf->filter[1], AL_BANDPASS_GAIN, clampF(mB_to_gain(mb), 0.0f, 1.0f));
         alFilterf(buf->filter[1], AL_BANDPASS_GAINHF, mB_to_gain(mbhf));
-        alFilterf(buf->filter[1], AL_BANDPASS_GAINLF, mB_to_gain(props->lRoomLF));
     }
     checkALError();
 }
@@ -160,6 +158,32 @@ static void RescaleEnvSize(EAX30LISTENERPROPERTIES *props, float newsize)
 /*******************
  * EAX 3 stuff
  ******************/
+
+static EAXOBSTRUCTIONPROPERTIES EAX3BufferObstruction(const EAX30BUFFERPROPERTIES *props)
+{
+    EAXOBSTRUCTIONPROPERTIES ret;
+    ret.lObstruction = props->lObstruction;
+    ret.flObstructionLFRatio = props->flObstructionLFRatio;
+    return ret;
+}
+
+static EAXOCCLUSIONPROPERTIES EAX3BufferOcclusion(const EAX30BUFFERPROPERTIES *props)
+{
+    EAXOCCLUSIONPROPERTIES ret;
+    ret.lOcclusion = props->lOcclusion;
+    ret.flOcclusionLFRatio = props->flOcclusionLFRatio;
+    ret.flOcclusionRoomRatio = props->flOcclusionRoomRatio;
+    ret.flOcclusionDirectRatio = props->flOcclusionDirectRatio;
+    return ret;
+}
+
+static EAXEXCLUSIONPROPERTIES EAX3BufferExclusion(const EAX30BUFFERPROPERTIES *props)
+{
+    EAXEXCLUSIONPROPERTIES ret;
+    ret.lExclusion = props->lExclusion;
+    ret.flExclusionLFRatio = props->flExclusionLFRatio;
+    return ret;
+}
 
 HRESULT EAX3_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropData)
 {
@@ -711,20 +735,20 @@ HRESULT EAX3Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
                 const void *v;
                 const EAX30BUFFERPROPERTIES *props;
             } data = { pPropData };
-            TRACE("Parameters:\n\tDirect: %ld\n\tDirect HF: %ld\n\tDirect LF: %ld\n\tRoom: %ld\n\t"
-                "Room HF: %ld\n\tRoom LF: %ld\n\tRoom Rolloff Factor: %f\n\tObstruction: %ld\n\t"
-                "Obstruction LF Ratio: %f\n\tOcclusion: %ld\n\tOcclusion LF Ratio: %f\n\t"
-                "Occlusion Room Ratio: %f\n\tOcclusion Direct Ratio: %f\n\tExclusion: %ld\n\t"
-                "Exclusion LF Ratio: %f\n\tOutside Volume HF: %ld\n\tAir Absorb Factor: %f\n\t"
-                "Flags: 0x%02lx\n",
-                data.props->lDirect, data.props->lDirectHF, data.props->lDirectLF,
-                data.props->lRoom, data.props->lRoomHF, data.props->lRoomLF,
-                data.props->flRoomRolloffFactor, data.props->lObstruction,
-                data.props->flObstructionLFRatio, data.props->lOcclusion,
+            TRACE("Parameters:\n\tDirect: %ld\n\tDirect HF: %ld\n\tRoom: %ld\n\tRoom HF: %ld\n\t"
+                "Obstruction: %ld\n\tObstruction LF Ratio: %f\n\tOcclusion: %ld\n\t"
+                "Occlusion LF Ratio: %f\n\tOcclusion Room Ratio: %f\n\t"
+                "Occlusion Direct Ratio: %f\n\tExclusion: %ld\n\tExclusion LF Ratio: %f\n\t"
+                "Outside Volume HF: %ld\n\tDoppler Factor: %f\n\tRolloff Factor: %f\n\t"
+                "Room Rolloff Factor: %f\n\tAir Absorb Factor: %f\n\tFlags: 0x%02lx\n",
+                data.props->lDirect, data.props->lDirectHF, data.props->lRoom, data.props->lRoomHF,
+                data.props->lObstruction, data.props->flObstructionLFRatio, data.props->lOcclusion,
                 data.props->flOcclusionLFRatio, data.props->flOcclusionRoomRatio,
                 data.props->flOcclusionDirectRatio, data.props->lExclusion,
                 data.props->flExclusionLFRatio, data.props->lOutsideVolumeHF,
-                data.props->flAirAbsorptionFactor, data.props->dwFlags
+                data.props->flDopplerFactor, data.props->flRolloffFactor,
+                data.props->flRoomRolloffFactor, data.props->flAirAbsorptionFactor,
+                data.props->dwFlags
             );
 
             buf->deferred.eax = *data.props;
@@ -736,6 +760,66 @@ HRESULT EAX3Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
             buf->dirty.bit.cone_outsidevolumehf = 1;
             buf->dirty.bit.air_absorb = 1;
             buf->dirty.bit.flags = 1;
+            hr = DS_OK;
+        }
+        break;
+    case DSPROPERTY_EAX30BUFFER_OBSTRUCTIONPARAMETERS:
+        if(cbPropData >= sizeof(EAXOBSTRUCTIONPROPERTIES))
+        {
+            union {
+                const void *v;
+                const EAXOBSTRUCTIONPROPERTIES *props;
+            } data = { pPropData };
+            TRACE("Parameters:\n\tObstruction: %ld\n\tObstruction LF Ratio: %f\n",
+                  data.props->lObstruction, data.props->flObstructionLFRatio);
+
+            buf->deferred.eax.lObstruction = data.props->lObstruction;
+            buf->deferred.eax.flObstructionLFRatio = data.props->flObstructionLFRatio;
+            ApplyFilterParams(buf, &buf->deferred.eax, APPLY_DRY_PARAMS);
+
+            buf->dirty.bit.dry_filter = 1;
+            hr = DS_OK;
+        }
+        break;
+    case DSPROPERTY_EAX30BUFFER_OCCLUSIONPARAMETERS:
+        if(cbPropData >= sizeof(EAXOCCLUSIONPROPERTIES))
+        {
+            union {
+                const void *v;
+                const EAXOCCLUSIONPROPERTIES *props;
+            } data = { pPropData };
+            TRACE("Parameters:\n\tOcclusion: %ld\n\tOcclusion LF Ratio: %f\n\t"
+                "Occlusion Room Ratio: %f\n\tOcclusion Direct Ratio: %f\n",
+                data.props->lOcclusion, data.props->flOcclusionLFRatio,
+                data.props->flOcclusionRoomRatio, data.props->flOcclusionDirectRatio
+            );
+
+            buf->deferred.eax.lOcclusion = data.props->lOcclusion;
+            buf->deferred.eax.flOcclusionLFRatio = data.props->flOcclusionLFRatio;
+            buf->deferred.eax.flOcclusionRoomRatio = data.props->flOcclusionRoomRatio;
+            buf->deferred.eax.flOcclusionDirectRatio = data.props->flOcclusionDirectRatio;
+            ApplyFilterParams(buf, &buf->deferred.eax, APPLY_DRY_PARAMS|APPLY_WET_PARAMS);
+
+            buf->dirty.bit.dry_filter = 1;
+            buf->dirty.bit.wet_filter = 1;
+            hr = DS_OK;
+        }
+        break;
+    case DSPROPERTY_EAX30BUFFER_EXCLUSIONPARAMETERS:
+        if(cbPropData >= sizeof(EAXEXCLUSIONPROPERTIES))
+        {
+            union {
+                const void *v;
+                const EAXEXCLUSIONPROPERTIES *props;
+            } data = { pPropData };
+            TRACE("Parameters:\n\tExclusion: %ld\n\tExclusion LF Ratio: %f\n",
+                  data.props->lExclusion, data.props->flExclusionLFRatio);
+
+            buf->deferred.eax.lExclusion = data.props->lExclusion;
+            buf->deferred.eax.flExclusionLFRatio = data.props->flExclusionLFRatio;
+            ApplyFilterParams(buf, &buf->deferred.eax, APPLY_WET_PARAMS);
+
+            buf->dirty.bit.wet_filter = 1;
             hr = DS_OK;
         }
         break;
@@ -766,19 +850,6 @@ HRESULT EAX3Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
             hr = DS_OK;
         }
         break;
-    case DSPROPERTY_EAX30BUFFER_DIRECTLF:
-        if(cbPropData >= sizeof(long))
-        {
-            union { const void *v; const long *l; } data = { pPropData };
-            TRACE("Direct LF: %ld\n", *data.l);
-
-            buf->deferred.eax.lDirectLF = *data.l;
-            ApplyFilterParams(buf, &buf->deferred.eax, APPLY_DRY_PARAMS);
-
-            buf->dirty.bit.dry_filter = 1;
-            hr = DS_OK;
-        }
-        break;
 
     case DSPROPERTY_EAX30BUFFER_ROOM:
         if(cbPropData >= sizeof(long))
@@ -803,32 +874,6 @@ HRESULT EAX3Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_WET_PARAMS);
 
             buf->dirty.bit.wet_filter = 1;
-            hr = DS_OK;
-        }
-        break;
-    case DSPROPERTY_EAX30BUFFER_ROOMLF:
-        if(cbPropData >= sizeof(long))
-        {
-            union { const void *v; const long *l; } data = { pPropData };
-            TRACE("Room LF: %ld\n", *data.l);
-
-            buf->deferred.eax.lRoomLF = *data.l;
-            ApplyFilterParams(buf, &buf->deferred.eax, APPLY_WET_PARAMS);
-
-            buf->dirty.bit.wet_filter = 1;
-            hr = DS_OK;
-        }
-        break;
-
-    case DSPROPERTY_EAX30BUFFER_ROOMROLLOFFFACTOR:
-        if(cbPropData >= sizeof(float))
-        {
-            union { const void *v; const float *fl; } data = { pPropData };
-            TRACE("Room Rolloff Factor: %f\n", *data.fl);
-
-            buf->deferred.eax.flRoomRolloffFactor = *data.fl;
-
-            buf->dirty.bit.room_rolloff = 1;
             hr = DS_OK;
         }
         break;
@@ -955,6 +1000,45 @@ HRESULT EAX3Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
         }
         break;
 
+    case DSPROPERTY_EAX30BUFFER_DOPPLERFACTOR:
+        if(cbPropData >= sizeof(float))
+        {
+            union { const void *v; const float *fl; } data = { pPropData };
+            TRACE("Doppler Factor: %f\n", *data.fl);
+
+            buf->deferred.eax.flDopplerFactor = *data.fl;
+
+            buf->dirty.bit.doppler = 1;
+            hr = DS_OK;
+        }
+        break;
+
+    case DSPROPERTY_EAX30BUFFER_ROLLOFFFACTOR:
+        if(cbPropData >= sizeof(float))
+        {
+            union { const void *v; const float *fl; } data = { pPropData };
+            TRACE("Rolloff Factor: %f\n", *data.fl);
+
+            buf->deferred.eax.flRolloffFactor = *data.fl;
+
+            buf->dirty.bit.rolloff = 1;
+            hr = DS_OK;
+        }
+        break;
+
+    case DSPROPERTY_EAX30BUFFER_ROOMROLLOFFFACTOR:
+        if(cbPropData >= sizeof(float))
+        {
+            union { const void *v; const float *fl; } data = { pPropData };
+            TRACE("Room Rolloff Factor: %f\n", *data.fl);
+
+            buf->deferred.eax.flRoomRolloffFactor = *data.fl;
+
+            buf->dirty.bit.room_rolloff = 1;
+            hr = DS_OK;
+        }
+        break;
+
     case DSPROPERTY_EAX30BUFFER_AIRABSORPTIONFACTOR:
         if(cbPropData >= sizeof(float))
         {
@@ -1017,6 +1101,15 @@ HRESULT EAX3Buffer_Get(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
     case DSPROPERTY_EAX30BUFFER_ALLPARAMETERS:
         GET_PROP(buf->deferred.eax, EAX30BUFFERPROPERTIES);
         break;
+    case DSPROPERTY_EAX30BUFFER_OBSTRUCTIONPARAMETERS:
+        GET_PROP(EAX3BufferObstruction(&buf->deferred.eax), EAXOBSTRUCTIONPROPERTIES);
+        break;
+    case DSPROPERTY_EAX30BUFFER_OCCLUSIONPARAMETERS:
+        GET_PROP(EAX3BufferOcclusion(&buf->deferred.eax), EAXOCCLUSIONPROPERTIES);
+        break;
+    case DSPROPERTY_EAX30BUFFER_EXCLUSIONPARAMETERS:
+        GET_PROP(EAX3BufferExclusion(&buf->deferred.eax), EAXEXCLUSIONPROPERTIES);
+        break;
 
     case DSPROPERTY_EAX30BUFFER_DIRECT:
         GET_PROP(buf->deferred.eax.lDirect, long);
@@ -1024,22 +1117,12 @@ HRESULT EAX3Buffer_Get(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
     case DSPROPERTY_EAX30BUFFER_DIRECTHF:
         GET_PROP(buf->deferred.eax.lDirectHF, long);
         break;
-    case DSPROPERTY_EAX30BUFFER_DIRECTLF:
-        GET_PROP(buf->deferred.eax.lDirectLF, long);
-        break;
 
     case DSPROPERTY_EAX30BUFFER_ROOM:
         GET_PROP(buf->deferred.eax.lRoom, long);
         break;
     case DSPROPERTY_EAX30BUFFER_ROOMHF:
         GET_PROP(buf->deferred.eax.lRoomHF, long);
-        break;
-    case DSPROPERTY_EAX30BUFFER_ROOMLF:
-        GET_PROP(buf->deferred.eax.lRoomLF, long);
-        break;
-
-    case DSPROPERTY_EAX30BUFFER_ROOMROLLOFFFACTOR:
-        GET_PROP(buf->deferred.eax.flRoomRolloffFactor, float);
         break;
 
     case DSPROPERTY_EAX30BUFFER_OBSTRUCTION:
@@ -1071,6 +1154,17 @@ HRESULT EAX3Buffer_Get(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
 
     case DSPROPERTY_EAX30BUFFER_OUTSIDEVOLUMEHF:
         GET_PROP(buf->deferred.eax.lOutsideVolumeHF, long);
+        break;
+
+    case DSPROPERTY_EAX30BUFFER_DOPPLERFACTOR:
+        GET_PROP(buf->deferred.eax.flDopplerFactor, float);
+        break;
+
+    case DSPROPERTY_EAX30BUFFER_ROLLOFFFACTOR:
+        GET_PROP(buf->deferred.eax.flRolloffFactor, float);
+        break;
+    case DSPROPERTY_EAX30BUFFER_ROOMROLLOFFFACTOR:
+        GET_PROP(buf->deferred.eax.flRoomRolloffFactor, float);
         break;
 
     case DSPROPERTY_EAX30BUFFER_AIRABSORPTIONFACTOR:

@@ -207,29 +207,25 @@ DEFINE_GUID(DSPROPSETID_EAX30_BufferProperties, 0xa8fa6881, 0xb476, 0x11d3, 0xbd
 typedef enum {
     DSPROPERTY_EAX30BUFFER_NONE,
     DSPROPERTY_EAX30BUFFER_ALLPARAMETERS,
+    DSPROPERTY_EAX30BUFFER_OBSTRUCTIONPARAMETERS,
+    DSPROPERTY_EAX30BUFFER_OCCLUSIONPARAMETERS,
+    DSPROPERTY_EAX30BUFFER_EXCLUSIONPARAMETERS,
     DSPROPERTY_EAX30BUFFER_DIRECT,
     DSPROPERTY_EAX30BUFFER_DIRECTHF,
-    /* NOTE: Not 100% sure these DirectLF and RoomLF properties are correct,
-     * however it does line everything else up and it fits with OpenAL's band-
-     * pass filter, so it's probably right.
-     */
-    DSPROPERTY_EAX30BUFFER_DIRECTLF,
     DSPROPERTY_EAX30BUFFER_ROOM,
     DSPROPERTY_EAX30BUFFER_ROOMHF,
-    DSPROPERTY_EAX30BUFFER_ROOMLF,
-    DSPROPERTY_EAX30BUFFER_ROOMROLLOFFFACTOR,
     DSPROPERTY_EAX30BUFFER_OBSTRUCTION,
     DSPROPERTY_EAX30BUFFER_OBSTRUCTIONLFRATIO,
     DSPROPERTY_EAX30BUFFER_OCCLUSION,
     DSPROPERTY_EAX30BUFFER_OCCLUSIONLFRATIO,
-    /* TODO: Check if the order of the room and direct ratio properties are
-     * correct.
-     */
     DSPROPERTY_EAX30BUFFER_OCCLUSIONROOMRATIO,
     DSPROPERTY_EAX30BUFFER_OCCLUSIONDIRECTRATIO,
     DSPROPERTY_EAX30BUFFER_EXCLUSION,
     DSPROPERTY_EAX30BUFFER_EXCLUSIONLFRATIO,
     DSPROPERTY_EAX30BUFFER_OUTSIDEVOLUMEHF,
+    DSPROPERTY_EAX30BUFFER_DOPPLERFACTOR,
+    DSPROPERTY_EAX30BUFFER_ROLLOFFFACTOR,
+    DSPROPERTY_EAX30BUFFER_ROOMROLLOFFFACTOR,
     DSPROPERTY_EAX30BUFFER_AIRABSORPTIONFACTOR,
     DSPROPERTY_EAX30BUFFER_FLAGS
 } DSPROPERTY_EAX30_BUFFERPROPERTY;
@@ -239,28 +235,58 @@ typedef enum {
 #define DSPROPERTY_EAX30BUFFER_IMMEDIATE              0x00000000
 #define DSPROPERTY_EAX30BUFFER_COMMITDEFERREDSETTINGS 0x00000000
 
+/* DSPROPERTY_EAX30BUFFER_ALLPARAMETERS */
 typedef struct _EAX30BUFFERPROPERTIES {
-    long lDirect;
-    long lDirectHF;
-    long lDirectLF;
-    long lRoom;
-    long lRoomHF;
-    long lRoomLF;
-    float flRoomRolloffFactor;
-    long lObstruction;
+    long  lDirect;
+    long  lDirectHF;
+    long  lRoom;
+    long  lRoomHF;
+    long  lObstruction;
     float flObstructionLFRatio;
-    long lOcclusion;
+    long  lOcclusion;
     float flOcclusionLFRatio;
     float flOcclusionRoomRatio;
     float flOcclusionDirectRatio;
-    long lExclusion;
+    long  lExclusion;
     float flExclusionLFRatio;
-    long lOutsideVolumeHF;
+    long  lOutsideVolumeHF;
+    float flDopplerFactor;
+    float flRolloffFactor; /* NOTE: Added to listener value, not multiplied. */
+    float flRoomRolloffFactor;
     float flAirAbsorptionFactor;
     DWORD dwFlags;
 } EAX30BUFFERPROPERTIES, *LPEAX30BUFFERPROPERTIES;
 
-/* Flags that affect lDirectHF, lRoom, and lRoomHF */
+/* DSPROPERTY_EAX30BUFFER_OBSTRUCTION */
+#ifndef EAX_OBSTRUCTIONPROPERTIES_DEFINED
+#define EAX_OBSTRUCTIONPROPERTIES_DEFINED
+typedef struct _EAXOBSTRUCTIONPROPERTIES {
+    long  lObstruction;
+    float flObstructionLFRatio;
+} EAXOBSTRUCTIONPROPERTIES, *LPEAXOBSTRUCTIONPROPERTIES;
+#endif
+
+/* DSPROPERTY_EAX30BUFFER_OCCLUSION */
+#ifndef EAX_OCCLUSIONPROPERTIES_DEFINED
+#define EAX_OCCLUSIONPROPERTIES_DEFINED
+typedef struct _EAXOCCLUSIONPROPERTIES {
+    long  lOcclusion;
+    float flOcclusionLFRatio;
+    float flOcclusionRoomRatio;
+    float flOcclusionDirectRatio;
+} EAXOCCLUSIONPROPERTIES, *LPEAXOCCLUSIONPROPERTIES;
+#endif
+
+/* DSPROPERTY_EAX30BUFFER_EXCLUSION */
+#ifndef EAX_EXCLUSIONPROPERTIES_DEFINED
+#define EAX_EXCLUSIONPROPERTIES_DEFINED
+typedef struct _EAXEXCLUSIONPROPERTIES {
+    long  lExclusion;
+    float flExclusionLFRatio;
+} EAXEXCLUSIONPROPERTIES, *LPEAXEXCLUSIONPROPERTIES;
+#endif
+
+/* DSPROPERTY_EAX30BUFFER_FLAGS */
 #define EAX30BUFFERFLAGS_DIRECTHFAUTO 0x00000001
 #define EAX30BUFFERFLAGS_ROOMAUTO     0x00000002
 #define EAX30BUFFERFLAGS_ROOMHFAUTO   0x00000004
