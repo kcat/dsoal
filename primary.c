@@ -253,7 +253,7 @@ void DS8Primary_streamfeeder(DS8Primary *prim, BYTE *scratch_mem)
      */
     if(prim->write_emu)
     {
-        DS8Buffer *buf = &prim->writable_buf;
+        DS8Buffer *buf = CONTAINING_RECORD(prim->write_emu, DS8Buffer, IDirectSoundBuffer8_iface);
         if(buf->segsize != 0 && buf->isplaying)
             do_buffer_stream(buf, scratch_mem);
     }
@@ -669,7 +669,7 @@ HRESULT WINAPI DS8Primary_Initialize(IDirectSoundBuffer *iface, IDirectSound *ds
         emudesc.dwBufferBytes = This->buf_size - (This->buf_size%This->format.Format.nBlockAlign);
         emudesc.lpwfxFormat = &This->format.Format;
 
-        hr = DS8Buffer_Create(&emu, This, NULL, TRUE);
+        hr = DS8Buffer_Create(&emu, This, NULL);
         if(SUCCEEDED(hr))
         {
             This->write_emu = &emu->IDirectSoundBuffer8_iface;
@@ -911,7 +911,7 @@ static HRESULT WINAPI DS8Primary_SetFormat(IDirectSoundBuffer *iface, const WAVE
         desc.dwBufferBytes = This->buf_size - (This->buf_size % This->format.Format.nBlockAlign);
         desc.lpwfxFormat = &This->format.Format;
 
-        hr = DS8Buffer_Create(&buf, This, NULL, TRUE);
+        hr = DS8Buffer_Create(&buf, This, NULL);
         if(FAILED(hr)) goto out;
 
         This->write_emu = &buf->IDirectSoundBuffer8_iface;

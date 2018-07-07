@@ -444,7 +444,7 @@ static void DS8Data_Release(DS8Data *This)
 }
 
 
-HRESULT DS8Buffer_Create(DS8Buffer **ppv, DS8Primary *prim, IDirectSoundBuffer *orig, BOOL prim_emu)
+HRESULT DS8Buffer_Create(DS8Buffer **ppv, DS8Primary *prim, IDirectSoundBuffer *orig)
 {
     DS8Buffer *This = NULL;
     EAX30BUFFERPROPERTIES *eaxbuffer;
@@ -454,12 +454,7 @@ HRESULT DS8Buffer_Create(DS8Buffer **ppv, DS8Primary *prim, IDirectSoundBuffer *
 
     *ppv = NULL;
     EnterCriticalSection(&prim->share->crst);
-    if(prim_emu)
-    {
-        This = &prim->writable_buf;
-        memset(This, 0, sizeof(*This));
-    }
-    else for(i = 0;i < prim->NumBufferGroups;++i)
+    for(i = 0;i < prim->NumBufferGroups;++i)
     {
         if(prim->BufferGroups[i].FreeBuffers)
         {
