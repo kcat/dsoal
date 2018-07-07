@@ -87,38 +87,54 @@ static void ApplyReverbParams(DS8Primary *prim, const EAX30LISTENERPROPERTIES *p
     prim->dirty.bit.effect = 1;
 }
 
+static inline float minF(float a, float b)
+{ return (a <= b) ? a : b; }
+static inline float maxF(float a, float b)
+{ return (a >= b) ? a : b; }
+
 #define APPLY_DRY_PARAMS 1
 #define APPLY_WET_PARAMS 2
 static void ApplyFilterParams(DS8Buffer *buf, const EAX30BUFFERPROPERTIES *props, int apply)
 {
     /* The LFRatio properties determine how much the given level applies to low
-     * frequencies as well as high frequencies. Given that the high frequency
-     * levels are specified relative to the low, they should increase as the
-     * low frequency levels reduce.
+     * frequencies as well as high frequencies. Technically, given that the
+     * obstruction/occlusion/exclusion levels are the absolute level applied to
+     * high frequencies (relative to full-scale, according to the EAX 2.0 spec)
+     * while the HF filter gains are relative to the low, the HF gains should
+     * increase as LFRatio increases.
+     *
+     * However it seems Creative was either wrong when writing out the spec,
+     * or implemented it incorrectly, as the HF filter still applies in full
+     * regardless of the LFRatio. So to replicate the hardware behavior, we do
+     * the same here.
      */
-    float occl   = props->lOcclusion *       props->flOcclusionLFRatio;
-    float occlhf = props->lOcclusion * (1.0f-props->flOcclusionLFRatio);
 
     if((apply&APPLY_DRY_PARAMS))
     {
-        float obstr   = props->lObstruction *       props->flObstructionLFRatio;
-        float obstrhf = props->lObstruction * (1.0f-props->flObstructionLFRatio);
-        float occldirect = props->flOcclusionDirectRatio;
-        float mb   = props->lDirect   + obstr   + occldirect*occl;
-        float mbhf = props->lDirectHF + obstrhf + occldirect*occlhf;
+        float mb   = props->lDirect   + props->lObstruction*props->flObstructionLFRatio;
+        float mbhf = props->lDirectHF + props->lObstruction;
+        /* The interaction of ratios is pretty wierd. The typical combination
+         * of the two act as a minimal baseline, while the sum minus one is
+         * used when larger. This creates a more linear change with the
+         * individual ratios as DirectRatio goes beyond 1, but eases down as
+         * the two ratios go toward 0.
+         */
+        mb += maxF(props->flOcclusionLFRatio+props->flOcclusionDirectRatio-1.0f,
+                   props->flOcclusionLFRatio*props->flOcclusionDirectRatio) * props->lOcclusion;
+        mbhf += props->lOcclusion * props->flOcclusionDirectRatio;
 
-        alFilterf(buf->filter[0], AL_LOWPASS_GAIN, clampF(mB_to_gain(mb), 0.0f, 1.0f));
+        alFilterf(buf->filter[0], AL_LOWPASS_GAIN, minF(mB_to_gain(mb), 1.0f));
         alFilterf(buf->filter[0], AL_LOWPASS_GAINHF, mB_to_gain(mbhf));
     }
     if((apply&APPLY_WET_PARAMS))
     {
-        float excl   = props->lExclusion *       props->flExclusionLFRatio;
-        float exclhf = props->lExclusion * (1.0f-props->flExclusionLFRatio);
-        float occlroom = props->flOcclusionRoomRatio;
-        float mb   = props->lRoom   + excl   + occlroom*occl;
-        float mbhf = props->lRoomHF + exclhf + occlroom*occlhf;
+        float mb   = props->lRoom   + props->lExclusion*props->flExclusionLFRatio;
+        float mbhf = props->lRoomHF + props->lExclusion;
+        mb += maxF(props->flOcclusionLFRatio+props->flOcclusionRoomRatio-1.0f,
+                   props->flOcclusionLFRatio*props->flOcclusionRoomRatio) * props->lOcclusion;
+        mbhf += props->lOcclusion * props->flOcclusionRoomRatio;
 
-        alFilterf(buf->filter[1], AL_LOWPASS_GAIN, clampF(mB_to_gain(mb), 0.0f, 1.0f));
+        alFilterf(buf->filter[1], AL_LOWPASS_GAIN, minF(mB_to_gain(mb), 1.0f));
         alFilterf(buf->filter[1], AL_LOWPASS_GAINHF, mB_to_gain(mbhf));
     }
     checkALError();
