@@ -44,6 +44,7 @@
 #include <devpropdef.h>
 
 #include "dsound_private.h"
+#include "eax-presets.h"
 
 #ifndef DECLSPEC_EXPORT
 #ifdef _WIN32

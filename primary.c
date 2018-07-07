@@ -29,6 +29,7 @@
 #include <mmsystem.h>
 
 #include "dsound_private.h"
+#include "eax-presets.h"
 
 
 #ifndef E_PROP_ID_UNSUPPORTED

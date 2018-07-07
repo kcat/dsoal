@@ -23,6 +23,7 @@
 #include "dsound.h"
 
 #include "dsound_private.h"
+#include "eax-presets.h"
 
 
 static void ApplyReverbParams(DS8Primary *prim, const EAX30LISTENERPROPERTIES *props)
