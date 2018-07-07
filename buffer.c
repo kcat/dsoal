@@ -1105,12 +1105,12 @@ HRESULT WINAPI DS8Buffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSound *ds
         dirty.bit.min_distance = 1;
         dirty.bit.max_distance = 1;
         dirty.bit.mode = 1;
+        dirty.bit.doppler = 1;
+        dirty.bit.rolloff = 1;
         if(HAS_EXTENSION(This->share, EXT_EFX))
         {
             dirty.bit.dry_filter = 1;
             dirty.bit.wet_filter = 1;
-            dirty.bit.doppler = 1;
-            dirty.bit.rolloff = 1;
             dirty.bit.room_rolloff = 1;
             dirty.bit.cone_outsidevolumehf = 1;
             dirty.bit.air_absorb = 1;
