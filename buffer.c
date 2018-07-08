@@ -914,9 +914,7 @@ HRESULT WINAPI DS8Buffer_GetCurrentPosition(IDirectSoundBuffer8 *iface, DWORD *p
         ALint status = AL_INITIAL;
         ALint ofs = 0;
 
-        if(UNLIKELY(!This->source))
-            ofs = This->lastpos;
-        else
+        if(LIKELY(This->source))
         {
             setALContext(This->ctx);
             alGetSourcei(This->source, AL_BYTE_OFFSET, &ofs);
@@ -925,19 +923,30 @@ HRESULT WINAPI DS8Buffer_GetCurrentPosition(IDirectSoundBuffer8 *iface, DWORD *p
             popALContext();
         }
 
-        /* AL_STOPPED means the source naturally reached its end, where
-         * DirectSound's position should be at the end (OpenAL reports a 0
-         * position). The Stop method correlates to pausing, which would put
-         * the source into an AL_PAUSED state and hold its current position.
-         */
-        pos = (status == AL_STOPPED) ? data->buf_size : ofs;
         if(status == AL_PLAYING)
         {
+            pos = ofs;
             writecursor = format->nSamplesPerSec / This->primary->refresh;
             writecursor *= format->nBlockAlign;
         }
         else
+        {
+            /* AL_STOPPED means the source naturally reached its end, where
+             * DirectSound's position should be at the end (OpenAL reports 0
+             * for stopped sources). The Stop method correlates to pausing,
+             * which would put the source into an AL_PAUSED state and correctly
+             * hold its current position. AL_INITIAL means the buffer hasn't
+             * been played since last changing location.
+             */
+            switch(status)
+            {
+                case AL_STOPPED: pos = data->buf_size; break;
+                case AL_PAUSED: pos = ofs; break;
+                case AL_INITIAL: pos = This->lastpos; break;
+                default: pos = 0;
+            }
             writecursor = 0;
+        }
         writecursor = (writecursor + pos) % data->buf_size;
     }
     TRACE("%p Play pos = %u, write pos = %u\n", This, pos, writecursor);
@@ -1295,9 +1304,12 @@ static HRESULT WINAPI DS8Buffer_Play(IDirectSoundBuffer8 *iface, DWORD res1, DWO
     data = This->buffer;
     if((data->dsbflags&DSBCAPS_LOCDEFER))
     {
-        hr = DS8Buffer_SetLoc(This,
-            (flags&DSBPLAY_LOCSOFTWARE) ? DSBSTATUS_LOCSOFTWARE : DSBSTATUS_LOCHARDWARE
-        );
+        DWORD loc = This->loc_status;
+        if((flags&DSBPLAY_LOCSOFTWARE))
+            loc = DSBSTATUS_LOCSOFTWARE;
+        else if((flags&DSBPLAY_LOCHARDWARE) || !loc)
+            loc = DSBSTATUS_LOCHARDWARE;
+        hr = DS8Buffer_SetLoc(This, loc);
         if(FAILED(hr)) goto out;
     }
     else if(prio)
@@ -1325,8 +1337,11 @@ static HRESULT WINAPI DS8Buffer_Play(IDirectSoundBuffer8 *iface, DWORD res1, DWO
 
     if(This->segsize == 0)
     {
-        if(state != AL_PAUSED)
+        if(state == AL_INITIAL)
+        {
             alSourcei(This->source, AL_BUFFER, data->bid);
+            alSourcei(This->source, AL_BYTE_OFFSET, This->lastpos % data->buf_size);
+        }
         alSourcePlay(This->source);
     }
     else
@@ -1516,18 +1531,25 @@ static HRESULT WINAPI DS8Buffer_Stop(IDirectSoundBuffer8 *iface)
     TRACE("(%p)->()\n", iface);
 
     EnterCriticalSection(&This->share->crst);
-    setALContext(This->ctx);
-
     if(LIKELY(This->source))
     {
-        alSourcePause(This->source);
+        const ALuint source = This->source;
+
+        setALContext(This->ctx);
+        alSourcePause(source);
         checkALError();
+
+        This->isplaying = FALSE;
+        DS8Primary_triggernots(This->primary);
+        if(This->segsize == 0)
+        {
+            ALint state, ofs;
+            alGetSourcei(source, AL_BYTE_OFFSET, &ofs);
+            alGetSourcei(source, AL_SOURCE_STATE, &state);
+            This->lastpos = (state == AL_STOPPED) ? This->buffer->buf_size : ofs;
+        }
+        popALContext();
     }
-
-    This->isplaying = FALSE;
-    DS8Primary_triggernots(This->primary);
-
-    popALContext();
     LeaveCriticalSection(&This->share->crst);
 
     return S_OK;
