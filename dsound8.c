@@ -683,7 +683,8 @@ static HRESULT WINAPI DS8_CreateSoundBuffer(IDirectSound8 *iface, LPCDSBUFFERDES
 static HRESULT WINAPI DS8_GetCaps(IDirectSound8 *iface, LPDSCAPS caps)
 {
     DS8Impl *This = impl_from_IDirectSound8(iface);
-    DWORD free_bufs, i;
+    struct DSBufferGroup *bufgroup, *endgroup;
+    DWORD free_bufs;
 
     TRACE("(%p)->(%p)\n", iface, caps);
 
@@ -701,9 +702,25 @@ static HRESULT WINAPI DS8_GetCaps(IDirectSound8 *iface, LPDSCAPS caps)
 
     EnterCriticalSection(&This->share->crst);
 
-    free_bufs = 0;
-    for(i = 0;i < This->primary.NumBufferGroups;i++)
-        free_bufs += POPCNT64(This->primary.BufferGroups[i].FreeBuffers);
+    free_bufs = This->share->sources.max_alloc;
+    bufgroup = This->primary.BufferGroups;
+    endgroup = bufgroup + This->primary.NumBufferGroups;
+    for(;free_bufs && bufgroup != endgroup;++bufgroup)
+    {
+        DWORD64 usemask = ~bufgroup->FreeBuffers;
+        while(usemask)
+        {
+            int idx = CTZ64(usemask);
+            DS8Buffer *buf = bufgroup->Buffers + idx;
+            usemask &= ~(U64(1) << idx);
+
+            if(buf->loc_status == DSBSTATUS_LOCHARDWARE)
+            {
+                if(!--free_bufs)
+                    break;
+            }
+        }
+    }
 
     caps->dwFlags = DSCAPS_CONTINUOUSRATE | DSCAPS_CERTIFIED |
                     DSCAPS_PRIMARY16BIT | DSCAPS_PRIMARYSTEREO |

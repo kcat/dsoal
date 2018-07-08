@@ -628,6 +628,140 @@ void DS8Buffer_Destroy(DS8Buffer *This)
     LeaveCriticalSection(&prim->share->crst);
 }
 
+static HRESULT DS8Buffer_SetLoc(DS8Buffer *buf, DWORD loc_status)
+{
+    DS8Data *data = buf->buffer;
+
+    if(buf->loc_status == loc_status)
+        return DS_OK;
+
+    /* NOTE: Hardware and software buffers may have different source pools in
+     * the future. If we have a source, we're changing location, so return the
+     * source we have to get a new one.
+     */
+    if(buf->source)
+    {
+        alSourceStop(buf->source);
+        alSourcei(buf->source, AL_BUFFER, 0);
+        checkALError();
+
+        buf->share->sources.ids[buf->share->sources.avail_num++] = buf->source;
+        buf->source = 0;
+    }
+    buf->loc_status = 0;
+
+    if(!buf->share->sources.avail_num)
+    {
+        ERR("Out of sources\n");
+        return DSERR_ALLOCATED;
+    }
+
+    buf->source = buf->share->sources.ids[--(buf->share->sources.avail_num)];
+    alSourceRewind(buf->source);
+    alSourcef(buf->source, AL_GAIN, mB_to_gain(buf->current.vol));
+    alSourcef(buf->source, AL_PITCH,
+        buf->current.frequency ? (float)buf->current.frequency/data->format.Format.nSamplesPerSec
+                               : 1.0f);
+    checkALError();
+
+    /* TODO: Don't set EAX parameters or connect to effect slots for software
+     * buffers. Need to check if EAX buffer properties are still tracked, or if
+     * they're lost/reset when leaving hardware.
+     *
+     * Alternatively, we can just allow it and say software processing supports
+     * EAX too. Depends if apps may get upset over that.
+     */
+
+    if((data->dsbflags&DSBCAPS_CTRL3D))
+    {
+        const DS8Primary *prim = buf->primary;
+        const ALuint source = buf->source;
+        const DS3DBUFFER *params = &buf->current.ds3d;
+        const EAX30BUFFERPROPERTIES *eax_params = &buf->current.eax;
+
+        alSource3f(source, AL_POSITION, params->vPosition.x, params->vPosition.y,
+                                       -params->vPosition.z);
+        alSource3f(source, AL_VELOCITY, params->vVelocity.x, params->vVelocity.y,
+                                       -params->vVelocity.z);
+        alSourcei(source, AL_CONE_INNER_ANGLE, params->dwInsideConeAngle);
+        alSourcei(source, AL_CONE_OUTER_ANGLE, params->dwOutsideConeAngle);
+        alSource3f(source, AL_DIRECTION, params->vConeOrientation.x,
+                                         params->vConeOrientation.y,
+                                        -params->vConeOrientation.z);
+        alSourcef(source, AL_CONE_OUTER_GAIN, mB_to_gain(params->lConeOutsideVolume));
+        alSourcef(source, AL_REFERENCE_DISTANCE, params->flMinDistance);
+        alSourcef(source, AL_MAX_DISTANCE, params->flMaxDistance);
+        if(HAS_EXTENSION(buf->share, SOFT_SOURCE_SPATIALIZE))
+            alSourcei(source, AL_SOURCE_SPATIALIZE_SOFT,
+                (params->dwMode==DS3DMODE_DISABLE) ? AL_FALSE : AL_TRUE
+            );
+        alSourcei(source, AL_SOURCE_RELATIVE,
+            (params->dwMode!=DS3DMODE_NORMAL) ? AL_TRUE : AL_FALSE
+        );
+        alSourcef(source, AL_ROLLOFF_FACTOR,
+            (params->dwMode==DS3DMODE_DISABLE) ?
+            0.0f : (prim->rollofffactor + eax_params->flRolloffFactor)
+        );
+        alSourcef(source, AL_DOPPLER_FACTOR, eax_params->flDopplerFactor);
+
+        if(HAS_EXTENSION(buf->share, EXT_EFX))
+        {
+            alSourcei(source, AL_DIRECT_FILTER, buf->filter[0]);
+            alSource3i(source, AL_AUXILIARY_SEND_FILTER, prim->auxslot, 0, buf->filter[1]);
+            alSourcef(source, AL_ROOM_ROLLOFF_FACTOR, eax_params->flRoomRolloffFactor);
+            alSourcef(source, AL_CONE_OUTER_GAINHF, mB_to_gain(eax_params->lOutsideVolumeHF));
+            alSourcef(source, AL_AIR_ABSORPTION_FACTOR, eax_params->flAirAbsorptionFactor);
+            alSourcei(source, AL_DIRECT_FILTER_GAINHF_AUTO,
+                      (eax_params->dwFlags&EAX30BUFFERFLAGS_DIRECTHFAUTO) ? AL_TRUE : AL_FALSE);
+            alSourcei(source, AL_AUXILIARY_SEND_FILTER_GAIN_AUTO,
+                      (eax_params->dwFlags&EAX30BUFFERFLAGS_ROOMAUTO) ? AL_TRUE : AL_FALSE);
+            alSourcei(source, AL_AUXILIARY_SEND_FILTER_GAINHF_AUTO,
+                      (eax_params->dwFlags&EAX30BUFFERFLAGS_ROOMHFAUTO) ? AL_TRUE : AL_FALSE);
+        }
+        checkALError();
+    }
+    else
+    {
+        const ALuint source = buf->source;
+        const ALfloat x = (ALfloat)(buf->current.pan-DSBPAN_LEFT)/(DSBPAN_RIGHT-DSBPAN_LEFT) -
+                          0.5f;
+
+        alSource3f(source, AL_POSITION, x, 0.0f, -sqrtf(1.0f - x*x));
+        alSource3f(source, AL_VELOCITY, 0.0f, 0.0f, 0.0f);
+        alSource3f(source, AL_DIRECTION, 0.0f, 0.0f, 0.0f);
+        alSourcef(source, AL_CONE_OUTER_GAIN, 1.0f);
+        alSourcef(source, AL_REFERENCE_DISTANCE, 1.0f);
+        alSourcef(source, AL_MAX_DISTANCE, 1000.0f);
+        alSourcef(source, AL_ROLLOFF_FACTOR, 0.0f);
+        alSourcef(source, AL_DOPPLER_FACTOR, 0.0f);
+        alSourcei(source, AL_CONE_INNER_ANGLE, 360);
+        alSourcei(source, AL_CONE_OUTER_ANGLE, 360);
+        alSourcei(source, AL_SOURCE_RELATIVE, AL_TRUE);
+        if(HAS_EXTENSION(buf->share, EXT_EFX))
+        {
+            alSourcef(source, AL_ROOM_ROLLOFF_FACTOR, 0.0f);
+            alSourcef(source, AL_CONE_OUTER_GAINHF, 1.0f);
+            alSourcef(source, AL_AIR_ABSORPTION_FACTOR, 0.0f);
+            alSourcei(source, AL_DIRECT_FILTER_GAINHF_AUTO, AL_TRUE);
+            alSourcei(source, AL_AUXILIARY_SEND_FILTER_GAIN_AUTO, AL_TRUE);
+            alSourcei(source, AL_AUXILIARY_SEND_FILTER_GAINHF_AUTO, AL_TRUE);
+            alSourcei(source, AL_DIRECT_FILTER, AL_FILTER_NULL);
+            alSource3i(source, AL_AUXILIARY_SEND_FILTER, 0, 0, AL_FILTER_NULL);
+        }
+        if(HAS_EXTENSION(buf->share, SOFT_SOURCE_SPATIALIZE))
+        {
+            /* Set to auto so panning works for mono, and multi-channel works
+             * as expected.
+             */
+            alSourcei(source, AL_SOURCE_SPATIALIZE_SOFT, AL_AUTO_SOFT);
+        }
+        checkALError();
+    }
+
+    buf->loc_status = loc_status;
+    return DS_OK;
+}
+
 
 static HRESULT WINAPI DS8Buffer_QueryInterface(IDirectSoundBuffer8 *iface, REFIID riid, void **ppv)
 {
@@ -1036,11 +1170,6 @@ HRESULT WINAPI DS8Buffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSound *ds
     }
 
     data = This->buffer;
-    if((data->dsbflags&DSBCAPS_LOCHARDWARE))
-        This->loc_status = DSBSTATUS_LOCHARDWARE;
-    else if((data->dsbflags&DSBCAPS_LOCSOFTWARE))
-        This->loc_status = DSBSTATUS_LOCSOFTWARE;
-
     if(!(data->dsbflags&DSBCAPS_STATIC) && !HAS_EXTENSION(This->share, SOFTX_MAP_BUFFER))
     {
         This->segsize = (data->format.Format.nAvgBytesPerSec+prim->refresh-1) / prim->refresh;
@@ -1051,24 +1180,13 @@ HRESULT WINAPI DS8Buffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSound *ds
         alGenBuffers(QBUFFERS, This->stream_bids);
         checkALError();
     }
-
-    hr = DSERR_ALLOCATED;
-    if(!This->share->sources.avail_num)
+    if(!(data->dsbflags&DSBCAPS_CTRL3D))
     {
-        ERR("Out of sources\n");
-        goto out;
+        /* Non-3D sources aren't distance attenuated. */
+        This->current.ds3d.dwMode = DS3DMODE_DISABLE;
     }
-
-    This->source = This->share->sources.ids[--(This->share->sources.avail_num)];
-    alSourceRewind(This->source);
-    alSourcef(This->source, AL_GAIN, 1.0f);
-    alSourcef(This->source, AL_PITCH, 1.0f);
-    checkALError();
-
-    if((data->dsbflags&DSBCAPS_CTRL3D))
+    else
     {
-        union BufferParamFlags dirty = { 0 };
-
         if(HAS_EXTENSION(This->share, EXT_EFX))
         {
             alGenFilters(2, This->filter);
@@ -1080,68 +1198,12 @@ HRESULT WINAPI DS8Buffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSound *ds
                 This->filter[0] = This->filter[1] = 0;
             }
         }
-
-        dirty.bit.pos = 1;
-        dirty.bit.vel = 1;
-        dirty.bit.cone_angles = 1;
-        dirty.bit.cone_orient = 1;
-        dirty.bit.cone_outsidevolume = 1;
-        dirty.bit.min_distance = 1;
-        dirty.bit.max_distance = 1;
-        dirty.bit.mode = 1;
-        dirty.bit.doppler = 1;
-        dirty.bit.rolloff = 1;
-        if(HAS_EXTENSION(This->share, EXT_EFX))
-        {
-            dirty.bit.dry_filter = 1;
-            dirty.bit.wet_filter = 1;
-            dirty.bit.room_rolloff = 1;
-            dirty.bit.cone_outsidevolumehf = 1;
-            dirty.bit.air_absorb = 1;
-            dirty.bit.flags = 1;
-        }
-        DS8Buffer_SetParams(This, &This->deferred.ds3d, &This->deferred.eax, dirty.flags);
-        checkALError();
     }
-    else
-    {
-        ALuint source = This->source;
 
-        /* Non-3D sources aren't distance attenuated */
-        This->current.ds3d.dwMode = DS3DMODE_DISABLE;
-        alSource3f(source, AL_POSITION, 0.0f, 0.0f, -1.0f);
-        alSource3f(source, AL_VELOCITY, 0.0f, 0.0f, 0.0f);
-        alSource3f(source, AL_DIRECTION, 0.0f, 0.0f, 0.0f);
-        alSourcef(source, AL_CONE_OUTER_GAIN, 1.0f);
-        alSourcef(source, AL_REFERENCE_DISTANCE, 1.0f);
-        alSourcef(source, AL_MAX_DISTANCE, 1000.0f);
-        alSourcef(source, AL_ROLLOFF_FACTOR, 0.0f);
-        alSourcef(source, AL_DOPPLER_FACTOR, 0.0f);
-        alSourcei(source, AL_CONE_INNER_ANGLE, 360);
-        alSourcei(source, AL_CONE_OUTER_ANGLE, 360);
-        alSourcei(source, AL_SOURCE_RELATIVE, AL_TRUE);
-        if(HAS_EXTENSION(This->share, EXT_EFX))
-        {
-            alSourcef(source, AL_ROOM_ROLLOFF_FACTOR, 0.0f);
-            alSourcef(source, AL_CONE_OUTER_GAINHF, 1.0f);
-            alSourcef(source, AL_AIR_ABSORPTION_FACTOR, 0.0f);
-            alSourcei(source, AL_DIRECT_FILTER_GAINHF_AUTO, AL_TRUE);
-            alSourcei(source, AL_AUXILIARY_SEND_FILTER_GAIN_AUTO, AL_TRUE);
-            alSourcei(source, AL_AUXILIARY_SEND_FILTER_GAINHF_AUTO, AL_TRUE);
-            alSourcei(source, AL_DIRECT_FILTER, AL_FILTER_NULL);
-            alSource3i(source, AL_AUXILIARY_SEND_FILTER, 0, 0, AL_FILTER_NULL);
-        }
-        if(HAS_EXTENSION(This->share, SOFT_SOURCE_SPATIALIZE))
-        {
-            /* Set to auto so panning works for mono, and multi-channel works
-             * as expected.
-             */
-            alSourcei(source, AL_SOURCE_SPATIALIZE_SOFT, AL_AUTO_SOFT);
-        }
-        checkALError();
-    }
-    hr = S_OK;
-
+    hr = DS_OK;
+    if(!(data->dsbflags&DSBCAPS_LOCDEFER))
+        hr = DS8Buffer_SetLoc(This, (data->dsbflags&DSBCAPS_LOCSOFTWARE) ?
+                                    DSBSTATUS_LOCSOFTWARE : DSBSTATUS_LOCHARDWARE);
 out:
     This->init_done = SUCCEEDED(hr);
 
@@ -1233,10 +1295,10 @@ static HRESULT WINAPI DS8Buffer_Play(IDirectSoundBuffer8 *iface, DWORD res1, DWO
     data = This->buffer;
     if((data->dsbflags&DSBCAPS_LOCDEFER))
     {
-        if((flags&DSBPLAY_LOCSOFTWARE))
-            This->loc_status = DSBSTATUS_LOCSOFTWARE;
-        else
-            This->loc_status = DSBSTATUS_LOCHARDWARE;
+        hr = DS8Buffer_SetLoc(This,
+            (flags&DSBPLAY_LOCSOFTWARE) ? DSBSTATUS_LOCSOFTWARE : DSBSTATUS_LOCHARDWARE
+        );
+        if(FAILED(hr)) goto out;
     }
     else if(prio)
     {
@@ -1626,6 +1688,7 @@ done:
 static HRESULT WINAPI DS8Buffer_AcquireResources(IDirectSoundBuffer8 *iface, DWORD flags, DWORD fxcount, DWORD *rescodes)
 {
     DS8Buffer *This = impl_from_IDirectSoundBuffer8(iface);
+    HRESULT hr;
 
     TRACE("(%p)->(%lu, %lu, %p)\n", This, flags, fxcount, rescodes);
 
@@ -1637,16 +1700,14 @@ static HRESULT WINAPI DS8Buffer_AcquireResources(IDirectSoundBuffer8 *iface, DWO
     }
 
     EnterCriticalSection(&This->share->crst);
+    hr = DS_OK;
     if((This->buffer->dsbflags&DSBCAPS_LOCDEFER))
-    {
-        if((flags&DSBPLAY_LOCSOFTWARE))
-            This->loc_status = DSBSTATUS_LOCSOFTWARE;
-        else
-            This->loc_status = DSBSTATUS_LOCHARDWARE;
-    }
+        hr = DS8Buffer_SetLoc(This,
+            (flags&DSBPLAY_LOCSOFTWARE) ? DSBSTATUS_LOCSOFTWARE : DSBSTATUS_LOCHARDWARE
+        );
     LeaveCriticalSection(&This->share->crst);
 
-    return S_OK;
+    return hr;
 }
 
 static HRESULT WINAPI DS8Buffer_GetObjectInPath(IDirectSoundBuffer8 *iface, REFGUID guid, DWORD idx, REFGUID rguidiface, void **ppv)
