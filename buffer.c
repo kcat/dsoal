@@ -1804,11 +1804,15 @@ void DS8Buffer_SetParams(DS8Buffer *This, const DS3DBUFFER *params, const EAX30B
     {
         if(HAS_EXTENSION(This->share, SOFT_SOURCE_SPATIALIZE))
             alSourcei(source, AL_SOURCE_SPATIALIZE_SOFT,
-                      (params->dwMode==DS3DMODE_DISABLE) ? AL_FALSE : AL_TRUE);
-        alSourcei(source, AL_SOURCE_RELATIVE, (params->dwMode!=DS3DMODE_NORMAL) ?
-                                              AL_TRUE : AL_FALSE);
-        alSourcef(source, AL_ROLLOFF_FACTOR, (params->dwMode==DS3DMODE_DISABLE) ?
-                                             0.0f : prim->rollofffactor);
+                (params->dwMode==DS3DMODE_DISABLE) ? AL_FALSE : AL_TRUE
+            );
+        alSourcei(source, AL_SOURCE_RELATIVE,
+            (params->dwMode!=DS3DMODE_NORMAL) ? AL_TRUE : AL_FALSE
+        );
+        alSourcef(source, AL_ROLLOFF_FACTOR,
+            (params->dwMode==DS3DMODE_DISABLE) ?
+            0.0f : (This->current.eax.flRolloffFactor + prim->rollofffactor)
+        );
     }
 
     if(dirty.bit.dry_filter)
@@ -1817,7 +1821,7 @@ void DS8Buffer_SetParams(DS8Buffer *This, const DS3DBUFFER *params, const EAX30B
         alSource3i(source, AL_AUXILIARY_SEND_FILTER, prim->auxslot, 0, This->filter[1]);
     if(dirty.bit.doppler)
         alSourcef(source, AL_DOPPLER_FACTOR, eax_params->flDopplerFactor);
-    if(dirty.bit.rolloff)
+    if(dirty.bit.rolloff && This->current.ds3d.dwMode != DS3DMODE_DISABLE)
         alSourcef(source, AL_ROLLOFF_FACTOR, eax_params->flRolloffFactor + prim->rollofffactor);
     if(dirty.bit.room_rolloff)
         alSourcef(source, AL_ROOM_ROLLOFF_FACTOR, eax_params->flRoomRolloffFactor);
