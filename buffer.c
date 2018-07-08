@@ -735,17 +735,20 @@ HRESULT WINAPI DS8Buffer_GetCurrentPosition(IDirectSoundBuffer8 *iface, DWORD *p
     if(This->segsize != 0)
     {
         ALint queued = QBUFFERS;
-        ALint status = 0;
+        ALint status = AL_INITIAL;
         ALint ofs = 0;
 
         EnterCriticalSection(&This->share->crst);
 
-        setALContext(This->ctx);
-        alGetSourcei(This->source, AL_BUFFERS_QUEUED, &queued);
-        alGetSourcei(This->source, AL_BYTE_OFFSET, &ofs);
-        alGetSourcei(This->source, AL_SOURCE_STATE, &status);
-        checkALError();
-        popALContext();
+        if(LIKELY(This->source))
+        {
+            setALContext(This->ctx);
+            alGetSourcei(This->source, AL_BUFFERS_QUEUED, &queued);
+            alGetSourcei(This->source, AL_BYTE_OFFSET, &ofs);
+            alGetSourcei(This->source, AL_SOURCE_STATE, &status);
+            checkALError();
+            popALContext();
+        }
 
         if(status == AL_STOPPED)
             pos = This->segsize*queued + This->queue_base;
@@ -774,14 +777,19 @@ HRESULT WINAPI DS8Buffer_GetCurrentPosition(IDirectSoundBuffer8 *iface, DWORD *p
     else
     {
         const WAVEFORMATEX *format = &data->format.Format;
-        ALint status = 0;
+        ALint status = AL_INITIAL;
         ALint ofs = 0;
 
-        setALContext(This->ctx);
-        alGetSourcei(This->source, AL_BYTE_OFFSET, &ofs);
-        alGetSourcei(This->source, AL_SOURCE_STATE, &status);
-        checkALError();
-        popALContext();
+        if(UNLIKELY(!This->source))
+            ofs = This->lastpos;
+        else
+        {
+            setALContext(This->ctx);
+            alGetSourcei(This->source, AL_BYTE_OFFSET, &ofs);
+            alGetSourcei(This->source, AL_SOURCE_STATE, &status);
+            checkALError();
+            popALContext();
+        }
 
         /* AL_STOPPED means the source naturally reached its end, where
          * DirectSound's position should be at the end (OpenAL reports a 0
@@ -937,11 +945,16 @@ HRESULT WINAPI DS8Buffer_GetStatus(IDirectSoundBuffer8 *iface, DWORD *status)
 
     if(This->segsize == 0)
     {
-        setALContext(This->ctx);
-        alGetSourcei(This->source, AL_SOURCE_STATE, &state);
-        alGetSourcei(This->source, AL_LOOPING, &looping);
-        checkALError();
-        popALContext();
+        state = AL_INITIAL;
+        looping = AL_FALSE;
+        if(LIKELY(This->source))
+        {
+            setALContext(This->ctx);
+            alGetSourcei(This->source, AL_SOURCE_STATE, &state);
+            alGetSourcei(This->source, AL_LOOPING, &looping);
+            checkALError();
+            popALContext();
+        }
     }
     else
     {
@@ -1312,10 +1325,13 @@ static HRESULT WINAPI DS8Buffer_SetCurrentPosition(IDirectSoundBuffer8 *iface, D
     }
     else
     {
-        setALContext(This->ctx);
-        alSourcei(This->source, AL_BYTE_OFFSET, pos);
-        checkALError();
-        popALContext();
+        if(LIKELY(This->source))
+        {
+            setALContext(This->ctx);
+            alSourcei(This->source, AL_BYTE_OFFSET, pos);
+            checkALError();
+            popALContext();
+        }
     }
     This->lastpos = pos;
 
@@ -1345,12 +1361,15 @@ static HRESULT WINAPI DS8Buffer_SetVolume(IDirectSoundBuffer8 *iface, LONG vol)
 
     if(!(This->buffer->dsbflags&DSBCAPS_CTRLVOLUME))
         hr = DSERR_CONTROLUNAVAIL;
-    if(SUCCEEDED(hr))
+    else
     {
         This->current.vol = vol;
-        setALContext(This->ctx);
-        alSourcef(This->source, AL_GAIN, mB_to_gain(vol));
-        popALContext();
+        if(LIKELY(This->source))
+        {
+            setALContext(This->ctx);
+            alSourcef(This->source, AL_GAIN, mB_to_gain(vol));
+            popALContext();
+        }
     }
 
     return hr;
@@ -1374,7 +1393,7 @@ static HRESULT WINAPI DS8Buffer_SetPan(IDirectSoundBuffer8 *iface, LONG pan)
     else
     {
         This->current.pan = pan;
-        if(!(This->buffer->dsbflags&DSBCAPS_CTRL3D))
+        if(LIKELY(This->source && !(This->buffer->dsbflags&DSBCAPS_CTRL3D)))
         {
             ALfloat pos[3];
             pos[0] = (ALfloat)(pan-DSBPAN_LEFT)/(ALfloat)(DSBPAN_RIGHT-DSBPAN_LEFT) - 0.5f;
@@ -1412,15 +1431,17 @@ static HRESULT WINAPI DS8Buffer_SetFrequency(IDirectSoundBuffer8 *iface, DWORD f
         hr = DSERR_CONTROLUNAVAIL;
     else
     {
-        ALfloat pitch = 1.0f;
-        if(freq != DSBFREQUENCY_ORIGINAL)
-            pitch = freq / (ALfloat)This->buffer->format.Format.nSamplesPerSec;
         This->current.frequency = freq;
+        if(LIKELY(This->source))
+        {
+            ALfloat pitch;
 
-        setALContext(This->ctx);
-        alSourcef(This->source, AL_PITCH, pitch);
-        checkALError();
-        popALContext();
+            setALContext(This->ctx);
+            pitch = freq ? freq / (ALfloat)This->buffer->format.Format.nSamplesPerSec : 1.0f;
+            alSourcef(This->source, AL_PITCH, pitch);
+            checkALError();
+            popALContext();
+        }
     }
 
     return hr;
@@ -1435,8 +1456,11 @@ static HRESULT WINAPI DS8Buffer_Stop(IDirectSoundBuffer8 *iface)
     EnterCriticalSection(&This->share->crst);
     setALContext(This->ctx);
 
-    alSourcePause(This->source);
-    checkALError();
+    if(LIKELY(This->source))
+    {
+        alSourcePause(This->source);
+        checkALError();
+    }
 
     This->isplaying = FALSE;
     DS8Primary_triggernots(This->primary);
@@ -1548,10 +1572,14 @@ static HRESULT WINAPI DS8Buffer_SetFX(IDirectSoundBuffer8 *iface, DWORD fxcount,
     }
 
     EnterCriticalSection(&This->share->crst);
-    setALContext(This->ctx);
 
-    alGetSourcei(This->source, AL_SOURCE_STATE, &state);
-    checkALError();
+    setALContext(This->ctx);
+    if(LIKELY(This->source))
+    {
+        alGetSourcei(This->source, AL_SOURCE_STATE, &state);
+        checkALError();
+    }
+    popALContext();
     if(This->segsize != 0 && state != AL_PLAYING)
         state = This->isplaying ? AL_PLAYING : AL_PAUSED;
     if(state == AL_PLAYING)
@@ -1590,7 +1618,6 @@ static HRESULT WINAPI DS8Buffer_SetFX(IDirectSoundBuffer8 *iface, DWORD fxcount,
     hr = DS_INCOMPLETE;
 
 done:
-    popALContext();
     LeaveCriticalSection(&This->share->crst);
 
     return hr;
@@ -1689,6 +1716,8 @@ void DS8Buffer_SetParams(DS8Buffer *This, const DS3DBUFFER *params, const EAX30B
         This->current.eax = *eax_params;
 
     /* Now apply what's changed to OpenAL. */
+    if(UNLIKELY(!This->source)) return;
+
     if(dirty.bit.pos)
         alSource3f(source, AL_POSITION, params->vPosition.x, params->vPosition.y,
                                        -params->vPosition.z);
@@ -1960,9 +1989,12 @@ static HRESULT WINAPI DS8Buffer3D_SetConeAngles(IDirectSound3DBuffer *iface, DWO
         setALContext(This->ctx);
         This->current.ds3d.dwInsideConeAngle = dwInsideConeAngle;
         This->current.ds3d.dwOutsideConeAngle = dwOutsideConeAngle;
-        alSourcei(This->source, AL_CONE_INNER_ANGLE, dwInsideConeAngle);
-        alSourcei(This->source, AL_CONE_OUTER_ANGLE, dwOutsideConeAngle);
-        checkALError();
+        if(LIKELY(This->source))
+        {
+            alSourcei(This->source, AL_CONE_INNER_ANGLE, dwInsideConeAngle);
+            alSourcei(This->source, AL_CONE_OUTER_ANGLE, dwOutsideConeAngle);
+            checkALError();
+        }
         popALContext();
     }
     LeaveCriticalSection(&This->share->crst);
@@ -1990,8 +2022,11 @@ static HRESULT WINAPI DS8Buffer3D_SetConeOrientation(IDirectSound3DBuffer *iface
         This->current.ds3d.vConeOrientation.x = x;
         This->current.ds3d.vConeOrientation.y = y;
         This->current.ds3d.vConeOrientation.z = z;
-        alSource3f(This->source, AL_DIRECTION, x, y, -z);
-        checkALError();
+        if(LIKELY(This->source))
+        {
+            alSource3f(This->source, AL_DIRECTION, x, y, -z);
+            checkALError();
+        }
         popALContext();
     }
     LeaveCriticalSection(&This->share->crst);
@@ -2020,8 +2055,11 @@ static HRESULT WINAPI DS8Buffer3D_SetConeOutsideVolume(IDirectSound3DBuffer *ifa
     {
         setALContext(This->ctx);
         This->current.ds3d.lConeOutsideVolume = vol;
-        alSourcef(This->source, AL_CONE_OUTER_GAIN, mB_to_gain(vol));
-        checkALError();
+        if(LIKELY(This->source))
+        {
+            alSourcef(This->source, AL_CONE_OUTER_GAIN, mB_to_gain(vol));
+            checkALError();
+        }
         popALContext();
     }
     LeaveCriticalSection(&This->share->crst);
@@ -2050,8 +2088,11 @@ static HRESULT WINAPI DS8Buffer3D_SetMaxDistance(IDirectSound3DBuffer *iface, D3
     {
         setALContext(This->ctx);
         This->current.ds3d.flMaxDistance = maxdist;
-        alSourcef(This->source, AL_MAX_DISTANCE, maxdist);
-        checkALError();
+        if(LIKELY(This->source))
+        {
+            alSourcef(This->source, AL_MAX_DISTANCE, maxdist);
+            checkALError();
+        }
         popALContext();
     }
     LeaveCriticalSection(&This->share->crst);
@@ -2080,8 +2121,11 @@ static HRESULT WINAPI DS8Buffer3D_SetMinDistance(IDirectSound3DBuffer *iface, D3
     {
         setALContext(This->ctx);
         This->current.ds3d.flMinDistance = mindist;
-        alSourcef(This->source, AL_REFERENCE_DISTANCE, mindist);
-        checkALError();
+        if(LIKELY(This->source))
+        {
+            alSourcef(This->source, AL_REFERENCE_DISTANCE, mindist);
+            checkALError();
+        }
         popALContext();
     }
     LeaveCriticalSection(&This->share->crst);
@@ -2113,15 +2157,18 @@ static HRESULT WINAPI DS8Buffer3D_SetMode(IDirectSound3DBuffer *iface, DWORD mod
 
         setALContext(This->ctx);
         This->current.ds3d.dwMode = mode;
-        if(HAS_EXTENSION(This->share, SOFT_SOURCE_SPATIALIZE))
-            alSourcei(This->source, AL_SOURCE_SPATIALIZE_SOFT,
-                      (mode==DS3DMODE_DISABLE) ? AL_FALSE : AL_TRUE);
-        alSourcei(This->source, AL_SOURCE_RELATIVE,
-                  (mode != DS3DMODE_NORMAL) ? AL_TRUE : AL_FALSE);
-        alSourcef(This->source, AL_ROLLOFF_FACTOR,
-                  (mode == DS3DMODE_DISABLE) ? 0.0f :
-                  (This->current.eax.flRolloffFactor + prim->rollofffactor));
-        checkALError();
+        if(LIKELY(This->source))
+        {
+            if(HAS_EXTENSION(This->share, SOFT_SOURCE_SPATIALIZE))
+                alSourcei(This->source, AL_SOURCE_SPATIALIZE_SOFT,
+                          (mode==DS3DMODE_DISABLE) ? AL_FALSE : AL_TRUE);
+            alSourcei(This->source, AL_SOURCE_RELATIVE,
+                      (mode != DS3DMODE_NORMAL) ? AL_TRUE : AL_FALSE);
+            alSourcef(This->source, AL_ROLLOFF_FACTOR,
+                      (mode == DS3DMODE_DISABLE) ? 0.0f :
+                      (This->current.eax.flRolloffFactor + prim->rollofffactor));
+            checkALError();
+        }
         popALContext();
     }
     LeaveCriticalSection(&This->share->crst);
@@ -2149,8 +2196,11 @@ static HRESULT WINAPI DS8Buffer3D_SetPosition(IDirectSound3DBuffer *iface, D3DVA
         This->current.ds3d.vPosition.x = x;
         This->current.ds3d.vPosition.y = y;
         This->current.ds3d.vPosition.z = z;
-        alSource3f(This->source, AL_POSITION, x, y, -z);
-        checkALError();
+        if(LIKELY(This->source))
+        {
+            alSource3f(This->source, AL_POSITION, x, y, -z);
+            checkALError();
+        }
         popALContext();
     }
     LeaveCriticalSection(&This->share->crst);
@@ -2178,8 +2228,11 @@ static HRESULT WINAPI DS8Buffer3D_SetVelocity(IDirectSound3DBuffer *iface, D3DVA
         This->current.ds3d.vVelocity.x = x;
         This->current.ds3d.vVelocity.y = y;
         This->current.ds3d.vVelocity.z = z;
-        alSource3f(This->source, AL_VELOCITY, x, y, -z);
-        checkALError();
+        if(LIKELY(This->source))
+        {
+            alSource3f(This->source, AL_VELOCITY, x, y, -z);
+            checkALError();
+        }
         popALContext();
     }
     LeaveCriticalSection(&This->share->crst);
