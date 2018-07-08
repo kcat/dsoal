@@ -587,19 +587,23 @@ struct DS8Buffer {
     DWORD islooping : 1;
     DWORD bufferlost : 1;
     DWORD playflags : 28;
-    DWORD ds3dmode;
 
     /* Must be 0 (deferred, not yet placed), DSBSTATUS_LOCSOFTWARE, or
      * DSBSTATUS_LOCHARDWARE.
      */
     DWORD loc_status;
 
-    ALfloat rollofffactor;
-
     struct {
+        LONG vol, pan;
+        DWORD frequency;
         DS3DBUFFER ds3d;
         EAX30BUFFERPROPERTIES eax;
         float eax1_reverbmix; /* Mirrored by eax.lRoom. */
+    } current;
+    struct {
+        DS3DBUFFER ds3d;
+        EAX30BUFFERPROPERTIES eax;
+        float eax1_reverbmix;
     } deferred;
     union BufferParamFlags dirty;
 

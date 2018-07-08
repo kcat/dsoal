@@ -1129,80 +1129,80 @@ HRESULT EAX3Buffer_Get(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
         break;
 
     case DSPROPERTY_EAX30BUFFER_ALLPARAMETERS:
-        GET_PROP(buf->deferred.eax, EAX30BUFFERPROPERTIES);
+        GET_PROP(buf->current.eax, EAX30BUFFERPROPERTIES);
         break;
     case DSPROPERTY_EAX30BUFFER_OBSTRUCTIONPARAMETERS:
-        GET_PROP(EAX3BufferObstruction(&buf->deferred.eax), EAXOBSTRUCTIONPROPERTIES);
+        GET_PROP(EAX3BufferObstruction(&buf->current.eax), EAXOBSTRUCTIONPROPERTIES);
         break;
     case DSPROPERTY_EAX30BUFFER_OCCLUSIONPARAMETERS:
-        GET_PROP(EAX3BufferOcclusion(&buf->deferred.eax), EAXOCCLUSIONPROPERTIES);
+        GET_PROP(EAX3BufferOcclusion(&buf->current.eax), EAXOCCLUSIONPROPERTIES);
         break;
     case DSPROPERTY_EAX30BUFFER_EXCLUSIONPARAMETERS:
-        GET_PROP(EAX3BufferExclusion(&buf->deferred.eax), EAXEXCLUSIONPROPERTIES);
+        GET_PROP(EAX3BufferExclusion(&buf->current.eax), EAXEXCLUSIONPROPERTIES);
         break;
 
     case DSPROPERTY_EAX30BUFFER_DIRECT:
-        GET_PROP(buf->deferred.eax.lDirect, long);
+        GET_PROP(buf->current.eax.lDirect, long);
         break;
     case DSPROPERTY_EAX30BUFFER_DIRECTHF:
-        GET_PROP(buf->deferred.eax.lDirectHF, long);
+        GET_PROP(buf->current.eax.lDirectHF, long);
         break;
 
     case DSPROPERTY_EAX30BUFFER_ROOM:
-        GET_PROP(buf->deferred.eax.lRoom, long);
+        GET_PROP(buf->current.eax.lRoom, long);
         break;
     case DSPROPERTY_EAX30BUFFER_ROOMHF:
-        GET_PROP(buf->deferred.eax.lRoomHF, long);
+        GET_PROP(buf->current.eax.lRoomHF, long);
         break;
 
     case DSPROPERTY_EAX30BUFFER_OBSTRUCTION:
-        GET_PROP(buf->deferred.eax.lObstruction, long);
+        GET_PROP(buf->current.eax.lObstruction, long);
         break;
     case DSPROPERTY_EAX30BUFFER_OBSTRUCTIONLFRATIO:
-        GET_PROP(buf->deferred.eax.flObstructionLFRatio, float);
+        GET_PROP(buf->current.eax.flObstructionLFRatio, float);
         break;
 
     case DSPROPERTY_EAX30BUFFER_OCCLUSION:
-        GET_PROP(buf->deferred.eax.lOcclusion, long);
+        GET_PROP(buf->current.eax.lOcclusion, long);
         break;
     case DSPROPERTY_EAX30BUFFER_OCCLUSIONLFRATIO:
-        GET_PROP(buf->deferred.eax.flOcclusionLFRatio, float);
+        GET_PROP(buf->current.eax.flOcclusionLFRatio, float);
         break;
     case DSPROPERTY_EAX30BUFFER_OCCLUSIONROOMRATIO:
-        GET_PROP(buf->deferred.eax.flOcclusionRoomRatio, float);
+        GET_PROP(buf->current.eax.flOcclusionRoomRatio, float);
         break;
     case DSPROPERTY_EAX30BUFFER_OCCLUSIONDIRECTRATIO:
-        GET_PROP(buf->deferred.eax.flOcclusionDirectRatio, float);
+        GET_PROP(buf->current.eax.flOcclusionDirectRatio, float);
         break;
 
     case DSPROPERTY_EAX30BUFFER_EXCLUSION:
-        GET_PROP(buf->deferred.eax.lExclusion, long);
+        GET_PROP(buf->current.eax.lExclusion, long);
         break;
     case DSPROPERTY_EAX30BUFFER_EXCLUSIONLFRATIO:
-        GET_PROP(buf->deferred.eax.flExclusionLFRatio, float);
+        GET_PROP(buf->current.eax.flExclusionLFRatio, float);
         break;
 
     case DSPROPERTY_EAX30BUFFER_OUTSIDEVOLUMEHF:
-        GET_PROP(buf->deferred.eax.lOutsideVolumeHF, long);
+        GET_PROP(buf->current.eax.lOutsideVolumeHF, long);
         break;
 
     case DSPROPERTY_EAX30BUFFER_DOPPLERFACTOR:
-        GET_PROP(buf->deferred.eax.flDopplerFactor, float);
+        GET_PROP(buf->current.eax.flDopplerFactor, float);
         break;
 
     case DSPROPERTY_EAX30BUFFER_ROLLOFFFACTOR:
-        GET_PROP(buf->deferred.eax.flRolloffFactor, float);
+        GET_PROP(buf->current.eax.flRolloffFactor, float);
         break;
     case DSPROPERTY_EAX30BUFFER_ROOMROLLOFFFACTOR:
-        GET_PROP(buf->deferred.eax.flRoomRolloffFactor, float);
+        GET_PROP(buf->current.eax.flRoomRolloffFactor, float);
         break;
 
     case DSPROPERTY_EAX30BUFFER_AIRABSORPTIONFACTOR:
-        GET_PROP(buf->deferred.eax.flAirAbsorptionFactor, float);
+        GET_PROP(buf->current.eax.flAirAbsorptionFactor, float);
         break;
 
     case DSPROPERTY_EAX30BUFFER_FLAGS:
-        GET_PROP(buf->deferred.eax.dwFlags, DWORD);
+        GET_PROP(buf->current.eax.dwFlags, DWORD);
         break;
 
     default:
@@ -1892,54 +1892,54 @@ HRESULT EAX2Buffer_Get(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
         break;
 
     case DSPROPERTY_EAX20BUFFER_ALLPARAMETERS:
-        GET_PROP(EAXBuffer3To2(&buf->deferred.eax), EAX20BUFFERPROPERTIES);
+        GET_PROP(EAXBuffer3To2(&buf->current.eax), EAX20BUFFERPROPERTIES);
         break;
 
     case DSPROPERTY_EAX20BUFFER_DIRECT:
-        GET_PROP(buf->deferred.eax.lDirect, long);
+        GET_PROP(buf->current.eax.lDirect, long);
         break;
     case DSPROPERTY_EAX20BUFFER_DIRECTHF:
-        GET_PROP(buf->deferred.eax.lDirectHF, long);
+        GET_PROP(buf->current.eax.lDirectHF, long);
         break;
 
     case DSPROPERTY_EAX20BUFFER_ROOM:
-        GET_PROP(buf->deferred.eax.lRoom, long);
+        GET_PROP(buf->current.eax.lRoom, long);
         break;
     case DSPROPERTY_EAX20BUFFER_ROOMHF:
-        GET_PROP(buf->deferred.eax.lRoomHF, long);
+        GET_PROP(buf->current.eax.lRoomHF, long);
         break;
 
     case DSPROPERTY_EAX20BUFFER_ROOMROLLOFFFACTOR:
-        GET_PROP(buf->deferred.eax.flRoomRolloffFactor, float);
+        GET_PROP(buf->current.eax.flRoomRolloffFactor, float);
         break;
 
     case DSPROPERTY_EAX20BUFFER_OBSTRUCTION:
-        GET_PROP(buf->deferred.eax.lObstruction, long);
+        GET_PROP(buf->current.eax.lObstruction, long);
         break;
     case DSPROPERTY_EAX20BUFFER_OBSTRUCTIONLFRATIO:
-        GET_PROP(buf->deferred.eax.flObstructionLFRatio, float);
+        GET_PROP(buf->current.eax.flObstructionLFRatio, float);
         break;
 
     case DSPROPERTY_EAX20BUFFER_OCCLUSION:
-        GET_PROP(buf->deferred.eax.lOcclusion, long);
+        GET_PROP(buf->current.eax.lOcclusion, long);
         break;
     case DSPROPERTY_EAX20BUFFER_OCCLUSIONLFRATIO:
-        GET_PROP(buf->deferred.eax.flOcclusionLFRatio, float);
+        GET_PROP(buf->current.eax.flOcclusionLFRatio, float);
         break;
     case DSPROPERTY_EAX20BUFFER_OCCLUSIONROOMRATIO:
-        GET_PROP(buf->deferred.eax.flOcclusionRoomRatio, float);
+        GET_PROP(buf->current.eax.flOcclusionRoomRatio, float);
         break;
 
     case DSPROPERTY_EAX20BUFFER_OUTSIDEVOLUMEHF:
-        GET_PROP(buf->deferred.eax.lOutsideVolumeHF, long);
+        GET_PROP(buf->current.eax.lOutsideVolumeHF, long);
         break;
 
     case DSPROPERTY_EAX20BUFFER_AIRABSORPTIONFACTOR:
-        GET_PROP(buf->deferred.eax.flAirAbsorptionFactor, float);
+        GET_PROP(buf->current.eax.flAirAbsorptionFactor, float);
         break;
 
     case DSPROPERTY_EAX20BUFFER_FLAGS:
-        GET_PROP(buf->deferred.eax.dwFlags, DWORD);
+        GET_PROP(buf->current.eax.dwFlags, DWORD);
         break;
 
     default:
@@ -2233,7 +2233,7 @@ HRESULT EAX1Buffer_Get(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
         {
             union { void *v; float *fl; } data = { pPropData };
 
-            *data.fl = buf->deferred.eax1_reverbmix;
+            *data.fl = buf->current.eax1_reverbmix;
             *pcbReturned = sizeof(float);
             hr = DS_OK;
         }

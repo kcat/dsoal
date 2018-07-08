@@ -1100,8 +1100,9 @@ static void DS8Primary_SetParams(DS8Primary *This, const DS3DLISTENER *params, L
                 DS8Buffer *buf = bufgroup[i].Buffers + idx;
                 usemask &= ~(U64(1) << idx);
 
-                if(buf->ds3dmode != DS3DMODE_DISABLE)
-                    alSourcef(buf->source, AL_ROLLOFF_FACTOR, buf->rollofffactor + rolloff);
+                if(buf->current.ds3d.dwMode != DS3DMODE_DISABLE)
+                    alSourcef(buf->source, AL_ROLLOFF_FACTOR,
+                              buf->current.eax.flRolloffFactor + rolloff);
             }
         }
     }
@@ -1460,8 +1461,9 @@ static HRESULT WINAPI DS8Primary3D_SetRolloffFactor(IDirectSound3DListener *ifac
                 DS8Buffer *buf = bufgroup[i].Buffers + idx;
                 usemask &= ~(U64(1) << idx);
 
-                if(buf->ds3dmode != DS3DMODE_DISABLE)
-                    alSourcef(buf->source, AL_ROLLOFF_FACTOR, buf->rollofffactor + factor);
+                if(buf->current.ds3d.dwMode != DS3DMODE_DISABLE)
+                    alSourcef(buf->source, AL_ROLLOFF_FACTOR,
+                              buf->current.eax.flRolloffFactor + factor);
             }
         }
         checkALError();
