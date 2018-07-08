@@ -596,7 +596,7 @@ void DS8Buffer_Destroy(DS8Buffer *This)
     setALContext(This->ctx);
     if(This->source)
     {
-        alSourceStop(This->source);
+        alSourceRewind(This->source);
         alSourcei(This->source, AL_BUFFER, 0);
         checkALError();
 
@@ -632,7 +632,7 @@ static HRESULT DS8Buffer_SetLoc(DS8Buffer *buf, DWORD loc_status)
 {
     DS8Data *data = buf->buffer;
 
-    if(buf->loc_status == loc_status)
+    if((loc_status && buf->loc_status == loc_status) || (!loc_status && buf->loc_status))
         return DS_OK;
 
     /* NOTE: Hardware and software buffers may have different source pools in
@@ -641,7 +641,7 @@ static HRESULT DS8Buffer_SetLoc(DS8Buffer *buf, DWORD loc_status)
      */
     if(buf->source)
     {
-        alSourceStop(buf->source);
+        alSourceRewind(buf->source);
         alSourcei(buf->source, AL_BUFFER, 0);
         checkALError();
 
@@ -650,6 +650,14 @@ static HRESULT DS8Buffer_SetLoc(DS8Buffer *buf, DWORD loc_status)
     }
     buf->loc_status = 0;
 
+    if(!loc_status)
+    {
+        /* TODO: Select hardware or software given availability when source
+         * pools are separate.
+         */
+        loc_status = DSBSTATUS_LOCHARDWARE;
+    }
+
     if(!buf->share->sources.avail_num)
     {
         ERR("Out of sources\n");
@@ -657,7 +665,6 @@ static HRESULT DS8Buffer_SetLoc(DS8Buffer *buf, DWORD loc_status)
     }
 
     buf->source = buf->share->sources.ids[--(buf->share->sources.avail_num)];
-    alSourceRewind(buf->source);
     alSourcef(buf->source, AL_GAIN, mB_to_gain(buf->current.vol));
     alSourcef(buf->source, AL_PITCH,
         buf->current.frequency ? (float)buf->current.frequency/data->format.Format.nSamplesPerSec
@@ -843,7 +850,7 @@ static HRESULT WINAPI DS8Buffer_GetCaps(IDirectSoundBuffer8 *iface, DSBCAPS *cap
     data = This->buffer;
 
     caps->dwFlags = data->dsbflags;
-    if((data->dsbflags&DSBCAPS_LOCDEFER))
+    if(!(data->dsbflags&DSBCAPS_LOCDEFER))
     {
         if(This->loc_status == DSBSTATUS_LOCHARDWARE)
             caps->dwFlags |= DSBCAPS_LOCHARDWARE;
@@ -1211,8 +1218,12 @@ HRESULT WINAPI DS8Buffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSound *ds
 
     hr = DS_OK;
     if(!(data->dsbflags&DSBCAPS_LOCDEFER))
-        hr = DS8Buffer_SetLoc(This, (data->dsbflags&DSBCAPS_LOCSOFTWARE) ?
-                                    DSBSTATUS_LOCSOFTWARE : DSBSTATUS_LOCHARDWARE);
+    {
+        DWORD loc = 0;
+        if((data->dsbflags&DSBCAPS_LOCHARDWARE)) loc = DSBSTATUS_LOCHARDWARE;
+        else if((data->dsbflags&DSBCAPS_LOCSOFTWARE)) loc = DSBSTATUS_LOCSOFTWARE;
+        hr = DS8Buffer_SetLoc(This, loc);
+    }
 out:
     This->init_done = SUCCEEDED(hr);
 
@@ -1304,11 +1315,18 @@ static HRESULT WINAPI DS8Buffer_Play(IDirectSoundBuffer8 *iface, DWORD res1, DWO
     data = This->buffer;
     if((data->dsbflags&DSBCAPS_LOCDEFER))
     {
-        DWORD loc = This->loc_status;
-        if((flags&DSBPLAY_LOCSOFTWARE))
-            loc = DSBSTATUS_LOCSOFTWARE;
-        else if((flags&DSBPLAY_LOCHARDWARE) || !loc)
-            loc = DSBSTATUS_LOCHARDWARE;
+        DWORD loc = 0;
+
+        hr = DSERR_INVALIDPARAM;
+        if((flags&(DSBPLAY_LOCSOFTWARE|DSBPLAY_LOCHARDWARE)) == (DSBPLAY_LOCSOFTWARE|DSBPLAY_LOCHARDWARE))
+        {
+            WARN("Both hardware and software specified\n");
+            goto out;
+        }
+
+        if((flags&DSBPLAY_LOCHARDWARE)) loc = DSBSTATUS_LOCHARDWARE;
+        else if((flags&DSBPLAY_LOCSOFTWARE)) loc = DSBSTATUS_LOCSOFTWARE;
+
         hr = DS8Buffer_SetLoc(This, loc);
         if(FAILED(hr)) goto out;
     }
@@ -1724,9 +1742,21 @@ static HRESULT WINAPI DS8Buffer_AcquireResources(IDirectSoundBuffer8 *iface, DWO
     EnterCriticalSection(&This->share->crst);
     hr = DS_OK;
     if((This->buffer->dsbflags&DSBCAPS_LOCDEFER))
-        hr = DS8Buffer_SetLoc(This,
-            (flags&DSBPLAY_LOCSOFTWARE) ? DSBSTATUS_LOCSOFTWARE : DSBSTATUS_LOCHARDWARE
-        );
+    {
+        DWORD loc = 0;
+
+        hr = DSERR_INVALIDPARAM;
+        if((flags&(DSBPLAY_LOCSOFTWARE|DSBPLAY_LOCHARDWARE)) == (DSBPLAY_LOCSOFTWARE|DSBPLAY_LOCHARDWARE))
+        {
+            WARN("Both hardware and software specified\n");
+            goto out;
+        }
+
+        if((flags&DSBPLAY_LOCHARDWARE)) loc = DSBSTATUS_LOCHARDWARE;
+        else if((flags&DSBPLAY_LOCSOFTWARE)) loc = DSBSTATUS_LOCSOFTWARE;
+        hr = DS8Buffer_SetLoc(This, loc);
+    }
+out:
     LeaveCriticalSection(&This->share->crst);
 
     return hr;
