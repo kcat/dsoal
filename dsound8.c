@@ -323,9 +323,6 @@ static HRESULT DSShare_Create(REFIID guid, DeviceShare **out)
         }
     }
 
-    if(HAS_EXTENSION(share, EXT_EFX))
-        alGenAuxiliaryEffectSlots(1, &share->auxslot);
-
     share->sources.max_alloc = 0;
     while(share->sources.max_alloc < MAX_SOURCES)
     {
@@ -339,6 +336,9 @@ static HRESULT DSShare_Create(REFIID guid, DeviceShare **out)
     if(share->sources.max_alloc > 64)
         share->sources.max_alloc &= ~63u;
     share->sources.avail_num = share->sources.max_alloc;
+
+    if(HAS_EXTENSION(share, EXT_EFX))
+        alGenAuxiliaryEffectSlots(1, &share->auxslot);
 
     if(sharelist)
         temp = HeapReAlloc(GetProcessHeap(), 0, sharelist, sizeof(*sharelist)*(sharelistsize+1));
