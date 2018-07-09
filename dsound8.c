@@ -263,8 +263,9 @@ static HRESULT DSShare_Create(REFIID guid, DeviceShare **out)
                 }
             }
 
-            TRACE("Got speaker config %lu from physical speakers 0x%08lx\n",
-                  share->speaker_config, phys_speakers);
+            TRACE("Got speaker config %d:%d from physical speakers 0x%08lx\n",
+                  DSSPEAKER_GEOMETRY(share->speaker_config),
+                  DSSPEAKER_CONFIG(share->speaker_config), phys_speakers);
 
             PropVariantClear(&pv);
             IPropertyStore_Release(store);
