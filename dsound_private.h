@@ -475,10 +475,18 @@ enum {
 #define BITFIELD_SET(arr, b) ((arr)[(b)>>3] |= 1<<((b)&7))
 #define BITFIELD_TEST(arr, b) ((arr)[(b)>>3] & (1<<((b)&7)))
 
+/* Maximum number of emulated hardware buffers. May be less depending on source
+ * availability.
+ */
+#define MAX_HWBUFFERS 256
 
-#define MAX_SOURCES 256
+#define MAX_SOURCES 512
 typedef struct SourceCollection {
-    DWORD max_alloc, avail_num;
+    DWORD maxhw_alloc, availhw_num;
+    DWORD maxsw_alloc, availsw_num;
+    /* "Hardware" sources start at 0, and "software" sources start at
+     * maxhw_alloc. Total sources is maxhw_alloc+maxsw_alloc.
+     */
     ALuint ids[MAX_SOURCES];
 } SourceCollection;
 

@@ -330,14 +330,14 @@ HRESULT DS8Primary_PreInit(DS8Primary *This, DS8Impl *parent)
     }
     popALContext();
 
-    num_srcs = This->share->sources.max_alloc;
+    num_srcs = This->share->sources.maxhw_alloc + This->share->sources.maxsw_alloc;
 
     hr = DSERR_OUTOFMEMORY;
     This->notifies = HeapAlloc(GetProcessHeap(), 0, num_srcs*sizeof(*This->notifies));
     if(!This->notifies) goto fail;
     This->sizenotifies = num_srcs;
 
-    count = (num_srcs+63) / 64;
+    count = (MAX_HWBUFFERS+63) / 64;
     This->BufferGroups = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY,
                                    count*sizeof(*This->BufferGroups));
     if(!This->BufferGroups) goto fail;

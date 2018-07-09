@@ -596,11 +596,19 @@ void DS8Buffer_Destroy(DS8Buffer *This)
     setALContext(This->ctx);
     if(This->source)
     {
+        DeviceShare *share = This->share;
+
         alSourceRewind(This->source);
         alSourcei(This->source, AL_BUFFER, 0);
         checkALError();
 
-        prim->share->sources.ids[prim->share->sources.avail_num++] = This->source;
+        if(This->loc_status == DSBSTATUS_LOCHARDWARE)
+            share->sources.ids[share->sources.availhw_num++] = This->source;
+        else
+        {
+            DWORD base = share->sources.maxhw_alloc;
+            share->sources.ids[base + share->sources.availsw_num++] = This->source;
+        }
         This->source = 0;
     }
     if(This->stream_bids[0])
@@ -630,14 +638,14 @@ void DS8Buffer_Destroy(DS8Buffer *This)
 
 static HRESULT DS8Buffer_SetLoc(DS8Buffer *buf, DWORD loc_status)
 {
+    DeviceShare *share = buf->share;
     DS8Data *data = buf->buffer;
 
     if((loc_status && buf->loc_status == loc_status) || (!loc_status && buf->loc_status))
         return DS_OK;
 
-    /* NOTE: Hardware and software buffers may have different source pools in
-     * the future. If we have a source, we're changing location, so return the
-     * source we have to get a new one.
+    /* If we have a source, we're changing location, so return the source we
+     * have to get a new one.
      */
     if(buf->source)
     {
@@ -645,26 +653,43 @@ static HRESULT DS8Buffer_SetLoc(DS8Buffer *buf, DWORD loc_status)
         alSourcei(buf->source, AL_BUFFER, 0);
         checkALError();
 
-        buf->share->sources.ids[buf->share->sources.avail_num++] = buf->source;
+        if(buf->loc_status == DSBSTATUS_LOCHARDWARE)
+            share->sources.ids[share->sources.availhw_num++] = buf->source;
+        else
+        {
+            DWORD base = share->sources.maxhw_alloc;
+            share->sources.ids[base + share->sources.availsw_num++] = buf->source;
+        }
         buf->source = 0;
     }
     buf->loc_status = 0;
 
     if(!loc_status)
     {
-        /* TODO: Select hardware or software given availability when source
-         * pools are separate.
-         */
-        loc_status = DSBSTATUS_LOCHARDWARE;
+        if(share->sources.availhw_num)
+            loc_status = DSBSTATUS_LOCHARDWARE;
+        else if(share->sources.availsw_num)
+            loc_status = DSBSTATUS_LOCSOFTWARE;
     }
 
-    if(!buf->share->sources.avail_num)
+    if((loc_status == DSBSTATUS_LOCHARDWARE && !share->sources.availhw_num) ||
+       (loc_status == DSBSTATUS_LOCSOFTWARE && !share->sources.availsw_num) ||
+       !loc_status)
     {
-        ERR("Out of sources\n");
+        ERR("Out of %s sources\n",
+            (loc_status == DSBSTATUS_LOCHARDWARE) ? "hardware" :
+            (loc_status == DSBSTATUS_LOCSOFTWARE) ? "software" : "any"
+        );
         return DSERR_ALLOCATED;
     }
 
-    buf->source = buf->share->sources.ids[--(buf->share->sources.avail_num)];
+    if(loc_status == DSBSTATUS_LOCHARDWARE)
+        buf->source = share->sources.ids[--(share->sources.availhw_num)];
+    else
+    {
+        DWORD base = share->sources.maxhw_alloc;
+        buf->source = share->sources.ids[base + --(share->sources.availsw_num)];
+    }
     alSourcef(buf->source, AL_GAIN, mB_to_gain(buf->current.vol));
     alSourcef(buf->source, AL_PITCH,
         buf->current.frequency ? (float)buf->current.frequency/data->format.Format.nSamplesPerSec

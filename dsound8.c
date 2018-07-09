@@ -147,9 +147,10 @@ static void DSShare_Destroy(DeviceShare *share)
         EnterCriticalSection(&openal_crst);
         set_context(share->ctx);
 
-        if(share->sources.max_alloc)
-            alDeleteSources(share->sources.max_alloc, share->sources.ids);
-        share->sources.max_alloc = 0;
+        if(share->sources.maxhw_alloc + share->sources.maxsw_alloc)
+            alDeleteSources(share->sources.maxhw_alloc+share->sources.maxsw_alloc,
+                            share->sources.ids);
+        share->sources.maxhw_alloc = share->sources.maxsw_alloc = 0;
 
         if(share->auxslot)
             alDeleteAuxiliaryEffectSlots(1, &share->auxslot);
@@ -189,6 +190,7 @@ static HRESULT DSShare_Create(REFIID guid, DeviceShare **out)
     ALchar drv_name[64];
     DeviceShare *share;
     IMMDevice *mmdev;
+    ALCint attrs[3];
     void *temp;
     HRESULT hr;
     size_t i;
@@ -298,7 +300,10 @@ static HRESULT DSShare_Create(REFIID guid, DeviceShare **out)
           alcGetString(share->device, ALC_ALL_DEVICES_SPECIFIER) :
           alcGetString(share->device, ALC_DEVICE_SPECIFIER));
 
-    share->ctx = alcCreateContext(share->device, NULL);
+    attrs[0] = ALC_MONO_SOURCES;
+    attrs[1] = MAX_SOURCES;
+    attrs[2] = 0;
+    share->ctx = alcCreateContext(share->device, attrs);
     if(!share->ctx)
     {
         ALCenum err = alcGetError(share->device);
@@ -323,22 +328,45 @@ static HRESULT DSShare_Create(REFIID guid, DeviceShare **out)
         }
     }
 
-    share->sources.max_alloc = 0;
-    while(share->sources.max_alloc < MAX_SOURCES)
+    share->sources.maxhw_alloc = 0;
+    while(share->sources.maxhw_alloc < MAX_SOURCES)
     {
-        alGenSources(1, &share->sources.ids[share->sources.max_alloc]);
-        if(alGetError() != AL_NO_ERROR)
-            break;
-        share->sources.max_alloc++;
+        alGenSources(1, &share->sources.ids[share->sources.maxhw_alloc]);
+        if(alGetError() != AL_NO_ERROR) break;
+        share->sources.maxhw_alloc++;
     }
-    popALContext();
-    /* As long as we have at least 64 sources, keep it a multiple of 64. */
-    if(share->sources.max_alloc > 64)
-        share->sources.max_alloc &= ~63u;
-    share->sources.avail_num = share->sources.max_alloc;
 
     if(HAS_EXTENSION(share, EXT_EFX))
         alGenAuxiliaryEffectSlots(1, &share->auxslot);
+    popALContext();
+
+    hr = E_OUTOFMEMORY;
+    if(share->sources.maxhw_alloc < 128)
+    {
+        ERR("Could only allocate %lu sources (minimum 128 required)\n",
+            share->sources.maxhw_alloc);
+        goto fail;
+    }
+
+    if(share->sources.maxhw_alloc > MAX_HWBUFFERS)
+    {
+        share->sources.maxsw_alloc = share->sources.maxhw_alloc - MAX_HWBUFFERS;
+        share->sources.maxhw_alloc = MAX_HWBUFFERS;
+    }
+    else if(share->sources.maxhw_alloc > MAX_HWBUFFERS/2)
+    {
+        share->sources.maxsw_alloc = share->sources.maxhw_alloc - MAX_HWBUFFERS/2;
+        share->sources.maxhw_alloc = MAX_HWBUFFERS/2;
+    }
+    else
+    {
+        share->sources.maxsw_alloc = share->sources.maxhw_alloc - MAX_HWBUFFERS/4;
+        share->sources.maxhw_alloc = MAX_HWBUFFERS/4;
+    }
+    share->sources.availhw_num = share->sources.maxhw_alloc;
+    share->sources.availsw_num = share->sources.maxsw_alloc;
+    TRACE("Allocated %lu hardware sources and %lu software sources\n",
+          share->sources.maxhw_alloc, share->sources.maxsw_alloc);
 
     if(sharelist)
         temp = HeapReAlloc(GetProcessHeap(), 0, sharelist, sizeof(*sharelist)*(sharelistsize+1));
@@ -699,7 +727,7 @@ static HRESULT WINAPI DS8_GetCaps(IDirectSound8 *iface, LPDSCAPS caps)
 
     EnterCriticalSection(&This->share->crst);
 
-    free_bufs = This->share->sources.max_alloc;
+    free_bufs = This->share->sources.maxhw_alloc;
     bufgroup = This->primary.BufferGroups;
     endgroup = bufgroup + This->primary.NumBufferGroups;
     for(;free_bufs && bufgroup != endgroup;++bufgroup)
@@ -732,7 +760,7 @@ static HRESULT WINAPI DS8_GetCaps(IDirectSound8 *iface, LPDSCAPS caps)
         caps->dwMaxHwMixingStreamingBuffers =
         caps->dwMaxHw3DAllBuffers =
         caps->dwMaxHw3DStaticBuffers =
-        caps->dwMaxHw3DStreamingBuffers = This->share->sources.max_alloc;
+        caps->dwMaxHw3DStreamingBuffers = This->share->sources.maxhw_alloc;
     caps->dwFreeHwMixingAllBuffers =
         caps->dwFreeHwMixingStaticBuffers =
         caps->dwFreeHwMixingStreamingBuffers =
