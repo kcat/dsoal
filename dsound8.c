@@ -781,7 +781,7 @@ static HRESULT WINAPI DS8_GetCaps(IDirectSound8 *iface, LPDSCAPS caps)
 static HRESULT WINAPI DS8_DuplicateSoundBuffer(IDirectSound8 *iface, IDirectSoundBuffer *in, IDirectSoundBuffer **out)
 {
     DS8Impl *This = impl_from_IDirectSound8(iface);
-    DS8Buffer *buf;
+    DS8Buffer *buf = NULL;
     DSBCAPS caps;
     HRESULT hr;
 
@@ -815,54 +815,15 @@ static HRESULT WINAPI DS8_DuplicateSoundBuffer(IDirectSound8 *iface, IDirectSoun
     if(SUCCEEDED(hr))
         hr = DS8Buffer_Create(&buf, &This->primary, in);
     if(SUCCEEDED(hr))
-    {
-        *out = (IDirectSoundBuffer*)&buf->IDirectSoundBuffer8_iface;
         hr = DS8Buffer_Initialize(&buf->IDirectSoundBuffer8_iface, NULL, NULL);
-    }
-    if(SUCCEEDED(hr))
-    {
-        /* According to MSDN volume isn't copied */
-        if((caps.dwFlags&DSBCAPS_CTRLPAN))
-        {
-            LONG pan;
-            if(SUCCEEDED(IDirectSoundBuffer_GetPan(in, &pan)))
-                IDirectSoundBuffer_SetPan(*out, pan);
-        }
-        if((caps.dwFlags&DSBCAPS_CTRLFREQUENCY))
-        {
-            DWORD freq;
-            if(SUCCEEDED(IDirectSoundBuffer_GetFrequency(in, &freq)))
-                IDirectSoundBuffer_SetFrequency(*out, freq);
-        }
-        if((caps.dwFlags&DSBCAPS_CTRL3D))
-        {
-            IDirectSound3DBuffer *buf3d;
-            DS3DBUFFER DS3DBuffer;
-            HRESULT subhr;
-
-            subhr = IDirectSound_QueryInterface(in, &IID_IDirectSound3DBuffer, (void**)&buf3d);
-            if(SUCCEEDED(subhr))
-            {
-                DS3DBuffer.dwSize = sizeof(DS3DBuffer);
-                subhr = IDirectSound3DBuffer_GetAllParameters(buf3d, &DS3DBuffer);
-                IDirectSound3DBuffer_Release(buf3d);
-            }
-            if(SUCCEEDED(subhr))
-                subhr = IDirectSoundBuffer_QueryInterface(*out, &IID_IDirectSound3DBuffer, (void**)&buf3d);
-            if(SUCCEEDED(subhr))
-            {
-                subhr = IDirectSound3DBuffer_SetAllParameters(buf3d, &DS3DBuffer, DS3D_IMMEDIATE);
-                IDirectSound3DBuffer_Release(buf3d);
-            }
-        }
-    }
     if(FAILED(hr))
     {
-        if(*out)
-            IDirectSoundBuffer_Release(*out);
-        *out = NULL;
+        if(buf)
+            IDirectSoundBuffer_Release(&buf->IDirectSoundBuffer8_iface);
+        return hr;
     }
 
+    *out = (IDirectSoundBuffer*)&buf->IDirectSoundBuffer8_iface;
     return hr;
 }
 

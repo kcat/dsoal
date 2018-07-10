@@ -447,8 +447,6 @@ static void DS8Data_Release(DS8Data *This)
 HRESULT DS8Buffer_Create(DS8Buffer **ppv, DS8Primary *prim, IDirectSoundBuffer *orig)
 {
     DS8Buffer *This = NULL;
-    EAX30BUFFERPROPERTIES *eaxbuffer;
-    DS3DBUFFER *ds3dbuffer;
     HRESULT hr;
     DWORD i;
 
@@ -510,60 +508,68 @@ HRESULT DS8Buffer_Create(DS8Buffer **ppv, DS8Primary *prim, IDirectSoundBuffer *
     This->ctx = prim->ctx;
     This->ref = This->all_ref = 1;
 
-    if(orig)
-    {
-        DS8Buffer *org = impl_from_IDirectSoundBuffer(orig);
-        hr = DSERR_BUFFERLOST;
-        if(org->bufferlost)
-            goto fail;
-        DS8Data_AddRef(org->buffer);
-        This->buffer = org->buffer;
-    }
-
     This->current.vol = 0;
     This->current.pan = 0;
     This->current.frequency = 0;
-    ds3dbuffer = &This->current.ds3d;
-    ds3dbuffer->dwSize = sizeof(This->current.ds3d);
-    ds3dbuffer->vPosition.x = 0.0f;
-    ds3dbuffer->vPosition.y = 0.0f;
-    ds3dbuffer->vPosition.z = 0.0f;
-    ds3dbuffer->vVelocity.x = 0.0f;
-    ds3dbuffer->vVelocity.y = 0.0f;
-    ds3dbuffer->vVelocity.z = 0.0f;
-    ds3dbuffer->dwInsideConeAngle = DS3D_DEFAULTCONEANGLE;
-    ds3dbuffer->dwOutsideConeAngle = DS3D_DEFAULTCONEANGLE;
-    ds3dbuffer->vConeOrientation.x = 0.0f;
-    ds3dbuffer->vConeOrientation.y = 0.0f;
-    ds3dbuffer->vConeOrientation.z = 1.0f;
-    ds3dbuffer->lConeOutsideVolume = DS3D_DEFAULTCONEOUTSIDEVOLUME;
-    ds3dbuffer->flMinDistance = DS3D_DEFAULTMINDISTANCE;
-    ds3dbuffer->flMaxDistance = DS3D_DEFAULTMAXDISTANCE;
-    ds3dbuffer->dwMode = DS3DMODE_NORMAL;
-    eaxbuffer = &This->current.eax;
-    eaxbuffer->lDirect = 0;
-    eaxbuffer->lDirectHF = 0;
-    eaxbuffer->lRoom = 0;
-    eaxbuffer->lRoomHF = 0;
-    eaxbuffer->lObstruction = 0;
-    eaxbuffer->flObstructionLFRatio = 0.0f;
-    eaxbuffer->lOcclusion = 0;
-    eaxbuffer->flOcclusionLFRatio = 0.25f;
-    eaxbuffer->flOcclusionRoomRatio = 1.5f;
-    eaxbuffer->flOcclusionDirectRatio = 1.0f;
-    eaxbuffer->lExclusion = 0;
-    eaxbuffer->flExclusionLFRatio = 1.0f;
-    eaxbuffer->lOutsideVolumeHF = 0;
-    eaxbuffer->flDopplerFactor = 1.0f;
-    eaxbuffer->flRolloffFactor = 0.0f;
-    eaxbuffer->flRoomRolloffFactor = 0.0f;
-    eaxbuffer->flAirAbsorptionFactor = 0.0f;
-    eaxbuffer->dwFlags = EAX30BUFFERFLAGS_DIRECTHFAUTO | EAX30BUFFERFLAGS_ROOMAUTO |
-                         EAX30BUFFERFLAGS_ROOMHFAUTO;
+    This->current.ds3d.dwSize = sizeof(This->current.ds3d);
+    This->current.ds3d.vPosition.x = 0.0f;
+    This->current.ds3d.vPosition.y = 0.0f;
+    This->current.ds3d.vPosition.z = 0.0f;
+    This->current.ds3d.vVelocity.x = 0.0f;
+    This->current.ds3d.vVelocity.y = 0.0f;
+    This->current.ds3d.vVelocity.z = 0.0f;
+    This->current.ds3d.dwInsideConeAngle = DS3D_DEFAULTCONEANGLE;
+    This->current.ds3d.dwOutsideConeAngle = DS3D_DEFAULTCONEANGLE;
+    This->current.ds3d.vConeOrientation.x = 0.0f;
+    This->current.ds3d.vConeOrientation.y = 0.0f;
+    This->current.ds3d.vConeOrientation.z = 1.0f;
+    This->current.ds3d.lConeOutsideVolume = DS3D_DEFAULTCONEOUTSIDEVOLUME;
+    This->current.ds3d.flMinDistance = DS3D_DEFAULTMINDISTANCE;
+    This->current.ds3d.flMaxDistance = DS3D_DEFAULTMAXDISTANCE;
+    This->current.ds3d.dwMode = DS3DMODE_NORMAL;
+    This->current.eax.lDirect = 0;
+    This->current.eax.lDirectHF = 0;
+    This->current.eax.lRoom = 0;
+    This->current.eax.lRoomHF = 0;
+    This->current.eax.lObstruction = 0;
+    This->current.eax.flObstructionLFRatio = 0.0f;
+    This->current.eax.lOcclusion = 0;
+    This->current.eax.flOcclusionLFRatio = 0.25f;
+    This->current.eax.flOcclusionRoomRatio = 1.5f;
+    This->current.eax.flOcclusionDirectRatio = 1.0f;
+    This->current.eax.lExclusion = 0;
+    This->current.eax.flExclusionLFRatio = 1.0f;
+    This->current.eax.lOutsideVolumeHF = 0;
+    This->current.eax.flDopplerFactor = 1.0f;
+    This->current.eax.flRolloffFactor = 0.0f;
+    This->current.eax.flRoomRolloffFactor = 0.0f;
+    This->current.eax.flAirAbsorptionFactor = 0.0f;
+    This->current.eax.dwFlags = EAX30BUFFERFLAGS_DIRECTHFAUTO | EAX30BUFFERFLAGS_ROOMAUTO |
+                                EAX30BUFFERFLAGS_ROOMHFAUTO;
     This->current.eax1_reverbmix = 1.0f;
 
-    This->deferred.ds3d = *ds3dbuffer;
-    This->deferred.eax = *eaxbuffer;
+    if(orig)
+    {
+        DS8Buffer *org = impl_from_IDirectSoundBuffer(orig);
+        DS8Data *data = org->buffer;
+
+        hr = DSERR_BUFFERLOST;
+        if(org->bufferlost)
+            goto fail;
+        DS8Data_AddRef(data);
+        This->buffer = data;
+
+        /* According to MSDN, volume isn't copied. */
+        if((data->dsbflags&DSBCAPS_CTRLPAN))
+            This->current.pan = org->current.pan;
+        if((data->dsbflags&DSBCAPS_CTRLFREQUENCY))
+            This->current.frequency = org->current.frequency;
+        if((data->dsbflags&DSBCAPS_CTRL3D))
+            This->current.ds3d = org->current.ds3d;
+    }
+
+    This->deferred.ds3d = This->current.ds3d;
+    This->deferred.eax = This->current.eax;
     This->deferred.eax1_reverbmix = This->current.eax1_reverbmix;
 
     *ppv = This;
