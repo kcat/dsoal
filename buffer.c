@@ -2830,215 +2830,22 @@ static HRESULT WINAPI DS8BufferProp_QuerySupport(IKsPropertySet *iface,
         return E_POINTER;
     *pTypeSupport = 0;
 
+    EnterCriticalSection(&This->share->crst);
     if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX30_BufferProperties))
-    {
-        EnterCriticalSection(&This->share->crst);
-
-        if(This->filter[0] == 0)
-            hr = E_PROP_ID_UNSUPPORTED;
-        else switch(dwPropID)
-        {
-        case DSPROPERTY_EAX30BUFFER_NONE:
-        case DSPROPERTY_EAX30BUFFER_ALLPARAMETERS:
-        case DSPROPERTY_EAX30BUFFER_OBSTRUCTIONPARAMETERS:
-        case DSPROPERTY_EAX30BUFFER_OCCLUSIONPARAMETERS:
-        case DSPROPERTY_EAX30BUFFER_EXCLUSIONPARAMETERS:
-        case DSPROPERTY_EAX30BUFFER_DIRECT:
-        case DSPROPERTY_EAX30BUFFER_DIRECTHF:
-        case DSPROPERTY_EAX30BUFFER_ROOM:
-        case DSPROPERTY_EAX30BUFFER_ROOMHF:
-        case DSPROPERTY_EAX30BUFFER_OBSTRUCTION:
-        case DSPROPERTY_EAX30BUFFER_OBSTRUCTIONLFRATIO:
-        case DSPROPERTY_EAX30BUFFER_OCCLUSION:
-        case DSPROPERTY_EAX30BUFFER_OCCLUSIONLFRATIO:
-        case DSPROPERTY_EAX30BUFFER_OCCLUSIONROOMRATIO:
-        case DSPROPERTY_EAX30BUFFER_OCCLUSIONDIRECTRATIO:
-        case DSPROPERTY_EAX30BUFFER_EXCLUSION:
-        case DSPROPERTY_EAX30BUFFER_EXCLUSIONLFRATIO:
-        case DSPROPERTY_EAX30BUFFER_OUTSIDEVOLUMEHF:
-        case DSPROPERTY_EAX30BUFFER_DOPPLERFACTOR:
-        case DSPROPERTY_EAX30BUFFER_ROLLOFFFACTOR:
-        case DSPROPERTY_EAX30BUFFER_ROOMROLLOFFFACTOR:
-        case DSPROPERTY_EAX30BUFFER_AIRABSORPTIONFACTOR:
-        case DSPROPERTY_EAX30BUFFER_FLAGS:
-            *pTypeSupport = KSPROPERTY_SUPPORT_GET | KSPROPERTY_SUPPORT_SET;
-            hr = DS_OK;
-            break;
-        default:
-            hr = E_PROP_ID_UNSUPPORTED;
-            FIXME("Unhandled EAX3 buffer propid: 0x%08lx\n", dwPropID);
-            break;
-        }
-
-        LeaveCriticalSection(&This->share->crst);
-    }
+        hr = EAX3Buffer_Query(This, dwPropID, pTypeSupport);
     else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX20_BufferProperties))
-    {
-        EnterCriticalSection(&This->share->crst);
-
-        if(This->filter[0] == 0)
-            hr = E_PROP_ID_UNSUPPORTED;
-        else switch(dwPropID)
-        {
-        case DSPROPERTY_EAX20BUFFER_NONE:
-        case DSPROPERTY_EAX20BUFFER_ALLPARAMETERS:
-        case DSPROPERTY_EAX20BUFFER_DIRECT:
-        case DSPROPERTY_EAX20BUFFER_DIRECTHF:
-        case DSPROPERTY_EAX20BUFFER_ROOM:
-        case DSPROPERTY_EAX20BUFFER_ROOMHF:
-        case DSPROPERTY_EAX20BUFFER_ROOMROLLOFFFACTOR:
-        case DSPROPERTY_EAX20BUFFER_OBSTRUCTION:
-        case DSPROPERTY_EAX20BUFFER_OBSTRUCTIONLFRATIO:
-        case DSPROPERTY_EAX20BUFFER_OCCLUSION:
-        case DSPROPERTY_EAX20BUFFER_OCCLUSIONLFRATIO:
-        case DSPROPERTY_EAX20BUFFER_OCCLUSIONROOMRATIO:
-        case DSPROPERTY_EAX20BUFFER_OUTSIDEVOLUMEHF:
-        case DSPROPERTY_EAX20BUFFER_AIRABSORPTIONFACTOR:
-        case DSPROPERTY_EAX20BUFFER_FLAGS:
-            *pTypeSupport = KSPROPERTY_SUPPORT_GET | KSPROPERTY_SUPPORT_SET;
-            hr = DS_OK;
-            break;
-        default:
-            hr = E_PROP_ID_UNSUPPORTED;
-            FIXME("Unhandled EAX2 buffer propid: 0x%08lx\n", dwPropID);
-            break;
-        }
-
-        LeaveCriticalSection(&This->share->crst);
-    }
+        hr = EAX2Buffer_Query(This, dwPropID, pTypeSupport);
     else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX30_ListenerProperties))
-    {
-        DS8Primary *prim = This->primary;
-
-        EnterCriticalSection(&This->share->crst);
-
-        if(prim->effect == 0)
-            hr = E_PROP_ID_UNSUPPORTED;
-        else switch(dwPropID)
-        {
-        case DSPROPERTY_EAX30LISTENER_NONE:
-        case DSPROPERTY_EAX30LISTENER_ALLPARAMETERS:
-        case DSPROPERTY_EAX30LISTENER_ENVIRONMENT:
-        case DSPROPERTY_EAX30LISTENER_ENVIRONMENTSIZE:
-        case DSPROPERTY_EAX30LISTENER_ENVIRONMENTDIFFUSION:
-        case DSPROPERTY_EAX30LISTENER_ROOM:
-        case DSPROPERTY_EAX30LISTENER_ROOMHF:
-        case DSPROPERTY_EAX30LISTENER_ROOMLF:
-        case DSPROPERTY_EAX30LISTENER_DECAYTIME:
-        case DSPROPERTY_EAX30LISTENER_DECAYHFRATIO:
-        case DSPROPERTY_EAX30LISTENER_DECAYLFRATIO:
-        case DSPROPERTY_EAX30LISTENER_REFLECTIONS:
-        case DSPROPERTY_EAX30LISTENER_REFLECTIONSDELAY:
-        case DSPROPERTY_EAX30LISTENER_REFLECTIONSPAN:
-        case DSPROPERTY_EAX30LISTENER_REVERB:
-        case DSPROPERTY_EAX30LISTENER_REVERBDELAY:
-        case DSPROPERTY_EAX30LISTENER_REVERBPAN:
-        case DSPROPERTY_EAX30LISTENER_ECHOTIME:
-        case DSPROPERTY_EAX30LISTENER_ECHODEPTH:
-        case DSPROPERTY_EAX30LISTENER_MODULATIONTIME:
-        case DSPROPERTY_EAX30LISTENER_MODULATIONDEPTH:
-        case DSPROPERTY_EAX30LISTENER_AIRABSORPTIONHF:
-        case DSPROPERTY_EAX30LISTENER_HFREFERENCE:
-        case DSPROPERTY_EAX30LISTENER_LFREFERENCE:
-        case DSPROPERTY_EAX30LISTENER_ROOMROLLOFFFACTOR:
-        case DSPROPERTY_EAX30LISTENER_FLAGS:
-            *pTypeSupport = KSPROPERTY_SUPPORT_GET | KSPROPERTY_SUPPORT_SET;
-            hr = DS_OK;
-            break;
-        default:
-            hr = E_PROP_ID_UNSUPPORTED;
-            FIXME("Unhandled EAX3 listener propid: 0x%08lx\n", dwPropID);
-            break;
-        }
-
-        LeaveCriticalSection(&This->share->crst);
-    }
+        hr = EAX3_Query(This->primary, dwPropID, pTypeSupport);
     else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX20_ListenerProperties))
-    {
-        DS8Primary *prim = This->primary;
-
-        EnterCriticalSection(&This->share->crst);
-
-        if(prim->effect == 0)
-            hr = E_PROP_ID_UNSUPPORTED;
-        else switch(dwPropID)
-        {
-        case DSPROPERTY_EAX20LISTENER_NONE:
-        case DSPROPERTY_EAX20LISTENER_ALLPARAMETERS:
-        case DSPROPERTY_EAX20LISTENER_ROOM:
-        case DSPROPERTY_EAX20LISTENER_ROOMHF:
-        case DSPROPERTY_EAX20LISTENER_ROOMROLLOFFFACTOR:
-        case DSPROPERTY_EAX20LISTENER_DECAYTIME:
-        case DSPROPERTY_EAX20LISTENER_DECAYHFRATIO:
-        case DSPROPERTY_EAX20LISTENER_REFLECTIONS:
-        case DSPROPERTY_EAX20LISTENER_REFLECTIONSDELAY:
-        case DSPROPERTY_EAX20LISTENER_REVERB:
-        case DSPROPERTY_EAX20LISTENER_REVERBDELAY:
-        case DSPROPERTY_EAX20LISTENER_ENVIRONMENT:
-        case DSPROPERTY_EAX20LISTENER_ENVIRONMENTSIZE:
-        case DSPROPERTY_EAX20LISTENER_ENVIRONMENTDIFFUSION:
-        case DSPROPERTY_EAX20LISTENER_AIRABSORPTIONHF:
-        case DSPROPERTY_EAX20LISTENER_FLAGS:
-            *pTypeSupport = KSPROPERTY_SUPPORT_GET | KSPROPERTY_SUPPORT_SET;
-            hr = DS_OK;
-            break;
-        default:
-            hr = E_PROP_ID_UNSUPPORTED;
-            FIXME("Unhandled EAX2 listener propid: 0x%08lx\n", dwPropID);
-            break;
-        }
-
-        LeaveCriticalSection(&This->share->crst);
-    }
+        hr = EAX2_Query(This->primary, dwPropID, pTypeSupport);
     else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX10_ListenerProperties))
-    {
-        DS8Primary *prim = This->primary;
-
-        EnterCriticalSection(&This->share->crst);
-
-        if(prim->effect == 0)
-            hr = E_PROP_ID_UNSUPPORTED;
-        else switch(dwPropID)
-        {
-        case DSPROPERTY_EAX10LISTENER_ALL:
-        case DSPROPERTY_EAX10LISTENER_ENVIRONMENT:
-        case DSPROPERTY_EAX10LISTENER_VOLUME:
-        case DSPROPERTY_EAX10LISTENER_DECAYTIME:
-        case DSPROPERTY_EAX10LISTENER_DAMPING:
-            *pTypeSupport = KSPROPERTY_SUPPORT_GET | KSPROPERTY_SUPPORT_SET;
-            hr = DS_OK;
-            break;
-        default:
-            hr = E_PROP_ID_UNSUPPORTED;
-            FIXME("Unhandled EAX1 listener propid: 0x%08lx\n", dwPropID);
-            break;
-        }
-
-        LeaveCriticalSection(&This->share->crst);
-    }
+        hr = EAX1_Query(This->primary, dwPropID, pTypeSupport);
     else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX10_BufferProperties))
-    {
-        EnterCriticalSection(&This->share->crst);
-
-        if(This->filter[0] == 0)
-            hr = E_PROP_ID_UNSUPPORTED;
-        else switch(dwPropID)
-        {
-        case DSPROPERTY_EAX10BUFFER_ALL:
-        case DSPROPERTY_EAX10BUFFER_REVERBMIX:
-            *pTypeSupport = KSPROPERTY_SUPPORT_GET | KSPROPERTY_SUPPORT_SET;
-            hr = DS_OK;
-            break;
-        default:
-            hr = E_PROP_ID_UNSUPPORTED;
-            FIXME("Unhandled EAX1 buffer propid: 0x%08lx\n", dwPropID);
-            break;
-        }
-
-        LeaveCriticalSection(&This->share->crst);
-    }
+        hr = EAX1Buffer_Query(This, dwPropID, pTypeSupport);
     else
         FIXME("Unhandled propset: %s (propid: %lu)\n", debugstr_guid(guidPropSet), dwPropID);
+    LeaveCriticalSection(&This->share->crst);
 
     return hr;
 }

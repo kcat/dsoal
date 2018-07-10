@@ -215,6 +215,48 @@ static EAXEXCLUSIONPROPERTIES EAX3BufferExclusion(const EAX30BUFFERPROPERTIES *p
     return ret;
 }
 
+HRESULT EAX3_Query(DS8Primary *prim, DWORD propid, ULONG *pTypeSupport)
+{
+    if(prim->effect == 0)
+        return E_PROP_ID_UNSUPPORTED;
+
+    switch(propid)
+    {
+    case DSPROPERTY_EAX30LISTENER_NONE:
+    case DSPROPERTY_EAX30LISTENER_ALLPARAMETERS:
+    case DSPROPERTY_EAX30LISTENER_ENVIRONMENT:
+    case DSPROPERTY_EAX30LISTENER_ENVIRONMENTSIZE:
+    case DSPROPERTY_EAX30LISTENER_ENVIRONMENTDIFFUSION:
+    case DSPROPERTY_EAX30LISTENER_ROOM:
+    case DSPROPERTY_EAX30LISTENER_ROOMHF:
+    case DSPROPERTY_EAX30LISTENER_ROOMLF:
+    case DSPROPERTY_EAX30LISTENER_DECAYTIME:
+    case DSPROPERTY_EAX30LISTENER_DECAYHFRATIO:
+    case DSPROPERTY_EAX30LISTENER_DECAYLFRATIO:
+    case DSPROPERTY_EAX30LISTENER_REFLECTIONS:
+    case DSPROPERTY_EAX30LISTENER_REFLECTIONSDELAY:
+    case DSPROPERTY_EAX30LISTENER_REFLECTIONSPAN:
+    case DSPROPERTY_EAX30LISTENER_REVERB:
+    case DSPROPERTY_EAX30LISTENER_REVERBDELAY:
+    case DSPROPERTY_EAX30LISTENER_REVERBPAN:
+    case DSPROPERTY_EAX30LISTENER_ECHOTIME:
+    case DSPROPERTY_EAX30LISTENER_ECHODEPTH:
+    case DSPROPERTY_EAX30LISTENER_MODULATIONTIME:
+    case DSPROPERTY_EAX30LISTENER_MODULATIONDEPTH:
+    case DSPROPERTY_EAX30LISTENER_AIRABSORPTIONHF:
+    case DSPROPERTY_EAX30LISTENER_HFREFERENCE:
+    case DSPROPERTY_EAX30LISTENER_LFREFERENCE:
+    case DSPROPERTY_EAX30LISTENER_ROOMROLLOFFFACTOR:
+    case DSPROPERTY_EAX30LISTENER_FLAGS:
+        *pTypeSupport = KSPROPERTY_SUPPORT_GET | KSPROPERTY_SUPPORT_SET;
+        return DS_OK;
+
+    default:
+        FIXME("Unhandled propid: 0x%08lx\n", propid);
+    }
+    return E_PROP_ID_UNSUPPORTED;
+}
+
 HRESULT EAX3_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropData)
 {
     HRESULT hr;
@@ -615,7 +657,7 @@ HRESULT EAX3_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
 
     default:
         hr = E_PROP_ID_UNSUPPORTED;
-        FIXME("Unhandled listener propid: 0x%08lx\n", propid);
+        FIXME("Unhandled propid: 0x%08lx\n", propid);
         break;
     }
 
@@ -736,13 +778,54 @@ HRESULT EAX3_Get(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
 
     default:
         hr = E_PROP_ID_UNSUPPORTED;
-        FIXME("Unhandled listener propid: 0x%08lx\n", propid);
+        FIXME("Unhandled propid: 0x%08lx\n", propid);
         break;
     }
 #undef GET_PROP
 
     return hr;
 }
+
+
+HRESULT EAX3Buffer_Query(DS8Buffer *buf, DWORD propid, ULONG *pTypeSupport)
+{
+    if(buf->filter[0] == 0)
+        return E_PROP_ID_UNSUPPORTED;
+
+    switch(propid)
+    {
+    case DSPROPERTY_EAX30BUFFER_NONE:
+    case DSPROPERTY_EAX30BUFFER_ALLPARAMETERS:
+    case DSPROPERTY_EAX30BUFFER_OBSTRUCTIONPARAMETERS:
+    case DSPROPERTY_EAX30BUFFER_OCCLUSIONPARAMETERS:
+    case DSPROPERTY_EAX30BUFFER_EXCLUSIONPARAMETERS:
+    case DSPROPERTY_EAX30BUFFER_DIRECT:
+    case DSPROPERTY_EAX30BUFFER_DIRECTHF:
+    case DSPROPERTY_EAX30BUFFER_ROOM:
+    case DSPROPERTY_EAX30BUFFER_ROOMHF:
+    case DSPROPERTY_EAX30BUFFER_OBSTRUCTION:
+    case DSPROPERTY_EAX30BUFFER_OBSTRUCTIONLFRATIO:
+    case DSPROPERTY_EAX30BUFFER_OCCLUSION:
+    case DSPROPERTY_EAX30BUFFER_OCCLUSIONLFRATIO:
+    case DSPROPERTY_EAX30BUFFER_OCCLUSIONROOMRATIO:
+    case DSPROPERTY_EAX30BUFFER_OCCLUSIONDIRECTRATIO:
+    case DSPROPERTY_EAX30BUFFER_EXCLUSION:
+    case DSPROPERTY_EAX30BUFFER_EXCLUSIONLFRATIO:
+    case DSPROPERTY_EAX30BUFFER_OUTSIDEVOLUMEHF:
+    case DSPROPERTY_EAX30BUFFER_DOPPLERFACTOR:
+    case DSPROPERTY_EAX30BUFFER_ROLLOFFFACTOR:
+    case DSPROPERTY_EAX30BUFFER_ROOMROLLOFFFACTOR:
+    case DSPROPERTY_EAX30BUFFER_AIRABSORPTIONFACTOR:
+    case DSPROPERTY_EAX30BUFFER_FLAGS:
+        *pTypeSupport = KSPROPERTY_SUPPORT_GET | KSPROPERTY_SUPPORT_SET;
+        return DS_OK;
+
+    default:
+        FIXME("Unhandled propid: 0x%08lx\n", propid);
+    }
+    return E_PROP_ID_UNSUPPORTED;
+}
+
 
 HRESULT EAX3Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPropData)
 {
@@ -1097,7 +1180,7 @@ HRESULT EAX3Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
 
     default:
         hr = E_PROP_ID_UNSUPPORTED;
-        FIXME("Unhandled buffer propid: 0x%08lx\n", propid);
+        FIXME("Unhandled propid: 0x%08lx\n", propid);
         break;
     }
 
@@ -1207,7 +1290,7 @@ HRESULT EAX3Buffer_Get(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
 
     default:
         hr = E_PROP_ID_UNSUPPORTED;
-        FIXME("Unhandled buffer propid: 0x%08lx\n", propid);
+        FIXME("Unhandled propid: 0x%08lx\n", propid);
         break;
     }
 #undef GET_PROP
@@ -1266,6 +1349,38 @@ static EAX20BUFFERPROPERTIES EAXBuffer3To2(const EAX30BUFFERPROPERTIES *props)
     return ret;
 }
 
+
+HRESULT EAX2_Query(DS8Primary *prim, DWORD propid, ULONG *pTypeSupport)
+{
+    if(prim->effect == 0)
+        return E_PROP_ID_UNSUPPORTED;
+
+    switch(propid)
+    {
+    case DSPROPERTY_EAX20LISTENER_NONE:
+    case DSPROPERTY_EAX20LISTENER_ALLPARAMETERS:
+    case DSPROPERTY_EAX20LISTENER_ROOM:
+    case DSPROPERTY_EAX20LISTENER_ROOMHF:
+    case DSPROPERTY_EAX20LISTENER_ROOMROLLOFFFACTOR:
+    case DSPROPERTY_EAX20LISTENER_DECAYTIME:
+    case DSPROPERTY_EAX20LISTENER_DECAYHFRATIO:
+    case DSPROPERTY_EAX20LISTENER_REFLECTIONS:
+    case DSPROPERTY_EAX20LISTENER_REFLECTIONSDELAY:
+    case DSPROPERTY_EAX20LISTENER_REVERB:
+    case DSPROPERTY_EAX20LISTENER_REVERBDELAY:
+    case DSPROPERTY_EAX20LISTENER_ENVIRONMENT:
+    case DSPROPERTY_EAX20LISTENER_ENVIRONMENTSIZE:
+    case DSPROPERTY_EAX20LISTENER_ENVIRONMENTDIFFUSION:
+    case DSPROPERTY_EAX20LISTENER_AIRABSORPTIONHF:
+    case DSPROPERTY_EAX20LISTENER_FLAGS:
+        *pTypeSupport = KSPROPERTY_SUPPORT_GET | KSPROPERTY_SUPPORT_SET;
+        return DS_OK;
+
+    default:
+        FIXME("Unhandled propid: 0x%08lx\n", propid);
+    }
+    return E_PROP_ID_UNSUPPORTED;
+}
 
 HRESULT EAX2_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropData)
 {
@@ -1528,7 +1643,7 @@ HRESULT EAX2_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
 
     default:
         hr = E_PROP_ID_UNSUPPORTED;
-        FIXME("Unhandled listener propid: 0x%08lx\n", propid);
+        FIXME("Unhandled propid: 0x%08lx\n", propid);
         break;
     }
 
@@ -1624,6 +1739,37 @@ HRESULT EAX2_Get(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
     return hr;
 }
 
+
+HRESULT EAX2Buffer_Query(DS8Buffer *buf, DWORD propid, ULONG *pTypeSupport)
+{
+    if(buf->filter[0] == 0)
+        return E_PROP_ID_UNSUPPORTED;
+
+    switch(propid)
+    {
+    case DSPROPERTY_EAX20BUFFER_NONE:
+    case DSPROPERTY_EAX20BUFFER_ALLPARAMETERS:
+    case DSPROPERTY_EAX20BUFFER_DIRECT:
+    case DSPROPERTY_EAX20BUFFER_DIRECTHF:
+    case DSPROPERTY_EAX20BUFFER_ROOM:
+    case DSPROPERTY_EAX20BUFFER_ROOMHF:
+    case DSPROPERTY_EAX20BUFFER_ROOMROLLOFFFACTOR:
+    case DSPROPERTY_EAX20BUFFER_OBSTRUCTION:
+    case DSPROPERTY_EAX20BUFFER_OBSTRUCTIONLFRATIO:
+    case DSPROPERTY_EAX20BUFFER_OCCLUSION:
+    case DSPROPERTY_EAX20BUFFER_OCCLUSIONLFRATIO:
+    case DSPROPERTY_EAX20BUFFER_OCCLUSIONROOMRATIO:
+    case DSPROPERTY_EAX20BUFFER_OUTSIDEVOLUMEHF:
+    case DSPROPERTY_EAX20BUFFER_AIRABSORPTIONFACTOR:
+    case DSPROPERTY_EAX20BUFFER_FLAGS:
+        *pTypeSupport = KSPROPERTY_SUPPORT_GET | KSPROPERTY_SUPPORT_SET;
+        return DS_OK;
+
+    default:
+        FIXME("Unhandled propid: 0x%08lx\n", propid);
+    }
+    return E_PROP_ID_UNSUPPORTED;
+}
 
 HRESULT EAX2Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPropData)
 {
@@ -1860,7 +2006,7 @@ HRESULT EAX2Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
 
     default:
         hr = E_PROP_ID_UNSUPPORTED;
-        FIXME("Unhandled buffer propid: 0x%08lx\n", propid);
+        FIXME("Unhandled propid: 0x%08lx\n", propid);
         break;
     }
 
@@ -1944,7 +2090,7 @@ HRESULT EAX2Buffer_Get(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
 
     default:
         hr = E_PROP_ID_UNSUPPORTED;
-        FIXME("Unhandled buffer propid: 0x%08lx\n", propid);
+        FIXME("Unhandled propid: 0x%08lx\n", propid);
         break;
     }
 #undef GET_PROP
@@ -1956,6 +2102,27 @@ HRESULT EAX2Buffer_Get(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
 /*******************
  * EAX 1 stuff
  ******************/
+
+HRESULT EAX1_Query(DS8Primary *prim, DWORD propid, ULONG *pTypeSupport)
+{
+    if(prim->effect == 0)
+        return E_PROP_ID_UNSUPPORTED;
+
+    switch(propid)
+    {
+    case DSPROPERTY_EAX10LISTENER_ALL:
+    case DSPROPERTY_EAX10LISTENER_ENVIRONMENT:
+    case DSPROPERTY_EAX10LISTENER_VOLUME:
+    case DSPROPERTY_EAX10LISTENER_DECAYTIME:
+    case DSPROPERTY_EAX10LISTENER_DAMPING:
+        *pTypeSupport = KSPROPERTY_SUPPORT_GET | KSPROPERTY_SUPPORT_SET;
+        return DS_OK;
+
+    default:
+        FIXME("Unhandled propid: 0x%08lx\n", propid);
+    }
+    return E_PROP_ID_UNSUPPORTED;
+}
 
 HRESULT EAX1_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropData)
 {
@@ -2087,7 +2254,7 @@ HRESULT EAX1_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
 
     default:
         hr = E_PROP_ID_UNSUPPORTED;
-        FIXME("Unhandled listener propid: 0x%08lx\n", propid);
+        FIXME("Unhandled propid: 0x%08lx\n", propid);
         break;
     }
 
@@ -2172,11 +2339,30 @@ HRESULT EAX1_Get(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
 
     default:
         hr = E_PROP_ID_UNSUPPORTED;
-        FIXME("Unhandled listener propid: 0x%08lx\n", propid);
+        FIXME("Unhandled propid: 0x%08lx\n", propid);
         break;
     }
 
     return hr;
+}
+
+
+HRESULT EAX1Buffer_Query(DS8Buffer *buf, DWORD propid, ULONG *pTypeSupport)
+{
+    if(buf->filter[0] == 0)
+        return E_PROP_ID_UNSUPPORTED;
+
+    switch(propid)
+    {
+    case DSPROPERTY_EAX10BUFFER_ALL:
+    case DSPROPERTY_EAX10BUFFER_REVERBMIX:
+        *pTypeSupport = KSPROPERTY_SUPPORT_GET | KSPROPERTY_SUPPORT_SET;
+        return DS_OK;
+
+    default:
+        FIXME("Unhandled propid: 0x%08lx\n", propid);
+    }
+    return E_PROP_ID_UNSUPPORTED;
 }
 
 HRESULT EAX1Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPropData)
@@ -2210,7 +2396,7 @@ HRESULT EAX1Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
 
     default:
         hr = E_PROP_ID_UNSUPPORTED;
-        FIXME("Unhandled buffer propid: 0x%08lx\n", propid);
+        FIXME("Unhandled propid: 0x%08lx\n", propid);
         break;
     }
 
@@ -2241,7 +2427,7 @@ HRESULT EAX1Buffer_Get(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
 
     default:
         hr = E_PROP_ID_UNSUPPORTED;
-        FIXME("Unhandled buffer propid: 0x%08lx\n", propid);
+        FIXME("Unhandled propid: 0x%08lx\n", propid);
         break;
     }
 

@@ -726,18 +726,24 @@ HRESULT WINAPI DS8Buffer_GetCurrentPosition(IDirectSoundBuffer8 *iface, DWORD *p
 HRESULT WINAPI DS8Buffer_GetStatus(IDirectSoundBuffer8 *iface, DWORD *status);
 HRESULT WINAPI DS8Buffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSound *ds, const DSBUFFERDESC *desc);
 
+HRESULT EAX1_Query(DS8Primary *prim, DWORD propid, ULONG *pTypeSupport);
 HRESULT EAX1_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropData);
 HRESULT EAX1_Get(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropData, ULONG *pcbReturned);
+HRESULT EAX1Buffer_Query(DS8Buffer *buf, DWORD propid, ULONG *pTypeSupport);
 HRESULT EAX1Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPropData);
 HRESULT EAX1Buffer_Get(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPropData, ULONG *pcbReturned);
 
+HRESULT EAX2_Query(DS8Primary *prim, DWORD propid, ULONG *pTypeSupport);
 HRESULT EAX2_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropData);
 HRESULT EAX2_Get(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropData, ULONG *pcbReturned);
+HRESULT EAX2Buffer_Query(DS8Buffer *buf, DWORD propid, ULONG *pTypeSupport);
 HRESULT EAX2Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPropData);
 HRESULT EAX2Buffer_Get(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPropData, ULONG *pcbReturned);
 
+HRESULT EAX3_Query(DS8Primary *prim, DWORD propid, ULONG *pTypeSupport);
 HRESULT EAX3_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropData);
 HRESULT EAX3_Get(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropData, ULONG *pcbReturned);
+HRESULT EAX3Buffer_Query(DS8Buffer *buf, DWORD propid, ULONG *pTypeSupport);
 HRESULT EAX3Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPropData);
 HRESULT EAX3Buffer_Get(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPropData, ULONG *pcbReturned);
 
