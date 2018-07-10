@@ -1358,6 +1358,26 @@ static HRESULT WINAPI DS8Buffer_Play(IDirectSoundBuffer8 *iface, DWORD res1, DWO
         if((flags&DSBPLAY_LOCHARDWARE)) loc = DSBSTATUS_LOCHARDWARE;
         else if((flags&DSBPLAY_LOCSOFTWARE)) loc = DSBSTATUS_LOCSOFTWARE;
 
+        if(loc && This->loc_status && loc != This->loc_status)
+        {
+            if(This->segsize != 0)
+            {
+                if(This->isplaying)
+                    state = AL_PLAYING;
+            }
+            else
+            {
+                alGetSourcei(This->source, AL_SOURCE_STATE, &state);
+                checkALError();
+            }
+
+            if(state == AL_PLAYING)
+            {
+                ERR("Attemping to change location on playing buffer\n");
+                goto out;
+            }
+        }
+
         hr = DS8Buffer_SetLoc(This, loc);
         if(FAILED(hr)) goto out;
     }
@@ -1377,8 +1397,8 @@ static HRESULT WINAPI DS8Buffer_Play(IDirectSoundBuffer8 *iface, DWORD res1, DWO
     {
         alSourcei(This->source, AL_LOOPING, (flags&DSBPLAY_LOOPING) ? AL_TRUE : AL_FALSE);
         alGetSourcei(This->source, AL_SOURCE_STATE, &state);
+        checkALError();
     }
-    checkALError();
 
     hr = S_OK;
     if(state == AL_PLAYING)
@@ -1403,8 +1423,6 @@ static HRESULT WINAPI DS8Buffer_Play(IDirectSoundBuffer8 *iface, DWORD res1, DWO
     if(alGetError() != AL_NO_ERROR)
     {
         ERR("Couldn't start source\n");
-        alSourcei(This->source, AL_BUFFER, 0);
-        checkALError();
         hr = DSERR_GENERIC;
         goto out;
     }
@@ -1771,6 +1789,8 @@ static HRESULT WINAPI DS8Buffer_AcquireResources(IDirectSoundBuffer8 *iface, DWO
     }
 
     EnterCriticalSection(&This->share->crst);
+    setALContext(This->ctx);
+
     hr = DS_OK;
     if((This->buffer->dsbflags&DSBCAPS_LOCDEFER))
     {
@@ -1785,11 +1805,35 @@ static HRESULT WINAPI DS8Buffer_AcquireResources(IDirectSoundBuffer8 *iface, DWO
 
         if((flags&DSBPLAY_LOCHARDWARE)) loc = DSBSTATUS_LOCHARDWARE;
         else if((flags&DSBPLAY_LOCSOFTWARE)) loc = DSBSTATUS_LOCSOFTWARE;
+
+        if(loc && This->loc_status && loc != This->loc_status)
+        {
+            ALint state = AL_INITIAL;
+
+            if(This->segsize != 0)
+            {
+                if(This->isplaying)
+                    state = AL_PLAYING;
+            }
+            else
+            {
+                alGetSourcei(This->source, AL_SOURCE_STATE, &state);
+                checkALError();
+            }
+
+            if(state == AL_PLAYING)
+            {
+                ERR("Attemping to change location on playing buffer\n");
+                goto out;
+            }
+        }
+
         hr = DS8Buffer_SetLoc(This, loc);
     }
-out:
-    LeaveCriticalSection(&This->share->crst);
 
+out:
+    popALContext();
+    LeaveCriticalSection(&This->share->crst);
     return hr;
 }
 
