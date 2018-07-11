@@ -164,7 +164,13 @@ static void RescaleEnvSize(EAX30LISTENERPROPERTIES *props, float newsize)
     }
     if((props->dwFlags&EAX30LISTENERFLAGS_REVERBSCALE))
     {
-        props->lReverb -= gain_to_mB(scale);
+        LONG diff = gain_to_mB(scale);
+        /* This is scaled by an extra 1/3rd if decay time isn't also scaled, to
+         * account for the (lack of) change on the send's initial decay.
+         */
+        if(!(props->dwFlags&EAX30LISTENERFLAGS_DECAYTIMESCALE))
+            diff = diff * 3 / 2;
+        props->lReverb -= diff;
         props->lReverb = clampI(props->lReverb, -10000, 2000);
     }
     if((props->dwFlags&EAX30LISTENERFLAGS_REVERBDELAYSCALE))
