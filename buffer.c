@@ -353,8 +353,6 @@ static HRESULT DS8Data_Create(DS8Data **ppv, const DSBUFFERDESC *desc, DS8Primar
     pBuffer->primary = prim;
 
     pBuffer->dsbflags = desc->dwFlags;
-    if(!(pBuffer->dsbflags&(DSBCAPS_LOCSOFTWARE|DSBCAPS_LOCHARDWARE|DSBCAPS_LOCDEFER)))
-        pBuffer->dsbflags |= DSBCAPS_LOCHARDWARE;
     pBuffer->buf_size = buf_size;
 
     if(format->wFormatTag == WAVE_FORMAT_PCM)
