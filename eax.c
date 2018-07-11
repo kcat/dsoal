@@ -320,6 +320,7 @@ HRESULT EAX3_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         if(cbPropData >= sizeof(DWORD))
         {
             union { const void *v; const DWORD *dw; } data = { pPropData };
+            TRACE("Environment: %lu\n", *data.dw);
             if(*data.dw < EAX_ENVIRONMENT_UNDEFINED)
             {
                 ApplyReverbParams(prim, &EnvironmentDefaults[*data.dw]);
@@ -332,6 +333,7 @@ HRESULT EAX3_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         if(cbPropData >= sizeof(float))
         {
             union { const void *v; const float *fl; } data = { pPropData };
+            TRACE("Environment Size: %f\n", *data.fl);
             if(*data.fl >= 1.0f && *data.fl <= 100.0f)
             {
                 RescaleEnvSize(&prim->deferred.eax, *data.fl);
@@ -345,6 +347,7 @@ HRESULT EAX3_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         if(cbPropData >= sizeof(float))
         {
             union { const void *v; const float *fl; } data = { pPropData };
+            TRACE("Environment Diffusion: %f\n", *data.fl);
 
             prim->deferred.eax.flEnvironmentDiffusion = *data.fl;
             alEffectf(prim->effect, AL_EAXREVERB_DIFFUSION,
@@ -360,6 +363,7 @@ HRESULT EAX3_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         if(cbPropData >= sizeof(long))
         {
             union { const void *v; const long *l; } data = { pPropData };
+            TRACE("Room: %ld\n", *data.l);
 
             prim->deferred.eax.lRoom = *data.l;
             alEffectf(prim->effect, AL_EAXREVERB_GAIN,
@@ -374,6 +378,7 @@ HRESULT EAX3_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         if(cbPropData >= sizeof(long))
         {
             union { const void *v; const long *l; } data = { pPropData };
+            TRACE("Room HF: %ld\n", *data.l);
 
             prim->deferred.eax.lRoomHF = *data.l;
             alEffectf(prim->effect, AL_EAXREVERB_GAINHF,
@@ -388,6 +393,7 @@ HRESULT EAX3_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         if(cbPropData >= sizeof(long))
         {
             union { const void *v; const long *l; } data = { pPropData };
+            TRACE("Room LF: %ld\n", *data.l);
 
             prim->deferred.eax.lRoomLF = *data.l;
             alEffectf(prim->effect, AL_EAXREVERB_GAINLF,
@@ -403,6 +409,7 @@ HRESULT EAX3_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         if(cbPropData >= sizeof(float))
         {
             union { const void *v; const float *fl; } data = { pPropData };
+            TRACE("Decay Time: %f\n", *data.fl);
 
             prim->deferred.eax.flDecayTime = *data.fl;
             alEffectf(prim->effect, AL_EAXREVERB_DECAY_TIME,
@@ -417,6 +424,7 @@ HRESULT EAX3_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         if(cbPropData >= sizeof(float))
         {
             union { const void *v; const float *fl; } data = { pPropData };
+            TRACE("Decay HF Ratio: %f\n", *data.fl);
 
             prim->deferred.eax.flDecayHFRatio = *data.fl;
             alEffectf(prim->effect, AL_EAXREVERB_DECAY_HFRATIO,
@@ -431,6 +439,7 @@ HRESULT EAX3_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         if(cbPropData >= sizeof(float))
         {
             union { const void *v; const float *fl; } data = { pPropData };
+            TRACE("Decay LF Ratio: %f\n", *data.fl);
 
             prim->deferred.eax.flDecayLFRatio = *data.fl;
             alEffectf(prim->effect, AL_EAXREVERB_DECAY_LFRATIO,
@@ -446,6 +455,7 @@ HRESULT EAX3_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         if(cbPropData >= sizeof(long))
         {
             union { const void *v; const long *l; } data = { pPropData };
+            TRACE("Reflections: %ld\n", *data.l);
 
             prim->deferred.eax.lReflections = *data.l;
             alEffectf(prim->effect, AL_EAXREVERB_REFLECTIONS_GAIN,
@@ -460,6 +470,7 @@ HRESULT EAX3_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         if(cbPropData >= sizeof(float))
         {
             union { const void *v; const float *fl; } data = { pPropData };
+            TRACE("Reflections Delay: %f\n", *data.fl);
 
             prim->deferred.eax.flReflectionsDelay = *data.fl;
             alEffectf(prim->effect, AL_EAXREVERB_REFLECTIONS_DELAY,
@@ -474,6 +485,7 @@ HRESULT EAX3_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         if(cbPropData >= sizeof(EAXVECTOR))
         {
             union { const void *v; const EAXVECTOR *vec; } data = { pPropData };
+            TRACE("Reflections Pan: { %f, %f, %f }\n", data.vec->x, data.vec->y, data.vec->z);
 
             prim->deferred.eax.vReflectionsPan = *data.vec;
             alEffectfv(prim->effect, AL_EAXREVERB_REFLECTIONS_PAN,
@@ -489,6 +501,7 @@ HRESULT EAX3_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         if(cbPropData >= sizeof(long))
         {
             union { const void *v; const long *l; } data = { pPropData };
+            TRACE("Reverb: %ld\n", *data.l);
 
             prim->deferred.eax.lReverb = *data.l;
             alEffectf(prim->effect, AL_EAXREVERB_LATE_REVERB_GAIN,
@@ -503,6 +516,7 @@ HRESULT EAX3_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         if(cbPropData >= sizeof(float))
         {
             union { const void *v; const float *fl; } data = { pPropData };
+            TRACE("Reverb Delay: %f\n", *data.fl);
 
             prim->deferred.eax.flReverbDelay = *data.fl;
             alEffectf(prim->effect, AL_EAXREVERB_LATE_REVERB_DELAY,
@@ -517,6 +531,7 @@ HRESULT EAX3_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         if(cbPropData >= sizeof(EAXVECTOR))
         {
             union { const void *v; const EAXVECTOR *vec; } data = { pPropData };
+            TRACE("Reverb Pan: { %f, %f, %f }\n", data.vec->x, data.vec->y, data.vec->z);
 
             prim->deferred.eax.vReverbPan = *data.vec;
             alEffectfv(prim->effect, AL_EAXREVERB_LATE_REVERB_PAN,
@@ -532,6 +547,7 @@ HRESULT EAX3_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         if(cbPropData >= sizeof(float))
         {
             union { const void *v; const float *fl; } data = { pPropData };
+            TRACE("Echo Time: %f\n", *data.fl);
 
             prim->deferred.eax.flEchoTime = *data.fl;
             alEffectf(prim->effect, AL_EAXREVERB_ECHO_TIME,
@@ -546,6 +562,7 @@ HRESULT EAX3_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         if(cbPropData >= sizeof(float))
         {
             union { const void *v; const float *fl; } data = { pPropData };
+            TRACE("Echo Depth: %f\n", *data.fl);
 
             prim->deferred.eax.flEchoDepth = *data.fl;
             alEffectf(prim->effect, AL_EAXREVERB_ECHO_DEPTH,
@@ -561,6 +578,7 @@ HRESULT EAX3_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         if(cbPropData >= sizeof(float))
         {
             union { const void *v; const float *fl; } data = { pPropData };
+            TRACE("Modulation Time: %f\n", *data.fl);
 
             prim->deferred.eax.flModulationTime = *data.fl;
             alEffectf(prim->effect, AL_EAXREVERB_MODULATION_TIME,
@@ -575,6 +593,7 @@ HRESULT EAX3_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         if(cbPropData >= sizeof(float))
         {
             union { const void *v; const float *fl; } data = { pPropData };
+            TRACE("Modulation Depth: %f\n", *data.fl);
 
             prim->deferred.eax.flModulationDepth = *data.fl;
             alEffectf(prim->effect, AL_EAXREVERB_MODULATION_DEPTH,
@@ -590,6 +609,7 @@ HRESULT EAX3_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         if(cbPropData >= sizeof(float))
         {
             union { const void *v; const float *fl; } data = { pPropData };
+            TRACE("Air Absorption HF: %f\n", *data.fl);
 
             prim->deferred.eax.flAirAbsorptionHF = *data.fl;
             alEffectf(prim->effect, AL_EAXREVERB_AIR_ABSORPTION_GAINHF,
@@ -605,6 +625,7 @@ HRESULT EAX3_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         if(cbPropData >= sizeof(float))
         {
             union { const void *v; const float *fl; } data = { pPropData };
+            TRACE("HF Reference: %f\n", *data.fl);
 
             prim->deferred.eax.flHFReference = *data.fl;
             alEffectf(prim->effect, AL_EAXREVERB_HFREFERENCE,
@@ -619,6 +640,7 @@ HRESULT EAX3_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         if(cbPropData >= sizeof(float))
         {
             union { const void *v; const float *fl; } data = { pPropData };
+            TRACE("LF Reference: %f\n", *data.fl);
 
             prim->deferred.eax.flLFReference = *data.fl;
             alEffectf(prim->effect, AL_EAXREVERB_LFREFERENCE,
@@ -634,6 +656,7 @@ HRESULT EAX3_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         if(cbPropData >= sizeof(float))
         {
             union { const void *v; const float *fl; } data = { pPropData };
+            TRACE("Room Rolloff Factor: %f\n", *data.fl);
 
             prim->deferred.eax.flRoomRolloffFactor = *data.fl;
             alEffectf(prim->effect, AL_EAXREVERB_ROOM_ROLLOFF_FACTOR,
@@ -649,6 +672,7 @@ HRESULT EAX3_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         if(cbPropData >= sizeof(DWORD))
         {
             union { const void *v; const DWORD *dw; } data = { pPropData };
+            TRACE("Flags: %lu\n", *data.dw);
 
             prim->deferred.eax.dwFlags = *data.dw;
             alEffecti(prim->effect, AL_EAXREVERB_DECAY_HFLIMIT,
@@ -1449,6 +1473,7 @@ HRESULT EAX2_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         if(cbPropData >= sizeof(long))
         {
             union { const void *v; const long *l; } data = { pPropData };
+            TRACE("Room: %ld\n", *data.l);
 
             prim->deferred.eax.lRoom = *data.l;
             alEffectf(prim->effect, AL_EAXREVERB_GAIN,
@@ -1463,6 +1488,7 @@ HRESULT EAX2_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         if(cbPropData >= sizeof(long))
         {
             union { const void *v; const long *l; } data = { pPropData };
+            TRACE("Room HF: %ld\n", *data.l);
 
             prim->deferred.eax.lRoomHF = *data.l;
             alEffectf(prim->effect, AL_EAXREVERB_GAINHF,
@@ -1478,6 +1504,7 @@ HRESULT EAX2_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         if(cbPropData >= sizeof(float))
         {
             union { const void *v; const float *fl; } data = { pPropData };
+            TRACE("Room Rolloff Factor: %f\n", *data.fl);
 
             prim->deferred.eax.flRoomRolloffFactor = *data.fl;
             alEffectf(prim->effect, AL_EAXREVERB_ROOM_ROLLOFF_FACTOR,
@@ -1493,6 +1520,7 @@ HRESULT EAX2_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         if(cbPropData >= sizeof(float))
         {
             union { const void *v; const float *fl; } data = { pPropData };
+            TRACE("Decay Time: %f\n", *data.fl);
 
             prim->deferred.eax.flDecayTime = *data.fl;
             alEffectf(prim->effect, AL_EAXREVERB_DECAY_TIME,
@@ -1507,6 +1535,7 @@ HRESULT EAX2_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         if(cbPropData >= sizeof(float))
         {
             union { const void *v; const float *fl; } data = { pPropData };
+            TRACE("Decay HF Ratio: %f\n", *data.fl);
 
             prim->deferred.eax.flDecayHFRatio = *data.fl;
             alEffectf(prim->effect, AL_EAXREVERB_DECAY_HFRATIO,
@@ -1522,6 +1551,7 @@ HRESULT EAX2_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         if(cbPropData >= sizeof(long))
         {
             union { const void *v; const long *l; } data = { pPropData };
+            TRACE("Reflections: %ld\n", *data.l);
 
             prim->deferred.eax.lReflections = *data.l;
             alEffectf(prim->effect, AL_EAXREVERB_REFLECTIONS_GAIN,
@@ -1536,6 +1566,7 @@ HRESULT EAX2_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         if(cbPropData >= sizeof(float))
         {
             union { const void *v; const float *fl; } data = { pPropData };
+            TRACE("Reflections Delay: %f\n", *data.fl);
 
             prim->deferred.eax.flReflectionsDelay = *data.fl;
             alEffectf(prim->effect, AL_EAXREVERB_REFLECTIONS_DELAY,
@@ -1551,6 +1582,7 @@ HRESULT EAX2_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         if(cbPropData >= sizeof(long))
         {
             union { const void *v; const long *l; } data = { pPropData };
+            TRACE("Reverb: %ld\n", *data.l);
 
             prim->deferred.eax.lReverb = *data.l;
             alEffectf(prim->effect, AL_EAXREVERB_LATE_REVERB_GAIN,
@@ -1565,6 +1597,7 @@ HRESULT EAX2_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         if(cbPropData >= sizeof(float))
         {
             union { const void *v; const float *fl; } data = { pPropData };
+            TRACE("Reverb Delay: %f\n", *data.fl);
 
             prim->deferred.eax.flReverbDelay = *data.fl;
             alEffectf(prim->effect, AL_EAXREVERB_LATE_REVERB_DELAY,
@@ -1580,6 +1613,7 @@ HRESULT EAX2_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         if(cbPropData >= sizeof(DWORD))
         {
             union { const void *v; const DWORD *dw; } data = { pPropData };
+            TRACE("Environment: %lu\n", *data.dw);
             if(*data.dw < EAX_ENVIRONMENT_UNDEFINED)
             {
                 ApplyReverbParams(prim, &EnvironmentDefaults[*data.dw]);
@@ -1592,6 +1626,7 @@ HRESULT EAX2_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         if(cbPropData >= sizeof(float))
         {
             union { const void *v; const float *fl; } data = { pPropData };
+            TRACE("Environment Size: %f\n", *data.fl);
             if(*data.fl >= 1.0f && *data.fl <= 100.0f)
             {
                 RescaleEnvSize(&prim->deferred.eax, *data.fl);
@@ -1605,6 +1640,7 @@ HRESULT EAX2_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         if(cbPropData >= sizeof(float))
         {
             union { const void *v; const float *fl; } data = { pPropData };
+            TRACE("Environment Diffusion: %f\n", *data.fl);
 
             prim->deferred.eax.flEnvironmentDiffusion = *data.fl;
             alEffectf(prim->effect, AL_EAXREVERB_DIFFUSION,
@@ -1620,6 +1656,7 @@ HRESULT EAX2_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         if(cbPropData >= sizeof(float))
         {
             union { const void *v; const float *fl; } data = { pPropData };
+            TRACE("Air Absorption HF: %f\n", *data.fl);
 
             prim->deferred.eax.flAirAbsorptionHF = *data.fl;
             alEffectf(prim->effect, AL_EAXREVERB_AIR_ABSORPTION_GAINHF,
@@ -1635,6 +1672,7 @@ HRESULT EAX2_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         if(cbPropData >= sizeof(DWORD))
         {
             union { const void *v; const DWORD *dw; } data = { pPropData };
+            TRACE("Flags: %lu\n", *data.dw);
 
             prim->deferred.eax.dwFlags = *data.dw;
             alEffecti(prim->effect, AL_EAXREVERB_DECAY_HFLIMIT,
