@@ -304,13 +304,6 @@ HRESULT EAX3_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
                 data.props->flLFReference, data.props->flRoomRolloffFactor, data.props->dwFlags
             );
 
-            /* FIXME: There's some unknown behavior here. When RightMark3DSound
-             * deals with environment panning and morphing, the current preset
-             * ID will sometimes be repeated, which seems to expect some
-             * parameters to stay unmodified. Other cases see preset ID 26,
-             * which is out of range. I'm not sure how these values are
-             * supposed to be treated.
-             */
             ApplyReverbParams(prim, data.props);
             hr = DS_OK;
         }
