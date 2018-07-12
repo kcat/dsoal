@@ -806,4 +806,4 @@ HRESULT DSOUND_CaptureCreate8(REFIID riid, void **ppDSC);
 HRESULT enumerate_mmdevices(EDataFlow flow, LPDSENUMCALLBACKW cb, void *user);
 HRESULT get_mmdevice(EDataFlow flow, const GUID *tgt, IMMDevice **device);
 
-extern const WCHAR wine_vxd_drv[];
+extern const WCHAR aldriver_name[];

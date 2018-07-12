@@ -59,7 +59,11 @@ int LogLevel = 1;
 FILE *LogFile;
 
 
-const WCHAR wine_vxd_drv[] = L"winemm.vxd";
+static GUID *EnumeratedDevices = NULL;
+static size_t EnumeratedDeviceCount = 0;
+
+const WCHAR aldriver_name[] = L"dsoal-aldrv.dll";
+
 
 const EAX30LISTENERPROPERTIES EnvironmentDefaults[EAX_ENVIRONMENT_UNDEFINED] = {
     REVERB_PRESET_GENERIC,
@@ -234,12 +238,8 @@ void (*EnterALSection)(ALCcontext *ctx) = EnterALSectionGlob;
 void (*LeaveALSection)(void) = LeaveALSectionGlob;
 
 
-static GUID *EnumeratedDevices = NULL;
-size_t EnumeratedDeviceCount = 0;
-
 static BOOL load_libopenal(void)
 {
-    const char libname[] = "dsoal-aldrv.dll";
     BOOL failed = FALSE;
     const char *str;
 
@@ -247,17 +247,17 @@ static BOOL load_libopenal(void)
     if(str && *str)
         LogLevel = atoi(str);
 
-    openal_handle = LoadLibraryA(libname);
+    openal_handle = LoadLibraryW(aldriver_name);
     if(!openal_handle)
     {
-        ERR("Couldn't load %s: %lu\n", libname, GetLastError());
+        ERR("Couldn't load %ls: %lu\n", aldriver_name, GetLastError());
         return FALSE;
     }
 
 #define LOAD_FUNCPTR(f) do {                                           \
     if((*((void**)&p##f) = GetProcAddress(openal_handle, #f)) == NULL) \
     {                                                                  \
-        ERR("Couldn't lookup %s in %s\n", #f, libname);                \
+        ERR("Couldn't lookup %s in %ls\n", #f, aldriver_name);         \
         failed = TRUE;                                                 \
     }                                                                  \
 } while(0)
@@ -358,7 +358,7 @@ static BOOL load_libopenal(void)
 #undef LOAD_FUNCPTR
     if (failed)
     {
-        WARN("Unloading %s\n", libname);
+        WARN("Unloading %ls\n", aldriver_name);
         if (openal_handle != NULL)
             FreeLibrary(openal_handle);
         openal_handle = NULL;
@@ -366,7 +366,7 @@ static BOOL load_libopenal(void)
     }
 
     openal_loaded = 1;
-    TRACE("Loaded %s\n", libname);
+    TRACE("Loaded %ls\n", aldriver_name);
 
 #define LOAD_FUNCPTR(f) *((void**)&p##f) = alcGetProcAddress(NULL, #f)
     LOAD_FUNCPTR(alGenFilters);
@@ -571,7 +571,7 @@ static BOOL send_device(IMMDevice *device, const GUID *defguid, LPDSENUMCALLBACK
     {
         TRACE("Calling back with %s - %ls\n", debugstr_guid(&EnumeratedDevices[dev_count]),
               pv.pwszVal);
-        keep_going = cb(&EnumeratedDevices[dev_count], pv.pwszVal, wine_vxd_drv, user);
+        keep_going = cb(&EnumeratedDevices[dev_count], pv.pwszVal, aldriver_name, user);
     }
 
     PropVariantClear(&pv);

@@ -252,7 +252,7 @@ static HRESULT DSPROPERTY_DescriptionW(
     }
 
     ppd->Description = strdupW(pv.pwszVal);
-    ppd->Module = strdupW(wine_vxd_drv);
+    ppd->Module = strdupW(aldriver_name);
     ppd->Interface = strdupW(L"Interface");
     ppd->Type = DIRECTSOUNDDEVICE_TYPE_VXD;
 
