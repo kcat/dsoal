@@ -334,13 +334,11 @@ HRESULT EAX3_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         {
             union { const void *v; const float *fl; } data = { pPropData };
             TRACE("Environment Size: %f\n", *data.fl);
-            if(*data.fl >= 1.0f && *data.fl <= 100.0f)
-            {
-                RescaleEnvSize(&prim->deferred.eax, *data.fl);
 
-                ApplyReverbParams(prim, &prim->deferred.eax);
-                hr = DS_OK;
-            }
+            RescaleEnvSize(&prim->deferred.eax, clampF(*data.fl, 1.0f, 100.0f));
+
+            ApplyReverbParams(prim, &prim->deferred.eax);
+            hr = DS_OK;
         }
         break;
     case DSPROPERTY_EAX30LISTENER_ENVIRONMENTDIFFUSION:
@@ -1627,13 +1625,11 @@ HRESULT EAX2_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
         {
             union { const void *v; const float *fl; } data = { pPropData };
             TRACE("Environment Size: %f\n", *data.fl);
-            if(*data.fl >= 1.0f && *data.fl <= 100.0f)
-            {
-                RescaleEnvSize(&prim->deferred.eax, *data.fl);
 
-                ApplyReverbParams(prim, &prim->deferred.eax);
-                hr = DS_OK;
-            }
+            RescaleEnvSize(&prim->deferred.eax, clampF(*data.fl, 1.0f, 100.0f));
+
+            ApplyReverbParams(prim, &prim->deferred.eax);
+            hr = DS_OK;
         }
         break;
     case DSPROPERTY_EAX20LISTENER_ENVIRONMENTDIFFUSION:
