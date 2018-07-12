@@ -234,6 +234,9 @@ void (*EnterALSection)(ALCcontext *ctx) = EnterALSectionGlob;
 void (*LeaveALSection)(void) = LeaveALSectionGlob;
 
 
+static GUID *EnumeratedDevices = NULL;
+size_t EnumeratedDeviceCount = 0;
+
 static BOOL load_libopenal(void)
 {
     const char libname[] = "dsoal-aldrv.dll";
@@ -532,6 +535,7 @@ static BOOL send_device(IMMDevice *device, const GUID *defguid, LPDSENUMCALLBACK
     IPropertyStore *ps;
     PROPVARIANT pv;
     BOOL keep_going;
+    size_t dev_count;
     HRESULT hr;
     GUID guid;
 
@@ -559,9 +563,16 @@ static BOOL send_device(IMMDevice *device, const GUID *defguid, LPDSENUMCALLBACK
         return TRUE;
     }
 
-    TRACE("Calling back with %s (%ls)\n", debugstr_guid(&guid), pv.pwszVal);
+    dev_count = EnumeratedDeviceCount++;
+    EnumeratedDevices[dev_count] = guid;
 
-    keep_going = cb(&guid, pv.pwszVal, wine_vxd_drv, user);
+    keep_going = FALSE;
+    if(cb)
+    {
+        TRACE("Calling back with %s - %ls\n", debugstr_guid(&EnumeratedDevices[dev_count]),
+              pv.pwszVal);
+        keep_going = cb(&EnumeratedDevices[dev_count], pv.pwszVal, wine_vxd_drv, user);
+    }
 
     PropVariantClear(&pv);
     IPropertyStore_Release(ps);
@@ -636,6 +647,7 @@ HRESULT enumerate_mmdevices(EDataFlow flow, LPDSENUMCALLBACKW cb, void *user)
 
     IMMDeviceEnumerator *devenum;
     IMMDeviceCollection *coll;
+    IMMDevice *device;
     GUID defguid = GUID_NULL;
     UINT count, i;
     BOOL keep_going;
@@ -668,25 +680,28 @@ HRESULT enumerate_mmdevices(EDataFlow flow, LPDSENUMCALLBACKW cb, void *user)
         return DS_OK;
     }
 
+    HeapFree(GetProcessHeap(), 0, EnumeratedDevices);
+    EnumeratedDeviceCount = 0;
+    EnumeratedDevices = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY,
+                                  sizeof(EnumeratedDevices[0])*count);
+
     TRACE("Calling back with NULL (%ls)\n", primary_desc);
     keep_going = cb(NULL, primary_desc, L"", user);
 
     /* always send the default device first */
-    if(keep_going)
+    hr = IMMDeviceEnumerator_GetDefaultAudioEndpoint(devenum, flow, eMultimedia, &device);
+    if(SUCCEEDED(hr))
     {
-        IMMDevice *device;
-        hr = IMMDeviceEnumerator_GetDefaultAudioEndpoint(devenum, flow, eMultimedia, &device);
-        if(SUCCEEDED(hr))
-        {
-            keep_going = send_device(device, NULL, cb, user);
-            get_mmdevice_guid(device, NULL, &defguid);
-            IMMDevice_Release(device);
-        }
+        if(!keep_going) cb = NULL;
+        keep_going = send_device(device, NULL, cb, user);
+        defguid = EnumeratedDevices[0];
+        IMMDevice_Release(device);
     }
 
-    for(i = 0;keep_going && i < count;++i)
+    for(i = 0;i < count;++i)
     {
-        IMMDevice *device;
+        if(!keep_going)
+            cb = NULL;
 
         hr = IMMDeviceCollection_Item(coll, i, &device);
         if(FAILED(hr))
@@ -1351,6 +1366,11 @@ DECLSPEC_EXPORT BOOL WINAPI DllMain(HINSTANCE hInstDLL, DWORD fdwReason, LPVOID 
 
     case DLL_PROCESS_DETACH:
         TRACE("DLL_PROCESS_DETACH\n");
+
+        HeapFree(GetProcessHeap(), 0, EnumeratedDevices);
+        EnumeratedDevices = NULL;
+        EnumeratedDeviceCount = 0;
+
         if(openal_handle)
             FreeLibrary(openal_handle);
         TlsFree(TlsThreadPtr);
