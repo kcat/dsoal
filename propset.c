@@ -108,18 +108,18 @@ struct search_data {
     GUID *found_guid;
 };
 
-static BOOL CALLBACK search_callback(GUID *guid, const WCHAR *desc,
+static BOOL CALLBACK search_callback(EDataFlow flow, GUID *guid, const WCHAR *desc,
         const WCHAR *module, void *user)
 {
     struct search_data *search = user;
+    (void)flow;
     (void)module;
 
-    if(!lstrcmpW(desc, search->tgt_name)){
-        *search->found_guid = *guid;
-        return FALSE;
-    }
+    if(lstrcmpW(desc, search->tgt_name) != 0)
+        return TRUE;
 
-    return TRUE;
+    *search->found_guid = *guid;
+    return FALSE;
 }
 
 static HRESULT DSPROPERTY_WaveDeviceMappingW(
@@ -254,7 +254,7 @@ static HRESULT DSPROPERTY_DescriptionW(
     ppd->Description = strdupW(pv.pwszVal);
     ppd->Module = strdupW(aldriver_name);
     ppd->Interface = strdupW(L"Interface");
-    ppd->Type = DIRECTSOUNDDEVICE_TYPE_VXD;
+    ppd->Type = DIRECTSOUNDDEVICE_TYPE_WDM;
 
     PropVariantClear(&pv);
     IPropertyStore_Release(ps);
@@ -270,7 +270,7 @@ static HRESULT DSPROPERTY_DescriptionW(
 }
 
 static
-BOOL CALLBACK enum_callback(GUID *guid, const WCHAR *desc, const WCHAR *module,
+BOOL CALLBACK enum_callback(EDataFlow flow, GUID *guid, const WCHAR *desc, const WCHAR *module,
         void *user)
 {
     PDSPROPERTY_DIRECTSOUNDDEVICE_ENUMERATE_W_DATA ppd = user;
@@ -283,6 +283,9 @@ BOOL CALLBACK enum_callback(GUID *guid, const WCHAR *desc, const WCHAR *module,
     if(!guid)
         return TRUE;
 
+    data.Type = DIRECTSOUNDDEVICE_TYPE_WDM;
+    data.DataFlow = (flow==eCapture) ? DIRECTSOUNDDEVICE_DATAFLOW_CAPTURE :
+                                       DIRECTSOUNDDEVICE_DATAFLOW_RENDER;
     data.DeviceId = *guid;
 
     len = lstrlenW(module) + 1;

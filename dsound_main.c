@@ -530,7 +530,7 @@ static HRESULT get_mmdevice_guid(IMMDevice *device, IPropertyStore *ps, GUID *gu
 }
 
 
-static BOOL send_device(IMMDevice *device, const GUID *defguid, LPDSENUMCALLBACKW cb, void *user)
+static BOOL send_device(IMMDevice *device, const GUID *defguid, EDataFlow flow, PRVTENUMCALLBACK cb, void *user)
 {
     IPropertyStore *ps;
     PROPVARIANT pv;
@@ -571,7 +571,7 @@ static BOOL send_device(IMMDevice *device, const GUID *defguid, LPDSENUMCALLBACK
     {
         TRACE("Calling back with %s - %ls\n", debugstr_guid(&EnumeratedDevices[dev_count]),
               pv.pwszVal);
-        keep_going = cb(&EnumeratedDevices[dev_count], pv.pwszVal, aldriver_name, user);
+        keep_going = cb(flow, &EnumeratedDevices[dev_count], pv.pwszVal, aldriver_name, user);
     }
 
     PropVariantClear(&pv);
@@ -641,7 +641,7 @@ HRESULT get_mmdevice(EDataFlow flow, const GUID *tgt, IMMDevice **device)
 
 /* S_FALSE means the callback returned FALSE at some point
  * S_OK means the callback always returned TRUE */
-HRESULT enumerate_mmdevices(EDataFlow flow, LPDSENUMCALLBACKW cb, void *user)
+HRESULT enumerate_mmdevices(EDataFlow flow, PRVTENUMCALLBACK cb, void *user)
 {
     static const WCHAR primary_desc[] = L"Primary Sound Driver";
 
@@ -686,14 +686,14 @@ HRESULT enumerate_mmdevices(EDataFlow flow, LPDSENUMCALLBACKW cb, void *user)
                                   sizeof(EnumeratedDevices[0])*count);
 
     TRACE("Calling back with NULL (%ls)\n", primary_desc);
-    keep_going = cb(NULL, primary_desc, L"", user);
+    keep_going = cb(flow, NULL, primary_desc, L"", user);
 
     /* always send the default device first */
     hr = IMMDeviceEnumerator_GetDefaultAudioEndpoint(devenum, flow, eMultimedia, &device);
     if(SUCCEEDED(hr))
     {
         if(!keep_going) cb = NULL;
-        keep_going = send_device(device, NULL, cb, user);
+        keep_going = send_device(device, NULL, flow, cb, user);
         defguid = EnumeratedDevices[0];
         IMMDevice_Release(device);
     }
@@ -710,7 +710,7 @@ HRESULT enumerate_mmdevices(EDataFlow flow, LPDSENUMCALLBACKW cb, void *user)
             continue;
         }
 
-        keep_going = send_device(device, &defguid, cb, user);
+        keep_going = send_device(device, &defguid, flow, cb, user);
 
         IMMDevice_Release(device);
     }
@@ -798,17 +798,31 @@ DECLSPEC_EXPORT HRESULT WINAPI GetDeviceID(LPCGUID pGuidSrc, LPGUID pGuidDest)
 }
 
 
-struct morecontext {
+struct morecontextW {
+    LPDSENUMCALLBACKW callW;
+    LPVOID data;
+};
+
+static BOOL CALLBACK w_callback(EDataFlow flow, LPGUID guid, LPCWSTR descW, LPCWSTR modW, LPVOID data)
+{
+    struct morecontextW *context = data;
+    (void)flow;
+
+    return context->callW(guid, descW, modW, context->data);
+}
+
+struct morecontextA {
     LPDSENUMCALLBACKA callA;
     LPVOID data;
 };
 
-static BOOL CALLBACK w_to_a_callback(LPGUID guid, LPCWSTR descW, LPCWSTR modW, LPVOID data)
+static BOOL CALLBACK w_to_a_callback(EDataFlow flow, LPGUID guid, LPCWSTR descW, LPCWSTR modW, LPVOID data)
 {
-    struct morecontext *context = data;
+    struct morecontextA *context = data;
     char *descA, *modA;
     int dlen, mlen;
     BOOL ret;
+    (void)flow;
 
     dlen = WideCharToMultiByte(CP_ACP, 0, descW, -1, NULL, 0, NULL, NULL);
     mlen = WideCharToMultiByte(CP_ACP, 0, modW, -1, NULL, 0, NULL, NULL);
@@ -844,7 +858,10 @@ DECLSPEC_EXPORT HRESULT WINAPI DirectSoundEnumerateA(
     LPDSENUMCALLBACKA lpDSEnumCallback,
     LPVOID lpContext)
 {
-    struct morecontext context;
+    struct morecontextA ctx;
+    HRESULT hr;
+
+    TRACE("(%p, %p)\n", lpDSEnumCallback, lpContext);
 
     if(lpDSEnumCallback == NULL)
     {
@@ -852,10 +869,11 @@ DECLSPEC_EXPORT HRESULT WINAPI DirectSoundEnumerateA(
         return DSERR_INVALIDPARAM;
     }
 
-    context.callA = lpDSEnumCallback;
-    context.data = lpContext;
+    ctx.callA = lpDSEnumCallback;
+    ctx.data = lpContext;
 
-    return DirectSoundEnumerateW(w_to_a_callback, &context);
+    hr = enumerate_mmdevices(eRender, w_to_a_callback, &ctx);
+    return SUCCEEDED(hr) ? DS_OK : hr;
 }
 
 
@@ -876,6 +894,7 @@ DECLSPEC_EXPORT HRESULT WINAPI DirectSoundEnumerateW(
     LPDSENUMCALLBACKW lpDSEnumCallback,
     LPVOID lpContext )
 {
+    struct morecontextW ctx;
     HRESULT hr;
 
     TRACE("(%p, %p)\n", lpDSEnumCallback, lpContext);
@@ -886,7 +905,10 @@ DECLSPEC_EXPORT HRESULT WINAPI DirectSoundEnumerateW(
         return DSERR_INVALIDPARAM;
     }
 
-    hr = enumerate_mmdevices(eRender, lpDSEnumCallback, lpContext);
+    ctx.callW = lpDSEnumCallback;
+    ctx.data = lpContext;
+
+    hr = enumerate_mmdevices(eRender, w_callback, &ctx);
     return SUCCEEDED(hr) ? DS_OK : hr;
 }
 
@@ -907,7 +929,10 @@ DECLSPEC_EXPORT HRESULT WINAPI DirectSoundCaptureEnumerateA(
     LPDSENUMCALLBACKA lpDSEnumCallback,
     LPVOID lpContext)
 {
-    struct morecontext context;
+    struct morecontextA ctx;
+    HRESULT hr;
+
+    TRACE("(%p, %p)\n", lpDSEnumCallback, lpContext);
 
     if(lpDSEnumCallback == NULL)
     {
@@ -915,10 +940,11 @@ DECLSPEC_EXPORT HRESULT WINAPI DirectSoundCaptureEnumerateA(
         return DSERR_INVALIDPARAM;
     }
 
-    context.callA = lpDSEnumCallback;
-    context.data = lpContext;
+    ctx.callA = lpDSEnumCallback;
+    ctx.data = lpContext;
 
-    return DirectSoundCaptureEnumerateW(w_to_a_callback, &context);
+    hr = enumerate_mmdevices(eCapture, w_to_a_callback, &ctx);
+    return SUCCEEDED(hr) ? DS_OK : hr;
 }
 
 /***************************************************************************
@@ -938,9 +964,10 @@ DECLSPEC_EXPORT HRESULT WINAPI DirectSoundCaptureEnumerateW(
     LPDSENUMCALLBACKW lpDSEnumCallback,
     LPVOID lpContext)
 {
+    struct morecontextW ctx;
     HRESULT hr;
 
-    TRACE("(%p, %p)\n", lpDSEnumCallback, lpContext );
+    TRACE("(%p, %p)\n", lpDSEnumCallback, lpContext);
 
     if(lpDSEnumCallback == NULL)
     {
@@ -948,7 +975,10 @@ DECLSPEC_EXPORT HRESULT WINAPI DirectSoundCaptureEnumerateW(
         return DSERR_INVALIDPARAM;
     }
 
-    hr = enumerate_mmdevices(eCapture, lpDSEnumCallback, lpContext);
+    ctx.callW = lpDSEnumCallback;
+    ctx.data = lpContext;
+
+    hr = enumerate_mmdevices(eCapture, w_callback, &ctx);
     return SUCCEEDED(hr) ? DS_OK : hr;
 }
 
