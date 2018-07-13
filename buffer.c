@@ -2679,7 +2679,7 @@ static HRESULT WINAPI DS8BufferProp_Get(IKsPropertySet *iface,
     DS8Buffer *This = impl_from_IKsPropertySet(iface);
     HRESULT hr = E_PROP_ID_UNSUPPORTED;
 
-    TRACE("(%p)->(%s, %lu, %p, %lu, %p, %lu, %p)\n", iface, debugstr_guid(guidPropSet),
+    TRACE("(%p)->(%s, 0x%lx, %p, %lu, %p, %lu, %p)\n", iface, debugstr_guid(guidPropSet),
           dwPropID, pInstanceData, cbInstanceData, pPropData, cbPropData, pcbReturned);
 
     if(!pcbReturned)
@@ -2720,7 +2720,7 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
     DS8Buffer *This = impl_from_IKsPropertySet(iface);
     HRESULT hr = E_PROP_ID_UNSUPPORTED;
 
-    TRACE("(%p)->(%s, %lu, %p, %lu, %p, %lu)\n", iface, debugstr_guid(guidPropSet),
+    TRACE("(%p)->(%s, 0x%lx, %p, %lu, %p, %lu)\n", iface, debugstr_guid(guidPropSet),
           dwPropID, pInstanceData, cbInstanceData, pPropData, cbPropData);
 
     if(cbPropData > 0 && !pPropData)
@@ -2822,7 +2822,7 @@ static HRESULT WINAPI DS8BufferProp_QuerySupport(IKsPropertySet *iface,
     DS8Buffer *This = impl_from_IKsPropertySet(iface);
     HRESULT hr = E_PROP_ID_UNSUPPORTED;
 
-    TRACE("(%p)->(%s, %lu, %p)\n", iface, debugstr_guid(guidPropSet), dwPropID, pTypeSupport);
+    TRACE("(%p)->(%s, 0x%lx, %p)\n", iface, debugstr_guid(guidPropSet), dwPropID, pTypeSupport);
 
     if(!pTypeSupport)
         return E_POINTER;

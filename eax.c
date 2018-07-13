@@ -226,7 +226,7 @@ HRESULT EAX3_Query(DS8Primary *prim, DWORD propid, ULONG *pTypeSupport)
     if(prim->effect == 0)
         return E_PROP_ID_UNSUPPORTED;
 
-    switch(propid)
+    switch((propid&~DSPROPERTY_EAX30LISTENER_DEFERRED))
     {
     case DSPROPERTY_EAX30LISTENER_NONE:
     case DSPROPERTY_EAX30LISTENER_ALLPARAMETERS:
@@ -812,7 +812,7 @@ HRESULT EAX3Buffer_Query(DS8Buffer *buf, DWORD propid, ULONG *pTypeSupport)
 {
     (void)buf;
 
-    switch(propid)
+    switch((propid&~DSPROPERTY_EAX30BUFFER_DEFERRED))
     {
     case DSPROPERTY_EAX30BUFFER_NONE:
     case DSPROPERTY_EAX30BUFFER_ALLPARAMETERS:
@@ -1369,7 +1369,7 @@ HRESULT EAX2_Query(DS8Primary *prim, DWORD propid, ULONG *pTypeSupport)
     if(prim->effect == 0)
         return E_PROP_ID_UNSUPPORTED;
 
-    switch(propid)
+    switch((propid&~DSPROPERTY_EAX20LISTENER_DEFERRED))
     {
     case DSPROPERTY_EAX20LISTENER_NONE:
     case DSPROPERTY_EAX20LISTENER_ALLPARAMETERS:
@@ -1770,7 +1770,7 @@ HRESULT EAX2Buffer_Query(DS8Buffer *buf, DWORD propid, ULONG *pTypeSupport)
 {
     (void)buf;
 
-    switch(propid)
+    switch((propid&~DSPROPERTY_EAX20BUFFER_DEFERRED))
     {
     case DSPROPERTY_EAX20BUFFER_NONE:
     case DSPROPERTY_EAX20BUFFER_ALLPARAMETERS:
