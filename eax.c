@@ -109,7 +109,7 @@ static void ApplyFilterParams(DS8Buffer *buf, const EAX30BUFFERPROPERTIES *props
      * the same here.
      */
 
-    if((apply&APPLY_DRY_PARAMS))
+    if((apply&APPLY_DRY_PARAMS) && buf->filter[0])
     {
         float mb   = props->lDirect   + props->lObstruction*props->flObstructionLFRatio;
         float mbhf = props->lDirectHF + props->lObstruction;
@@ -126,7 +126,7 @@ static void ApplyFilterParams(DS8Buffer *buf, const EAX30BUFFERPROPERTIES *props
         alFilterf(buf->filter[0], AL_LOWPASS_GAIN, minF(mB_to_gain(mb), 1.0f));
         alFilterf(buf->filter[0], AL_LOWPASS_GAINHF, mB_to_gain(mbhf));
     }
-    if((apply&APPLY_WET_PARAMS))
+    if((apply&APPLY_WET_PARAMS) && buf->filter[1])
     {
         float mb   = props->lRoom   + props->lExclusion*props->flExclusionLFRatio;
         float mbhf = props->lRoomHF + props->lExclusion;
@@ -810,8 +810,7 @@ HRESULT EAX3_Get(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
 
 HRESULT EAX3Buffer_Query(DS8Buffer *buf, DWORD propid, ULONG *pTypeSupport)
 {
-    if(buf->filter[0] == 0)
-        return E_PROP_ID_UNSUPPORTED;
+    (void)buf;
 
     switch(propid)
     {
@@ -851,9 +850,6 @@ HRESULT EAX3Buffer_Query(DS8Buffer *buf, DWORD propid, ULONG *pTypeSupport)
 HRESULT EAX3Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPropData)
 {
     HRESULT hr;
-
-    if(buf->filter[0] == 0)
-        return E_PROP_ID_UNSUPPORTED;
 
     hr = DSERR_INVALIDPARAM;
     switch(propid)
@@ -1211,9 +1207,6 @@ HRESULT EAX3Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
 HRESULT EAX3Buffer_Get(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPropData, ULONG *pcbReturned)
 {
     HRESULT hr;
-
-    if(buf->filter[0] == 0)
-        return E_PROP_ID_UNSUPPORTED;
 
 #define GET_PROP(src, T) do {                              \
     if(cbPropData >= sizeof(T))                            \
@@ -1775,8 +1768,7 @@ HRESULT EAX2_Get(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
 
 HRESULT EAX2Buffer_Query(DS8Buffer *buf, DWORD propid, ULONG *pTypeSupport)
 {
-    if(buf->filter[0] == 0)
-        return E_PROP_ID_UNSUPPORTED;
+    (void)buf;
 
     switch(propid)
     {
@@ -1807,9 +1799,6 @@ HRESULT EAX2Buffer_Query(DS8Buffer *buf, DWORD propid, ULONG *pTypeSupport)
 HRESULT EAX2Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPropData)
 {
     HRESULT hr;
-
-    if(buf->filter[0] == 0)
-        return E_PROP_ID_UNSUPPORTED;
 
     hr = DSERR_INVALIDPARAM;
     switch(propid)
@@ -2049,9 +2038,6 @@ HRESULT EAX2Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
 HRESULT EAX2Buffer_Get(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPropData, ULONG *pcbReturned)
 {
     HRESULT hr;
-
-    if(buf->filter[0] == 0)
-        return E_PROP_ID_UNSUPPORTED;
 
 #define GET_PROP(src, T) do {                              \
     if(cbPropData >= sizeof(T))                            \
@@ -2382,8 +2368,7 @@ HRESULT EAX1_Get(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
 
 HRESULT EAX1Buffer_Query(DS8Buffer *buf, DWORD propid, ULONG *pTypeSupport)
 {
-    if(buf->filter[0] == 0)
-        return E_PROP_ID_UNSUPPORTED;
+    (void)buf;
 
     switch(propid)
     {
@@ -2401,9 +2386,6 @@ HRESULT EAX1Buffer_Query(DS8Buffer *buf, DWORD propid, ULONG *pTypeSupport)
 HRESULT EAX1Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPropData)
 {
     HRESULT hr;
-
-    if(buf->filter[0] == 0)
-        return E_PROP_ID_UNSUPPORTED;
 
     hr = DSERR_INVALIDPARAM;
     switch(propid)
@@ -2439,9 +2421,6 @@ HRESULT EAX1Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
 HRESULT EAX1Buffer_Get(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPropData, ULONG *pcbReturned)
 {
     HRESULT hr;
-
-    if(buf->filter[0] == 0)
-        return E_PROP_ID_UNSUPPORTED;
 
     hr = DSERR_INVALIDPARAM;
     switch(propid)
