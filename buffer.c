@@ -846,7 +846,7 @@ static ULONG WINAPI DS8Buffer_AddRef(IDirectSoundBuffer8 *iface)
 
     InterlockedIncrement(&This->all_ref);
     ret = InterlockedIncrement(&This->ref);
-    TRACE("new refcount %ld\n", ret);
+    TRACE("(%p) ref %lu\n", iface, ret);
 
     return ret;
 }
@@ -857,7 +857,7 @@ static ULONG WINAPI DS8Buffer_Release(IDirectSoundBuffer8 *iface)
     LONG ret;
 
     ret = InterlockedDecrement(&This->ref);
-    TRACE("new refcount %ld\n", ret);
+    TRACE("(%p) ref %lu\n", iface, ret);
     if(InterlockedDecrement(&This->all_ref) == 0)
         DS8Buffer_Destroy(This);
 
@@ -1978,7 +1978,7 @@ static ULONG WINAPI DS8Buffer3D_AddRef(IDirectSound3DBuffer *iface)
 
     InterlockedIncrement(&This->all_ref);
     ret = InterlockedIncrement(&This->ds3d_ref);
-    TRACE("new refcount %ld\n", ret);
+    TRACE("(%p) ref %lu\n", iface, ret);
 
     return ret;
 }
@@ -1989,7 +1989,7 @@ static ULONG WINAPI DS8Buffer3D_Release(IDirectSound3DBuffer *iface)
     LONG ret;
 
     ret = InterlockedDecrement(&This->ds3d_ref);
-    TRACE("new refcount %ld\n", ret);
+    TRACE("(%p) ref %lu\n", iface, ret);
     if(InterlockedDecrement(&This->all_ref) == 0)
         DS8Buffer_Destroy(This);
 
@@ -2553,7 +2553,7 @@ static ULONG WINAPI DS8BufferNot_AddRef(IDirectSoundNotify *iface)
 
     InterlockedIncrement(&This->all_ref);
     ret = InterlockedIncrement(&This->not_ref);
-    TRACE("new refcount %ld\n", ret);
+    TRACE("(%p) ref %lu\n", iface, ret);
 
     return ret;
 }
@@ -2564,7 +2564,7 @@ static ULONG WINAPI DS8BufferNot_Release(IDirectSoundNotify *iface)
     LONG ret;
 
     ret = InterlockedDecrement(&This->not_ref);
-    TRACE("new refcount %ld\n", ret);
+    TRACE("(%p) ref %lu\n", iface, ret);
     if(InterlockedDecrement(&This->all_ref) == 0)
         DS8Buffer_Destroy(This);
 
@@ -2650,7 +2650,7 @@ static ULONG WINAPI DS8BufferProp_AddRef(IKsPropertySet *iface)
 
     InterlockedIncrement(&This->all_ref);
     ret = InterlockedIncrement(&This->prop_ref);
-    TRACE("new refcount %ld\n", ret);
+    TRACE("(%p) ref %lu\n", iface, ret);
 
     return ret;
 }
@@ -2661,7 +2661,7 @@ static ULONG WINAPI DS8BufferProp_Release(IKsPropertySet *iface)
     LONG ret;
 
     ret = InterlockedDecrement(&This->prop_ref);
-    TRACE("new refcount %ld\n", ret);
+    TRACE("(%p) ref %lu\n", iface, ret);
     if(InterlockedDecrement(&This->all_ref) == 0)
         DS8Buffer_Destroy(This);
 

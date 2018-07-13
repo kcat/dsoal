@@ -436,6 +436,7 @@ static ULONG WINAPI DS8Primary_AddRef(IDirectSoundBuffer *iface)
 
     ret = InterlockedIncrement(&This->ref);
     if(ret == 1) This->flags = 0;
+    TRACE("(%p) ref %lu\n", iface, ret);
 
     return ret;
 }
@@ -448,11 +449,15 @@ static ULONG WINAPI DS8Primary_Release(IDirectSoundBuffer *iface)
     oldval = *(volatile LONG*)&This->ref;
     do {
         ref = oldval;
-        if(!ref) return 0;
-        oldval = InterlockedCompareExchange(&This->ref, ref-1, ref);
+        if(ref)
+        {
+            --ref;
+            oldval = InterlockedCompareExchange(&This->ref, ref, ref+1)-1;
+        }
     } while(oldval != ref);
+    TRACE("(%p) ref %lu\n", iface, ref);
 
-    return ref-1;
+    return ref;
 }
 
 static HRESULT WINAPI DS8Primary_GetCaps(IDirectSoundBuffer *iface, DSBCAPS *caps)

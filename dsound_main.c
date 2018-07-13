@@ -1205,7 +1205,7 @@ static ULONG WINAPI DSCF_AddRef(LPCLASSFACTORY iface)
 {
     IClassFactoryImpl *This = impl_from_IClassFactory(iface);
     ULONG ref = InterlockedIncrement(&(This->ref));
-    TRACE("(%p) ref was %lu\n", This, ref - 1);
+    TRACE("(%p) ref %lu\n", iface, ref);
     return ref;
 }
 
@@ -1213,7 +1213,7 @@ static ULONG WINAPI DSCF_Release(LPCLASSFACTORY iface)
 {
     IClassFactoryImpl *This = impl_from_IClassFactory(iface);
     ULONG ref = InterlockedDecrement(&(This->ref));
-    TRACE("(%p) ref was %lu\n", This, ref + 1);
+    TRACE("(%p) ref %lu\n", iface, ref);
     /* static class, won't be freed */
     return ref;
 }

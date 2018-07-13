@@ -442,7 +442,7 @@ static ULONG WINAPI DS8Impl_IUnknown_AddRef(IUnknown *iface)
 
     InterlockedIncrement(&(This->ref));
     ref = InterlockedIncrement(&(This->unkref));
-    TRACE("(%p) ref was %lu\n", This, ref - 1);
+    TRACE("(%p) ref %lu\n", iface, ref);
 
     return ref;
 }
@@ -451,7 +451,7 @@ static ULONG WINAPI DS8Impl_IUnknown_Release(IUnknown *iface)
 {
     DS8Impl *This = impl_from_IUnknown(iface);
     ULONG ref = InterlockedDecrement(&(This->unkref));
-    TRACE("(%p) ref was %lu\n", This, ref + 1);
+    TRACE("(%p) ref %lu\n", iface, ref);
     if(InterlockedDecrement(&(This->ref)) == 0)
         DS8Impl_Destroy(This);
     return ref;
@@ -581,7 +581,7 @@ static ULONG WINAPI DS8_AddRef(IDirectSound8 *iface)
 
     InterlockedIncrement(&This->ref);
     ref = InterlockedIncrement(&This->dsref);
-    TRACE("Reference count incremented to %ld\n", ref);
+    TRACE("(%p) ref %lu\n", iface, ref);
 
     return ref;
 }
@@ -592,7 +592,7 @@ static ULONG WINAPI DS8_Release(IDirectSound8 *iface)
     LONG ref;
 
     ref = InterlockedDecrement(&This->dsref);
-    TRACE("Reference count decremented to %ld\n", ref);
+    TRACE("(%p) ref %lu\n", iface, ref);
     if(InterlockedDecrement(&This->ref) == 0)
         DS8Impl_Destroy(This);
 
