@@ -755,7 +755,7 @@ static inline LONG gain_to_mB(float gain)
 }
 static inline float mB_to_gain(float millibels)
 {
-    return powf(10.0f, millibels/2000.0f);
+    return (millibels > -10000.0f) ? powf(10.0f, millibels/2000.0f) : 0.0f;
 }
 
 static inline LONG clampI(LONG val, LONG minval, LONG maxval)
