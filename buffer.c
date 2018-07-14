@@ -1681,7 +1681,7 @@ static HRESULT WINAPI DSBuffer_Restore(IDirectSoundBuffer8 *iface)
 
     EnterCriticalSection(&This->share->crst);
     if(This->primary->parent->prio_level < DSSCL_WRITEPRIMARY ||
-       iface == This->primary->write_emu)
+       (IDirectSoundBuffer*)&This->IDirectSoundBuffer8_iface == This->primary->write_emu)
     {
         This->bufferlost = 0;
         hr = S_OK;
