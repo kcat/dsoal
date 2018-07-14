@@ -1129,7 +1129,7 @@ static ULONG WINAPI DS8Primary3D_AddRef(IDirectSound3DListener *iface)
     LONG ret;
 
     ret = InterlockedIncrement(&This->ds3d_ref);
-    TRACE("new refcount %ld\n", ret);
+    TRACE("(%p) ref %lu\n", iface, ret);
 
     return ret;
 }
@@ -1140,7 +1140,7 @@ static ULONG WINAPI DS8Primary3D_Release(IDirectSound3DListener *iface)
     LONG ret;
 
     ret = InterlockedDecrement(&This->ds3d_ref);
-    TRACE("new refcount %ld\n", ret);
+    TRACE("(%p) ref %lu\n", iface, ret);
 
     return ret;
 }
@@ -1649,7 +1649,7 @@ static ULONG WINAPI DS8PrimaryProp_AddRef(IKsPropertySet *iface)
     LONG ret;
 
     ret = InterlockedIncrement(&This->prop_ref);
-    TRACE("new refcount %ld\n", ret);
+    TRACE("(%p) ref %lu\n", iface, ret);
 
     return ret;
 }
@@ -1660,7 +1660,7 @@ static ULONG WINAPI DS8PrimaryProp_Release(IKsPropertySet *iface)
     LONG ret;
 
     ret = InterlockedDecrement(&This->prop_ref);
-    TRACE("new refcount %ld\n", ret);
+    TRACE("(%p) ref %lu\n", iface, ret);
 
     return ret;
 }
