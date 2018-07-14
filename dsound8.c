@@ -420,7 +420,7 @@ static const IUnknownVtbl DS8_Unknown_Vtbl;
 
 static HRESULT DSDevice_Create(BOOL is8, REFIID riid, LPVOID *ds);
 static void DSDevice_Destroy(DSDevice *This);
-static HRESULT WINAPI DS8_QueryInterface(IDirectSound8 *iface, REFIID riid, LPVOID *ppv);
+static HRESULT DSDevice_GetInterface(DSDevice *This, REFIID riid, LPVOID *ppv);
 
 /*******************************************************************************
  * IUnknown
@@ -433,7 +433,8 @@ static inline DSDevice *impl_from_IUnknown(IUnknown *iface)
 static HRESULT WINAPI DSDevice_IUnknown_QueryInterface(IUnknown *iface, REFIID riid, void **ppobj)
 {
     DSDevice *This = impl_from_IUnknown(iface);
-    return DS8_QueryInterface(&This->IDirectSound8_iface, riid, ppobj);
+    TRACE("(%p)->(%s, %p)\n", iface, debugstr_guid(riid), ppobj);
+    return DSDevice_GetInterface(This, riid, ppobj);
 }
 
 static ULONG WINAPI DSDevice_IUnknown_AddRef(IUnknown *iface)
@@ -497,7 +498,7 @@ static HRESULT DSDevice_Create(BOOL is8, REFIID riid, LPVOID *ds)
 
     This->is_8 = is8;
 
-    hr = IDirectSound_QueryInterface(&This->IDirectSound_iface, riid, ds);
+    hr = DSDevice_GetInterface(This, riid, ds);
     if(FAILED(hr)) DSDevice_Destroy(This);
     return hr;
 }
@@ -533,13 +534,8 @@ static void DSDevice_Destroy(DSDevice *This)
     HeapFree(GetProcessHeap(), 0, This);
 }
 
-
-static HRESULT WINAPI DS8_QueryInterface(IDirectSound8 *iface, REFIID riid, LPVOID *ppv)
+static HRESULT DSDevice_GetInterface(DSDevice *This, REFIID riid, LPVOID *ppv)
 {
-    DSDevice *This = impl_from_IDirectSound8(iface);
-
-    TRACE("(%p)->(%s, %p)\n", iface, debugstr_guid(riid), ppv);
-
     *ppv = NULL;
     if(IsEqualIID(riid, &IID_IUnknown))
         *ppv = &This->IUnknown_iface;
@@ -560,6 +556,14 @@ static HRESULT WINAPI DS8_QueryInterface(IDirectSound8 *iface, REFIID riid, LPVO
     }
 
     return E_NOINTERFACE;
+}
+
+
+static HRESULT WINAPI DS8_QueryInterface(IDirectSound8 *iface, REFIID riid, LPVOID *ppv)
+{
+    DSDevice *This = impl_from_IDirectSound8(iface);
+    TRACE("(%p)->(%s, %p)\n", iface, debugstr_guid(riid), ppv);
+    return DSDevice_GetInterface(This, riid, ppv);
 }
 
 static ULONG WINAPI DS8_AddRef(IDirectSound8 *iface)
@@ -677,16 +681,14 @@ static HRESULT WINAPI DS8_CreateSoundBuffer(IDirectSound8 *iface, LPCDSBUFFERDES
 
         hr = DSBuffer_Create(&dsb, &This->primary, NULL);
         if(SUCCEEDED(hr))
-        {
             hr = DSBuffer_Initialize(&dsb->IDirectSoundBuffer8_iface, &This->IDirectSound_iface, desc);
-            if(FAILED(hr))
-                IDirectSoundBuffer8_Release(&dsb->IDirectSoundBuffer8_iface);
-            else
-            {
-                dsb->bufferlost = (This->prio_level == DSSCL_WRITEPRIMARY);
-                *buf = (IDirectSoundBuffer*)&dsb->IDirectSoundBuffer8_iface;
-            }
+        if(SUCCEEDED(hr))
+        {
+            dsb->bufferlost = (This->prio_level == DSSCL_WRITEPRIMARY);
+            hr = DSBuffer_GetInterface(dsb, &IID_IDirectSoundBuffer, (void**)buf);
         }
+        if(FAILED(hr))
+            DSBuffer_Destroy(dsb);
     }
     LeaveCriticalSection(&This->share->crst);
 
@@ -804,14 +806,11 @@ static HRESULT WINAPI DS8_DuplicateSoundBuffer(IDirectSound8 *iface, IDirectSoun
         hr = DSBuffer_Create(&buf, &This->primary, in);
     if(SUCCEEDED(hr))
         hr = DSBuffer_Initialize(&buf->IDirectSoundBuffer8_iface, NULL, NULL);
-    if(FAILED(hr))
-    {
-        if(buf)
-            IDirectSoundBuffer_Release(&buf->IDirectSoundBuffer8_iface);
-        return hr;
-    }
+    if(SUCCEEDED(hr))
+        hr = DSBuffer_GetInterface(buf, &IID_IDirectSoundBuffer, (void**)out);
+    if(FAILED(hr) && buf)
+        DSBuffer_Destroy(buf);
 
-    *out = (IDirectSoundBuffer*)&buf->IDirectSoundBuffer8_iface;
     return hr;
 }
 
@@ -844,7 +843,7 @@ static HRESULT WINAPI DS8_SetCooperativeLevel(IDirectSound8 *iface, HWND hwnd, D
         {
             ERR("Why was there a write_emu?\n");
             /* Delete it */
-            IDirectSoundBuffer8_Release(This->primary.write_emu);
+            IDirectSoundBuffer_Release(This->primary.write_emu);
             This->primary.write_emu = NULL;
         }
 
@@ -857,7 +856,7 @@ static HRESULT WINAPI DS8_SetCooperativeLevel(IDirectSound8 *iface, HWND hwnd, D
                 DSBuffer *buf = bufgroup[i].Buffers + idx;
                 usemask &= ~(U64(1) << idx);
 
-                if(FAILED(IDirectSoundBuffer_GetStatus(&buf->IDirectSoundBuffer8_iface, &state)) ||
+                if(FAILED(DSBuffer_GetStatus(&buf->IDirectSoundBuffer8_iface, &state)) ||
                    (state&DSBSTATUS_PLAYING))
                 {
                     WARN("DSSCL_WRITEPRIMARY set with playing buffers!\n");
@@ -883,15 +882,13 @@ static HRESULT WINAPI DS8_SetCooperativeLevel(IDirectSound8 *iface, HWND hwnd, D
 
             hr = DSBuffer_Create(&emu, &This->primary, NULL);
             if(SUCCEEDED(hr))
-            {
-                This->primary.write_emu = &emu->IDirectSoundBuffer8_iface;
-                hr = IDirectSoundBuffer8_Initialize(This->primary.write_emu, &This->IDirectSound_iface, &desc);
-                if(FAILED(hr))
-                {
-                    IDirectSoundBuffer8_Release(This->primary.write_emu);
-                    This->primary.write_emu = NULL;
-                }
-            }
+                hr = DSBuffer_Initialize(&emu->IDirectSoundBuffer8_iface,
+                                         &This->IDirectSound_iface, &desc);
+            if(SUCCEEDED(hr))
+                hr = DSBuffer_GetInterface(emu, &IID_IDirectSoundBuffer,
+                                           (void**)&This->primary.write_emu);
+            if(FAILED(hr))
+                DSBuffer_Destroy(emu);
         }
     }
     else if(This->prio_level == DSSCL_WRITEPRIMARY && level != DSSCL_WRITEPRIMARY)
@@ -899,7 +896,7 @@ static HRESULT WINAPI DS8_SetCooperativeLevel(IDirectSound8 *iface, HWND hwnd, D
         /* Delete it */
         TRACE("Nuking write_emu\n");
         if(This->primary.write_emu)
-            IDirectSoundBuffer8_Release(This->primary.write_emu);
+            IDirectSoundBuffer_Release(This->primary.write_emu);
         This->primary.write_emu = NULL;
     }
     if(SUCCEEDED(hr))
@@ -1115,7 +1112,8 @@ static const IDirectSound8Vtbl DS8_Vtbl = {
 static HRESULT WINAPI DS_QueryInterface(IDirectSound *iface, REFIID riid, LPVOID *ppv)
 {
     DSDevice *This = impl_from_IDirectSound(iface);
-    return DS8_QueryInterface(&This->IDirectSound8_iface, riid, ppv);
+    TRACE("(%p)->(%s, %p)\n", iface, debugstr_guid(riid), ppv);
+    return DSDevice_GetInterface(This, riid, ppv);
 }
 
 static ULONG WINAPI DS_AddRef(IDirectSound *iface)

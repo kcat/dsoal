@@ -647,7 +647,7 @@ struct DSPrimary {
     IKsPropertySet IKsPropertySet_iface;
 
     LONG ref, ds3d_ref, prop_ref;
-    IDirectSoundBuffer8 *write_emu;
+    IDirectSoundBuffer *write_emu;
     DSDevice *parent;
 
     DeviceShare *share;
@@ -721,6 +721,7 @@ HRESULT WINAPI DSPrimary3D_CommitDeferredSettings(IDirectSound3DListener *iface)
 
 HRESULT DSBuffer_Create(DSBuffer **ppv, DSPrimary *parent, IDirectSoundBuffer *orig);
 void DSBuffer_Destroy(DSBuffer *buf);
+HRESULT DSBuffer_GetInterface(DSBuffer *buf, REFIID riid, void **ppv);
 void DSBuffer_SetParams(DSBuffer *buffer, const DS3DBUFFER *params, const EAX30BUFFERPROPERTIES *eax_params, LONG flags);
 HRESULT WINAPI DSBuffer_GetCurrentPosition(IDirectSoundBuffer8 *iface, DWORD *playpos, DWORD *curpos);
 HRESULT WINAPI DSBuffer_GetStatus(IDirectSoundBuffer8 *iface, DWORD *status);

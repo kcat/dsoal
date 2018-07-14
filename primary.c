@@ -487,7 +487,7 @@ static HRESULT WINAPI DSPrimary_GetCurrentPosition(IDirectSoundBuffer *iface, DW
 
     EnterCriticalSection(&This->share->crst);
     if(This->write_emu)
-        hr = IDirectSoundBuffer8_GetCurrentPosition(This->write_emu, playpos, curpos);
+        hr = IDirectSoundBuffer_GetCurrentPosition(This->write_emu, playpos, curpos);
     LeaveCriticalSection(&This->share->crst);
 
     return hr;
@@ -556,7 +556,7 @@ static HRESULT WINAPI DSPrimary_GetPan(IDirectSoundBuffer *iface, LONG *pan)
 
     EnterCriticalSection(&This->share->crst);
     if(This->write_emu)
-        hr = IDirectSoundBuffer8_GetPan(This->write_emu, pan);
+        hr = IDirectSoundBuffer_GetPan(This->write_emu, pan);
     else if(!(This->flags & DSBCAPS_CTRLPAN))
         hr = DSERR_CONTROLUNAVAIL;
     else
@@ -663,7 +663,7 @@ HRESULT WINAPI DSPrimary_Initialize(IDirectSoundBuffer *iface, IDirectSound *ds,
         if(This->write_emu)
         {
             ERR("There shouldn't be a write_emu!\n");
-            IDirectSoundBuffer8_Release(This->write_emu);
+            IDirectSoundBuffer_Release(This->write_emu);
             This->write_emu = NULL;
         }
 
@@ -676,15 +676,11 @@ HRESULT WINAPI DSPrimary_Initialize(IDirectSoundBuffer *iface, IDirectSound *ds,
 
         hr = DSBuffer_Create(&emu, This, NULL);
         if(SUCCEEDED(hr))
-        {
-            This->write_emu = &emu->IDirectSoundBuffer8_iface;
-            hr = DSBuffer_Initialize(This->write_emu, ds, &emudesc);
-            if(FAILED(hr))
-            {
-                IDirectSoundBuffer8_Release(This->write_emu);
-                This->write_emu = NULL;
-            }
-        }
+            hr = DSBuffer_Initialize(&emu->IDirectSoundBuffer8_iface, ds, &emudesc);
+        if(SUCCEEDED(hr))
+            hr = DSBuffer_GetInterface(emu, &IID_IDirectSoundBuffer, (void**)&This->write_emu);
+        if(FAILED(hr))
+            DSBuffer_Destroy(emu);
     }
 
     if(SUCCEEDED(hr))
@@ -734,7 +730,7 @@ static HRESULT WINAPI DSPrimary_Lock(IDirectSoundBuffer *iface, DWORD ofs, DWORD
 
     EnterCriticalSection(&This->share->crst);
     if(This->write_emu)
-        hr = IDirectSoundBuffer8_Lock(This->write_emu, ofs, bytes, ptr1, len1, ptr2, len2, flags);
+        hr = IDirectSoundBuffer_Lock(This->write_emu, ofs, bytes, ptr1, len1, ptr2, len2, flags);
     LeaveCriticalSection(&This->share->crst);
 
     return hr;
@@ -756,7 +752,7 @@ static HRESULT WINAPI DSPrimary_Play(IDirectSoundBuffer *iface, DWORD res1, DWOR
     EnterCriticalSection(&This->share->crst);
     hr = S_OK;
     if(This->write_emu)
-        hr = IDirectSoundBuffer8_Play(This->write_emu, res1, res2, flags);
+        hr = IDirectSoundBuffer_Play(This->write_emu, res1, res2, flags);
     if(SUCCEEDED(hr))
         This->stopped = FALSE;
     LeaveCriticalSection(&This->share->crst);
@@ -907,25 +903,23 @@ static HRESULT WINAPI DSPrimary_SetFormat(IDirectSoundBuffer *iface, const WAVEF
         DSBuffer *buf;
         DSBUFFERDESC desc;
 
-        IDirectSoundBuffer8_Release(This->write_emu);
+        IDirectSoundBuffer_Release(This->write_emu);
         This->write_emu = NULL;
 
         memset(&desc, 0, sizeof(desc));
         desc.dwSize = sizeof(desc);
-        desc.dwFlags = DSBCAPS_LOCHARDWARE|DSBCAPS_CTRLPAN;
+        desc.dwFlags = DSBCAPS_LOCHARDWARE | DSBCAPS_CTRLPAN;
         desc.dwBufferBytes = This->buf_size - (This->buf_size % This->format.Format.nBlockAlign);
         desc.lpwfxFormat = &This->format.Format;
 
         hr = DSBuffer_Create(&buf, This, NULL);
-        if(FAILED(hr)) goto out;
-
-        This->write_emu = &buf->IDirectSoundBuffer8_iface;
-        hr = DSBuffer_Initialize(This->write_emu, &This->parent->IDirectSound_iface, &desc);
+        if(SUCCEEDED(hr))
+            hr = DSBuffer_Initialize(&buf->IDirectSoundBuffer8_iface,
+                                     &This->parent->IDirectSound_iface, &desc);
+        if(SUCCEEDED(hr))
+            hr = DSBuffer_GetInterface(buf, &IID_IDirectSoundBuffer, (void**)&This->write_emu);
         if(FAILED(hr))
-        {
-            IDirectSoundBuffer8_Release(This->write_emu);
-            This->write_emu = NULL;
-        }
+            DSBuffer_Destroy(buf);
     }
 
 out:
@@ -975,7 +969,7 @@ static HRESULT WINAPI DSPrimary_SetPan(IDirectSoundBuffer *iface, LONG pan)
         hr = DSERR_CONTROLUNAVAIL;
     }
     else if(This->write_emu)
-        hr = IDirectSoundBuffer8_SetPan(This->write_emu, pan);
+        hr = IDirectSoundBuffer_SetPan(This->write_emu, pan);
     else
     {
         FIXME("Not supported\n");
@@ -1001,7 +995,7 @@ static HRESULT WINAPI DSPrimary_Stop(IDirectSoundBuffer *iface)
 
     EnterCriticalSection(&This->share->crst);
     if(This->write_emu)
-        hr = IDirectSoundBuffer8_Stop(This->write_emu);
+        hr = IDirectSoundBuffer_Stop(This->write_emu);
     if(SUCCEEDED(hr))
         This->stopped = TRUE;
     LeaveCriticalSection(&This->share->crst);
@@ -1018,7 +1012,7 @@ static HRESULT WINAPI DSPrimary_Unlock(IDirectSoundBuffer *iface, void *ptr1, DW
 
     EnterCriticalSection(&This->share->crst);
     if(This->write_emu)
-        hr = IDirectSoundBuffer8_Unlock(This->write_emu, ptr1, len1, ptr2, len2);
+        hr = IDirectSoundBuffer_Unlock(This->write_emu, ptr1, len1, ptr2, len2);
     LeaveCriticalSection(&This->share->crst);
 
     return hr;
@@ -1033,7 +1027,7 @@ static HRESULT WINAPI DSPrimary_Restore(IDirectSoundBuffer *iface)
 
     EnterCriticalSection(&This->share->crst);
     if(This->write_emu)
-        hr = IDirectSoundBuffer8_Restore(This->write_emu);
+        hr = IDirectSoundBuffer_Restore(This->write_emu);
     LeaveCriticalSection(&This->share->crst);
 
     return hr;

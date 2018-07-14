@@ -445,7 +445,6 @@ static void DSData_Release(DSData *This)
 HRESULT DSBuffer_Create(DSBuffer **ppv, DSPrimary *prim, IDirectSoundBuffer *orig)
 {
     DSBuffer *This = NULL;
-    HRESULT hr;
     DWORD i;
 
     *ppv = NULL;
@@ -504,7 +503,6 @@ HRESULT DSBuffer_Create(DSBuffer **ppv, DSPrimary *prim, IDirectSoundBuffer *ori
     This->share = prim->share;
     This->primary = prim;
     This->ctx = prim->ctx;
-    This->ref = This->all_ref = 1;
 
     This->current.vol = 0;
     This->current.pan = 0;
@@ -551,9 +549,11 @@ HRESULT DSBuffer_Create(DSBuffer **ppv, DSPrimary *prim, IDirectSoundBuffer *ori
         DSBuffer *org = impl_from_IDirectSoundBuffer(orig);
         DSData *data = org->buffer;
 
-        hr = DSERR_BUFFERLOST;
         if(org->bufferlost)
-            goto fail;
+        {
+            DSBuffer_Destroy(This);
+            return DSERR_BUFFERLOST;
+        }
         DSData_AddRef(data);
         This->buffer = data;
 
@@ -572,10 +572,6 @@ HRESULT DSBuffer_Create(DSBuffer **ppv, DSPrimary *prim, IDirectSoundBuffer *ori
 
     *ppv = This;
     return DS_OK;
-
-fail:
-    DSBuffer_Destroy(This);
-    return hr;
 }
 
 void DSBuffer_Destroy(DSBuffer *This)
@@ -638,6 +634,42 @@ void DSBuffer_Destroy(DSBuffer *This)
         }
     }
     LeaveCriticalSection(&prim->share->crst);
+}
+
+HRESULT DSBuffer_GetInterface(DSBuffer *buf, REFIID riid, void **ppv)
+{
+    *ppv = NULL;
+    if(IsEqualIID(riid, &IID_IDirectSoundBuffer))
+        *ppv = &buf->IDirectSoundBuffer8_iface;
+    else if(IsEqualIID(riid, &IID_IDirectSoundBuffer8))
+    {
+        if(buf->primary->parent->is_8)
+            *ppv = &buf->IDirectSoundBuffer8_iface;
+    }
+    else if(IsEqualIID(riid, &IID_IDirectSound3DBuffer))
+    {
+        if((buf->buffer->dsbflags&DSBCAPS_CTRL3D))
+            *ppv = &buf->IDirectSound3DBuffer_iface;
+    }
+    else if(IsEqualIID(riid, &IID_IDirectSoundNotify))
+    {
+        if((buf->buffer->dsbflags&DSBCAPS_CTRLPOSITIONNOTIFY))
+            *ppv = &buf->IDirectSoundNotify_iface;
+    }
+    else if(IsEqualIID(riid, &IID_IKsPropertySet))
+        *ppv = &buf->IKsPropertySet_iface;
+    else if(IsEqualIID(riid, &IID_IUnknown))
+        *ppv = &buf->IDirectSoundBuffer8_iface;
+    else
+        FIXME("Unhandled GUID: %s\n", debugstr_guid(riid));
+
+    if(*ppv)
+    {
+        IUnknown_AddRef((IUnknown*)*ppv);
+        return S_OK;
+    }
+
+    return E_NOINTERFACE;
 }
 
 static HRESULT DSBuffer_SetLoc(DSBuffer *buf, DWORD loc_status)
@@ -799,41 +831,8 @@ static HRESULT DSBuffer_SetLoc(DSBuffer *buf, DWORD loc_status)
 static HRESULT WINAPI DSBuffer_QueryInterface(IDirectSoundBuffer8 *iface, REFIID riid, void **ppv)
 {
     DSBuffer *This = impl_from_IDirectSoundBuffer8(iface);
-
     TRACE("(%p)->(%s, %p)\n", iface, debugstr_guid(riid), ppv);
-
-    *ppv = NULL;
-    if(IsEqualIID(riid, &IID_IUnknown))
-        *ppv = &This->IDirectSoundBuffer8_iface;
-    else if(IsEqualIID(riid, &IID_IDirectSoundBuffer))
-        *ppv = &This->IDirectSoundBuffer8_iface;
-    else if(IsEqualIID(riid, &IID_IDirectSoundBuffer8))
-    {
-        if(This->primary->parent->is_8)
-            *ppv = &This->IDirectSoundBuffer8_iface;
-    }
-    else if(IsEqualIID(riid, &IID_IDirectSound3DBuffer))
-    {
-        if((This->buffer->dsbflags&DSBCAPS_CTRL3D))
-            *ppv = &This->IDirectSound3DBuffer_iface;
-    }
-    else if(IsEqualIID(riid, &IID_IDirectSoundNotify))
-    {
-        if((This->buffer->dsbflags&DSBCAPS_CTRLPOSITIONNOTIFY))
-            *ppv = &This->IDirectSoundNotify_iface;
-    }
-    else if(IsEqualIID(riid, &IID_IKsPropertySet))
-        *ppv = &This->IKsPropertySet_iface;
-    else
-        FIXME("Unhandled GUID: %s\n", debugstr_guid(riid));
-
-    if(*ppv)
-    {
-        IUnknown_AddRef((IUnknown*)*ppv);
-        return S_OK;
-    }
-
-    return E_NOINTERFACE;
+    return DSBuffer_GetInterface(This, riid, ppv);
 }
 
 static ULONG WINAPI DSBuffer_AddRef(IDirectSoundBuffer8 *iface)
@@ -1961,7 +1960,8 @@ void DSBuffer_SetParams(DSBuffer *This, const DS3DBUFFER *params, const EAX30BUF
 static HRESULT WINAPI DSBuffer3D_QueryInterface(IDirectSound3DBuffer *iface, REFIID riid, void **ppv)
 {
     DSBuffer *This = impl_from_IDirectSound3DBuffer(iface);
-    return DSBuffer_QueryInterface(&This->IDirectSoundBuffer8_iface, riid, ppv);
+    TRACE("(%p)->(%s, %p)\n", iface, debugstr_guid(riid), ppv);
+    return DSBuffer_GetInterface(This, riid, ppv);
 }
 
 static ULONG WINAPI DSBuffer3D_AddRef(IDirectSound3DBuffer *iface)
@@ -2536,7 +2536,8 @@ static const IDirectSound3DBufferVtbl DSBuffer3d_Vtbl =
 static HRESULT WINAPI DSBufferNot_QueryInterface(IDirectSoundNotify *iface, REFIID riid, void **ppv)
 {
     DSBuffer *This = impl_from_IDirectSoundNotify(iface);
-    return DSBuffer_QueryInterface(&This->IDirectSoundBuffer8_iface, riid, ppv);
+    TRACE("(%p)->(%s, %p)\n", iface, debugstr_guid(riid), ppv);
+    return DSBuffer_GetInterface(This, riid, ppv);
 }
 
 static ULONG WINAPI DSBufferNot_AddRef(IDirectSoundNotify *iface)
@@ -2633,7 +2634,8 @@ static const IDirectSoundNotifyVtbl DSBufferNot_Vtbl =
 static HRESULT WINAPI DSBufferProp_QueryInterface(IKsPropertySet *iface, REFIID riid, void **ppv)
 {
     DSBuffer *This = impl_from_IKsPropertySet(iface);
-    return DSBuffer_QueryInterface(&This->IDirectSoundBuffer8_iface, riid, ppv);
+    TRACE("(%p)->(%s, %p)\n", iface, debugstr_guid(riid), ppv);
+    return DSBuffer_GetInterface(This, riid, ppv);
 }
 
 static ULONG WINAPI DSBufferProp_AddRef(IKsPropertySet *iface)
