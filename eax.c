@@ -886,6 +886,8 @@ HRESULT EAX3Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
 
             buf->dirty.bit.dry_filter = 1;
             buf->dirty.bit.wet_filter = 1;
+            buf->dirty.bit.doppler = 1;
+            buf->dirty.bit.rolloff = 1;
             buf->dirty.bit.room_rolloff = 1;
             buf->dirty.bit.cone_outsidevolumehf = 1;
             buf->dirty.bit.air_absorb = 1;
