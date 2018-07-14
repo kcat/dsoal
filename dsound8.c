@@ -171,6 +171,8 @@ static void DSShare_Destroy(DeviceShare *share)
 
     HeapFree(GetProcessHeap(), 0, share->primaries);
     HeapFree(GetProcessHeap(), 0, share);
+
+    TRACE("Closed shared device %p\n", share);
 }
 
 static HRESULT DSShare_Create(REFIID guid, DeviceShare **out)
@@ -199,8 +201,9 @@ static HRESULT DSShare_Create(REFIID guid, DeviceShare **out)
     if(!share) return DSERR_OUTOFMEMORY;
     share->ref = 1;
     share->refresh = FAKE_REFRESH_COUNT;
-
     share->speaker_config = DSSPEAKER_7POINT1_SURROUND;
+
+    TRACE("Creating shared device %p\n", share);
 
     hr = get_mmdevice(eRender, guid, &mmdev);
     if(SUCCEEDED(hr))
@@ -296,7 +299,7 @@ static HRESULT DSShare_Create(REFIID guid, DeviceShare **out)
         WARN("Couldn't open device \"%s\"\n", drv_name);
         goto fail;
     }
-    TRACE("Opened device: %s\n",
+    TRACE("Opened AL device: %s\n",
           alcIsExtensionPresent(share->device, "ALC_ENUMERATE_ALL_EXT") ?
           alcGetString(share->device, ALC_ALL_DEVICES_SPECIFIER) :
           alcGetString(share->device, ALC_DEVICE_SPECIFIER));
@@ -492,6 +495,7 @@ static HRESULT DSDevice_Create(BOOL is8, REFIID riid, LPVOID *ds)
     This = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(*This));
     if(!This) return DSERR_OUTOFMEMORY;
 
+    TRACE("Creating device instance %p\n", This);
     This->IDirectSound8_iface.lpVtbl = &DS8_Vtbl;
     This->IDirectSound_iface.lpVtbl = &DS_Vtbl;
     This->IUnknown_iface.lpVtbl = &DS8_Unknown_Vtbl;
@@ -507,6 +511,7 @@ static void DSDevice_Destroy(DSDevice *This)
 {
     DeviceShare *share = This->share;
 
+    TRACE("Destroying device instance %p\n", This);
     if(share)
     {
         ALsizei i;
@@ -1012,14 +1017,15 @@ static HRESULT WINAPI DS8_Initialize(IDirectSound8 *iface, const GUID *devguid)
 
     EnterCriticalSection(&openal_crst);
 
+    TRACE("Searching shared devices for %s\n", debugstr_guid(&guid));
     for(n = 0;n < sharelistsize;n++)
     {
         if(IsEqualGUID(&sharelist[n]->guid, &guid))
         {
-            TRACE("Matched already open device %p\n", sharelist[n]->device);
+            TRACE("Matched shared device %p\n", sharelist[n]);
 
+            DSShare_AddRef(sharelist[n]);
             This->share = sharelist[n];
-            DSShare_AddRef(This->share);
             break;
         }
     }

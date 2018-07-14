@@ -370,8 +370,6 @@ void DSPrimary_Clear(DSPrimary *This)
     struct DSBufferGroup *bufgroup;
     DWORD i;
 
-    TRACE("Clearing primary %p\n", This);
-
     if(!This->parent)
         return;
 
