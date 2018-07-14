@@ -45,43 +45,43 @@
 /* TODO: when bufferlost is set, return from all calls except initialize with
  * DSERR_BUFFERLOST
  */
-static const IDirectSoundBuffer8Vtbl DS8Buffer_Vtbl;
-static const IDirectSound3DBufferVtbl DS8Buffer3d_Vtbl;
-static const IDirectSoundNotifyVtbl DS8BufferNot_Vtbl;
-static const IKsPropertySetVtbl DS8BufferProp_Vtbl;
+static const IDirectSoundBuffer8Vtbl DSBuffer_Vtbl;
+static const IDirectSound3DBufferVtbl DSBuffer3d_Vtbl;
+static const IDirectSoundNotifyVtbl DSBufferNot_Vtbl;
+static const IKsPropertySetVtbl DSBufferProp_Vtbl;
 
 
-static inline DS8Buffer *impl_from_IDirectSoundBuffer8(IDirectSoundBuffer8 *iface)
+static inline DSBuffer *impl_from_IDirectSoundBuffer8(IDirectSoundBuffer8 *iface)
 {
-    return CONTAINING_RECORD(iface, DS8Buffer, IDirectSoundBuffer8_iface);
+    return CONTAINING_RECORD(iface, DSBuffer, IDirectSoundBuffer8_iface);
 }
 
-static inline DS8Buffer *impl_from_IDirectSoundBuffer(IDirectSoundBuffer *iface)
+static inline DSBuffer *impl_from_IDirectSoundBuffer(IDirectSoundBuffer *iface)
 {
-    return CONTAINING_RECORD(iface, DS8Buffer, IDirectSoundBuffer8_iface);
+    return CONTAINING_RECORD(iface, DSBuffer, IDirectSoundBuffer8_iface);
 }
 
-static inline DS8Buffer *impl_from_IDirectSound3DBuffer(IDirectSound3DBuffer *iface)
+static inline DSBuffer *impl_from_IDirectSound3DBuffer(IDirectSound3DBuffer *iface)
 {
-    return CONTAINING_RECORD(iface, DS8Buffer, IDirectSound3DBuffer_iface);
+    return CONTAINING_RECORD(iface, DSBuffer, IDirectSound3DBuffer_iface);
 }
 
-static inline DS8Buffer *impl_from_IDirectSoundNotify(IDirectSoundNotify *iface)
+static inline DSBuffer *impl_from_IDirectSoundNotify(IDirectSoundNotify *iface)
 {
-    return CONTAINING_RECORD(iface, DS8Buffer, IDirectSoundNotify_iface);
+    return CONTAINING_RECORD(iface, DSBuffer, IDirectSoundNotify_iface);
 }
 
-static inline DS8Buffer *impl_from_IKsPropertySet(IKsPropertySet *iface)
+static inline DSBuffer *impl_from_IKsPropertySet(IKsPropertySet *iface)
 {
-    return CONTAINING_RECORD(iface, DS8Buffer, IKsPropertySet_iface);
+    return CONTAINING_RECORD(iface, DSBuffer, IKsPropertySet_iface);
 }
 
 
 /* Should be called with critsect held and context set.. */
-static void DS8Buffer_addnotify(DS8Buffer *buf)
+static void DSBuffer_addnotify(DSBuffer *buf)
 {
-    DS8Primary *prim = buf->primary;
-    DS8Buffer **list;
+    DSPrimary *prim = buf->primary;
+    DSBuffer **list;
     DWORD i;
 
     list = prim->notifies;
@@ -104,7 +104,7 @@ static void DS8Buffer_addnotify(DS8Buffer *buf)
 }
 
 
-static const char *get_fmtstr_PCM(const DS8Primary *prim, const WAVEFORMATEX *format, WAVEFORMATEXTENSIBLE *out)
+static const char *get_fmtstr_PCM(const DSPrimary *prim, const WAVEFORMATEX *format, WAVEFORMATEXTENSIBLE *out)
 {
     out->Format = *format;
     out->Format.cbSize = 0;
@@ -146,7 +146,7 @@ static const char *get_fmtstr_PCM(const DS8Primary *prim, const WAVEFORMATEX *fo
     return NULL;
 }
 
-static const char *get_fmtstr_FLOAT(const DS8Primary *prim, const WAVEFORMATEX *format, WAVEFORMATEXTENSIBLE *out)
+static const char *get_fmtstr_FLOAT(const DSPrimary *prim, const WAVEFORMATEX *format, WAVEFORMATEXTENSIBLE *out)
 {
     out->Format = *format;
     out->Format.cbSize = 0;
@@ -185,7 +185,7 @@ static const char *get_fmtstr_FLOAT(const DS8Primary *prim, const WAVEFORMATEX *
 #define X6DOT1 (SPEAKER_FRONT_LEFT|SPEAKER_FRONT_RIGHT|SPEAKER_FRONT_CENTER|SPEAKER_LOW_FREQUENCY|SPEAKER_BACK_CENTER|SPEAKER_SIDE_LEFT|SPEAKER_SIDE_RIGHT)
 #define X7DOT1 (SPEAKER_FRONT_LEFT|SPEAKER_FRONT_RIGHT|SPEAKER_FRONT_CENTER|SPEAKER_LOW_FREQUENCY|SPEAKER_BACK_LEFT|SPEAKER_BACK_RIGHT|SPEAKER_SIDE_LEFT|SPEAKER_SIDE_RIGHT)
 
-static const char *get_fmtstr_EXT(const DS8Primary *prim, const WAVEFORMATEX *format, WAVEFORMATEXTENSIBLE *out)
+static const char *get_fmtstr_EXT(const DSPrimary *prim, const WAVEFORMATEX *format, WAVEFORMATEXTENSIBLE *out)
 {
     *out = *CONTAINING_RECORD(format, const WAVEFORMATEXTENSIBLE, Format);
     out->Format.cbSize = sizeof(*out) - sizeof(out->Format);
@@ -274,13 +274,13 @@ static const char *get_fmtstr_EXT(const DS8Primary *prim, const WAVEFORMATEX *fo
     return NULL;
 }
 
-static void DS8Data_Release(DS8Data *This);
-static HRESULT DS8Data_Create(DS8Data **ppv, const DSBUFFERDESC *desc, DS8Primary *prim)
+static void DSData_Release(DSData *This);
+static HRESULT DSData_Create(DSData **ppv, const DSBUFFERDESC *desc, DSPrimary *prim)
 {
     HRESULT hr = DSERR_INVALIDPARAM;
     const WAVEFORMATEX *format;
     const char *fmt_str = NULL;
-    DS8Data *pBuffer;
+    DSData *pBuffer;
     DWORD buf_size;
 
     format = desc->lpwfxFormat;
@@ -415,24 +415,24 @@ static HRESULT DS8Data_Create(DS8Data **ppv, const DSBUFFERDESC *desc, DS8Primar
     return S_OK;
 
 fail:
-    DS8Data_Release(pBuffer);
+    DSData_Release(pBuffer);
     return hr;
 }
 
-static void DS8Data_AddRef(DS8Data *data)
+static void DSData_AddRef(DSData *data)
 {
     InterlockedIncrement(&data->ref);
 }
 
 /* This function is always called with the device lock held */
-static void DS8Data_Release(DS8Data *This)
+static void DSData_Release(DSData *This)
 {
     if(InterlockedDecrement(&This->ref)) return;
 
     TRACE("Deleting %p\n", This);
     if(This->bid)
     {
-        DS8Primary *prim = This->primary;
+        DSPrimary *prim = This->primary;
         if(HAS_EXTENSION(prim->share, SOFTX_MAP_BUFFER))
             alUnmapBufferSOFT(This->bid);
         alDeleteBuffers(1, &This->bid);
@@ -442,9 +442,9 @@ static void DS8Data_Release(DS8Data *This)
 }
 
 
-HRESULT DS8Buffer_Create(DS8Buffer **ppv, DS8Primary *prim, IDirectSoundBuffer *orig)
+HRESULT DSBuffer_Create(DSBuffer **ppv, DSPrimary *prim, IDirectSoundBuffer *orig)
 {
-    DS8Buffer *This = NULL;
+    DSBuffer *This = NULL;
     HRESULT hr;
     DWORD i;
 
@@ -496,10 +496,10 @@ HRESULT DS8Buffer_Create(DS8Buffer **ppv, DS8Primary *prim, IDirectSoundBuffer *
         return DSERR_OUTOFMEMORY;
     }
 
-    This->IDirectSoundBuffer8_iface.lpVtbl = &DS8Buffer_Vtbl;
-    This->IDirectSound3DBuffer_iface.lpVtbl = &DS8Buffer3d_Vtbl;
-    This->IDirectSoundNotify_iface.lpVtbl = &DS8BufferNot_Vtbl;
-    This->IKsPropertySet_iface.lpVtbl = &DS8BufferProp_Vtbl;
+    This->IDirectSoundBuffer8_iface.lpVtbl = &DSBuffer_Vtbl;
+    This->IDirectSound3DBuffer_iface.lpVtbl = &DSBuffer3d_Vtbl;
+    This->IDirectSoundNotify_iface.lpVtbl = &DSBufferNot_Vtbl;
+    This->IKsPropertySet_iface.lpVtbl = &DSBufferProp_Vtbl;
 
     This->share = prim->share;
     This->primary = prim;
@@ -548,13 +548,13 @@ HRESULT DS8Buffer_Create(DS8Buffer **ppv, DS8Primary *prim, IDirectSoundBuffer *
 
     if(orig)
     {
-        DS8Buffer *org = impl_from_IDirectSoundBuffer(orig);
-        DS8Data *data = org->buffer;
+        DSBuffer *org = impl_from_IDirectSoundBuffer(orig);
+        DSData *data = org->buffer;
 
         hr = DSERR_BUFFERLOST;
         if(org->bufferlost)
             goto fail;
-        DS8Data_AddRef(data);
+        DSData_AddRef(data);
         This->buffer = data;
 
         /* According to MSDN, volume isn't copied. */
@@ -574,13 +574,13 @@ HRESULT DS8Buffer_Create(DS8Buffer **ppv, DS8Primary *prim, IDirectSoundBuffer *
     return DS_OK;
 
 fail:
-    DS8Buffer_Destroy(This);
+    DSBuffer_Destroy(This);
     return hr;
 }
 
-void DS8Buffer_Destroy(DS8Buffer *This)
+void DSBuffer_Destroy(DSBuffer *This)
 {
-    DS8Primary *prim = This->primary;
+    DSPrimary *prim = This->primary;
     DWORD i;
 
     if(!prim) return;
@@ -621,7 +621,7 @@ void DS8Buffer_Destroy(DS8Buffer *This)
         alDeleteFilters(2, This->filter);
 
     if(This->buffer)
-        DS8Data_Release(This->buffer);
+        DSData_Release(This->buffer);
 
     popALContext();
 
@@ -640,10 +640,10 @@ void DS8Buffer_Destroy(DS8Buffer *This)
     LeaveCriticalSection(&prim->share->crst);
 }
 
-static HRESULT DS8Buffer_SetLoc(DS8Buffer *buf, DWORD loc_status)
+static HRESULT DSBuffer_SetLoc(DSBuffer *buf, DWORD loc_status)
 {
     DeviceShare *share = buf->share;
-    DS8Data *data = buf->buffer;
+    DSData *data = buf->buffer;
 
     if((loc_status && buf->loc_status == loc_status) || (!loc_status && buf->loc_status))
         return DS_OK;
@@ -710,7 +710,7 @@ static HRESULT DS8Buffer_SetLoc(DS8Buffer *buf, DWORD loc_status)
 
     if((data->dsbflags&DSBCAPS_CTRL3D))
     {
-        const DS8Primary *prim = buf->primary;
+        const DSPrimary *prim = buf->primary;
         const ALuint source = buf->source;
         const DS3DBUFFER *params = &buf->current.ds3d;
         const EAX30BUFFERPROPERTIES *eax_params = &buf->current.eax;
@@ -796,9 +796,9 @@ static HRESULT DS8Buffer_SetLoc(DS8Buffer *buf, DWORD loc_status)
 }
 
 
-static HRESULT WINAPI DS8Buffer_QueryInterface(IDirectSoundBuffer8 *iface, REFIID riid, void **ppv)
+static HRESULT WINAPI DSBuffer_QueryInterface(IDirectSoundBuffer8 *iface, REFIID riid, void **ppv)
 {
-    DS8Buffer *This = impl_from_IDirectSoundBuffer8(iface);
+    DSBuffer *This = impl_from_IDirectSoundBuffer8(iface);
 
     TRACE("(%p)->(%s, %p)\n", iface, debugstr_guid(riid), ppv);
 
@@ -836,9 +836,9 @@ static HRESULT WINAPI DS8Buffer_QueryInterface(IDirectSoundBuffer8 *iface, REFII
     return E_NOINTERFACE;
 }
 
-static ULONG WINAPI DS8Buffer_AddRef(IDirectSoundBuffer8 *iface)
+static ULONG WINAPI DSBuffer_AddRef(IDirectSoundBuffer8 *iface)
 {
-    DS8Buffer *This = impl_from_IDirectSoundBuffer8(iface);
+    DSBuffer *This = impl_from_IDirectSoundBuffer8(iface);
     LONG ret;
 
     InterlockedIncrement(&This->all_ref);
@@ -848,23 +848,23 @@ static ULONG WINAPI DS8Buffer_AddRef(IDirectSoundBuffer8 *iface)
     return ret;
 }
 
-static ULONG WINAPI DS8Buffer_Release(IDirectSoundBuffer8 *iface)
+static ULONG WINAPI DSBuffer_Release(IDirectSoundBuffer8 *iface)
 {
-    DS8Buffer *This = impl_from_IDirectSoundBuffer8(iface);
+    DSBuffer *This = impl_from_IDirectSoundBuffer8(iface);
     LONG ret;
 
     ret = InterlockedDecrement(&This->ref);
     TRACE("(%p) ref %lu\n", iface, ret);
     if(InterlockedDecrement(&This->all_ref) == 0)
-        DS8Buffer_Destroy(This);
+        DSBuffer_Destroy(This);
 
     return ret;
 }
 
-static HRESULT WINAPI DS8Buffer_GetCaps(IDirectSoundBuffer8 *iface, DSBCAPS *caps)
+static HRESULT WINAPI DSBuffer_GetCaps(IDirectSoundBuffer8 *iface, DSBCAPS *caps)
 {
-    DS8Buffer *This = impl_from_IDirectSoundBuffer8(iface);
-    DS8Data *data;
+    DSBuffer *This = impl_from_IDirectSoundBuffer8(iface);
+    DSData *data;
 
     TRACE("(%p)->(%p)\n", iface, caps);
 
@@ -890,11 +890,11 @@ static HRESULT WINAPI DS8Buffer_GetCaps(IDirectSoundBuffer8 *iface, DSBCAPS *cap
     return S_OK;
 }
 
-HRESULT WINAPI DS8Buffer_GetCurrentPosition(IDirectSoundBuffer8 *iface, DWORD *playpos, DWORD *curpos)
+HRESULT WINAPI DSBuffer_GetCurrentPosition(IDirectSoundBuffer8 *iface, DWORD *playpos, DWORD *curpos)
 {
-    DS8Buffer *This = impl_from_IDirectSoundBuffer8(iface);
+    DSBuffer *This = impl_from_IDirectSoundBuffer8(iface);
     ALsizei writecursor, pos;
-    DS8Data *data;
+    DSData *data;
 
     TRACE("(%p)->(%p, %p)\n", iface, playpos, curpos);
 
@@ -1001,9 +1001,9 @@ HRESULT WINAPI DS8Buffer_GetCurrentPosition(IDirectSoundBuffer8 *iface, DWORD *p
     return S_OK;
 }
 
-static HRESULT WINAPI DS8Buffer_GetFormat(IDirectSoundBuffer8 *iface, WAVEFORMATEX *wfx, DWORD allocated, DWORD *written)
+static HRESULT WINAPI DSBuffer_GetFormat(IDirectSoundBuffer8 *iface, WAVEFORMATEX *wfx, DWORD allocated, DWORD *written)
 {
-    DS8Buffer *This = impl_from_IDirectSoundBuffer8(iface);
+    DSBuffer *This = impl_from_IDirectSoundBuffer8(iface);
     HRESULT hr = S_OK;
     UINT size;
 
@@ -1029,9 +1029,9 @@ static HRESULT WINAPI DS8Buffer_GetFormat(IDirectSoundBuffer8 *iface, WAVEFORMAT
     return hr;
 }
 
-static HRESULT WINAPI DS8Buffer_GetVolume(IDirectSoundBuffer8 *iface, LONG *vol)
+static HRESULT WINAPI DSBuffer_GetVolume(IDirectSoundBuffer8 *iface, LONG *vol)
 {
-    DS8Buffer *This = impl_from_IDirectSoundBuffer8(iface);
+    DSBuffer *This = impl_from_IDirectSoundBuffer8(iface);
     HRESULT hr;
 
     TRACE("(%p)->(%p)\n", iface, vol);
@@ -1054,9 +1054,9 @@ static HRESULT WINAPI DS8Buffer_GetVolume(IDirectSoundBuffer8 *iface, LONG *vol)
     return hr;
 }
 
-static HRESULT WINAPI DS8Buffer_GetPan(IDirectSoundBuffer8 *iface, LONG *pan)
+static HRESULT WINAPI DSBuffer_GetPan(IDirectSoundBuffer8 *iface, LONG *pan)
 {
-    DS8Buffer *This = impl_from_IDirectSoundBuffer8(iface);
+    DSBuffer *This = impl_from_IDirectSoundBuffer8(iface);
     HRESULT hr;
 
     TRACE("(%p)->(%p)\n", iface, pan);
@@ -1079,9 +1079,9 @@ static HRESULT WINAPI DS8Buffer_GetPan(IDirectSoundBuffer8 *iface, LONG *pan)
     return hr;
 }
 
-static HRESULT WINAPI DS8Buffer_GetFrequency(IDirectSoundBuffer8 *iface, DWORD *freq)
+static HRESULT WINAPI DSBuffer_GetFrequency(IDirectSoundBuffer8 *iface, DWORD *freq)
 {
-    DS8Buffer *This = impl_from_IDirectSoundBuffer8(iface);
+    DSBuffer *This = impl_from_IDirectSoundBuffer8(iface);
     HRESULT hr;
 
     TRACE("(%p)->(%p)\n", iface, freq);
@@ -1105,9 +1105,9 @@ static HRESULT WINAPI DS8Buffer_GetFrequency(IDirectSoundBuffer8 *iface, DWORD *
     return hr;
 }
 
-HRESULT WINAPI DS8Buffer_GetStatus(IDirectSoundBuffer8 *iface, DWORD *status)
+HRESULT WINAPI DSBuffer_GetStatus(IDirectSoundBuffer8 *iface, DWORD *status)
 {
-    DS8Buffer *This = impl_from_IDirectSoundBuffer8(iface);
+    DSBuffer *This = impl_from_IDirectSoundBuffer8(iface);
     ALint state, looping;
 
     TRACE("(%p)->(%p)\n", iface, status);
@@ -1149,11 +1149,11 @@ HRESULT WINAPI DS8Buffer_GetStatus(IDirectSoundBuffer8 *iface, DWORD *status)
     return S_OK;
 }
 
-HRESULT WINAPI DS8Buffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSound *ds, const DSBUFFERDESC *desc)
+HRESULT WINAPI DSBuffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSound *ds, const DSBUFFERDESC *desc)
 {
-    DS8Buffer *This = impl_from_IDirectSoundBuffer8(iface);
-    DS8Primary *prim;
-    DS8Data *data;
+    DSBuffer *This = impl_from_IDirectSoundBuffer8(iface);
+    DSPrimary *prim;
+    DSData *data;
     HRESULT hr;
 
     TRACE("(%p)->(%p, %p)\n", iface, ds, desc);
@@ -1201,7 +1201,7 @@ HRESULT WINAPI DS8Buffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSound *ds
                 ERR("Panning for multi-channel buffers is not supported\n");
         }
 
-        hr = DS8Data_Create(&This->buffer, desc, prim);
+        hr = DSData_Create(&This->buffer, desc, prim);
         if(FAILED(hr)) goto out;
 
         data = This->buffer;
@@ -1248,7 +1248,7 @@ HRESULT WINAPI DS8Buffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSound *ds
         DWORD loc = 0;
         if((data->dsbflags&DSBCAPS_LOCHARDWARE)) loc = DSBSTATUS_LOCHARDWARE;
         else if((data->dsbflags&DSBCAPS_LOCSOFTWARE)) loc = DSBSTATUS_LOCSOFTWARE;
-        hr = DS8Buffer_SetLoc(This, loc);
+        hr = DSBuffer_SetLoc(This, loc);
     }
 out:
     This->init_done = SUCCEEDED(hr);
@@ -1259,9 +1259,9 @@ out:
     return hr;
 }
 
-static HRESULT WINAPI DS8Buffer_Lock(IDirectSoundBuffer8 *iface, DWORD ofs, DWORD bytes, void **ptr1, DWORD *len1, void **ptr2, DWORD *len2, DWORD flags)
+static HRESULT WINAPI DSBuffer_Lock(IDirectSoundBuffer8 *iface, DWORD ofs, DWORD bytes, void **ptr1, DWORD *len1, void **ptr2, DWORD *len2, DWORD flags)
 {
-    DS8Buffer *This = impl_from_IDirectSoundBuffer8(iface);
+    DSBuffer *This = impl_from_IDirectSoundBuffer8(iface);
     DWORD remain;
 
     TRACE("(%p)->(%lu, %lu, %p, %p, %p, %p, 0x%lx)\n", This, ofs, bytes, ptr1, len1, ptr2, len2, flags);
@@ -1278,7 +1278,7 @@ static HRESULT WINAPI DS8Buffer_Lock(IDirectSoundBuffer8 *iface, DWORD ofs, DWOR
     if(len2) *len2 = 0;
 
     if((flags&DSBLOCK_FROMWRITECURSOR))
-        DS8Buffer_GetCurrentPosition(iface, NULL, &ofs);
+        DSBuffer_GetCurrentPosition(iface, NULL, &ofs);
     else if(ofs >= (DWORD)This->buffer->buf_size)
     {
         WARN("Invalid ofs %lu\n", ofs);
@@ -1319,11 +1319,11 @@ static HRESULT WINAPI DS8Buffer_Lock(IDirectSoundBuffer8 *iface, DWORD ofs, DWOR
     return DS_OK;
 }
 
-static HRESULT WINAPI DS8Buffer_Play(IDirectSoundBuffer8 *iface, DWORD res1, DWORD prio, DWORD flags)
+static HRESULT WINAPI DSBuffer_Play(IDirectSoundBuffer8 *iface, DWORD res1, DWORD prio, DWORD flags)
 {
-    DS8Buffer *This = impl_from_IDirectSoundBuffer8(iface);
+    DSBuffer *This = impl_from_IDirectSoundBuffer8(iface);
     ALint state = AL_STOPPED;
-    DS8Data *data;
+    DSData *data;
     HRESULT hr;
 
     TRACE("(%p)->(%lu, %lu, %lu)\n", iface, res1, prio, flags);
@@ -1373,7 +1373,7 @@ static HRESULT WINAPI DS8Buffer_Play(IDirectSoundBuffer8 *iface, DWORD res1, DWO
             }
         }
 
-        hr = DS8Buffer_SetLoc(This, loc);
+        hr = DSBuffer_SetLoc(This, loc);
         if(FAILED(hr)) goto out;
     }
     else if(prio)
@@ -1425,7 +1425,7 @@ static HRESULT WINAPI DS8Buffer_Play(IDirectSoundBuffer8 *iface, DWORD res1, DWO
     This->playflags = flags;
 
     if(This->nnotify)
-        DS8Buffer_addnotify(This);
+        DSBuffer_addnotify(This);
 
 out:
     popALContext();
@@ -1433,10 +1433,10 @@ out:
     return hr;
 }
 
-static HRESULT WINAPI DS8Buffer_SetCurrentPosition(IDirectSoundBuffer8 *iface, DWORD pos)
+static HRESULT WINAPI DSBuffer_SetCurrentPosition(IDirectSoundBuffer8 *iface, DWORD pos)
 {
-    DS8Buffer *This = impl_from_IDirectSoundBuffer8(iface);
-    DS8Data *data;
+    DSBuffer *This = impl_from_IDirectSoundBuffer8(iface);
+    DSData *data;
 
     TRACE("(%p)->(%lu)\n", iface, pos);
 
@@ -1478,16 +1478,16 @@ static HRESULT WINAPI DS8Buffer_SetCurrentPosition(IDirectSoundBuffer8 *iface, D
     return DS_OK;
 }
 
-static HRESULT WINAPI DS8Buffer_SetFormat(IDirectSoundBuffer8 *iface, const WAVEFORMATEX *wfx)
+static HRESULT WINAPI DSBuffer_SetFormat(IDirectSoundBuffer8 *iface, const WAVEFORMATEX *wfx)
 {
     /* This call only works on primary buffers */
     WARN("(%p)->(%p)\n", iface, wfx);
     return DSERR_INVALIDCALL;
 }
 
-static HRESULT WINAPI DS8Buffer_SetVolume(IDirectSoundBuffer8 *iface, LONG vol)
+static HRESULT WINAPI DSBuffer_SetVolume(IDirectSoundBuffer8 *iface, LONG vol)
 {
-    DS8Buffer *This = impl_from_IDirectSoundBuffer8(iface);
+    DSBuffer *This = impl_from_IDirectSoundBuffer8(iface);
     HRESULT hr = S_OK;
 
     TRACE("(%p)->(%ld)\n", iface, vol);
@@ -1514,9 +1514,9 @@ static HRESULT WINAPI DS8Buffer_SetVolume(IDirectSoundBuffer8 *iface, LONG vol)
     return hr;
 }
 
-static HRESULT WINAPI DS8Buffer_SetPan(IDirectSoundBuffer8 *iface, LONG pan)
+static HRESULT WINAPI DSBuffer_SetPan(IDirectSoundBuffer8 *iface, LONG pan)
 {
-    DS8Buffer *This = impl_from_IDirectSoundBuffer8(iface);
+    DSBuffer *This = impl_from_IDirectSoundBuffer8(iface);
     HRESULT hr = S_OK;
 
     TRACE("(%p)->(%ld)\n", iface, pan);
@@ -1553,9 +1553,9 @@ static HRESULT WINAPI DS8Buffer_SetPan(IDirectSoundBuffer8 *iface, LONG pan)
     return hr;
 }
 
-static HRESULT WINAPI DS8Buffer_SetFrequency(IDirectSoundBuffer8 *iface, DWORD freq)
+static HRESULT WINAPI DSBuffer_SetFrequency(IDirectSoundBuffer8 *iface, DWORD freq)
 {
-    DS8Buffer *This = impl_from_IDirectSoundBuffer8(iface);
+    DSBuffer *This = impl_from_IDirectSoundBuffer8(iface);
     HRESULT hr = S_OK;
 
     TRACE("(%p)->(%lu)\n", iface, freq);
@@ -1586,9 +1586,9 @@ static HRESULT WINAPI DS8Buffer_SetFrequency(IDirectSoundBuffer8 *iface, DWORD f
     return hr;
 }
 
-static HRESULT WINAPI DS8Buffer_Stop(IDirectSoundBuffer8 *iface)
+static HRESULT WINAPI DSBuffer_Stop(IDirectSoundBuffer8 *iface)
 {
-    DS8Buffer *This = impl_from_IDirectSoundBuffer8(iface);
+    DSBuffer *This = impl_from_IDirectSoundBuffer8(iface);
 
     TRACE("(%p)->()\n", iface);
 
@@ -1602,7 +1602,7 @@ static HRESULT WINAPI DS8Buffer_Stop(IDirectSoundBuffer8 *iface)
         checkALError();
 
         This->isplaying = FALSE;
-        DS8Primary_triggernots(This->primary);
+        DSPrimary_triggernots(This->primary);
         if(This->segsize == 0)
         {
             ALint state, ofs;
@@ -1617,10 +1617,10 @@ static HRESULT WINAPI DS8Buffer_Stop(IDirectSoundBuffer8 *iface)
     return S_OK;
 }
 
-static HRESULT WINAPI DS8Buffer_Unlock(IDirectSoundBuffer8 *iface, void *ptr1, DWORD len1, void *ptr2, DWORD len2)
+static HRESULT WINAPI DSBuffer_Unlock(IDirectSoundBuffer8 *iface, void *ptr1, DWORD len1, void *ptr2, DWORD len2)
 {
-    DS8Buffer *This = impl_from_IDirectSoundBuffer8(iface);
-    DS8Data *buf = This->buffer;
+    DSBuffer *This = impl_from_IDirectSoundBuffer8(iface);
+    DSData *buf = This->buffer;
     DWORD bufsize = buf->buf_size;
     DWORD_PTR ofs1, ofs2;
     DWORD_PTR boundary = (DWORD_PTR)buf->data;
@@ -1673,9 +1673,9 @@ out:
     return hr;
 }
 
-static HRESULT WINAPI DS8Buffer_Restore(IDirectSoundBuffer8 *iface)
+static HRESULT WINAPI DSBuffer_Restore(IDirectSoundBuffer8 *iface)
 {
-    DS8Buffer *This = impl_from_IDirectSoundBuffer8(iface);
+    DSBuffer *This = impl_from_IDirectSoundBuffer8(iface);
     HRESULT hr;
 
     TRACE("(%p)->()\n", iface);
@@ -1694,11 +1694,11 @@ static HRESULT WINAPI DS8Buffer_Restore(IDirectSoundBuffer8 *iface)
     return hr;
 }
 
-static HRESULT WINAPI DS8Buffer_SetFX(IDirectSoundBuffer8 *iface, DWORD fxcount, DSEFFECTDESC *desc, DWORD *rescodes)
+static HRESULT WINAPI DSBuffer_SetFX(IDirectSoundBuffer8 *iface, DWORD fxcount, DSEFFECTDESC *desc, DWORD *rescodes)
 {
-    DS8Buffer *This = impl_from_IDirectSoundBuffer8(iface);
+    DSBuffer *This = impl_from_IDirectSoundBuffer8(iface);
     ALenum state = AL_INITIAL;
-    DS8Data *data;
+    DSData *data;
     HRESULT hr;
     DWORD i;
 
@@ -1769,9 +1769,9 @@ done:
     return hr;
 }
 
-static HRESULT WINAPI DS8Buffer_AcquireResources(IDirectSoundBuffer8 *iface, DWORD flags, DWORD fxcount, DWORD *rescodes)
+static HRESULT WINAPI DSBuffer_AcquireResources(IDirectSoundBuffer8 *iface, DWORD flags, DWORD fxcount, DWORD *rescodes)
 {
-    DS8Buffer *This = impl_from_IDirectSoundBuffer8(iface);
+    DSBuffer *This = impl_from_IDirectSoundBuffer8(iface);
     HRESULT hr;
 
     TRACE("(%p)->(%lu, %lu, %p)\n", This, flags, fxcount, rescodes);
@@ -1823,7 +1823,7 @@ static HRESULT WINAPI DS8Buffer_AcquireResources(IDirectSoundBuffer8 *iface, DWO
             }
         }
 
-        hr = DS8Buffer_SetLoc(This, loc);
+        hr = DSBuffer_SetLoc(This, loc);
     }
 
 out:
@@ -1832,43 +1832,43 @@ out:
     return hr;
 }
 
-static HRESULT WINAPI DS8Buffer_GetObjectInPath(IDirectSoundBuffer8 *iface, REFGUID guid, DWORD idx, REFGUID rguidiface, void **ppv)
+static HRESULT WINAPI DSBuffer_GetObjectInPath(IDirectSoundBuffer8 *iface, REFGUID guid, DWORD idx, REFGUID rguidiface, void **ppv)
 {
     FIXME("(%p)->(%s, %lu, %s, %p) : stub!\n", iface, debugstr_guid(guid), idx, debugstr_guid(rguidiface), ppv);
     return E_NOTIMPL;
 }
 
-static const IDirectSoundBuffer8Vtbl DS8Buffer_Vtbl = {
-    DS8Buffer_QueryInterface,
-    DS8Buffer_AddRef,
-    DS8Buffer_Release,
-    DS8Buffer_GetCaps,
-    DS8Buffer_GetCurrentPosition,
-    DS8Buffer_GetFormat,
-    DS8Buffer_GetVolume,
-    DS8Buffer_GetPan,
-    DS8Buffer_GetFrequency,
-    DS8Buffer_GetStatus,
-    DS8Buffer_Initialize,
-    DS8Buffer_Lock,
-    DS8Buffer_Play,
-    DS8Buffer_SetCurrentPosition,
-    DS8Buffer_SetFormat,
-    DS8Buffer_SetVolume,
-    DS8Buffer_SetPan,
-    DS8Buffer_SetFrequency,
-    DS8Buffer_Stop,
-    DS8Buffer_Unlock,
-    DS8Buffer_Restore,
-    DS8Buffer_SetFX,
-    DS8Buffer_AcquireResources,
-    DS8Buffer_GetObjectInPath
+static const IDirectSoundBuffer8Vtbl DSBuffer_Vtbl = {
+    DSBuffer_QueryInterface,
+    DSBuffer_AddRef,
+    DSBuffer_Release,
+    DSBuffer_GetCaps,
+    DSBuffer_GetCurrentPosition,
+    DSBuffer_GetFormat,
+    DSBuffer_GetVolume,
+    DSBuffer_GetPan,
+    DSBuffer_GetFrequency,
+    DSBuffer_GetStatus,
+    DSBuffer_Initialize,
+    DSBuffer_Lock,
+    DSBuffer_Play,
+    DSBuffer_SetCurrentPosition,
+    DSBuffer_SetFormat,
+    DSBuffer_SetVolume,
+    DSBuffer_SetPan,
+    DSBuffer_SetFrequency,
+    DSBuffer_Stop,
+    DSBuffer_Unlock,
+    DSBuffer_Restore,
+    DSBuffer_SetFX,
+    DSBuffer_AcquireResources,
+    DSBuffer_GetObjectInPath
 };
 
 
-void DS8Buffer_SetParams(DS8Buffer *This, const DS3DBUFFER *params, const EAX30BUFFERPROPERTIES *eax_params, LONG flags)
+void DSBuffer_SetParams(DSBuffer *This, const DS3DBUFFER *params, const EAX30BUFFERPROPERTIES *eax_params, LONG flags)
 {
-    DS8Primary *prim = This->primary;
+    DSPrimary *prim = This->primary;
     const ALuint source = This->source;
     union BufferParamFlags dirty = { flags };
 
@@ -1958,15 +1958,15 @@ void DS8Buffer_SetParams(DS8Buffer *This, const DS3DBUFFER *params, const EAX30B
     }
 }
 
-static HRESULT WINAPI DS8Buffer3D_QueryInterface(IDirectSound3DBuffer *iface, REFIID riid, void **ppv)
+static HRESULT WINAPI DSBuffer3D_QueryInterface(IDirectSound3DBuffer *iface, REFIID riid, void **ppv)
 {
-    DS8Buffer *This = impl_from_IDirectSound3DBuffer(iface);
-    return DS8Buffer_QueryInterface(&This->IDirectSoundBuffer8_iface, riid, ppv);
+    DSBuffer *This = impl_from_IDirectSound3DBuffer(iface);
+    return DSBuffer_QueryInterface(&This->IDirectSoundBuffer8_iface, riid, ppv);
 }
 
-static ULONG WINAPI DS8Buffer3D_AddRef(IDirectSound3DBuffer *iface)
+static ULONG WINAPI DSBuffer3D_AddRef(IDirectSound3DBuffer *iface)
 {
-    DS8Buffer *This = impl_from_IDirectSound3DBuffer(iface);
+    DSBuffer *This = impl_from_IDirectSound3DBuffer(iface);
     LONG ret;
 
     InterlockedIncrement(&This->all_ref);
@@ -1976,22 +1976,22 @@ static ULONG WINAPI DS8Buffer3D_AddRef(IDirectSound3DBuffer *iface)
     return ret;
 }
 
-static ULONG WINAPI DS8Buffer3D_Release(IDirectSound3DBuffer *iface)
+static ULONG WINAPI DSBuffer3D_Release(IDirectSound3DBuffer *iface)
 {
-    DS8Buffer *This = impl_from_IDirectSound3DBuffer(iface);
+    DSBuffer *This = impl_from_IDirectSound3DBuffer(iface);
     LONG ret;
 
     ret = InterlockedDecrement(&This->ds3d_ref);
     TRACE("(%p) ref %lu\n", iface, ret);
     if(InterlockedDecrement(&This->all_ref) == 0)
-        DS8Buffer_Destroy(This);
+        DSBuffer_Destroy(This);
 
     return ret;
 }
 
-static HRESULT WINAPI DS8Buffer3D_GetConeAngles(IDirectSound3DBuffer *iface, DWORD *pdwInsideConeAngle, DWORD *pdwOutsideConeAngle)
+static HRESULT WINAPI DSBuffer3D_GetConeAngles(IDirectSound3DBuffer *iface, DWORD *pdwInsideConeAngle, DWORD *pdwOutsideConeAngle)
 {
-    DS8Buffer *This = impl_from_IDirectSound3DBuffer(iface);
+    DSBuffer *This = impl_from_IDirectSound3DBuffer(iface);
 
     TRACE("(%p)->(%p, %p)\n", This, pdwInsideConeAngle, pdwOutsideConeAngle);
     if(!pdwInsideConeAngle || !pdwOutsideConeAngle)
@@ -2008,9 +2008,9 @@ static HRESULT WINAPI DS8Buffer3D_GetConeAngles(IDirectSound3DBuffer *iface, DWO
     return S_OK;
 }
 
-static HRESULT WINAPI DS8Buffer3D_GetConeOrientation(IDirectSound3DBuffer *iface, D3DVECTOR *orient)
+static HRESULT WINAPI DSBuffer3D_GetConeOrientation(IDirectSound3DBuffer *iface, D3DVECTOR *orient)
 {
-    DS8Buffer *This = impl_from_IDirectSound3DBuffer(iface);
+    DSBuffer *This = impl_from_IDirectSound3DBuffer(iface);
 
     TRACE("(%p)->(%p)\n", This, orient);
     if(!orient)
@@ -2026,9 +2026,9 @@ static HRESULT WINAPI DS8Buffer3D_GetConeOrientation(IDirectSound3DBuffer *iface
     return S_OK;
 }
 
-static HRESULT WINAPI DS8Buffer3D_GetConeOutsideVolume(IDirectSound3DBuffer *iface, LONG *vol)
+static HRESULT WINAPI DSBuffer3D_GetConeOutsideVolume(IDirectSound3DBuffer *iface, LONG *vol)
 {
-    DS8Buffer *This = impl_from_IDirectSound3DBuffer(iface);
+    DSBuffer *This = impl_from_IDirectSound3DBuffer(iface);
 
     TRACE("(%p)->(%p)\n", This, vol);
     if(!vol)
@@ -2041,9 +2041,9 @@ static HRESULT WINAPI DS8Buffer3D_GetConeOutsideVolume(IDirectSound3DBuffer *ifa
     return S_OK;
 }
 
-static HRESULT WINAPI DS8Buffer3D_GetMaxDistance(IDirectSound3DBuffer *iface, D3DVALUE *maxdist)
+static HRESULT WINAPI DSBuffer3D_GetMaxDistance(IDirectSound3DBuffer *iface, D3DVALUE *maxdist)
 {
-    DS8Buffer *This = impl_from_IDirectSound3DBuffer(iface);
+    DSBuffer *This = impl_from_IDirectSound3DBuffer(iface);
 
     TRACE("(%p)->(%p)\n", This, maxdist);
     if(!maxdist)
@@ -2056,9 +2056,9 @@ static HRESULT WINAPI DS8Buffer3D_GetMaxDistance(IDirectSound3DBuffer *iface, D3
     return S_OK;
 }
 
-static HRESULT WINAPI DS8Buffer3D_GetMinDistance(IDirectSound3DBuffer *iface, D3DVALUE *mindist)
+static HRESULT WINAPI DSBuffer3D_GetMinDistance(IDirectSound3DBuffer *iface, D3DVALUE *mindist)
 {
-    DS8Buffer *This = impl_from_IDirectSound3DBuffer(iface);
+    DSBuffer *This = impl_from_IDirectSound3DBuffer(iface);
 
     TRACE("(%p)->(%p)\n", This, mindist);
     if(!mindist)
@@ -2071,9 +2071,9 @@ static HRESULT WINAPI DS8Buffer3D_GetMinDistance(IDirectSound3DBuffer *iface, D3
     return S_OK;
 }
 
-static HRESULT WINAPI DS8Buffer3D_GetMode(IDirectSound3DBuffer *iface, DWORD *mode)
+static HRESULT WINAPI DSBuffer3D_GetMode(IDirectSound3DBuffer *iface, DWORD *mode)
 {
-    DS8Buffer *This = impl_from_IDirectSound3DBuffer(iface);
+    DSBuffer *This = impl_from_IDirectSound3DBuffer(iface);
 
     TRACE("(%p)->(%p)\n", This, mode);
     if(!mode)
@@ -2086,9 +2086,9 @@ static HRESULT WINAPI DS8Buffer3D_GetMode(IDirectSound3DBuffer *iface, DWORD *mo
     return S_OK;
 }
 
-static HRESULT WINAPI DS8Buffer3D_GetPosition(IDirectSound3DBuffer *iface, D3DVECTOR *pos)
+static HRESULT WINAPI DSBuffer3D_GetPosition(IDirectSound3DBuffer *iface, D3DVECTOR *pos)
 {
-    DS8Buffer *This = impl_from_IDirectSound3DBuffer(iface);
+    DSBuffer *This = impl_from_IDirectSound3DBuffer(iface);
 
     TRACE("(%p)->(%p)\n", This, pos);
     if(!pos)
@@ -2104,9 +2104,9 @@ static HRESULT WINAPI DS8Buffer3D_GetPosition(IDirectSound3DBuffer *iface, D3DVE
     return S_OK;
 }
 
-static HRESULT WINAPI DS8Buffer3D_GetVelocity(IDirectSound3DBuffer *iface, D3DVECTOR *vel)
+static HRESULT WINAPI DSBuffer3D_GetVelocity(IDirectSound3DBuffer *iface, D3DVECTOR *vel)
 {
-    DS8Buffer *This = impl_from_IDirectSound3DBuffer(iface);
+    DSBuffer *This = impl_from_IDirectSound3DBuffer(iface);
 
     TRACE("(%p)->(%p)\n", This, vel);
     if(!vel)
@@ -2122,9 +2122,9 @@ static HRESULT WINAPI DS8Buffer3D_GetVelocity(IDirectSound3DBuffer *iface, D3DVE
     return S_OK;
 }
 
-static HRESULT WINAPI DS8Buffer3D_GetAllParameters(IDirectSound3DBuffer *iface, DS3DBUFFER *ds3dbuffer)
+static HRESULT WINAPI DSBuffer3D_GetAllParameters(IDirectSound3DBuffer *iface, DS3DBUFFER *ds3dbuffer)
 {
-    DS8Buffer *This = impl_from_IDirectSound3DBuffer(iface);
+    DSBuffer *This = impl_from_IDirectSound3DBuffer(iface);
 
     TRACE("(%p)->(%p)\n", iface, ds3dbuffer);
 
@@ -2149,9 +2149,9 @@ static HRESULT WINAPI DS8Buffer3D_GetAllParameters(IDirectSound3DBuffer *iface, 
     return DS_OK;
 }
 
-static HRESULT WINAPI DS8Buffer3D_SetConeAngles(IDirectSound3DBuffer *iface, DWORD dwInsideConeAngle, DWORD dwOutsideConeAngle, DWORD apply)
+static HRESULT WINAPI DSBuffer3D_SetConeAngles(IDirectSound3DBuffer *iface, DWORD dwInsideConeAngle, DWORD dwOutsideConeAngle, DWORD apply)
 {
-    DS8Buffer *This = impl_from_IDirectSound3DBuffer(iface);
+    DSBuffer *This = impl_from_IDirectSound3DBuffer(iface);
 
     TRACE("(%p)->(%lu, %lu, %lu)\n", This, dwInsideConeAngle, dwOutsideConeAngle, apply);
     if(dwInsideConeAngle > DS3D_MAXCONEANGLE || dwOutsideConeAngle > DS3D_MAXCONEANGLE)
@@ -2185,9 +2185,9 @@ static HRESULT WINAPI DS8Buffer3D_SetConeAngles(IDirectSound3DBuffer *iface, DWO
     return S_OK;
 }
 
-static HRESULT WINAPI DS8Buffer3D_SetConeOrientation(IDirectSound3DBuffer *iface, D3DVALUE x, D3DVALUE y, D3DVALUE z, DWORD apply)
+static HRESULT WINAPI DSBuffer3D_SetConeOrientation(IDirectSound3DBuffer *iface, D3DVALUE x, D3DVALUE y, D3DVALUE z, DWORD apply)
 {
-    DS8Buffer *This = impl_from_IDirectSound3DBuffer(iface);
+    DSBuffer *This = impl_from_IDirectSound3DBuffer(iface);
 
     TRACE("(%p)->(%f, %f, %f, %lu)\n", This, x, y, z, apply);
 
@@ -2217,9 +2217,9 @@ static HRESULT WINAPI DS8Buffer3D_SetConeOrientation(IDirectSound3DBuffer *iface
     return S_OK;
 }
 
-static HRESULT WINAPI DS8Buffer3D_SetConeOutsideVolume(IDirectSound3DBuffer *iface, LONG vol, DWORD apply)
+static HRESULT WINAPI DSBuffer3D_SetConeOutsideVolume(IDirectSound3DBuffer *iface, LONG vol, DWORD apply)
 {
-    DS8Buffer *This = impl_from_IDirectSound3DBuffer(iface);
+    DSBuffer *This = impl_from_IDirectSound3DBuffer(iface);
 
     TRACE("(%p)->(%ld, %lu)\n", This, vol, apply);
     if(vol < DSBVOLUME_MIN || vol > DSBVOLUME_MAX)
@@ -2250,9 +2250,9 @@ static HRESULT WINAPI DS8Buffer3D_SetConeOutsideVolume(IDirectSound3DBuffer *ifa
     return S_OK;
 }
 
-static HRESULT WINAPI DS8Buffer3D_SetMaxDistance(IDirectSound3DBuffer *iface, D3DVALUE maxdist, DWORD apply)
+static HRESULT WINAPI DSBuffer3D_SetMaxDistance(IDirectSound3DBuffer *iface, D3DVALUE maxdist, DWORD apply)
 {
-    DS8Buffer *This = impl_from_IDirectSound3DBuffer(iface);
+    DSBuffer *This = impl_from_IDirectSound3DBuffer(iface);
 
     TRACE("(%p)->(%f, %lu)\n", This, maxdist, apply);
     if(maxdist < 0.0f)
@@ -2283,9 +2283,9 @@ static HRESULT WINAPI DS8Buffer3D_SetMaxDistance(IDirectSound3DBuffer *iface, D3
     return S_OK;
 }
 
-static HRESULT WINAPI DS8Buffer3D_SetMinDistance(IDirectSound3DBuffer *iface, D3DVALUE mindist, DWORD apply)
+static HRESULT WINAPI DSBuffer3D_SetMinDistance(IDirectSound3DBuffer *iface, D3DVALUE mindist, DWORD apply)
 {
-    DS8Buffer *This = impl_from_IDirectSound3DBuffer(iface);
+    DSBuffer *This = impl_from_IDirectSound3DBuffer(iface);
 
     TRACE("(%p)->(%f, %lu)\n", This, mindist, apply);
     if(mindist < 0.0f)
@@ -2316,9 +2316,9 @@ static HRESULT WINAPI DS8Buffer3D_SetMinDistance(IDirectSound3DBuffer *iface, D3
     return S_OK;
 }
 
-static HRESULT WINAPI DS8Buffer3D_SetMode(IDirectSound3DBuffer *iface, DWORD mode, DWORD apply)
+static HRESULT WINAPI DSBuffer3D_SetMode(IDirectSound3DBuffer *iface, DWORD mode, DWORD apply)
 {
-    DS8Buffer *This = impl_from_IDirectSound3DBuffer(iface);
+    DSBuffer *This = impl_from_IDirectSound3DBuffer(iface);
 
     TRACE("(%p)->(%lu, %lu)\n", This, mode, apply);
     if(mode != DS3DMODE_NORMAL && mode != DS3DMODE_HEADRELATIVE &&
@@ -2336,7 +2336,7 @@ static HRESULT WINAPI DS8Buffer3D_SetMode(IDirectSound3DBuffer *iface, DWORD mod
     }
     else
     {
-        DS8Primary *prim = This->primary;
+        DSPrimary *prim = This->primary;
 
         setALContext(This->ctx);
         This->current.ds3d.dwMode = mode;
@@ -2359,9 +2359,9 @@ static HRESULT WINAPI DS8Buffer3D_SetMode(IDirectSound3DBuffer *iface, DWORD mod
     return S_OK;
 }
 
-static HRESULT WINAPI DS8Buffer3D_SetPosition(IDirectSound3DBuffer *iface, D3DVALUE x, D3DVALUE y, D3DVALUE z, DWORD apply)
+static HRESULT WINAPI DSBuffer3D_SetPosition(IDirectSound3DBuffer *iface, D3DVALUE x, D3DVALUE y, D3DVALUE z, DWORD apply)
 {
-    DS8Buffer *This = impl_from_IDirectSound3DBuffer(iface);
+    DSBuffer *This = impl_from_IDirectSound3DBuffer(iface);
 
     TRACE("(%p)->(%f, %f, %f, %lu)\n", This, x, y, z, apply);
 
@@ -2391,9 +2391,9 @@ static HRESULT WINAPI DS8Buffer3D_SetPosition(IDirectSound3DBuffer *iface, D3DVA
     return S_OK;
 }
 
-static HRESULT WINAPI DS8Buffer3D_SetVelocity(IDirectSound3DBuffer *iface, D3DVALUE x, D3DVALUE y, D3DVALUE z, DWORD apply)
+static HRESULT WINAPI DSBuffer3D_SetVelocity(IDirectSound3DBuffer *iface, D3DVALUE x, D3DVALUE y, D3DVALUE z, DWORD apply)
 {
-    DS8Buffer *This = impl_from_IDirectSound3DBuffer(iface);
+    DSBuffer *This = impl_from_IDirectSound3DBuffer(iface);
 
     TRACE("(%p)->(%f, %f, %f, %lu)\n", This, x, y, z, apply);
 
@@ -2423,9 +2423,9 @@ static HRESULT WINAPI DS8Buffer3D_SetVelocity(IDirectSound3DBuffer *iface, D3DVA
     return S_OK;
 }
 
-static HRESULT WINAPI DS8Buffer3D_SetAllParameters(IDirectSound3DBuffer *iface, const DS3DBUFFER *ds3dbuffer, DWORD apply)
+static HRESULT WINAPI DSBuffer3D_SetAllParameters(IDirectSound3DBuffer *iface, const DS3DBUFFER *ds3dbuffer, DWORD apply)
 {
-    DS8Buffer *This = impl_from_IDirectSound3DBuffer(iface);
+    DSBuffer *This = impl_from_IDirectSound3DBuffer(iface);
     TRACE("(%p)->(%p, %lu)\n", This, ds3dbuffer, apply);
 
     if(!ds3dbuffer || ds3dbuffer->dwSize < sizeof(*ds3dbuffer))
@@ -2498,7 +2498,7 @@ static HRESULT WINAPI DS8Buffer3D_SetAllParameters(IDirectSound3DBuffer *iface, 
 
         EnterCriticalSection(&This->share->crst);
         setALContext(This->ctx);
-        DS8Buffer_SetParams(This, ds3dbuffer, NULL, dirty.flags);
+        DSBuffer_SetParams(This, ds3dbuffer, NULL, dirty.flags);
         checkALError();
         popALContext();
         LeaveCriticalSection(&This->share->crst);
@@ -2507,41 +2507,41 @@ static HRESULT WINAPI DS8Buffer3D_SetAllParameters(IDirectSound3DBuffer *iface, 
     return S_OK;
 }
 
-static const IDirectSound3DBufferVtbl DS8Buffer3d_Vtbl =
+static const IDirectSound3DBufferVtbl DSBuffer3d_Vtbl =
 {
-    DS8Buffer3D_QueryInterface,
-    DS8Buffer3D_AddRef,
-    DS8Buffer3D_Release,
-    DS8Buffer3D_GetAllParameters,
-    DS8Buffer3D_GetConeAngles,
-    DS8Buffer3D_GetConeOrientation,
-    DS8Buffer3D_GetConeOutsideVolume,
-    DS8Buffer3D_GetMaxDistance,
-    DS8Buffer3D_GetMinDistance,
-    DS8Buffer3D_GetMode,
-    DS8Buffer3D_GetPosition,
-    DS8Buffer3D_GetVelocity,
-    DS8Buffer3D_SetAllParameters,
-    DS8Buffer3D_SetConeAngles,
-    DS8Buffer3D_SetConeOrientation,
-    DS8Buffer3D_SetConeOutsideVolume,
-    DS8Buffer3D_SetMaxDistance,
-    DS8Buffer3D_SetMinDistance,
-    DS8Buffer3D_SetMode,
-    DS8Buffer3D_SetPosition,
-    DS8Buffer3D_SetVelocity
+    DSBuffer3D_QueryInterface,
+    DSBuffer3D_AddRef,
+    DSBuffer3D_Release,
+    DSBuffer3D_GetAllParameters,
+    DSBuffer3D_GetConeAngles,
+    DSBuffer3D_GetConeOrientation,
+    DSBuffer3D_GetConeOutsideVolume,
+    DSBuffer3D_GetMaxDistance,
+    DSBuffer3D_GetMinDistance,
+    DSBuffer3D_GetMode,
+    DSBuffer3D_GetPosition,
+    DSBuffer3D_GetVelocity,
+    DSBuffer3D_SetAllParameters,
+    DSBuffer3D_SetConeAngles,
+    DSBuffer3D_SetConeOrientation,
+    DSBuffer3D_SetConeOutsideVolume,
+    DSBuffer3D_SetMaxDistance,
+    DSBuffer3D_SetMinDistance,
+    DSBuffer3D_SetMode,
+    DSBuffer3D_SetPosition,
+    DSBuffer3D_SetVelocity
 };
 
 
-static HRESULT WINAPI DS8BufferNot_QueryInterface(IDirectSoundNotify *iface, REFIID riid, void **ppv)
+static HRESULT WINAPI DSBufferNot_QueryInterface(IDirectSoundNotify *iface, REFIID riid, void **ppv)
 {
-    DS8Buffer *This = impl_from_IDirectSoundNotify(iface);
-    return DS8Buffer_QueryInterface(&This->IDirectSoundBuffer8_iface, riid, ppv);
+    DSBuffer *This = impl_from_IDirectSoundNotify(iface);
+    return DSBuffer_QueryInterface(&This->IDirectSoundBuffer8_iface, riid, ppv);
 }
 
-static ULONG WINAPI DS8BufferNot_AddRef(IDirectSoundNotify *iface)
+static ULONG WINAPI DSBufferNot_AddRef(IDirectSoundNotify *iface)
 {
-    DS8Buffer *This = impl_from_IDirectSoundNotify(iface);
+    DSBuffer *This = impl_from_IDirectSoundNotify(iface);
     LONG ret;
 
     InterlockedIncrement(&This->all_ref);
@@ -2551,22 +2551,22 @@ static ULONG WINAPI DS8BufferNot_AddRef(IDirectSoundNotify *iface)
     return ret;
 }
 
-static ULONG WINAPI DS8BufferNot_Release(IDirectSoundNotify *iface)
+static ULONG WINAPI DSBufferNot_Release(IDirectSoundNotify *iface)
 {
-    DS8Buffer *This = impl_from_IDirectSoundNotify(iface);
+    DSBuffer *This = impl_from_IDirectSoundNotify(iface);
     LONG ret;
 
     ret = InterlockedDecrement(&This->not_ref);
     TRACE("(%p) ref %lu\n", iface, ret);
     if(InterlockedDecrement(&This->all_ref) == 0)
-        DS8Buffer_Destroy(This);
+        DSBuffer_Destroy(This);
 
     return ret;
 }
 
-static HRESULT WINAPI DS8BufferNot_SetNotificationPositions(IDirectSoundNotify *iface, DWORD count, const DSBPOSITIONNOTIFY *notifications)
+static HRESULT WINAPI DSBufferNot_SetNotificationPositions(IDirectSoundNotify *iface, DWORD count, const DSBPOSITIONNOTIFY *notifications)
 {
-    DS8Buffer *This = impl_from_IDirectSoundNotify(iface);
+    DSBuffer *This = impl_from_IDirectSoundNotify(iface);
     DSBPOSITIONNOTIFY *nots;
     DWORD state;
     HRESULT hr;
@@ -2578,7 +2578,7 @@ static HRESULT WINAPI DS8BufferNot_SetNotificationPositions(IDirectSoundNotify *
     if(count && !notifications)
         goto out;
 
-    hr = DS8Buffer_GetStatus(&This->IDirectSoundBuffer8_iface, &state);
+    hr = DSBuffer_GetStatus(&This->IDirectSoundBuffer8_iface, &state);
     if(FAILED(hr)) goto out;
 
     hr = DSERR_INVALIDCALL;
@@ -2621,24 +2621,24 @@ out:
     return hr;
 }
 
-static const IDirectSoundNotifyVtbl DS8BufferNot_Vtbl =
+static const IDirectSoundNotifyVtbl DSBufferNot_Vtbl =
 {
-    DS8BufferNot_QueryInterface,
-    DS8BufferNot_AddRef,
-    DS8BufferNot_Release,
-    DS8BufferNot_SetNotificationPositions
+    DSBufferNot_QueryInterface,
+    DSBufferNot_AddRef,
+    DSBufferNot_Release,
+    DSBufferNot_SetNotificationPositions
 };
 
 
-static HRESULT WINAPI DS8BufferProp_QueryInterface(IKsPropertySet *iface, REFIID riid, void **ppv)
+static HRESULT WINAPI DSBufferProp_QueryInterface(IKsPropertySet *iface, REFIID riid, void **ppv)
 {
-    DS8Buffer *This = impl_from_IKsPropertySet(iface);
-    return DS8Buffer_QueryInterface(&This->IDirectSoundBuffer8_iface, riid, ppv);
+    DSBuffer *This = impl_from_IKsPropertySet(iface);
+    return DSBuffer_QueryInterface(&This->IDirectSoundBuffer8_iface, riid, ppv);
 }
 
-static ULONG WINAPI DS8BufferProp_AddRef(IKsPropertySet *iface)
+static ULONG WINAPI DSBufferProp_AddRef(IKsPropertySet *iface)
 {
-    DS8Buffer *This = impl_from_IKsPropertySet(iface);
+    DSBuffer *This = impl_from_IKsPropertySet(iface);
     LONG ret;
 
     InterlockedIncrement(&This->all_ref);
@@ -2648,28 +2648,28 @@ static ULONG WINAPI DS8BufferProp_AddRef(IKsPropertySet *iface)
     return ret;
 }
 
-static ULONG WINAPI DS8BufferProp_Release(IKsPropertySet *iface)
+static ULONG WINAPI DSBufferProp_Release(IKsPropertySet *iface)
 {
-    DS8Buffer *This = impl_from_IKsPropertySet(iface);
+    DSBuffer *This = impl_from_IKsPropertySet(iface);
     LONG ret;
 
     ret = InterlockedDecrement(&This->prop_ref);
     TRACE("(%p) ref %lu\n", iface, ret);
     if(InterlockedDecrement(&This->all_ref) == 0)
-        DS8Buffer_Destroy(This);
+        DSBuffer_Destroy(This);
 
     return ret;
 }
 
 /* NOTE: Due to some apparent quirks in DSound, the listener properties are
          handled through secondary buffers. */
-static HRESULT WINAPI DS8BufferProp_Get(IKsPropertySet *iface,
+static HRESULT WINAPI DSBufferProp_Get(IKsPropertySet *iface,
   REFGUID guidPropSet, ULONG dwPropID,
   LPVOID pInstanceData, ULONG cbInstanceData,
   LPVOID pPropData, ULONG cbPropData,
   ULONG *pcbReturned)
 {
-    DS8Buffer *This = impl_from_IKsPropertySet(iface);
+    DSBuffer *This = impl_from_IKsPropertySet(iface);
     HRESULT hr = E_PROP_ID_UNSUPPORTED;
 
     TRACE("(%p)->(%s, 0x%lx, %p, %lu, %p, %lu, %p)\n", iface, debugstr_guid(guidPropSet),
@@ -2705,12 +2705,12 @@ static HRESULT WINAPI DS8BufferProp_Get(IKsPropertySet *iface,
     return hr;
 }
 
-static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
+static HRESULT WINAPI DSBufferProp_Set(IKsPropertySet *iface,
   REFGUID guidPropSet, ULONG dwPropID,
   LPVOID pInstanceData, ULONG cbInstanceData,
   LPVOID pPropData, ULONG cbPropData)
 {
-    DS8Buffer *This = impl_from_IKsPropertySet(iface);
+    DSBuffer *This = impl_from_IKsPropertySet(iface);
     HRESULT hr = E_PROP_ID_UNSUPPORTED;
 
     TRACE("(%p)->(%s, 0x%lx, %p, %lu, %p, %lu)\n", iface, debugstr_guid(guidPropSet),
@@ -2732,8 +2732,8 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
         hr = EAX3Buffer_Set(This, propid, pPropData, cbPropData);
         if(hr == DS_OK && immediate)
         {
-            DS8Primary *prim = This->primary;
-            DS8Primary3D_CommitDeferredSettings(&prim->IDirectSound3DListener_iface);
+            DSPrimary *prim = This->primary;
+            DSPrimary3D_CommitDeferredSettings(&prim->IDirectSound3DListener_iface);
         }
         popALContext();
     }
@@ -2746,33 +2746,33 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
         hr = EAX2Buffer_Set(This, propid, pPropData, cbPropData);
         if(hr == DS_OK && immediate)
         {
-            DS8Primary *prim = This->primary;
-            DS8Primary3D_CommitDeferredSettings(&prim->IDirectSound3DListener_iface);
+            DSPrimary *prim = This->primary;
+            DSPrimary3D_CommitDeferredSettings(&prim->IDirectSound3DListener_iface);
         }
         popALContext();
     }
     else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX30_ListenerProperties))
     {
-        DS8Primary *prim = This->primary;
+        DSPrimary *prim = This->primary;
         DWORD propid = dwPropID & ~DSPROPERTY_EAX30LISTENER_DEFERRED;
         BOOL immediate = !(dwPropID&DSPROPERTY_EAX30LISTENER_DEFERRED);
 
         setALContext(prim->ctx);
         hr = EAX3_Set(prim, propid, pPropData, cbPropData);
         if(hr == DS_OK && immediate)
-            DS8Primary3D_CommitDeferredSettings(&prim->IDirectSound3DListener_iface);
+            DSPrimary3D_CommitDeferredSettings(&prim->IDirectSound3DListener_iface);
         popALContext();
     }
     else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX20_ListenerProperties))
     {
-        DS8Primary *prim = This->primary;
+        DSPrimary *prim = This->primary;
         DWORD propid = dwPropID & ~DSPROPERTY_EAX20LISTENER_DEFERRED;
         BOOL immediate = !(dwPropID&DSPROPERTY_EAX20LISTENER_DEFERRED);
 
         setALContext(prim->ctx);
         hr = EAX2_Set(prim, propid, pPropData, cbPropData);
         if(hr == DS_OK && immediate)
-            DS8Primary3D_CommitDeferredSettings(&prim->IDirectSound3DListener_iface);
+            DSPrimary3D_CommitDeferredSettings(&prim->IDirectSound3DListener_iface);
         popALContext();
     }
     else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX10_BufferProperties))
@@ -2784,21 +2784,21 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
         hr = EAX1Buffer_Set(This, propid, pPropData, cbPropData);
         if(hr == DS_OK && immediate)
         {
-            DS8Primary *prim = This->primary;
-            DS8Primary3D_CommitDeferredSettings(&prim->IDirectSound3DListener_iface);
+            DSPrimary *prim = This->primary;
+            DSPrimary3D_CommitDeferredSettings(&prim->IDirectSound3DListener_iface);
         }
         popALContext();
     }
     else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX10_ListenerProperties))
     {
-        DS8Primary *prim = This->primary;
+        DSPrimary *prim = This->primary;
         DWORD propid = dwPropID & ~DSPROPERTY_EAX20LISTENER_DEFERRED;
         BOOL immediate = !(dwPropID&DSPROPERTY_EAX20LISTENER_DEFERRED);
 
         setALContext(prim->ctx);
         hr = EAX1_Set(prim, propid, pPropData, cbPropData);
         if(hr == DS_OK && immediate)
-            DS8Primary3D_CommitDeferredSettings(&prim->IDirectSound3DListener_iface);
+            DSPrimary3D_CommitDeferredSettings(&prim->IDirectSound3DListener_iface);
         popALContext();
     }
     else
@@ -2808,11 +2808,11 @@ static HRESULT WINAPI DS8BufferProp_Set(IKsPropertySet *iface,
     return hr;
 }
 
-static HRESULT WINAPI DS8BufferProp_QuerySupport(IKsPropertySet *iface,
+static HRESULT WINAPI DSBufferProp_QuerySupport(IKsPropertySet *iface,
   REFGUID guidPropSet, ULONG dwPropID,
   ULONG *pTypeSupport)
 {
-    DS8Buffer *This = impl_from_IKsPropertySet(iface);
+    DSBuffer *This = impl_from_IKsPropertySet(iface);
     HRESULT hr = E_PROP_ID_UNSUPPORTED;
 
     TRACE("(%p)->(%s, 0x%lx, %p)\n", iface, debugstr_guid(guidPropSet), dwPropID, pTypeSupport);
@@ -2841,12 +2841,12 @@ static HRESULT WINAPI DS8BufferProp_QuerySupport(IKsPropertySet *iface,
     return hr;
 }
 
-static const IKsPropertySetVtbl DS8BufferProp_Vtbl =
+static const IKsPropertySetVtbl DSBufferProp_Vtbl =
 {
-    DS8BufferProp_QueryInterface,
-    DS8BufferProp_AddRef,
-    DS8BufferProp_Release,
-    DS8BufferProp_Get,
-    DS8BufferProp_Set,
-    DS8BufferProp_QuerySupport
+    DSBufferProp_QueryInterface,
+    DSBufferProp_AddRef,
+    DSBufferProp_Release,
+    DSBufferProp_Get,
+    DSBufferProp_Set,
+    DSBufferProp_QuerySupport
 };

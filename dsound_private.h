@@ -454,9 +454,9 @@ extern void (*EnterALSection)(ALCcontext *ctx);
 extern void (*LeaveALSection)(void);
 
 
-typedef struct DS8Impl DS8Impl;
-typedef struct DS8Primary DS8Primary;
-typedef struct DS8Buffer DS8Buffer;
+typedef struct DSDevice DSDevice;
+typedef struct DSPrimary DSPrimary;
+typedef struct DSBuffer DSBuffer;
 
 
 enum {
@@ -513,7 +513,7 @@ typedef struct DeviceShare {
     volatile LONG quit_now;
 
     ALsizei nprimaries;
-    DS8Primary **primaries;
+    DSPrimary **primaries;
 
     GUID guid;
     DWORD speaker_config;
@@ -522,10 +522,10 @@ typedef struct DeviceShare {
 #define HAS_EXTENSION(s, e) BITFIELD_TEST((s)->Exts, e)
 
 
-typedef struct DS8Data {
+typedef struct DSData {
     LONG ref;
 
-    DS8Primary *primary;
+    DSPrimary *primary;
 
     /* Lock was called and unlock isn't? */
     LONG locked;
@@ -537,7 +537,7 @@ typedef struct DS8Data {
     DWORD dsbflags;
     BYTE *data;
     ALuint bid;
-} DS8Data;
+} DSData;
 /* Amount of buffers that have to be queued when
  * bufferdatastatic and buffersubdata are not available */
 #define QBUFFERS 4
@@ -566,7 +566,7 @@ union BufferParamFlags {
     } bit;
 };
 
-struct DS8Buffer {
+struct DSBuffer {
     IDirectSoundBuffer8 IDirectSoundBuffer8_iface;
     IDirectSound3DBuffer IDirectSound3DBuffer_iface;
     IDirectSoundNotify IDirectSoundNotify_iface;
@@ -576,12 +576,12 @@ struct DS8Buffer {
     LONG all_ref;
 
     DeviceShare *share;
-    DS8Primary *primary;
+    DSPrimary *primary;
 
     /* From the primary */
     ALCcontext *ctx;
 
-    DS8Data *buffer;
+    DSData *buffer;
     ALuint source;
 
     ALsizei segsize;
@@ -624,7 +624,7 @@ struct DS8Buffer {
 
 struct DSBufferGroup {
     DWORD64 FreeBuffers;
-    DS8Buffer *Buffers;
+    DSBuffer *Buffers;
 };
 
 
@@ -641,14 +641,14 @@ union PrimaryParamFlags {
     } bit;
 };
 
-struct DS8Primary {
+struct DSPrimary {
     IDirectSoundBuffer IDirectSoundBuffer_iface;
     IDirectSound3DListener IDirectSound3DListener_iface;
     IKsPropertySet IKsPropertySet_iface;
 
     LONG ref, ds3d_ref, prop_ref;
     IDirectSoundBuffer8 *write_emu;
-    DS8Impl *parent;
+    DSDevice *parent;
 
     DeviceShare *share;
     /* Taken from the share */
@@ -661,7 +661,7 @@ struct DS8Primary {
     DWORD flags;
     WAVEFORMATEXTENSIBLE format;
 
-    DS8Buffer **notifies;
+    DSBuffer **notifies;
     DWORD nnotifies, sizenotifies;
 
     ALuint effect;
@@ -681,7 +681,7 @@ struct DS8Primary {
 
 
 /* Device implementation */
-struct DS8Impl {
+struct DSDevice {
     IDirectSound8 IDirectSound8_iface;
     IDirectSound IDirectSound_iface;
     IUnknown IUnknown_iface;
@@ -694,7 +694,7 @@ struct DS8Impl {
     /* Taken from the share */
     ALCdevice *device;
 
-    DS8Primary primary;
+    DSPrimary primary;
 
     DWORD prio_level;
 };
@@ -712,40 +712,40 @@ DEFINE_GUID(KSDATAFORMAT_SUBTYPE_IEEE_FLOAT, 0x00000003, 0x0000, 0x0010, 0x80, 0
 DEFINE_DEVPROPKEY(DEVPKEY_Device_FriendlyName, 0xa45c254e,0xdf1c,0x4efd,0x80,0x20,0x67,0xd1,0x46,0xa8,0x50,0xe0, 14);
 
 
-HRESULT DS8Primary_PreInit(DS8Primary *prim, DS8Impl *parent);
-void DS8Primary_Clear(DS8Primary *prim);
-void DS8Primary_triggernots(DS8Primary *prim);
-void DS8Primary_streamfeeder(DS8Primary *prim, BYTE *scratch_mem/*2K non-permanent memory*/);
-HRESULT WINAPI DS8Primary_Initialize(IDirectSoundBuffer *iface, IDirectSound *ds, const DSBUFFERDESC *desc);
-HRESULT WINAPI DS8Primary3D_CommitDeferredSettings(IDirectSound3DListener *iface);
+HRESULT DSPrimary_PreInit(DSPrimary *prim, DSDevice *parent);
+void DSPrimary_Clear(DSPrimary *prim);
+void DSPrimary_triggernots(DSPrimary *prim);
+void DSPrimary_streamfeeder(DSPrimary *prim, BYTE *scratch_mem/*2K non-permanent memory*/);
+HRESULT WINAPI DSPrimary_Initialize(IDirectSoundBuffer *iface, IDirectSound *ds, const DSBUFFERDESC *desc);
+HRESULT WINAPI DSPrimary3D_CommitDeferredSettings(IDirectSound3DListener *iface);
 
-HRESULT DS8Buffer_Create(DS8Buffer **ppv, DS8Primary *parent, IDirectSoundBuffer *orig);
-void DS8Buffer_Destroy(DS8Buffer *buf);
-void DS8Buffer_SetParams(DS8Buffer *buffer, const DS3DBUFFER *params, const EAX30BUFFERPROPERTIES *eax_params, LONG flags);
-HRESULT WINAPI DS8Buffer_GetCurrentPosition(IDirectSoundBuffer8 *iface, DWORD *playpos, DWORD *curpos);
-HRESULT WINAPI DS8Buffer_GetStatus(IDirectSoundBuffer8 *iface, DWORD *status);
-HRESULT WINAPI DS8Buffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSound *ds, const DSBUFFERDESC *desc);
+HRESULT DSBuffer_Create(DSBuffer **ppv, DSPrimary *parent, IDirectSoundBuffer *orig);
+void DSBuffer_Destroy(DSBuffer *buf);
+void DSBuffer_SetParams(DSBuffer *buffer, const DS3DBUFFER *params, const EAX30BUFFERPROPERTIES *eax_params, LONG flags);
+HRESULT WINAPI DSBuffer_GetCurrentPosition(IDirectSoundBuffer8 *iface, DWORD *playpos, DWORD *curpos);
+HRESULT WINAPI DSBuffer_GetStatus(IDirectSoundBuffer8 *iface, DWORD *status);
+HRESULT WINAPI DSBuffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSound *ds, const DSBUFFERDESC *desc);
 
-HRESULT EAX1_Query(DS8Primary *prim, DWORD propid, ULONG *pTypeSupport);
-HRESULT EAX1_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropData);
-HRESULT EAX1_Get(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropData, ULONG *pcbReturned);
-HRESULT EAX1Buffer_Query(DS8Buffer *buf, DWORD propid, ULONG *pTypeSupport);
-HRESULT EAX1Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPropData);
-HRESULT EAX1Buffer_Get(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPropData, ULONG *pcbReturned);
+HRESULT EAX1_Query(DSPrimary *prim, DWORD propid, ULONG *pTypeSupport);
+HRESULT EAX1_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropData);
+HRESULT EAX1_Get(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropData, ULONG *pcbReturned);
+HRESULT EAX1Buffer_Query(DSBuffer *buf, DWORD propid, ULONG *pTypeSupport);
+HRESULT EAX1Buffer_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPropData);
+HRESULT EAX1Buffer_Get(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPropData, ULONG *pcbReturned);
 
-HRESULT EAX2_Query(DS8Primary *prim, DWORD propid, ULONG *pTypeSupport);
-HRESULT EAX2_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropData);
-HRESULT EAX2_Get(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropData, ULONG *pcbReturned);
-HRESULT EAX2Buffer_Query(DS8Buffer *buf, DWORD propid, ULONG *pTypeSupport);
-HRESULT EAX2Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPropData);
-HRESULT EAX2Buffer_Get(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPropData, ULONG *pcbReturned);
+HRESULT EAX2_Query(DSPrimary *prim, DWORD propid, ULONG *pTypeSupport);
+HRESULT EAX2_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropData);
+HRESULT EAX2_Get(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropData, ULONG *pcbReturned);
+HRESULT EAX2Buffer_Query(DSBuffer *buf, DWORD propid, ULONG *pTypeSupport);
+HRESULT EAX2Buffer_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPropData);
+HRESULT EAX2Buffer_Get(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPropData, ULONG *pcbReturned);
 
-HRESULT EAX3_Query(DS8Primary *prim, DWORD propid, ULONG *pTypeSupport);
-HRESULT EAX3_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropData);
-HRESULT EAX3_Get(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropData, ULONG *pcbReturned);
-HRESULT EAX3Buffer_Query(DS8Buffer *buf, DWORD propid, ULONG *pTypeSupport);
-HRESULT EAX3Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPropData);
-HRESULT EAX3Buffer_Get(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPropData, ULONG *pcbReturned);
+HRESULT EAX3_Query(DSPrimary *prim, DWORD propid, ULONG *pTypeSupport);
+HRESULT EAX3_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropData);
+HRESULT EAX3_Get(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropData, ULONG *pcbReturned);
+HRESULT EAX3Buffer_Query(DSBuffer *buf, DWORD propid, ULONG *pTypeSupport);
+HRESULT EAX3Buffer_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPropData);
+HRESULT EAX3Buffer_Get(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPropData, ULONG *pcbReturned);
 
 
 static inline LONG gain_to_mB(float gain)

@@ -26,7 +26,7 @@
 #include "eax-presets.h"
 
 
-static void ApplyReverbParams(DS8Primary *prim, const EAX30LISTENERPROPERTIES *props)
+static void ApplyReverbParams(DSPrimary *prim, const EAX30LISTENERPROPERTIES *props)
 {
     /* FIXME: Need to validate property values... Ignore? Clamp? Error? */
     prim->deferred.eax = *props;
@@ -94,7 +94,7 @@ static inline float maxF(float a, float b)
 
 #define APPLY_DRY_PARAMS 1
 #define APPLY_WET_PARAMS 2
-static void ApplyFilterParams(DS8Buffer *buf, const EAX30BUFFERPROPERTIES *props, int apply)
+static void ApplyFilterParams(DSBuffer *buf, const EAX30BUFFERPROPERTIES *props, int apply)
 {
     /* The LFRatio properties determine how much the given level applies to low
      * frequencies as well as high frequencies. Technically, given that the
@@ -221,7 +221,7 @@ static EAXEXCLUSIONPROPERTIES EAX3BufferExclusion(const EAX30BUFFERPROPERTIES *p
     return ret;
 }
 
-HRESULT EAX3_Query(DS8Primary *prim, DWORD propid, ULONG *pTypeSupport)
+HRESULT EAX3_Query(DSPrimary *prim, DWORD propid, ULONG *pTypeSupport)
 {
     if(prim->effect == 0)
         return E_PROP_ID_UNSUPPORTED;
@@ -263,7 +263,7 @@ HRESULT EAX3_Query(DS8Primary *prim, DWORD propid, ULONG *pTypeSupport)
     return E_PROP_ID_UNSUPPORTED;
 }
 
-HRESULT EAX3_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropData)
+HRESULT EAX3_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropData)
 {
     HRESULT hr;
 
@@ -685,7 +685,7 @@ HRESULT EAX3_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
     return hr;
 }
 
-HRESULT EAX3_Get(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropData, ULONG *pcbReturned)
+HRESULT EAX3_Get(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropData, ULONG *pcbReturned)
 {
     HRESULT hr;
 
@@ -808,7 +808,7 @@ HRESULT EAX3_Get(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
 }
 
 
-HRESULT EAX3Buffer_Query(DS8Buffer *buf, DWORD propid, ULONG *pTypeSupport)
+HRESULT EAX3Buffer_Query(DSBuffer *buf, DWORD propid, ULONG *pTypeSupport)
 {
     (void)buf;
 
@@ -847,7 +847,7 @@ HRESULT EAX3Buffer_Query(DS8Buffer *buf, DWORD propid, ULONG *pTypeSupport)
 }
 
 
-HRESULT EAX3Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPropData)
+HRESULT EAX3Buffer_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPropData)
 {
     HRESULT hr;
 
@@ -1206,7 +1206,7 @@ HRESULT EAX3Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
     return hr;
 }
 
-HRESULT EAX3Buffer_Get(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPropData, ULONG *pcbReturned)
+HRESULT EAX3Buffer_Get(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPropData, ULONG *pcbReturned)
 {
     HRESULT hr;
 
@@ -1366,7 +1366,7 @@ static EAX20BUFFERPROPERTIES EAXBuffer3To2(const EAX30BUFFERPROPERTIES *props)
 }
 
 
-HRESULT EAX2_Query(DS8Primary *prim, DWORD propid, ULONG *pTypeSupport)
+HRESULT EAX2_Query(DSPrimary *prim, DWORD propid, ULONG *pTypeSupport)
 {
     if(prim->effect == 0)
         return E_PROP_ID_UNSUPPORTED;
@@ -1398,7 +1398,7 @@ HRESULT EAX2_Query(DS8Primary *prim, DWORD propid, ULONG *pTypeSupport)
     return E_PROP_ID_UNSUPPORTED;
 }
 
-HRESULT EAX2_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropData)
+HRESULT EAX2_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropData)
 {
     HRESULT hr;
 
@@ -1678,7 +1678,7 @@ HRESULT EAX2_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
     return hr;
 }
 
-HRESULT EAX2_Get(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropData, ULONG *pcbReturned)
+HRESULT EAX2_Get(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropData, ULONG *pcbReturned)
 {
     HRESULT hr;
 
@@ -1768,7 +1768,7 @@ HRESULT EAX2_Get(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
 }
 
 
-HRESULT EAX2Buffer_Query(DS8Buffer *buf, DWORD propid, ULONG *pTypeSupport)
+HRESULT EAX2Buffer_Query(DSBuffer *buf, DWORD propid, ULONG *pTypeSupport)
 {
     (void)buf;
 
@@ -1798,7 +1798,7 @@ HRESULT EAX2Buffer_Query(DS8Buffer *buf, DWORD propid, ULONG *pTypeSupport)
     return E_PROP_ID_UNSUPPORTED;
 }
 
-HRESULT EAX2Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPropData)
+HRESULT EAX2Buffer_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPropData)
 {
     HRESULT hr;
 
@@ -2037,7 +2037,7 @@ HRESULT EAX2Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
     return hr;
 }
 
-HRESULT EAX2Buffer_Get(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPropData, ULONG *pcbReturned)
+HRESULT EAX2Buffer_Get(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPropData, ULONG *pcbReturned)
 {
     HRESULT hr;
 
@@ -2124,7 +2124,7 @@ HRESULT EAX2Buffer_Get(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
  * EAX 1 stuff
  ******************/
 
-HRESULT EAX1_Query(DS8Primary *prim, DWORD propid, ULONG *pTypeSupport)
+HRESULT EAX1_Query(DSPrimary *prim, DWORD propid, ULONG *pTypeSupport)
 {
     if(prim->effect == 0)
         return E_PROP_ID_UNSUPPORTED;
@@ -2145,7 +2145,7 @@ HRESULT EAX1_Query(DS8Primary *prim, DWORD propid, ULONG *pTypeSupport)
     return E_PROP_ID_UNSUPPORTED;
 }
 
-HRESULT EAX1_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropData)
+HRESULT EAX1_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropData)
 {
     static const float eax1_env_volume[EAX_ENVIRONMENT_UNDEFINED] = {
         0.5f, 0.25f, 0.417f, 0.653f, 0.208f, 0.5f, 0.403f, 0.5f, 0.5f,
@@ -2282,7 +2282,7 @@ HRESULT EAX1_Set(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
     return hr;
 }
 
-HRESULT EAX1_Get(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropData, ULONG *pcbReturned)
+HRESULT EAX1_Get(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropData, ULONG *pcbReturned)
 {
     HRESULT hr;
 
@@ -2368,7 +2368,7 @@ HRESULT EAX1_Get(DS8Primary *prim, DWORD propid, void *pPropData, ULONG cbPropDa
 }
 
 
-HRESULT EAX1Buffer_Query(DS8Buffer *buf, DWORD propid, ULONG *pTypeSupport)
+HRESULT EAX1Buffer_Query(DSBuffer *buf, DWORD propid, ULONG *pTypeSupport)
 {
     (void)buf;
 
@@ -2385,7 +2385,7 @@ HRESULT EAX1Buffer_Query(DS8Buffer *buf, DWORD propid, ULONG *pTypeSupport)
     return E_PROP_ID_UNSUPPORTED;
 }
 
-HRESULT EAX1Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPropData)
+HRESULT EAX1Buffer_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPropData)
 {
     HRESULT hr;
 
@@ -2420,7 +2420,7 @@ HRESULT EAX1Buffer_Set(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPr
     return hr;
 }
 
-HRESULT EAX1Buffer_Get(DS8Buffer *buf, DWORD propid, void *pPropData, ULONG cbPropData, ULONG *pcbReturned)
+HRESULT EAX1Buffer_Get(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPropData, ULONG *pcbReturned)
 {
     HRESULT hr;
 
