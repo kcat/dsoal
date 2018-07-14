@@ -1376,7 +1376,6 @@ DECLSPEC_EXPORT BOOL WINAPI DllMain(HINSTANCE hInstDLL, DWORD fdwReason, LPVOID 
             else LogFile = f;
         }
 
-        TRACE("DLL_PROCESS_ATTACH\n");
         if(!load_libopenal())
             return FALSE;
         TlsThreadPtr = TlsAlloc();
@@ -1385,18 +1384,14 @@ DECLSPEC_EXPORT BOOL WINAPI DllMain(HINSTANCE hInstDLL, DWORD fdwReason, LPVOID 
         break;
 
     case DLL_THREAD_ATTACH:
-        TRACE("DLL_THREAD_ATTACH\n");
         break;
 
     case DLL_THREAD_DETACH:
-        TRACE("DLL_THREAD_DETACH\n");
         if(local_contexts)
             set_context(NULL);
         break;
 
     case DLL_PROCESS_DETACH:
-        TRACE("DLL_PROCESS_DETACH\n");
-
         HeapFree(GetProcessHeap(), 0, EnumeratedDevices);
         EnumeratedDevices = NULL;
         EnumeratedDeviceCount = 0;
@@ -1407,10 +1402,6 @@ DECLSPEC_EXPORT BOOL WINAPI DllMain(HINSTANCE hInstDLL, DWORD fdwReason, LPVOID 
         if(LogFile != stderr)
             fclose(LogFile);
         LogFile = stderr;
-        break;
-
-    default:
-        TRACE("UNKNOWN REASON\n");
         break;
     }
     return TRUE;
