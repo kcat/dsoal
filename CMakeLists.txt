@@ -29,6 +29,7 @@ set(DSOAL_OBJS buffer.c
                duplex.c
                eax.c
                eax.h
+               eax3.h
                eax4.h
                eax-presets.h
                primary.c
