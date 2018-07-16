@@ -1096,8 +1096,7 @@ static HRESULT WINAPI DSBuffer_GetFrequency(IDirectSoundBuffer8 *iface, DWORD *f
         WARN("Frequency control not set\n");
     else
     {
-        *freq = This->current.frequency ? This->current.frequency :
-                                          This->buffer->format.Format.nSamplesPerSec;
+        *freq = This->current.frequency;
         hr = DS_OK;
     }
 
@@ -1240,6 +1239,8 @@ HRESULT WINAPI DSBuffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSound *ds,
             }
         }
     }
+    if(!This->current.frequency)
+        This->current.frequency = data->format.Format.nSamplesPerSec;
     This->filter_mBLimit = prim->filter_mBLimit;
 
     hr = DS_OK;
@@ -1556,28 +1557,29 @@ static HRESULT WINAPI DSBuffer_SetPan(IDirectSoundBuffer8 *iface, LONG pan)
 static HRESULT WINAPI DSBuffer_SetFrequency(IDirectSoundBuffer8 *iface, DWORD freq)
 {
     DSBuffer *This = impl_from_IDirectSoundBuffer8(iface);
+    DSData *data;
     HRESULT hr = S_OK;
 
     TRACE("(%p)->(%lu)\n", iface, freq);
 
-    if(freq < DSBFREQUENCY_MIN || freq > DSBFREQUENCY_MAX)
+    if(freq != 0 && (freq < DSBFREQUENCY_MIN || freq > DSBFREQUENCY_MAX))
     {
         WARN("invalid parameter: freq = %lu\n", freq);
         return DSERR_INVALIDPARAM;
     }
 
-    if(!(This->buffer->dsbflags&DSBCAPS_CTRLFREQUENCY))
+    data = This->buffer;
+    if(!(data->dsbflags&DSBCAPS_CTRLFREQUENCY))
         hr = DSERR_CONTROLUNAVAIL;
     else
     {
-        This->current.frequency = freq;
+        This->current.frequency = freq ? freq : data->format.Format.nSamplesPerSec;
         if(LIKELY(This->source))
         {
-            ALfloat pitch;
-
             setALContext(This->ctx);
-            pitch = freq ? freq / (ALfloat)This->buffer->format.Format.nSamplesPerSec : 1.0f;
-            alSourcef(This->source, AL_PITCH, pitch);
+            alSourcef(This->source, AL_PITCH,
+                This->current.frequency / (ALfloat)data->format.Format.nSamplesPerSec
+            );
             checkALError();
             popALContext();
         }
