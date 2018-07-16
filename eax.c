@@ -123,7 +123,7 @@ static void ApplyFilterParams(DSBuffer *buf, const EAX30BUFFERPROPERTIES *props,
                    props->flOcclusionLFRatio*props->flOcclusionDirectRatio) * props->lOcclusion;
         mbhf += props->lOcclusion * props->flOcclusionDirectRatio;
 
-        alFilterf(buf->filter[0], AL_LOWPASS_GAIN, minF(mB_to_gain(mb), 1.0f));
+        alFilterf(buf->filter[0], AL_LOWPASS_GAIN, mB_to_gain(minF(mb, buf->filter_mBLimit)));
         alFilterf(buf->filter[0], AL_LOWPASS_GAINHF, mB_to_gain(mbhf));
     }
     if((apply&APPLY_WET_PARAMS) && buf->filter[1])
@@ -134,7 +134,7 @@ static void ApplyFilterParams(DSBuffer *buf, const EAX30BUFFERPROPERTIES *props,
                    props->flOcclusionLFRatio*props->flOcclusionRoomRatio) * props->lOcclusion;
         mbhf += props->lOcclusion * props->flOcclusionRoomRatio;
 
-        alFilterf(buf->filter[1], AL_LOWPASS_GAIN, minF(mB_to_gain(mb), 1.0f));
+        alFilterf(buf->filter[1], AL_LOWPASS_GAIN, mB_to_gain(minF(mb, buf->filter_mBLimit)));
         alFilterf(buf->filter[1], AL_LOWPASS_GAINHF, mB_to_gain(mbhf));
     }
     checkALError();

@@ -186,6 +186,7 @@ static HRESULT DSShare_Create(REFIID guid, DeviceShare **out)
         { "AL_EXT_MCFORMATS", EXT_MCFORMATS },
         { "AL_SOFT_deferred_updates",  SOFT_DEFERRED_UPDATES },
         { "AL_SOFT_source_spatialize", SOFT_SOURCE_SPATIALIZE },
+        { "AL_SOFTX_filter_gain_ex",   SOFTX_FILTER_GAIN_EX },
         { "AL_SOFTX_map_buffer",       SOFTX_MAP_BUFFER },
     };
     OLECHAR *guid_str = NULL;

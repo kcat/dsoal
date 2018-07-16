@@ -308,6 +308,14 @@ HRESULT DSPrimary_PreInit(DSPrimary *This, DSDevice *parent)
 
     This->stopped = TRUE;
 
+    /* EAX allows the buffer's direct and room volumes to be up to +1000mB
+     * (~3.162 linear gain), but standard EFX's source filters only allow a
+     * maximum gain of 1 (+0mB). The not-currently-final AL_SOFT_filter_gain_ex
+     * extension increases the maximum filter gain to 4 (about +1200mB), which
+     * is enough to handle the original +1000mB range.
+     */
+    This->filter_mBLimit = HAS_EXTENSION(This->share, SOFTX_FILTER_GAIN_EX) ? 1000.0f : 0.0f;
+
     /* Apparently primary buffer size is always 32k,
      * tested on windows with 192k 24 bits sound @ 6 channels
      * where it will run out in 60 ms and it isn't pointer aligned

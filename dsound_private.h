@@ -465,6 +465,7 @@ enum {
     EXT_MCFORMATS,
     SOFT_DEFERRED_UPDATES,
     SOFT_SOURCE_SPATIALIZE,
+    SOFTX_FILTER_GAIN_EX,
     SOFTX_MAP_BUFFER,
 
     MAX_EXTENSIONS
@@ -615,6 +616,7 @@ struct DSBuffer {
     } deferred;
     union BufferParamFlags dirty;
 
+    ALfloat filter_mBLimit;
     ALuint filter[2];
 
     DWORD nnotify, lastpos;
@@ -663,6 +665,8 @@ struct DSPrimary {
 
     DSBuffer **notifies;
     DWORD nnotifies, sizenotifies;
+
+    ALfloat filter_mBLimit;
 
     ALuint effect;
     ALfloat rollofffactor;

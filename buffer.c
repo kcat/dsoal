@@ -1240,6 +1240,7 @@ HRESULT WINAPI DSBuffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSound *ds,
             }
         }
     }
+    This->filter_mBLimit = prim->filter_mBLimit;
 
     hr = DS_OK;
     if(!(data->dsbflags&DSBCAPS_LOCDEFER))
