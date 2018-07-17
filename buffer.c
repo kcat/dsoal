@@ -1423,7 +1423,6 @@ static HRESULT WINAPI DSBuffer_Play(IDirectSoundBuffer8 *iface, DWORD res1, DWOR
         goto out;
     }
     This->isplaying = TRUE;
-    This->playflags = flags;
 
     if(This->nnotify)
         DSBuffer_addnotify(This);
@@ -1598,20 +1597,46 @@ static HRESULT WINAPI DSBuffer_Stop(IDirectSoundBuffer8 *iface)
     if(LIKELY(This->source))
     {
         const ALuint source = This->source;
+        ALint state, ofs;
 
         setALContext(This->ctx);
         alSourcePause(source);
+        alGetSourcei(source, AL_BYTE_OFFSET, &ofs);
+        alGetSourcei(source, AL_SOURCE_STATE, &state);
         checkALError();
 
         This->isplaying = FALSE;
-        DSPrimary_triggernots(This->primary);
+        if(This->nnotify)
+            DSPrimary_triggernots(This->primary);
+        /* Ensure the notification's last tracked position is updated, as well
+         * as the queue offsets for streaming sources.
+         */
         if(This->segsize == 0)
-        {
-            ALint state, ofs;
-            alGetSourcei(source, AL_BYTE_OFFSET, &ofs);
-            alGetSourcei(source, AL_SOURCE_STATE, &state);
             This->lastpos = (state == AL_STOPPED) ? This->buffer->buf_size : ofs;
+        else
+        {
+            DSData *data = This->buffer;
+            ALint done = 0;
+
+            alGetSourcei(This->source, AL_BUFFERS_PROCESSED, &done);
+            This->queue_base += This->segsize*done + ofs;
+            if(This->queue_base >= data->buf_size)
+            {
+                if(This->islooping)
+                    This->queue_base %= data->buf_size;
+                else
+                    This->queue_base = data->buf_size;
+            }
+            This->lastpos = This->queue_base;
+
+            alSourceRewind(This->source);
+            alSourcei(This->source, AL_BUFFER, 0);
+            checkALError();
+
+            This->curidx = 0;
+            This->data_offset = This->lastpos % data->buf_size;
         }
+        This->islooping = FALSE;
         popALContext();
     }
     LeaveCriticalSection(&This->share->crst);

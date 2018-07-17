@@ -591,11 +591,10 @@ struct DSBuffer {
     ALsizei curidx;
     ALuint stream_bids[QBUFFERS];
 
-    DWORD init_done : 1;
-    DWORD isplaying : 1;
-    DWORD islooping : 1;
-    DWORD bufferlost : 1;
-    DWORD playflags : 28;
+    BOOL init_done : 1;
+    BOOL isplaying : 1;
+    BOOL islooping : 1;
+    BOOL bufferlost : 1;
 
     /* Must be 0 (deferred, not yet placed), DSBSTATUS_LOCSOFTWARE, or
      * DSBSTATUS_LOCHARDWARE.

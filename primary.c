@@ -195,7 +195,7 @@ static void do_buffer_stream(DSBuffer *buf, BYTE *scratch_mem)
         if(buf->segsize < data->buf_size - ofs)
         {
             alBufferData(which, data->buf_format, data->data + ofs, buf->segsize,
-                            data->format.Format.nSamplesPerSec);
+                         data->format.Format.nSamplesPerSec);
             buf->data_offset = ofs + buf->segsize;
         }
         else if(buf->islooping)
@@ -213,7 +213,7 @@ static void do_buffer_stream(DSBuffer *buf, BYTE *scratch_mem)
                 rem += todo;
             }
             alBufferData(which, data->buf_format, scratch_mem, buf->segsize,
-                            data->format.Format.nSamplesPerSec);
+                         data->format.Format.nSamplesPerSec);
             buf->data_offset = (ofs+buf->segsize) % data->buf_size;
         }
         else
@@ -224,9 +224,9 @@ static void do_buffer_stream(DSBuffer *buf, BYTE *scratch_mem)
 
             memcpy(scratch_mem, data->data + ofs, rem);
             memset(scratch_mem+rem, (data->format.Format.wBitsPerSample==8) ? 128 : 0,
-                    buf->segsize - rem);
+                   buf->segsize - rem);
             alBufferData(which, data->buf_format, scratch_mem, buf->segsize,
-                            data->format.Format.nSamplesPerSec);
+                         data->format.Format.nSamplesPerSec);
             buf->data_offset = data->buf_size;
         }
 
