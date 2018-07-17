@@ -1602,7 +1602,7 @@ HRESULT WINAPI DSPrimary3D_CommitDeferredSettings(IDirectSound3DListener *iface)
             usemask &= ~(U64(1) << idx);
 
             if((flags=InterlockedExchange(&buf->dirty.flags, 0)) != 0)
-                DSBuffer_SetParams(buf, &buf->deferred.ds3d, &buf->deferred.eax, flags);
+                DSBuffer_SetParams(buf, &buf->deferred.ds3d, flags);
         }
     }
     alProcessUpdatesSOFT();

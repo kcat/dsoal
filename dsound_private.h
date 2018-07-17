@@ -725,7 +725,7 @@ HRESULT WINAPI DSPrimary3D_CommitDeferredSettings(IDirectSound3DListener *iface)
 HRESULT DSBuffer_Create(DSBuffer **ppv, DSPrimary *parent, IDirectSoundBuffer *orig);
 void DSBuffer_Destroy(DSBuffer *buf);
 HRESULT DSBuffer_GetInterface(DSBuffer *buf, REFIID riid, void **ppv);
-void DSBuffer_SetParams(DSBuffer *buffer, const DS3DBUFFER *params, const EAX30BUFFERPROPERTIES *eax_params, LONG flags);
+void DSBuffer_SetParams(DSBuffer *buffer, const DS3DBUFFER *params, LONG flags);
 HRESULT WINAPI DSBuffer_GetCurrentPosition(IDirectSoundBuffer8 *iface, DWORD *playpos, DWORD *curpos);
 HRESULT WINAPI DSBuffer_GetStatus(IDirectSoundBuffer8 *iface, DWORD *status);
 HRESULT WINAPI DSBuffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSound *ds, const DSBUFFERDESC *desc);

@@ -1893,7 +1893,7 @@ static const IDirectSoundBuffer8Vtbl DSBuffer_Vtbl = {
 };
 
 
-void DSBuffer_SetParams(DSBuffer *This, const DS3DBUFFER *params, const EAX30BUFFERPROPERTIES *eax_params, LONG flags)
+void DSBuffer_SetParams(DSBuffer *This, const DS3DBUFFER *params, LONG flags)
 {
     DSPrimary *prim = This->primary;
     const ALuint source = This->source;
@@ -1919,14 +1919,14 @@ void DSBuffer_SetParams(DSBuffer *This, const DS3DBUFFER *params, const EAX30BUF
         This->current.ds3d.flMaxDistance = params->flMaxDistance;
     if(dirty.bit.mode)
         This->current.ds3d.dwMode = params->dwMode;
-    /* Always copy EAX params when provided (they're always set deferred first,
-     * then applied when committing all params).
+    /* Always copy EAX params (they're always set deferred first, then applied
+     * when committing all params).
      */
-    if(eax_params)
-        This->current.eax = *eax_params;
+    This->current.eax = This->deferred.eax;
+    This->current.eax1_reverbmix = This->deferred.eax1_reverbmix;
 
     /* Now apply what's changed to OpenAL. */
-    if(UNLIKELY(!This->source)) return;
+    if(UNLIKELY(!source)) return;
 
     if(dirty.bit.pos)
         alSource3f(source, AL_POSITION, params->vPosition.x, params->vPosition.y,
@@ -1965,23 +1965,24 @@ void DSBuffer_SetParams(DSBuffer *This, const DS3DBUFFER *params, const EAX30BUF
     if(dirty.bit.wet_filter)
         alSource3i(source, AL_AUXILIARY_SEND_FILTER, prim->auxslot, 0, This->filter[1]);
     if(dirty.bit.doppler)
-        alSourcef(source, AL_DOPPLER_FACTOR, eax_params->flDopplerFactor);
+        alSourcef(source, AL_DOPPLER_FACTOR, This->current.eax.flDopplerFactor);
     if(dirty.bit.rolloff)
-        alSourcef(source, AL_ROLLOFF_FACTOR, eax_params->flRolloffFactor + prim->rollofffactor);
+        alSourcef(source, AL_ROLLOFF_FACTOR, This->current.eax.flRolloffFactor +
+                                             prim->rollofffactor);
     if(dirty.bit.room_rolloff)
-        alSourcef(source, AL_ROOM_ROLLOFF_FACTOR, eax_params->flRoomRolloffFactor);
+        alSourcef(source, AL_ROOM_ROLLOFF_FACTOR, This->current.eax.flRoomRolloffFactor);
     if(dirty.bit.cone_outsidevolumehf)
-        alSourcef(source, AL_CONE_OUTER_GAINHF, mB_to_gain(eax_params->lOutsideVolumeHF));
+        alSourcef(source, AL_CONE_OUTER_GAINHF, mB_to_gain(This->current.eax.lOutsideVolumeHF));
     if(dirty.bit.air_absorb)
-        alSourcef(source, AL_AIR_ABSORPTION_FACTOR, eax_params->flAirAbsorptionFactor);
+        alSourcef(source, AL_AIR_ABSORPTION_FACTOR, This->current.eax.flAirAbsorptionFactor);
     if(dirty.bit.flags)
     {
         alSourcei(source, AL_DIRECT_FILTER_GAINHF_AUTO,
-                  (eax_params->dwFlags&EAX30BUFFERFLAGS_DIRECTHFAUTO) ? AL_TRUE : AL_FALSE);
+                  (This->current.eax.dwFlags&EAX30BUFFERFLAGS_DIRECTHFAUTO) ? AL_TRUE : AL_FALSE);
         alSourcei(source, AL_AUXILIARY_SEND_FILTER_GAIN_AUTO,
-                  (eax_params->dwFlags&EAX30BUFFERFLAGS_ROOMAUTO) ? AL_TRUE : AL_FALSE);
+                  (This->current.eax.dwFlags&EAX30BUFFERFLAGS_ROOMAUTO) ? AL_TRUE : AL_FALSE);
         alSourcei(source, AL_AUXILIARY_SEND_FILTER_GAINHF_AUTO,
-                  (eax_params->dwFlags&EAX30BUFFERFLAGS_ROOMHFAUTO) ? AL_TRUE : AL_FALSE);
+                  (This->current.eax.dwFlags&EAX30BUFFERFLAGS_ROOMHFAUTO) ? AL_TRUE : AL_FALSE);
     }
 }
 
@@ -2526,7 +2527,7 @@ static HRESULT WINAPI DSBuffer3D_SetAllParameters(IDirectSound3DBuffer *iface, c
 
         EnterCriticalSection(&This->share->crst);
         setALContext(This->ctx);
-        DSBuffer_SetParams(This, ds3dbuffer, NULL, dirty.flags);
+        DSBuffer_SetParams(This, ds3dbuffer, dirty.flags);
         checkALError();
         popALContext();
         LeaveCriticalSection(&This->share->crst);
