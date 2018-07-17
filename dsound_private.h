@@ -668,13 +668,18 @@ struct DSPrimary {
     ALfloat filter_mBLimit;
 
     ALuint effect;
-    ALfloat rollofffactor;
 
     struct {
         DS3DLISTENER ds3d;
         EAX30LISTENERPROPERTIES eax;
         float eax1_volume; /* Mirrored by eax.lRoom. */
         float eax1_dampening; /* Not used. */
+    } current;
+    struct {
+        DS3DLISTENER ds3d;
+        EAX30LISTENERPROPERTIES eax;
+        float eax1_volume;
+        float eax1_dampening;
     } deferred;
     union PrimaryParamFlags dirty;
 

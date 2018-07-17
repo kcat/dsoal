@@ -323,9 +323,9 @@ HRESULT DSPrimary_PreInit(DSPrimary *This, DSDevice *parent)
     This->buf_size = 32768;
 
     setALContext(This->ctx);
-    This->deferred.eax = EnvironmentDefaults[EAX_ENVIRONMENT_GENERIC];
-    This->deferred.eax1_volume = 0.5f;
-    This->deferred.eax1_dampening = 0.5f;
+    This->deferred.eax = This->current.eax = EnvironmentDefaults[EAX_ENVIRONMENT_GENERIC];
+    This->deferred.eax1_volume = This->current.eax1_volume = 0.5f;
+    This->deferred.eax1_dampening = This->current.eax1_dampening = 0.5f;
     if(This->auxslot != 0)
     {
         ALint revid = alGetEnumValue("AL_EFFECT_EAXREVERB");
@@ -691,23 +691,23 @@ HRESULT WINAPI DSPrimary_Initialize(IDirectSoundBuffer *iface, IDirectSound *ds,
 
     if(SUCCEEDED(hr))
     {
-        DS3DLISTENER *listener = &This->deferred.ds3d;
-        listener->dwSize = sizeof(This->deferred.ds3d);
-        listener->vPosition.x = 0.0f;
-        listener->vPosition.y = 0.0f;
-        listener->vPosition.z = 0.0f;
-        listener->vVelocity.x = 0.0f;
-        listener->vVelocity.y = 0.0f;
-        listener->vVelocity.z = 0.0f;
-        listener->vOrientFront.x = 0.0f;
-        listener->vOrientFront.y = 0.0f;
-        listener->vOrientFront.z = 1.0f;
-        listener->vOrientTop.x = 0.0f;
-        listener->vOrientTop.y = 1.0f;
-        listener->vOrientTop.z = 0.0f;
-        listener->flDistanceFactor = DS3D_DEFAULTDISTANCEFACTOR;
-        listener->flRolloffFactor = DS3D_DEFAULTROLLOFFFACTOR;
-        listener->flDopplerFactor = DS3D_DEFAULTDOPPLERFACTOR;
+        This->current.ds3d.dwSize = sizeof(This->current.ds3d);
+        This->current.ds3d.vPosition.x = 0.0f;
+        This->current.ds3d.vPosition.y = 0.0f;
+        This->current.ds3d.vPosition.z = 0.0f;
+        This->current.ds3d.vVelocity.x = 0.0f;
+        This->current.ds3d.vVelocity.y = 0.0f;
+        This->current.ds3d.vVelocity.z = 0.0f;
+        This->current.ds3d.vOrientFront.x = 0.0f;
+        This->current.ds3d.vOrientFront.y = 0.0f;
+        This->current.ds3d.vOrientFront.z = 1.0f;
+        This->current.ds3d.vOrientTop.x = 0.0f;
+        This->current.ds3d.vOrientTop.y = 1.0f;
+        This->current.ds3d.vOrientTop.z = 0.0f;
+        This->current.ds3d.flDistanceFactor = DS3D_DEFAULTDISTANCEFACTOR;
+        This->current.ds3d.flRolloffFactor = DS3D_DEFAULTROLLOFFFACTOR;
+        This->current.ds3d.flDopplerFactor = DS3D_DEFAULTDOPPLERFACTOR;
+        This->deferred.ds3d = This->current.ds3d;
 
         This->flags = desc->dwFlags | DSBCAPS_LOCHARDWARE;
 
@@ -721,7 +721,7 @@ HRESULT WINAPI DSPrimary_Initialize(IDirectSoundBuffer *iface, IDirectSound *ds,
             dirty.bit.distancefactor = 1;
             dirty.bit.rollofffactor = 1;
             dirty.bit.dopplerfactor = 1;
-            DSPrimary_SetParams(This, listener, dirty.flags);
+            DSPrimary_SetParams(This, &This->deferred.ds3d, dirty.flags);
         }
     }
     return hr;
@@ -1071,6 +1071,28 @@ static void DSPrimary_SetParams(DSPrimary *This, const DS3DLISTENER *params, LON
     DWORD i;
 
     if(dirty.bit.pos)
+        This->current.ds3d.vPosition = params->vPosition;
+    if(dirty.bit.vel)
+        This->current.ds3d.vVelocity = params->vVelocity;
+    if(dirty.bit.orientation)
+    {
+        This->current.ds3d.vOrientFront = params->vOrientFront;
+        This->current.ds3d.vOrientTop = params->vOrientTop;
+    }
+    if(dirty.bit.distancefactor)
+        This->current.ds3d.flDistanceFactor = params->flDistanceFactor;
+    if(dirty.bit.rollofffactor)
+        This->current.ds3d.flRolloffFactor = params->flRolloffFactor;
+    if(dirty.bit.dopplerfactor)
+        This->current.ds3d.flDopplerFactor = params->flDopplerFactor;
+    /* Always copy EAX params (they're always set deferred first, then applied
+     * when committing all params).
+     */
+    This->current.eax = This->deferred.eax;
+    This->current.eax1_volume = This->deferred.eax1_volume;
+    This->current.eax1_dampening = This->deferred.eax1_dampening;
+
+    if(dirty.bit.pos)
         alListener3f(AL_POSITION, params->vPosition.x, params->vPosition.y,
                                  -params->vPosition.z);
     if(dirty.bit.vel)
@@ -1094,7 +1116,6 @@ static void DSPrimary_SetParams(DSPrimary *This, const DS3DLISTENER *params, LON
     {
         struct DSBufferGroup *bufgroup = This->BufferGroups;
         ALfloat rolloff = params->flRolloffFactor;
-        This->rollofffactor = rolloff;
 
         for(i = 0;i < This->NumBufferGroups;++i)
         {
@@ -1158,11 +1179,7 @@ static HRESULT WINAPI DSPrimary3D_GetDistanceFactor(IDirectSound3DListener *ifac
         return DSERR_INVALIDPARAM;
     }
 
-    setALContext(This->ctx);
-    *distancefactor = 343.3f/alGetFloat(AL_SPEED_OF_SOUND);
-    checkALError();
-    popALContext();
-
+    *distancefactor = This->current.ds3d.flDistanceFactor;
     return S_OK;
 }
 
@@ -1178,18 +1195,13 @@ static HRESULT WINAPI DSPrimary3D_GetDopplerFactor(IDirectSound3DListener *iface
         return DSERR_INVALIDPARAM;
     }
 
-    setALContext(This->ctx);
-    *dopplerfactor = alGetFloat(AL_DOPPLER_FACTOR);
-    checkALError();
-    popALContext();
-
+    *dopplerfactor = This->current.ds3d.flDopplerFactor;
     return S_OK;
 }
 
 static HRESULT WINAPI DSPrimary3D_GetOrientation(IDirectSound3DListener *iface, D3DVECTOR *front, D3DVECTOR *top)
 {
     DSPrimary *This = impl_from_IDirectSound3DListener(iface);
-    ALfloat orient[6];
 
     TRACE("(%p)->(%p, %p)\n", iface, front, top);
 
@@ -1199,24 +1211,16 @@ static HRESULT WINAPI DSPrimary3D_GetOrientation(IDirectSound3DListener *iface, 
         return DSERR_INVALIDPARAM;
     }
 
-    setALContext(This->ctx);
-    alGetListenerfv(AL_ORIENTATION, orient);
-    checkALError();
-    popALContext();
-
-    front->x =  orient[0];
-    front->y =  orient[1];
-    front->z = -orient[2];
-    top->x =  orient[3];
-    top->y =  orient[4];
-    top->z = -orient[5];
+    EnterCriticalSection(&This->share->crst);
+    *front = This->current.ds3d.vOrientFront;
+    *top = This->current.ds3d.vOrientTop;
+    LeaveCriticalSection(&This->share->crst);
     return S_OK;
 }
 
 static HRESULT WINAPI DSPrimary3D_GetPosition(IDirectSound3DListener *iface, D3DVECTOR *pos)
 {
     DSPrimary *This = impl_from_IDirectSound3DListener(iface);
-    ALfloat alpos[3];
 
     TRACE("(%p)->(%p)\n", iface, pos);
 
@@ -1226,14 +1230,9 @@ static HRESULT WINAPI DSPrimary3D_GetPosition(IDirectSound3DListener *iface, D3D
         return DSERR_INVALIDPARAM;
     }
 
-    setALContext(This->ctx);
-    alGetListenerfv(AL_POSITION, alpos);
-    checkALError();
-    popALContext();
-
-    pos->x =  alpos[0];
-    pos->y =  alpos[1];
-    pos->z = -alpos[2];
+    EnterCriticalSection(&This->share->crst);
+    *pos = This->current.ds3d.vPosition;
+    LeaveCriticalSection(&This->share->crst);
     return S_OK;
 }
 
@@ -1249,17 +1248,13 @@ static HRESULT WINAPI DSPrimary3D_GetRolloffFactor(IDirectSound3DListener *iface
         return DSERR_INVALIDPARAM;
     }
 
-    EnterCriticalSection(&This->share->crst);
-    *rollofffactor = This->rollofffactor;
-    LeaveCriticalSection(&This->share->crst);
-
+    *rollofffactor = This->current.ds3d.flRolloffFactor;
     return S_OK;
 }
 
 static HRESULT WINAPI DSPrimary3D_GetVelocity(IDirectSound3DListener *iface, D3DVECTOR *velocity)
 {
     DSPrimary *This = impl_from_IDirectSound3DListener(iface);
-    ALfloat vel[3];
 
     TRACE("(%p)->(%p)\n", iface, velocity);
 
@@ -1269,14 +1264,9 @@ static HRESULT WINAPI DSPrimary3D_GetVelocity(IDirectSound3DListener *iface, D3D
         return DSERR_INVALIDPARAM;
     }
 
-    setALContext(This->ctx);
-    alGetListenerfv(AL_VELOCITY, vel);
-    checkALError();
-    popALContext();
-
-    velocity->x =  vel[0];
-    velocity->y =  vel[1];
-    velocity->z = -vel[2];
+    EnterCriticalSection(&This->share->crst);
+    *velocity = This->current.ds3d.vVelocity;
+    LeaveCriticalSection(&This->share->crst);
     return S_OK;
 }
 
@@ -1293,14 +1283,13 @@ static HRESULT WINAPI DSPrimary3D_GetAllParameters(IDirectSound3DListener *iface
     }
 
     EnterCriticalSection(&This->share->crst);
-    setALContext(This->ctx);
-    DSPrimary3D_GetPosition(iface, &listener->vPosition);
-    DSPrimary3D_GetVelocity(iface, &listener->vVelocity);
-    DSPrimary3D_GetOrientation(iface, &listener->vOrientFront, &listener->vOrientTop);
-    DSPrimary3D_GetDistanceFactor(iface, &listener->flDistanceFactor);
-    DSPrimary3D_GetRolloffFactor(iface, &listener->flRolloffFactor);
-    DSPrimary3D_GetDopplerFactor(iface, &listener->flDopplerFactor);
-    popALContext();
+    listener->vPosition = This->current.ds3d.vPosition;
+    listener->vVelocity = This->current.ds3d.vVelocity;
+    listener->vOrientFront = This->current.ds3d.vOrientFront;
+    listener->vOrientTop = This->current.ds3d.vOrientTop;
+    listener->flDistanceFactor = This->current.ds3d.flDistanceFactor;
+    listener->flRolloffFactor = This->current.ds3d.flRolloffFactor;
+    listener->flDopplerFactor = This->current.ds3d.flDopplerFactor;
     LeaveCriticalSection(&This->share->crst);
 
     return DS_OK;
@@ -1320,22 +1309,23 @@ static HRESULT WINAPI DSPrimary3D_SetDistanceFactor(IDirectSound3DListener *ifac
         return DSERR_INVALIDPARAM;
     }
 
+    EnterCriticalSection(&This->share->crst);
     if(apply == DS3D_DEFERRED)
     {
-        EnterCriticalSection(&This->share->crst);
         This->deferred.ds3d.flDistanceFactor = factor;
         This->dirty.bit.distancefactor = 1;
-        LeaveCriticalSection(&This->share->crst);
     }
     else
     {
         setALContext(This->ctx);
+        This->current.ds3d.flDistanceFactor = factor;
         alSpeedOfSound(343.3f/factor);
         if(HAS_EXTENSION(This->share, EXT_EFX))
             alListenerf(AL_METERS_PER_UNIT, factor);
         checkALError();
         popALContext();
     }
+    LeaveCriticalSection(&This->share->crst);
 
     return S_OK;
 }
@@ -1353,20 +1343,21 @@ static HRESULT WINAPI DSPrimary3D_SetDopplerFactor(IDirectSound3DListener *iface
         return DSERR_INVALIDPARAM;
     }
 
+    EnterCriticalSection(&This->share->crst);
     if(apply == DS3D_DEFERRED)
     {
-        EnterCriticalSection(&This->share->crst);
         This->deferred.ds3d.flDopplerFactor = factor;
         This->dirty.bit.dopplerfactor = 1;
-        LeaveCriticalSection(&This->share->crst);
     }
     else
     {
         setALContext(This->ctx);
+        This->current.ds3d.flDopplerFactor = factor;
         alDopplerFactor(factor);
         checkALError();
         popALContext();
     }
+    LeaveCriticalSection(&This->share->crst);
 
     return S_OK;
 }
@@ -1377,9 +1368,9 @@ static HRESULT WINAPI DSPrimary3D_SetOrientation(IDirectSound3DListener *iface, 
 
     TRACE("(%p)->(%f, %f, %f, %f, %f, %f, %lu)\n", iface, xFront, yFront, zFront, xTop, yTop, zTop, apply);
 
+    EnterCriticalSection(&This->share->crst);
     if(apply == DS3D_DEFERRED)
     {
-        EnterCriticalSection(&This->share->crst);
         This->deferred.ds3d.vOrientFront.x = xFront;
         This->deferred.ds3d.vOrientFront.y = yFront;
         This->deferred.ds3d.vOrientFront.z = zFront;
@@ -1387,7 +1378,6 @@ static HRESULT WINAPI DSPrimary3D_SetOrientation(IDirectSound3DListener *iface, 
         This->deferred.ds3d.vOrientTop.y = yTop;
         This->deferred.ds3d.vOrientTop.z = zTop;
         This->dirty.bit.orientation = 1;
-        LeaveCriticalSection(&This->share->crst);
     }
     else
     {
@@ -1395,11 +1385,19 @@ static HRESULT WINAPI DSPrimary3D_SetOrientation(IDirectSound3DListener *iface, 
             xFront, yFront, -zFront,
             xTop, yTop, -zTop
         };
+        This->current.ds3d.vOrientFront.x = xFront;
+        This->current.ds3d.vOrientFront.y = yFront;
+        This->current.ds3d.vOrientFront.z = zFront;
+        This->current.ds3d.vOrientTop.x = xTop;
+        This->current.ds3d.vOrientTop.y = yTop;
+        This->current.ds3d.vOrientTop.z = zTop;
+
         setALContext(This->ctx);
         alListenerfv(AL_ORIENTATION, orient);
         checkALError();
         popALContext();
     }
+    LeaveCriticalSection(&This->share->crst);
 
     return S_OK;
 }
@@ -1410,22 +1408,25 @@ static HRESULT WINAPI DSPrimary3D_SetPosition(IDirectSound3DListener *iface, D3D
 
     TRACE("(%p)->(%f, %f, %f, %lu)\n", iface, x, y, z, apply);
 
+    EnterCriticalSection(&This->share->crst);
     if(apply == DS3D_DEFERRED)
     {
-        EnterCriticalSection(&This->share->crst);
         This->deferred.ds3d.vPosition.x = x;
         This->deferred.ds3d.vPosition.y = y;
         This->deferred.ds3d.vPosition.z = z;
         This->dirty.bit.pos = 1;
-        LeaveCriticalSection(&This->share->crst);
     }
     else
     {
         setALContext(This->ctx);
+        This->current.ds3d.vPosition.x = x;
+        This->current.ds3d.vPosition.y = y;
+        This->current.ds3d.vPosition.z = z;
         alListener3f(AL_POSITION, x, y, -z);
         checkALError();
         popALContext();
     }
+    LeaveCriticalSection(&This->share->crst);
 
     return S_OK;
 }
@@ -1454,7 +1455,7 @@ static HRESULT WINAPI DSPrimary3D_SetRolloffFactor(IDirectSound3DListener *iface
         struct DSBufferGroup *bufgroup = This->BufferGroups;
         DWORD i;
 
-        This->rollofffactor = factor;
+        This->current.ds3d.flRolloffFactor = factor;
 
         setALContext(This->ctx);
         for(i = 0;i < This->NumBufferGroups;++i)
@@ -1485,22 +1486,25 @@ static HRESULT WINAPI DSPrimary3D_SetVelocity(IDirectSound3DListener *iface, D3D
 
     TRACE("(%p)->(%f, %f, %f, %lu)\n", iface, x, y, z, apply);
 
+    EnterCriticalSection(&This->share->crst);
     if(apply == DS3D_DEFERRED)
     {
-        EnterCriticalSection(&This->share->crst);
         This->deferred.ds3d.vVelocity.x = x;
         This->deferred.ds3d.vVelocity.y = y;
         This->deferred.ds3d.vVelocity.z = z;
         This->dirty.bit.vel = 1;
-        LeaveCriticalSection(&This->share->crst);
     }
     else
     {
         setALContext(This->ctx);
+        This->current.ds3d.vVelocity.x = x;
+        This->current.ds3d.vVelocity.y = y;
+        This->current.ds3d.vVelocity.z = z;
         alListener3f(AL_VELOCITY, x, y, -z);
         checkALError();
         popALContext();
     }
+    LeaveCriticalSection(&This->share->crst);
 
     return S_OK;
 }

@@ -767,7 +767,8 @@ static HRESULT DSBuffer_SetLoc(DSBuffer *buf, DWORD loc_status)
             (params->dwMode!=DS3DMODE_NORMAL) ? AL_TRUE : AL_FALSE
         );
 
-        alSourcef(source, AL_ROLLOFF_FACTOR, (prim->rollofffactor + eax_params->flRolloffFactor));
+        alSourcef(source, AL_ROLLOFF_FACTOR,
+                  prim->current.ds3d.flRolloffFactor + eax_params->flRolloffFactor);
         alSourcef(source, AL_DOPPLER_FACTOR, eax_params->flDopplerFactor);
         if(HAS_EXTENSION(buf->share, EXT_EFX))
         {
@@ -1968,7 +1969,7 @@ void DSBuffer_SetParams(DSBuffer *This, const DS3DBUFFER *params, LONG flags)
         alSourcef(source, AL_DOPPLER_FACTOR, This->current.eax.flDopplerFactor);
     if(dirty.bit.rolloff)
         alSourcef(source, AL_ROLLOFF_FACTOR, This->current.eax.flRolloffFactor +
-                                             prim->rollofffactor);
+                                             prim->current.ds3d.flRolloffFactor);
     if(dirty.bit.room_rolloff)
         alSourcef(source, AL_ROOM_ROLLOFF_FACTOR, This->current.eax.flRoomRolloffFactor);
     if(dirty.bit.cone_outsidevolumehf)
@@ -2365,8 +2366,6 @@ static HRESULT WINAPI DSBuffer3D_SetMode(IDirectSound3DBuffer *iface, DWORD mode
     }
     else
     {
-        DSPrimary *prim = This->primary;
-
         setALContext(This->ctx);
         This->current.ds3d.dwMode = mode;
         if(LIKELY(This->source))
@@ -2376,9 +2375,6 @@ static HRESULT WINAPI DSBuffer3D_SetMode(IDirectSound3DBuffer *iface, DWORD mode
                           (mode==DS3DMODE_DISABLE) ? AL_FALSE : AL_TRUE);
             alSourcei(This->source, AL_SOURCE_RELATIVE,
                       (mode != DS3DMODE_NORMAL) ? AL_TRUE : AL_FALSE);
-            alSourcef(This->source, AL_ROLLOFF_FACTOR,
-                      (mode == DS3DMODE_DISABLE) ? 0.0f :
-                      (This->current.eax.flRolloffFactor + prim->rollofffactor));
             checkALError();
         }
         popALContext();
