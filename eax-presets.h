@@ -93,6 +93,6 @@ enum {
 #define REVERB_PRESET_PSYCHOTIC \
     {25,  1.0f,   0.500f,  -1000,  -151,   0,      7.56f,  0.91f,  1.00f,  -626,   0.020f,  {0.0f,0.0f,0.0f},  774,    0.030f,  {0.0f,0.0f,0.0f},  0.250f, 0.000f, 4.000f, 1.000f, -5.0f,  5000.0f,  250.0f, 0.00f,  0x1f }
 
-extern const EAX30LISTENERPROPERTIES EnvironmentDefaults[EAX_ENVIRONMENT_UNDEFINED];
+extern const EAXREVERBPROPERTIES EnvironmentDefaults[EAX_ENVIRONMENT_UNDEFINED];
 
 #endif /* EAX_PRESETS_H */

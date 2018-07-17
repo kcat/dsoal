@@ -65,7 +65,7 @@ static size_t EnumeratedDeviceCount = 0;
 const WCHAR aldriver_name[] = L"dsoal-aldrv.dll";
 
 
-const EAX30LISTENERPROPERTIES EnvironmentDefaults[EAX_ENVIRONMENT_UNDEFINED] = {
+const EAXREVERBPROPERTIES EnvironmentDefaults[EAX_ENVIRONMENT_UNDEFINED] = {
     REVERB_PRESET_GENERIC,
     REVERB_PRESET_PADDEDCELL,
     REVERB_PRESET_ROOM,

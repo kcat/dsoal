@@ -322,18 +322,32 @@ HRESULT DSPrimary_PreInit(DSPrimary *This, DSDevice *parent)
      */
     This->buf_size = 32768;
 
+    /* This should be unlocked for true EAX4 support. */
+    This->current.fxslot0.fx.reverb = EnvironmentDefaults[EAX_ENVIRONMENT_GENERIC];
+    This->current.fxslot0.props.guidLoadEffect = EAX_REVERB_EFFECT;
+    This->current.fxslot0.props.lVolume = 0;
+    This->current.fxslot0.props.lLock = EAXFXSLOT_LOCKED;
+    This->current.fxslot0.props.dwFlags = EAXFXSLOTFLAGS_ENVIRONMENT;
+    This->current.eax1_volume = 0.5f;
+    This->current.eax1_dampening = 0.5f;
+
+    This->deferred.fxslot0 = This->current.fxslot0;
+    This->deferred.eax1_volume = This->current.eax1_volume;
+    This->deferred.eax1_dampening = This->current.eax1_dampening;
+
     setALContext(This->ctx);
-    This->deferred.eax = This->current.eax = EnvironmentDefaults[EAX_ENVIRONMENT_GENERIC];
-    This->deferred.eax1_volume = This->current.eax1_volume = 0.5f;
-    This->deferred.eax1_dampening = This->current.eax1_dampening = 0.5f;
     if(This->auxslot != 0)
     {
-        ALint revid = alGetEnumValue("AL_EFFECT_EAXREVERB");
-        if(revid != 0 && revid != -1)
+        ALenum err;
+
+        alGetError();
+        alGenEffects(1, &This->effect);
+        alEffecti(This->effect, AL_EFFECT_TYPE, AL_EFFECT_EAXREVERB);
+        if((err=alGetError()) != AL_NO_ERROR)
         {
-            alGenEffects(1, &This->effect);
-            alEffecti(This->effect, AL_EFFECT_TYPE, AL_EFFECT_EAXREVERB);
-            checkALError();
+            ERR("Failed to set effect type: %s (0x%04x)\n", alGetString(err), err);
+            alDeleteEffects(1, &This->effect);
+            This->effect = 0;
         }
     }
     popALContext();
@@ -1088,7 +1102,7 @@ static void DSPrimary_SetParams(DSPrimary *This, const DS3DLISTENER *params, LON
     /* Always copy EAX params (they're always set deferred first, then applied
      * when committing all params).
      */
-    This->current.eax = This->deferred.eax;
+    This->current.fxslot0 = This->deferred.fxslot0;
     This->current.eax1_volume = This->deferred.eax1_volume;
     This->current.eax1_dampening = This->deferred.eax1_dampening;
 

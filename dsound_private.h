@@ -629,6 +629,14 @@ struct DSBufferGroup {
 };
 
 
+struct FXSlot {
+    union {
+        EAXREVERBPROPERTIES reverb;
+        EAXCHORUSPROPERTIES chorus;
+    } fx;
+    EAXFXSLOTPROPERTIES props;
+};
+
 union PrimaryParamFlags {
     LONG flags;
     struct {
@@ -671,13 +679,13 @@ struct DSPrimary {
 
     struct {
         DS3DLISTENER ds3d;
-        EAX30LISTENERPROPERTIES eax;
-        float eax1_volume; /* Mirrored by eax.lRoom. */
+        struct FXSlot fxslot0;
+        float eax1_volume; /* Mirrored by fxslot0.fx.reverb.lRoom. */
         float eax1_dampening; /* Not used. */
     } current;
     struct {
         DS3DLISTENER ds3d;
-        EAX30LISTENERPROPERTIES eax;
+        struct FXSlot fxslot0;
         float eax1_volume;
         float eax1_dampening;
     } deferred;

@@ -66,32 +66,8 @@ typedef enum {
  * extra property being set */
 #define DSPROPERTY_EAX30LISTENER_COMMITDEFERREDSETTINGS 0x00000000
 
-typedef struct _EAX30LISTENERPROPERTIES {
-    DWORD dwEnvironment;
-    float flEnvironmentSize;
-    float flEnvironmentDiffusion;
-    long lRoom;
-    long lRoomHF;
-    long lRoomLF;
-    float flDecayTime;
-    float flDecayHFRatio;
-    float flDecayLFRatio;
-    long lReflections;
-    float flReflectionsDelay;
-    EAXVECTOR vReflectionsPan;
-    long lReverb;
-    float flReverbDelay;
-    EAXVECTOR vReverbPan;
-    float flEchoTime;
-    float flEchoDepth;
-    float flModulationTime;
-    float flModulationDepth;
-    float flAirAbsorptionHF;
-    float flHFReference;
-    float flLFReference;
-    float flRoomRolloffFactor;
-    DWORD dwFlags;
-} EAX30LISTENERPROPERTIES, *LPEAX30LISTENERPROPERTIES;
+/* DSPROPERTY_EAX30LISTENER_ALLPARAMETERS */
+typedef EAXREVERBPROPERTIES EAX30LISTENERPROPERTIES, *LPEAX30LISTENERPROPERTIES;
 
 /* DSPROPERTY_EAX30LISTENER_FLAGS */
 /* These flags determine what properties are modified when the environment size
