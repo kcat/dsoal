@@ -55,6 +55,9 @@ typedef enum {
 /* EAXCONTEXT_ALLPARAMETERS */
 typedef struct _EAXCONTEXTPROPERTIES {
     GUID  guidPrimaryFXSlotID;
+    /* TODO: Does this affect EAX properties only (e.g. initial reverb decay,
+     * air absorption)? Or is it an alias for DS3D's setting?
+     */
     float flDistanceFactor;
     /* NOTE: Not directly supported by OpenAL, but can be applied to each
      * source's air absorption factor as:
