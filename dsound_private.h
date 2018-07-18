@@ -814,6 +814,10 @@ HRESULT EAX3Buffer_Query(DSBuffer *buf, DWORD propid, ULONG *pTypeSupport);
 HRESULT EAX3Buffer_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPropData);
 HRESULT EAX3Buffer_Get(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPropData, ULONG *pcbReturned);
 
+HRESULT EAX4Context_Query(DSPrimary *prim, DWORD propid, ULONG *pTypeSupport);
+HRESULT EAX4Context_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropData);
+HRESULT EAX4Context_Get(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropData, ULONG *pcbReturned);
+
 
 static inline LONG gain_to_mB(float gain)
 {

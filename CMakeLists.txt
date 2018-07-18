@@ -28,6 +28,7 @@ set(DSOAL_OBJS buffer.c
                dsound_private.h
                duplex.c
                eax.c
+               eax4.c
                eax.h
                eax3.h
                eax4.h

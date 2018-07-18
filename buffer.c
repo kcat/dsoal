@@ -2769,6 +2769,8 @@ static HRESULT WINAPI DSBufferProp_Get(IKsPropertySet *iface,
         hr = EAX3_Get(This->primary, dwPropID, pPropData, cbPropData, pcbReturned);
     else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX20_ListenerProperties))
         hr = EAX2_Get(This->primary, dwPropID, pPropData, cbPropData, pcbReturned);
+    else if(IsEqualIID(guidPropSet, &EAXPROPERTYID_EAX40_Context))
+        hr = EAX4Context_Get(This->primary, dwPropID, pPropData, cbPropData, pcbReturned);
     else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX10_BufferProperties))
         hr = EAX1Buffer_Get(This, dwPropID, pPropData, cbPropData, pcbReturned);
     else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX10_ListenerProperties))
@@ -2850,6 +2852,18 @@ static HRESULT WINAPI DSBufferProp_Set(IKsPropertySet *iface,
             DSPrimary3D_CommitDeferredSettings(&prim->IDirectSound3DListener_iface);
         popALContext();
     }
+    else if(IsEqualIID(guidPropSet, &EAXPROPERTYID_EAX40_Context))
+    {
+        DSPrimary *prim = This->primary;
+        DWORD propid = dwPropID & ~EAXCONTEXT_PARAMETER_DEFER;
+        BOOL immediate = !(dwPropID&EAXCONTEXT_PARAMETER_DEFER);
+
+        setALContext(prim->ctx);
+        hr = EAX4Context_Set(prim, propid, pPropData, cbPropData);
+        if(hr == DS_OK && immediate)
+            DSPrimary3D_CommitDeferredSettings(&prim->IDirectSound3DListener_iface);
+        popALContext();
+    }
     else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX10_BufferProperties))
     {
         DWORD propid = dwPropID & ~DSPROPERTY_EAX20BUFFER_DEFERRED;
@@ -2905,6 +2919,8 @@ static HRESULT WINAPI DSBufferProp_QuerySupport(IKsPropertySet *iface,
         hr = EAX3_Query(This->primary, dwPropID, pTypeSupport);
     else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX20_ListenerProperties))
         hr = EAX2_Query(This->primary, dwPropID, pTypeSupport);
+    else if(IsEqualIID(guidPropSet, &EAXPROPERTYID_EAX40_Context))
+        hr = EAX4Context_Query(This->primary, dwPropID, pTypeSupport);
     else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX10_ListenerProperties))
         hr = EAX1_Query(This->primary, dwPropID, pTypeSupport);
     else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX10_BufferProperties))
