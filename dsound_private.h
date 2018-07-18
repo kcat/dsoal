@@ -580,6 +580,17 @@ enum {
     FXSLOT_TARGET_NULL,
 };
 
+struct Send {
+    long  lSend;
+    long  lSendHF;
+    long  lOcclusion;
+    float flOcclusionLFRatio;
+    float flOcclusionRoomRatio;
+    float flOcclusionDirectRatio;
+    long  lExclusion;
+    float flExclusionLFRatio;
+};
+
 struct DSBuffer {
     IDirectSoundBuffer8 IDirectSoundBuffer8_iface;
     IDirectSound3DBuffer IDirectSound3DBuffer_iface;
@@ -621,12 +632,14 @@ struct DSBuffer {
         EAXSOURCEPROPERTIES eax;
         /* See FXSLOT_TARGET enums */
         DWORD fxslot_targets[EAX_MAX_ACTIVE_FXSLOTS];
+        struct Send send[EAX_MAX_ACTIVE_FXSLOTS];
         float eax1_reverbmix; /* Mirrored by eax.lRoom. */
     } current;
     struct {
         DS3DBUFFER ds3d;
         EAXSOURCEPROPERTIES eax;
         DWORD fxslot_targets[EAX_MAX_ACTIVE_FXSLOTS];
+        struct Send send[EAX_MAX_ACTIVE_FXSLOTS];
         float eax1_reverbmix;
     } deferred;
     union BufferParamFlags dirty;

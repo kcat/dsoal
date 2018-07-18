@@ -245,7 +245,7 @@ typedef struct _EAXSOURCEALLSENDPROPERTIES {
     float flOcclusionLFRatio;
     float flOcclusionRoomRatio;
     float flOcclusionDirectRatio;
-    long  lExclusion; 
+    long  lExclusion;
     float flExclusionLFRatio;
 } EAXSOURCEALLSENDPROPERTIES, *LPEAXSOURCEALLSENDPROPERTIES;
 

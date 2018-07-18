@@ -545,6 +545,17 @@ HRESULT DSBuffer_Create(DSBuffer **ppv, DSPrimary *prim, IDirectSoundBuffer *ori
     This->current.fxslot_targets[0] = FXSLOT_TARGET_PRIMARY;
     for(i = 1;i < EAX_MAX_ACTIVE_FXSLOTS;++i)
         This->current.fxslot_targets[i] = FXSLOT_TARGET_NULL;
+    for(i = 0;i < EAX_MAX_ACTIVE_FXSLOTS;++i)
+    {
+        This->current.send[i].lSend = 0;
+        This->current.send[i].lSendHF = 0;
+        This->current.send[i].lOcclusion = 0;
+        This->current.send[i].flOcclusionLFRatio = 0.25f;
+        This->current.send[i].flOcclusionRoomRatio = 1.5f;
+        This->current.send[i].flOcclusionDirectRatio = 1.0f;
+        This->current.send[i].lExclusion = 0;
+        This->current.send[i].flExclusionLFRatio = 1.0f;
+    }
     This->current.eax1_reverbmix = 1.0f;
 
     if(orig)
@@ -573,6 +584,8 @@ HRESULT DSBuffer_Create(DSBuffer **ppv, DSPrimary *prim, IDirectSoundBuffer *ori
     This->deferred.eax = This->current.eax;
     for(i = 0;i < EAX_MAX_ACTIVE_FXSLOTS;++i)
         This->deferred.fxslot_targets[i] = This->current.fxslot_targets[i];
+    for(i = 0;i < EAX_MAX_ACTIVE_FXSLOTS;++i)
+        This->deferred.send[i] = This->current.send[i];
     This->deferred.eax1_reverbmix = This->current.eax1_reverbmix;
 
     *ppv = This;
@@ -1951,6 +1964,8 @@ void DSBuffer_SetParams(DSBuffer *This, const DS3DBUFFER *params, LONG flags)
     This->current.eax = This->deferred.eax;
     for(i = 0;i < EAX_MAX_ACTIVE_FXSLOTS;++i)
         This->current.fxslot_targets[i] = This->deferred.fxslot_targets[i];
+    for(i = 0;i < EAX_MAX_ACTIVE_FXSLOTS;++i)
+        This->current.send[i] = This->deferred.send[i];
     This->current.eax1_reverbmix = This->deferred.eax1_reverbmix;
 
     /* Now apply what's changed to OpenAL. */
