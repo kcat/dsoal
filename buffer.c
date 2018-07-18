@@ -773,7 +773,7 @@ static HRESULT DSBuffer_SetLoc(DSBuffer *buf, DWORD loc_status)
         if(HAS_EXTENSION(buf->share, EXT_EFX))
         {
             alSourcei(source, AL_DIRECT_FILTER, buf->filter[0]);
-            alSource3i(source, AL_AUXILIARY_SEND_FILTER, prim->auxslot, 0, buf->filter[1]);
+            alSource3i(source, AL_AUXILIARY_SEND_FILTER, prim->auxslot[0], 0, buf->filter[1]);
             alSourcef(source, AL_ROOM_ROLLOFF_FACTOR, eax_params->flRoomRolloffFactor);
             alSourcef(source, AL_CONE_OUTER_GAINHF, mB_to_gain(eax_params->lOutsideVolumeHF));
             alSourcef(source, AL_AIR_ABSORPTION_FACTOR,
@@ -1967,7 +1967,7 @@ void DSBuffer_SetParams(DSBuffer *This, const DS3DBUFFER *params, LONG flags)
     if(dirty.bit.dry_filter)
         alSourcei(source, AL_DIRECT_FILTER, This->filter[0]);
     if(dirty.bit.wet_filter)
-        alSource3i(source, AL_AUXILIARY_SEND_FILTER, prim->auxslot, 0, This->filter[1]);
+        alSource3i(source, AL_AUXILIARY_SEND_FILTER, prim->auxslot[0], 0, This->filter[1]);
     if(dirty.bit.doppler)
         alSourcef(source, AL_DOPPLER_FACTOR, This->current.eax.flDopplerFactor);
     if(dirty.bit.rolloff)

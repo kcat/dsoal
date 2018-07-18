@@ -506,7 +506,7 @@ typedef struct DeviceShare {
 
     SourceCollection sources;
 
-    ALuint auxslot;
+    ALuint auxslot[EAX_MAX_FXSLOTS];
 
     HANDLE thread_hdl;
     DWORD thread_id;
@@ -674,7 +674,7 @@ struct DSPrimary {
     /* Taken from the share */
     ALCcontext *ctx;
     ALCint refresh;
-    ALuint auxslot;
+    ALuint auxslot[EAX_MAX_FXSLOTS];
 
     DWORD buf_size;
     BOOL stopped;
@@ -686,7 +686,7 @@ struct DSPrimary {
 
     ALfloat filter_mBLimit;
 
-    ALuint effect;
+    ALuint effect[EAX_MAX_FXSLOTS];
 
     struct {
         DS3DLISTENER ds3d;

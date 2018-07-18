@@ -295,7 +295,8 @@ HRESULT DSPrimary_PreInit(DSPrimary *This, DSDevice *parent)
     This->share = parent->share;
     This->ctx = parent->share->ctx;
     This->refresh = parent->share->refresh;
-    This->auxslot = parent->share->auxslot;
+    for(i = 0;i < EAX_MAX_FXSLOTS;++i)
+        This->auxslot[i] = parent->share->auxslot[i];
 
     wfx = &This->format.Format;
     wfx->wFormatTag = WAVE_FORMAT_PCM;
@@ -341,18 +342,19 @@ HRESULT DSPrimary_PreInit(DSPrimary *This, DSDevice *parent)
     This->deferred.eax1_dampening = This->current.eax1_dampening;
 
     setALContext(This->ctx);
-    if(This->auxslot != 0)
+    if(This->auxslot[0] != 0)
     {
         ALenum err;
 
         alGetError();
-        alGenEffects(1, &This->effect);
-        alEffecti(This->effect, AL_EFFECT_TYPE, AL_EFFECT_EAXREVERB);
+        alGenEffects(EAX_MAX_FXSLOTS, This->effect);
+        alEffecti(This->effect[0], AL_EFFECT_TYPE, AL_EFFECT_EAXREVERB);
         if((err=alGetError()) != AL_NO_ERROR)
         {
             ERR("Failed to set effect type: %s (0x%04x)\n", alGetString(err), err);
-            alDeleteEffects(1, &This->effect);
-            This->effect = 0;
+            alDeleteEffects(EAX_MAX_FXSLOTS, This->effect);
+            This->effect[0] = This->effect[1] =
+            This->effect[2] = This->effect[3] = 0;
         }
     }
     popALContext();
@@ -401,8 +403,9 @@ void DSPrimary_Clear(DSPrimary *This)
         return;
 
     setALContext(This->ctx);
-    if(This->effect)
-        alDeleteEffects(1, &This->effect);
+    if(This->effect[0])
+        alDeleteEffects(EAX_MAX_FXSLOTS, This->effect);
+    checkALError();
     popALContext();
 
     bufgroup = This->BufferGroups;
@@ -1190,16 +1193,16 @@ static void DSPrimary_SetParams(DSPrimary *This, const DS3DLISTENER *params, LON
     }
 
     if(dirty.bit.fx_effect)
-        alAuxiliaryEffectSloti(This->auxslot, AL_EFFECTSLOT_EFFECT, This->effect);
+        alAuxiliaryEffectSloti(This->auxslot[0], AL_EFFECTSLOT_EFFECT, This->effect[0]);
     if(dirty.bit.fx_vol)
-        alAuxiliaryEffectSlotf(This->auxslot, AL_EFFECTSLOT_GAIN,
+        alAuxiliaryEffectSlotf(This->auxslot[0], AL_EFFECTSLOT_GAIN,
                                mB_to_gain(This->current.fxslot0.props.lVolume));
     /* EAXFXSLOT_LOCK has no OpenAL equivalent. It just prevents the effect
      * type from being changed when updating effect slot properties, causing an
      * error instead.
      */
     if(dirty.bit.fx_flags)
-        alAuxiliaryEffectSloti(This->auxslot, AL_EFFECTSLOT_AUXILIARY_SEND_AUTO,
+        alAuxiliaryEffectSloti(This->auxslot[0], AL_EFFECTSLOT_AUXILIARY_SEND_AUTO,
             (This->current.fxslot0.props.dwFlags&EAXFXSLOTFLAGS_ENVIRONMENT) ?
             AL_TRUE : AL_FALSE
         );

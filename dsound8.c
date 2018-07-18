@@ -152,9 +152,16 @@ static void DSShare_Destroy(DeviceShare *share)
                             share->sources.ids);
         share->sources.maxhw_alloc = share->sources.maxsw_alloc = 0;
 
-        if(share->auxslot)
-            alDeleteAuxiliaryEffectSlots(1, &share->auxslot);
-        share->auxslot = 0;
+        if(share->auxslot[3])
+            alDeleteAuxiliaryEffectSlots(4, share->auxslot);
+        else if(share->auxslot[2])
+            alDeleteAuxiliaryEffectSlots(3, share->auxslot);
+        else if(share->auxslot[1])
+            alDeleteAuxiliaryEffectSlots(2, share->auxslot);
+        else if(share->auxslot[0])
+            alDeleteAuxiliaryEffectSlots(1, share->auxslot);
+        share->auxslot[0] = share->auxslot[1] =
+        share->auxslot[2] = share->auxslot[3] = 0;
 
         set_context(NULL);
         TlsSetValue(TlsThreadPtr, NULL);
@@ -196,7 +203,7 @@ static HRESULT DSShare_Create(REFIID guid, DeviceShare **out)
     ALCint attrs[3];
     void *temp;
     HRESULT hr;
-    size_t i;
+    ALsizei i;
 
     share = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(*share));
     if(!share) return DSERR_OUTOFMEMORY;
@@ -316,7 +323,7 @@ static HRESULT DSShare_Create(REFIID guid, DeviceShare **out)
         goto fail;
     }
 
-    memcpy(&share->guid, guid, sizeof(GUID));
+    share->guid = *guid;
 
     setALContext(share->ctx);
     alcGetIntegerv(share->device, ALC_REFRESH, 1, &share->refresh);
@@ -342,7 +349,16 @@ static HRESULT DSShare_Create(REFIID guid, DeviceShare **out)
     }
 
     if(HAS_EXTENSION(share, EXT_EFX))
-        alGenAuxiliaryEffectSlots(1, &share->auxslot);
+    {
+        for(i = 0;i < EAX_MAX_FXSLOTS;++i)
+        {
+            alGenAuxiliaryEffectSlots(1, &share->auxslot[i]);
+            if(alGetError() != AL_NO_ERROR) break;
+        }
+        TRACE("Allocated %d auxiliary effect slot%s\n", i, (i==1)?"":"s");
+        while(i < EAX_MAX_FXSLOTS)
+            share->auxslot[i++] = 0;
+    }
     popALContext();
 
     hr = E_OUTOFMEMORY;
