@@ -745,7 +745,7 @@ static HRESULT DSBuffer_SetLoc(DSBuffer *buf, DWORD loc_status)
         const DSPrimary *prim = buf->primary;
         const ALuint source = buf->source;
         const DS3DBUFFER *params = &buf->current.ds3d;
-        const EAX30BUFFERPROPERTIES *eax_params = &buf->current.eax;
+        const EAXSOURCEPROPERTIES *eax_params = &buf->current.eax;
 
         alSource3f(source, AL_POSITION, params->vPosition.x, params->vPosition.y,
                                        -params->vPosition.z);

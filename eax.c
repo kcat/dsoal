@@ -91,7 +91,7 @@ static inline float maxF(float a, float b)
 
 #define APPLY_DRY_PARAMS 1
 #define APPLY_WET_PARAMS 2
-static void ApplyFilterParams(DSBuffer *buf, const EAX30BUFFERPROPERTIES *props, int apply)
+static void ApplyFilterParams(DSBuffer *buf, const EAXSOURCEPROPERTIES *props, int apply)
 {
     /* The LFRatio properties determine how much the given level applies to low
      * frequencies as well as high frequencies. Technically, given that the
@@ -192,7 +192,7 @@ static void RescaleEnvSize(EAXREVERBPROPERTIES *props, float newsize)
  * EAX 3 stuff
  ******************/
 
-static EAXOBSTRUCTIONPROPERTIES EAX3BufferObstruction(const EAX30BUFFERPROPERTIES *props)
+static EAXOBSTRUCTIONPROPERTIES EAXSourceObstruction(const EAXSOURCEPROPERTIES *props)
 {
     EAXOBSTRUCTIONPROPERTIES ret;
     ret.lObstruction = props->lObstruction;
@@ -200,7 +200,7 @@ static EAXOBSTRUCTIONPROPERTIES EAX3BufferObstruction(const EAX30BUFFERPROPERTIE
     return ret;
 }
 
-static EAXOCCLUSIONPROPERTIES EAX3BufferOcclusion(const EAX30BUFFERPROPERTIES *props)
+static EAXOCCLUSIONPROPERTIES EAXSourceOcclusion(const EAXSOURCEPROPERTIES *props)
 {
     EAXOCCLUSIONPROPERTIES ret;
     ret.lOcclusion = props->lOcclusion;
@@ -210,7 +210,7 @@ static EAXOCCLUSIONPROPERTIES EAX3BufferOcclusion(const EAX30BUFFERPROPERTIES *p
     return ret;
 }
 
-static EAXEXCLUSIONPROPERTIES EAX3BufferExclusion(const EAX30BUFFERPROPERTIES *props)
+static EAXEXCLUSIONPROPERTIES EAXSourceExclusion(const EAXSOURCEPROPERTIES *props)
 {
     EAXEXCLUSIONPROPERTIES ret;
     ret.lExclusion = props->lExclusion;
@@ -1233,13 +1233,13 @@ HRESULT EAX3Buffer_Get(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
         GET_PROP(buf->current.eax, EAX30BUFFERPROPERTIES);
         break;
     case DSPROPERTY_EAX30BUFFER_OBSTRUCTIONPARAMETERS:
-        GET_PROP(EAX3BufferObstruction(&buf->current.eax), EAXOBSTRUCTIONPROPERTIES);
+        GET_PROP(EAXSourceObstruction(&buf->current.eax), EAXOBSTRUCTIONPROPERTIES);
         break;
     case DSPROPERTY_EAX30BUFFER_OCCLUSIONPARAMETERS:
-        GET_PROP(EAX3BufferOcclusion(&buf->current.eax), EAXOCCLUSIONPROPERTIES);
+        GET_PROP(EAXSourceOcclusion(&buf->current.eax), EAXOCCLUSIONPROPERTIES);
         break;
     case DSPROPERTY_EAX30BUFFER_EXCLUSIONPARAMETERS:
-        GET_PROP(EAX3BufferExclusion(&buf->current.eax), EAXEXCLUSIONPROPERTIES);
+        GET_PROP(EAXSourceExclusion(&buf->current.eax), EAXEXCLUSIONPROPERTIES);
         break;
 
     case DSPROPERTY_EAX30BUFFER_DIRECT:
@@ -1348,7 +1348,7 @@ static EAX20LISTENERPROPERTIES EAXRevTo2(const EAXREVERBPROPERTIES *props)
     return ret;
 }
 
-static EAX20BUFFERPROPERTIES EAXBuffer3To2(const EAX30BUFFERPROPERTIES *props)
+static EAX20BUFFERPROPERTIES EAXSourceTo2(const EAXSOURCEPROPERTIES *props)
 {
     EAX20BUFFERPROPERTIES ret;
     ret.lDirect = props->lDirect;
@@ -2068,7 +2068,7 @@ HRESULT EAX2Buffer_Get(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
         break;
 
     case DSPROPERTY_EAX20BUFFER_ALLPARAMETERS:
-        GET_PROP(EAXBuffer3To2(&buf->current.eax), EAX20BUFFERPROPERTIES);
+        GET_PROP(EAXSourceTo2(&buf->current.eax), EAX20BUFFERPROPERTIES);
         break;
 
     case DSPROPERTY_EAX20BUFFER_DIRECT:

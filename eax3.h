@@ -117,26 +117,7 @@ typedef enum {
 #define DSPROPERTY_EAX30BUFFER_COMMITDEFERREDSETTINGS 0x00000000
 
 /* DSPROPERTY_EAX30BUFFER_ALLPARAMETERS */
-typedef struct _EAX30BUFFERPROPERTIES {
-    long  lDirect;
-    long  lDirectHF;
-    long  lRoom;
-    long  lRoomHF;
-    long  lObstruction;
-    float flObstructionLFRatio;
-    long  lOcclusion;
-    float flOcclusionLFRatio;
-    float flOcclusionRoomRatio;
-    float flOcclusionDirectRatio;
-    long  lExclusion;
-    float flExclusionLFRatio;
-    long  lOutsideVolumeHF;
-    float flDopplerFactor;
-    float flRolloffFactor; /* NOTE: Added to listener value, not multiplied. */
-    float flRoomRolloffFactor;
-    float flAirAbsorptionFactor;
-    DWORD dwFlags;
-} EAX30BUFFERPROPERTIES, *LPEAX30BUFFERPROPERTIES;
+typedef EAXSOURCEPROPERTIES EAX30BUFFERPROPERTIES, *LPEAX30BUFFERPROPERTIES;
 
 /* DSPROPERTY_EAX30BUFFER_OBSTRUCTION */
 #ifndef EAX_OBSTRUCTIONPROPERTIES_DEFINED

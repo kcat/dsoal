@@ -608,12 +608,12 @@ struct DSBuffer {
         LONG vol, pan;
         DWORD frequency;
         DS3DBUFFER ds3d;
-        EAX30BUFFERPROPERTIES eax;
+        EAXSOURCEPROPERTIES eax;
         float eax1_reverbmix; /* Mirrored by eax.lRoom. */
     } current;
     struct {
         DS3DBUFFER ds3d;
-        EAX30BUFFERPROPERTIES eax;
+        EAXSOURCEPROPERTIES eax;
         float eax1_reverbmix;
     } deferred;
     union BufferParamFlags dirty;
