@@ -1213,20 +1213,24 @@ static void DSPrimary_SetParams(DSPrimary *This, const DS3DLISTENER *params, LON
         /* NOTE: Not currently handlable in OpenAL. */
     }
 
-    if(dirty.bit.fx_effect)
-        alAuxiliaryEffectSloti(This->auxslot[0], AL_EFFECTSLOT_EFFECT, This->effect[0]);
-    if(dirty.bit.fx_vol)
-        alAuxiliaryEffectSlotf(This->auxslot[0], AL_EFFECTSLOT_GAIN,
-                               mB_to_gain(This->current.fxslot[0].props.lVolume));
-    /* EAXFXSLOT_LOCK has no OpenAL equivalent. It just prevents the effect
-     * type from being changed when updating effect slot properties, causing an
-     * error instead.
-     */
-    if(dirty.bit.fx_flags)
-        alAuxiliaryEffectSloti(This->auxslot[0], AL_EFFECTSLOT_AUXILIARY_SEND_AUTO,
-            (This->current.fxslot[0].props.dwFlags&EAXFXSLOTFLAGS_ENVIRONMENT) ?
-            AL_TRUE : AL_FALSE
-        );
+    if(dirty.bit.fxslots)
+    {
+        for(i = 0;i < EAX_MAX_FXSLOTS;++i)
+        {
+            ALuint slot = This->auxslot[i];
+            if(FXSLOT_IS_DIRTY(dirty.bit, i, FXSLOT_EFFECT_BIT))
+                alAuxiliaryEffectSloti(slot, AL_EFFECTSLOT_EFFECT, This->effect[i]);
+            if(FXSLOT_IS_DIRTY(dirty.bit, i, FXSLOT_VOL_BIT))
+                alAuxiliaryEffectSlotf(slot, AL_EFFECTSLOT_GAIN,
+                    mB_to_gain(This->current.fxslot[i].props.lVolume)
+                );
+            if(FXSLOT_IS_DIRTY(dirty.bit, i, FXSLOT_FLAGS_BIT))
+                alAuxiliaryEffectSloti(slot, AL_EFFECTSLOT_AUXILIARY_SEND_AUTO,
+                    (This->current.fxslot[i].props.dwFlags&EAXFXSLOTFLAGS_ENVIRONMENT) ?
+                    AL_TRUE : AL_FALSE
+                );
+        }
+    }
 }
 
 static HRESULT WINAPI DSPrimary3D_QueryInterface(IDirectSound3DListener *iface, REFIID riid, void **ppv)

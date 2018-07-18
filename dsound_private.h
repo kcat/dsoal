@@ -642,22 +642,34 @@ struct FXSlot {
 union PrimaryParamFlags {
     LONG flags;
     struct {
-        BOOL pos : 1;
-        BOOL vel : 1;
-        BOOL orientation : 1;
-        BOOL distancefactor : 1;
-        BOOL rollofffactor : 1;
-        BOOL dopplerfactor : 1;
+        LONG pos : 1;
+        LONG vel : 1;
+        LONG orientation : 1;
+        LONG distancefactor : 1;
+        LONG rollofffactor : 1;
+        LONG dopplerfactor : 1;
 
-        BOOL prim_slotid : 1;
-        BOOL distancefactor2 : 1;
-        BOOL air_absorbhf : 1;
-        BOOL hfreference : 1;
+        LONG prim_slotid : 1;
+        LONG distancefactor2 : 1;
+        LONG air_absorbhf : 1;
+        LONG hfreference : 1;
 
-        BOOL fx_effect : 1;
-        BOOL fx_vol : 1;
-        BOOL fx_lock : 1;
-        BOOL fx_flags : 1;
+        /* Can't use a proper array for the fxslots here since this is a
+         * bitfield, and each slot only needs 4 bits. So make a sub-bitfield
+         * with macros to access it.
+         */
+#define FXSLOT_EFFECT_BIT 0
+#define FXSLOT_VOL_BIT    1
+#define FXSLOT_LOCK_BIT   2
+#define FXSLOT_FLAGS_BIT  3
+#define FXSLOT_NUM_BITS   4
+
+#define FXSLOT_IS_DIRTY(_flags, _idx, _bit) \
+    (((_flags).fxslots & (1 << ((_idx)*FXSLOT_NUM_BITS + (_bit)))) != 0)
+#define FXSLOT_SET_DIRTY(_flags, _idx, _bit) \
+    ((_flags).fxslots |= (1 << ((_idx)*FXSLOT_NUM_BITS + (_bit))))
+
+        LONG fxslots : (FXSLOT_NUM_BITS*EAX_MAX_FXSLOTS);
     } bit;
 };
 

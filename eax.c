@@ -303,7 +303,7 @@ HRESULT EAX3_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
             );
 
             ApplyReverbParams(prim->effect[0], data.props);
-            prim->dirty.bit.fx_effect = 1;
+            FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
             hr = DS_OK;
         }
         break;
@@ -317,7 +317,7 @@ HRESULT EAX3_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
             {
                 prim->deferred.fxslot[0].fx.reverb = EnvironmentDefaults[*data.dw];
                 ApplyReverbParams(prim->effect[0], &EnvironmentDefaults[*data.dw]);
-                prim->dirty.bit.fx_effect = 1;
+                FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
                 hr = DS_OK;
             }
         }
@@ -332,7 +332,7 @@ HRESULT EAX3_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
             RescaleEnvSize(&prim->deferred.fxslot[0].fx.reverb, clampF(*data.fl, 1.0f, 100.0f));
             ApplyReverbParams(prim->effect[0], &prim->deferred.fxslot[0].fx.reverb);
 
-            prim->dirty.bit.fx_effect = 1;
+            FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
             hr = DS_OK;
         }
         break;
@@ -347,7 +347,7 @@ HRESULT EAX3_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
                       prim->deferred.fxslot[0].fx.reverb.flEnvironmentDiffusion);
             checkALError();
 
-            prim->dirty.bit.fx_effect = 1;
+            FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
             hr = DS_OK;
         }
         break;
@@ -363,7 +363,7 @@ HRESULT EAX3_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
                       mB_to_gain(prim->deferred.fxslot[0].fx.reverb.lRoom));
             checkALError();
 
-            prim->dirty.bit.fx_effect = 1;
+            FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
             hr = DS_OK;
         }
         break;
@@ -378,7 +378,7 @@ HRESULT EAX3_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
                       mB_to_gain(prim->deferred.fxslot[0].fx.reverb.lRoomHF));
             checkALError();
 
-            prim->dirty.bit.fx_effect = 1;
+            FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
             hr = DS_OK;
         }
         break;
@@ -393,7 +393,7 @@ HRESULT EAX3_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
                       mB_to_gain(prim->deferred.fxslot[0].fx.reverb.lRoomLF));
             checkALError();
 
-            prim->dirty.bit.fx_effect = 1;
+            FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
             hr = DS_OK;
         }
         break;
@@ -409,7 +409,7 @@ HRESULT EAX3_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
                       prim->deferred.fxslot[0].fx.reverb.flDecayTime);
             checkALError();
 
-            prim->dirty.bit.fx_effect = 1;
+            FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
             hr = DS_OK;
         }
         break;
@@ -424,7 +424,7 @@ HRESULT EAX3_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
                       prim->deferred.fxslot[0].fx.reverb.flDecayHFRatio);
             checkALError();
 
-            prim->dirty.bit.fx_effect = 1;
+            FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
             hr = DS_OK;
         }
         break;
@@ -439,7 +439,7 @@ HRESULT EAX3_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
                       prim->deferred.fxslot[0].fx.reverb.flDecayLFRatio);
             checkALError();
 
-            prim->dirty.bit.fx_effect = 1;
+            FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
             hr = DS_OK;
         }
         break;
@@ -455,7 +455,7 @@ HRESULT EAX3_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
                       mB_to_gain(prim->deferred.fxslot[0].fx.reverb.lReflections));
             checkALError();
 
-            prim->dirty.bit.fx_effect = 1;
+            FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
             hr = DS_OK;
         }
         break;
@@ -470,7 +470,7 @@ HRESULT EAX3_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
                       prim->deferred.fxslot[0].fx.reverb.flReflectionsDelay);
             checkALError();
 
-            prim->dirty.bit.fx_effect = 1;
+            FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
             hr = DS_OK;
         }
         break;
@@ -485,7 +485,7 @@ HRESULT EAX3_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
                        &prim->deferred.fxslot[0].fx.reverb.vReflectionsPan.x);
             checkALError();
 
-            prim->dirty.bit.fx_effect = 1;
+            FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
             hr = DS_OK;
         }
         break;
@@ -501,7 +501,7 @@ HRESULT EAX3_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
                       mB_to_gain(prim->deferred.fxslot[0].fx.reverb.lReverb));
             checkALError();
 
-            prim->dirty.bit.fx_effect = 1;
+            FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
             hr = DS_OK;
         }
         break;
@@ -516,7 +516,7 @@ HRESULT EAX3_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
                       prim->deferred.fxslot[0].fx.reverb.flReverbDelay);
             checkALError();
 
-            prim->dirty.bit.fx_effect = 1;
+            FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
             hr = DS_OK;
         }
         break;
@@ -531,7 +531,7 @@ HRESULT EAX3_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
                        &prim->deferred.fxslot[0].fx.reverb.vReverbPan.x);
             checkALError();
 
-            prim->dirty.bit.fx_effect = 1;
+            FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
             hr = DS_OK;
         }
         break;
@@ -547,7 +547,7 @@ HRESULT EAX3_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
                       prim->deferred.fxslot[0].fx.reverb.flEchoTime);
             checkALError();
 
-            prim->dirty.bit.fx_effect = 1;
+            FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
             hr = DS_OK;
         }
         break;
@@ -562,7 +562,7 @@ HRESULT EAX3_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
                       prim->deferred.fxslot[0].fx.reverb.flEchoDepth);
             checkALError();
 
-            prim->dirty.bit.fx_effect = 1;
+            FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
             hr = DS_OK;
         }
         break;
@@ -578,7 +578,7 @@ HRESULT EAX3_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
                       prim->deferred.fxslot[0].fx.reverb.flModulationTime);
             checkALError();
 
-            prim->dirty.bit.fx_effect = 1;
+            FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
             hr = DS_OK;
         }
         break;
@@ -593,7 +593,7 @@ HRESULT EAX3_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
                       prim->deferred.fxslot[0].fx.reverb.flModulationDepth);
             checkALError();
 
-            prim->dirty.bit.fx_effect = 1;
+            FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
             hr = DS_OK;
         }
         break;
@@ -609,7 +609,7 @@ HRESULT EAX3_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
                       mB_to_gain(prim->deferred.fxslot[0].fx.reverb.flAirAbsorptionHF));
             checkALError();
 
-            prim->dirty.bit.fx_effect = 1;
+            FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
             hr = DS_OK;
         }
         break;
@@ -625,7 +625,7 @@ HRESULT EAX3_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
                       prim->deferred.fxslot[0].fx.reverb.flHFReference);
             checkALError();
 
-            prim->dirty.bit.fx_effect = 1;
+            FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
             hr = DS_OK;
         }
         break;
@@ -640,7 +640,7 @@ HRESULT EAX3_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
                       prim->deferred.fxslot[0].fx.reverb.flLFReference);
             checkALError();
 
-            prim->dirty.bit.fx_effect = 1;
+            FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
             hr = DS_OK;
         }
         break;
@@ -656,7 +656,7 @@ HRESULT EAX3_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
                       prim->deferred.fxslot[0].fx.reverb.flRoomRolloffFactor);
             checkALError();
 
-            prim->dirty.bit.fx_effect = 1;
+            FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
             hr = DS_OK;
         }
         break;
@@ -673,7 +673,7 @@ HRESULT EAX3_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
                       AL_TRUE : AL_FALSE);
             checkALError();
 
-            prim->dirty.bit.fx_effect = 1;
+            FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
             hr = DS_OK;
         }
         break;
@@ -1455,7 +1455,7 @@ HRESULT EAX2_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
             prim->deferred.fxslot[0].fx.reverb = props;
             ApplyReverbParams(prim->effect[0], &props);
 
-            prim->dirty.bit.fx_effect = 1;
+            FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
             hr = DS_OK;
         }
         break;
@@ -1471,7 +1471,7 @@ HRESULT EAX2_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
                       mB_to_gain(prim->deferred.fxslot[0].fx.reverb.lRoom));
             checkALError();
 
-            prim->dirty.bit.fx_effect = 1;
+            FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
             hr = DS_OK;
         }
         break;
@@ -1486,7 +1486,7 @@ HRESULT EAX2_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
                       mB_to_gain(prim->deferred.fxslot[0].fx.reverb.lRoomHF));
             checkALError();
 
-            prim->dirty.bit.fx_effect = 1;
+            FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
             hr = DS_OK;
         }
         break;
@@ -1502,7 +1502,7 @@ HRESULT EAX2_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
                       prim->deferred.fxslot[0].fx.reverb.flRoomRolloffFactor);
             checkALError();
 
-            prim->dirty.bit.fx_effect = 1;
+            FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
             hr = DS_OK;
         }
         break;
@@ -1518,7 +1518,7 @@ HRESULT EAX2_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
                       prim->deferred.fxslot[0].fx.reverb.flDecayTime);
             checkALError();
 
-            prim->dirty.bit.fx_effect = 1;
+            FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
             hr = DS_OK;
         }
         break;
@@ -1533,7 +1533,7 @@ HRESULT EAX2_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
                       prim->deferred.fxslot[0].fx.reverb.flDecayHFRatio);
             checkALError();
 
-            prim->dirty.bit.fx_effect = 1;
+            FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
             hr = DS_OK;
         }
         break;
@@ -1549,7 +1549,7 @@ HRESULT EAX2_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
                       mB_to_gain(prim->deferred.fxslot[0].fx.reverb.lReflections));
             checkALError();
 
-            prim->dirty.bit.fx_effect = 1;
+            FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
             hr = DS_OK;
         }
         break;
@@ -1564,7 +1564,7 @@ HRESULT EAX2_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
                       prim->deferred.fxslot[0].fx.reverb.flReflectionsDelay);
             checkALError();
 
-            prim->dirty.bit.fx_effect = 1;
+            FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
             hr = DS_OK;
         }
         break;
@@ -1580,7 +1580,7 @@ HRESULT EAX2_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
                       mB_to_gain(prim->deferred.fxslot[0].fx.reverb.lReverb));
             checkALError();
 
-            prim->dirty.bit.fx_effect = 1;
+            FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
             hr = DS_OK;
         }
         break;
@@ -1595,7 +1595,7 @@ HRESULT EAX2_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
                       prim->deferred.fxslot[0].fx.reverb.flReverbDelay);
             checkALError();
 
-            prim->dirty.bit.fx_effect = 1;
+            FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
             hr = DS_OK;
         }
         break;
@@ -1610,7 +1610,7 @@ HRESULT EAX2_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
                 prim->deferred.fxslot[0].fx.reverb = EnvironmentDefaults[*data.dw];
                 ApplyReverbParams(prim->effect[0], &EnvironmentDefaults[*data.dw]);
 
-                prim->dirty.bit.fx_effect = 1;
+                FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
                 hr = DS_OK;
             }
         }
@@ -1625,7 +1625,7 @@ HRESULT EAX2_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
             RescaleEnvSize(&prim->deferred.fxslot[0].fx.reverb, clampF(*data.fl, 1.0f, 100.0f));
             ApplyReverbParams(prim->effect[0], &prim->deferred.fxslot[0].fx.reverb);
 
-            prim->dirty.bit.fx_effect = 1;
+            FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
             hr = DS_OK;
         }
         break;
@@ -1640,7 +1640,7 @@ HRESULT EAX2_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
                       prim->deferred.fxslot[0].fx.reverb.flEnvironmentDiffusion);
             checkALError();
 
-            prim->dirty.bit.fx_effect = 1;
+            FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
             hr = DS_OK;
         }
         break;
@@ -1656,7 +1656,7 @@ HRESULT EAX2_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
                       mB_to_gain(prim->deferred.fxslot[0].fx.reverb.flAirAbsorptionHF));
             checkALError();
 
-            prim->dirty.bit.fx_effect = 1;
+            FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
             hr = DS_OK;
         }
         break;
@@ -1673,7 +1673,7 @@ HRESULT EAX2_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
                       AL_TRUE : AL_FALSE);
             checkALError();
 
-            prim->dirty.bit.fx_effect = 1;
+            FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
             hr = DS_OK;
         }
         break;
@@ -2214,7 +2214,7 @@ HRESULT EAX1_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
                 prim->deferred.eax1_dampening = data.props->fDamping;
                 ApplyReverbParams(prim->effect[0], &env);
 
-                prim->dirty.bit.fx_effect = 1;
+                FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
                 hr = DS_OK;
             }
         }
@@ -2233,7 +2233,7 @@ HRESULT EAX1_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
                 prim->deferred.eax1_dampening = eax1_env_dampening[*data.dw];
                 ApplyReverbParams(prim->effect[0], &EnvironmentDefaults[*data.dw]);
 
-                prim->dirty.bit.fx_effect = 1;
+                FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
                 hr = DS_OK;
             }
         }
@@ -2258,7 +2258,7 @@ HRESULT EAX1_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
             alEffectf(prim->effect[0], AL_EAXREVERB_GAIN, mB_to_gain(room_vol));
             checkALError();
 
-            prim->dirty.bit.fx_effect = 1;
+            FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
             hr = DS_OK;
         }
         break;
@@ -2273,7 +2273,7 @@ HRESULT EAX1_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
                       prim->deferred.fxslot[0].fx.reverb.flDecayTime);
             checkALError();
 
-            prim->dirty.bit.fx_effect = 1;
+            FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
             hr = DS_OK;
         }
         break;
