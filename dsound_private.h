@@ -558,9 +558,10 @@ union BufferParamFlags {
         BOOL max_distance : 1;
         BOOL mode : 1;
 
-        /* EAX2 */
+        /* EAX */
         BOOL dry_filter : 1;
-        BOOL wet_filter : 1;
+        BOOL send0_filter : 1;
+        BOOL send1_filter : 1;
         BOOL doppler : 1;
         BOOL rolloff : 1;
         BOOL room_rolloff : 1;
@@ -568,6 +569,15 @@ union BufferParamFlags {
         BOOL air_absorb : 1;
         BOOL flags : 1;
     } bit;
+};
+
+enum {
+    FXSLOT_TARGET_0,
+    FXSLOT_TARGET_1,
+    FXSLOT_TARGET_2,
+    FXSLOT_TARGET_3,
+    FXSLOT_TARGET_PRIMARY,
+    FXSLOT_TARGET_NULL,
 };
 
 struct DSBuffer {
@@ -609,17 +619,20 @@ struct DSBuffer {
         DWORD frequency;
         DS3DBUFFER ds3d;
         EAXSOURCEPROPERTIES eax;
+        /* See FXSLOT_TARGET enums */
+        DWORD fxslot_targets[EAX_MAX_ACTIVE_FXSLOTS];
         float eax1_reverbmix; /* Mirrored by eax.lRoom. */
     } current;
     struct {
         DS3DBUFFER ds3d;
         EAXSOURCEPROPERTIES eax;
+        DWORD fxslot_targets[EAX_MAX_ACTIVE_FXSLOTS];
         float eax1_reverbmix;
     } deferred;
     union BufferParamFlags dirty;
 
     ALfloat filter_mBLimit;
-    ALuint filter[2];
+    ALuint filter[1+EAX_MAX_ACTIVE_FXSLOTS];
 
     DWORD nnotify, lastpos;
     DSBPOSITIONNOTIFY *notify;

@@ -542,6 +542,9 @@ HRESULT DSBuffer_Create(DSBuffer **ppv, DSPrimary *prim, IDirectSoundBuffer *ori
     This->current.eax.flAirAbsorptionFactor = 0.0f;
     This->current.eax.dwFlags = EAX30BUFFERFLAGS_DIRECTHFAUTO | EAX30BUFFERFLAGS_ROOMAUTO |
                                 EAX30BUFFERFLAGS_ROOMHFAUTO;
+    This->current.fxslot_targets[0] = FXSLOT_TARGET_PRIMARY;
+    for(i = 1;i < EAX_MAX_ACTIVE_FXSLOTS;++i)
+        This->current.fxslot_targets[i] = FXSLOT_TARGET_NULL;
     This->current.eax1_reverbmix = 1.0f;
 
     if(orig)
@@ -568,6 +571,8 @@ HRESULT DSBuffer_Create(DSBuffer **ppv, DSPrimary *prim, IDirectSoundBuffer *ori
 
     This->deferred.ds3d = This->current.ds3d;
     This->deferred.eax = This->current.eax;
+    for(i = 0;i < EAX_MAX_ACTIVE_FXSLOTS;++i)
+        This->deferred.fxslot_targets[i] = This->current.fxslot_targets[i];
     This->deferred.eax1_reverbmix = This->current.eax1_reverbmix;
 
     *ppv = This;
@@ -614,7 +619,7 @@ void DSBuffer_Destroy(DSBuffer *This)
     if(This->stream_bids[0])
         alDeleteBuffers(QBUFFERS, This->stream_bids);
     if(This->filter[0])
-        alDeleteFilters(2, This->filter);
+        alDeleteFilters(1+EAX_MAX_ACTIVE_FXSLOTS, This->filter);
 
     if(This->buffer)
         DSData_Release(This->buffer);
@@ -676,6 +681,7 @@ static HRESULT DSBuffer_SetLoc(DSBuffer *buf, DWORD loc_status)
 {
     DeviceShare *share = buf->share;
     DSData *data = buf->buffer;
+    ALsizei i;
 
     if((loc_status && buf->loc_status == loc_status) || (!loc_status && buf->loc_status))
         return DS_OK;
@@ -759,7 +765,7 @@ static HRESULT DSBuffer_SetLoc(DSBuffer *buf, DWORD loc_status)
         alSourcef(source, AL_CONE_OUTER_GAIN, mB_to_gain(params->lConeOutsideVolume));
         alSourcef(source, AL_REFERENCE_DISTANCE, params->flMinDistance);
         alSourcef(source, AL_MAX_DISTANCE, params->flMaxDistance);
-        if(HAS_EXTENSION(buf->share, SOFT_SOURCE_SPATIALIZE))
+        if(HAS_EXTENSION(share, SOFT_SOURCE_SPATIALIZE))
             alSourcei(source, AL_SOURCE_SPATIALIZE_SOFT,
                 (params->dwMode==DS3DMODE_DISABLE) ? AL_FALSE : AL_TRUE
             );
@@ -770,10 +776,21 @@ static HRESULT DSBuffer_SetLoc(DSBuffer *buf, DWORD loc_status)
         alSourcef(source, AL_ROLLOFF_FACTOR,
                   prim->current.ds3d.flRolloffFactor + eax_params->flRolloffFactor);
         alSourcef(source, AL_DOPPLER_FACTOR, eax_params->flDopplerFactor);
-        if(HAS_EXTENSION(buf->share, EXT_EFX))
+        if(HAS_EXTENSION(share, EXT_EFX))
         {
             alSourcei(source, AL_DIRECT_FILTER, buf->filter[0]);
-            alSource3i(source, AL_AUXILIARY_SEND_FILTER, prim->auxslot[0], 0, buf->filter[1]);
+            for(i = 0;i < share->num_sends;++i)
+            {
+                if(buf->current.fxslot_targets[i] >= FXSLOT_TARGET_NULL)
+                    alSource3i(source, AL_AUXILIARY_SEND_FILTER, 0, 0, buf->filter[i+1]);
+                else if(buf->current.fxslot_targets[i] == FXSLOT_TARGET_PRIMARY)
+                    alSource3i(source, AL_AUXILIARY_SEND_FILTER, prim->primary_slot, 0,
+                               buf->filter[i+1]);
+                else
+                    alSource3i(source, AL_AUXILIARY_SEND_FILTER,
+                        prim->auxslot[buf->current.fxslot_targets[i]], 0, buf->filter[i+1]
+                    );
+            }
             alSourcef(source, AL_ROOM_ROLLOFF_FACTOR, eax_params->flRoomRolloffFactor);
             alSourcef(source, AL_CONE_OUTER_GAINHF, mB_to_gain(eax_params->lOutsideVolumeHF));
             alSourcef(source, AL_AIR_ABSORPTION_FACTOR,
@@ -806,7 +823,7 @@ static HRESULT DSBuffer_SetLoc(DSBuffer *buf, DWORD loc_status)
         alSourcei(source, AL_CONE_INNER_ANGLE, 360);
         alSourcei(source, AL_CONE_OUTER_ANGLE, 360);
         alSourcei(source, AL_SOURCE_RELATIVE, AL_TRUE);
-        if(HAS_EXTENSION(buf->share, EXT_EFX))
+        if(HAS_EXTENSION(share, EXT_EFX))
         {
             alSourcef(source, AL_ROOM_ROLLOFF_FACTOR, 0.0f);
             alSourcef(source, AL_CONE_OUTER_GAINHF, 1.0f);
@@ -815,9 +832,10 @@ static HRESULT DSBuffer_SetLoc(DSBuffer *buf, DWORD loc_status)
             alSourcei(source, AL_AUXILIARY_SEND_FILTER_GAIN_AUTO, AL_TRUE);
             alSourcei(source, AL_AUXILIARY_SEND_FILTER_GAINHF_AUTO, AL_TRUE);
             alSourcei(source, AL_DIRECT_FILTER, AL_FILTER_NULL);
-            alSource3i(source, AL_AUXILIARY_SEND_FILTER, 0, 0, AL_FILTER_NULL);
+            for(i = 0;i < share->num_sends;++i)
+                alSource3i(source, AL_AUXILIARY_SEND_FILTER, 0, i, AL_FILTER_NULL);
         }
-        if(HAS_EXTENSION(buf->share, SOFT_SOURCE_SPATIALIZE))
+        if(HAS_EXTENSION(share, SOFT_SOURCE_SPATIALIZE))
         {
             /* Set to auto so panning works for mono, and multi-channel works
              * as expected.
@@ -1233,13 +1251,16 @@ HRESULT WINAPI DSBuffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSound *ds,
     {
         if(HAS_EXTENSION(This->share, EXT_EFX))
         {
-            alGenFilters(2, This->filter);
+            ALsizei i;
+
+            alGenFilters(1+EAX_MAX_ACTIVE_FXSLOTS, This->filter);
             alFilteri(This->filter[0], AL_FILTER_TYPE, AL_FILTER_LOWPASS);
-            alFilteri(This->filter[1], AL_FILTER_TYPE, AL_FILTER_LOWPASS);
+            for(i = 0;i < EAX_MAX_ACTIVE_FXSLOTS;++i)
+                alFilteri(This->filter[1+i], AL_FILTER_TYPE, AL_FILTER_LOWPASS);
             if(UNLIKELY(alGetError() != AL_NO_ERROR))
             {
-                alDeleteFilters(2, This->filter);
-                This->filter[0] = This->filter[1] = 0;
+                alDeleteFilters(1+EAX_MAX_ACTIVE_FXSLOTS, This->filter);
+                This->filter[0] = This->filter[1] = This->filter[2]= 0;
             }
         }
     }
@@ -1902,6 +1923,7 @@ void DSBuffer_SetParams(DSBuffer *This, const DS3DBUFFER *params, LONG flags)
     DSPrimary *prim = This->primary;
     const ALuint source = This->source;
     union BufferParamFlags dirty = { flags };
+    ALsizei i;
 
     /* Copy deferred parameters first. */
     if(dirty.bit.pos)
@@ -1927,6 +1949,8 @@ void DSBuffer_SetParams(DSBuffer *This, const DS3DBUFFER *params, LONG flags)
      * when committing all params).
      */
     This->current.eax = This->deferred.eax;
+    for(i = 0;i < EAX_MAX_ACTIVE_FXSLOTS;++i)
+        This->current.fxslot_targets[i] = This->deferred.fxslot_targets[i];
     This->current.eax1_reverbmix = This->deferred.eax1_reverbmix;
 
     /* Now apply what's changed to OpenAL. */
@@ -1966,8 +1990,28 @@ void DSBuffer_SetParams(DSBuffer *This, const DS3DBUFFER *params, LONG flags)
 
     if(dirty.bit.dry_filter)
         alSourcei(source, AL_DIRECT_FILTER, This->filter[0]);
-    if(dirty.bit.wet_filter)
-        alSource3i(source, AL_AUXILIARY_SEND_FILTER, prim->auxslot[0], 0, This->filter[1]);
+    if(dirty.bit.send0_filter)
+    {
+        if(This->current.fxslot_targets[0] >= FXSLOT_TARGET_NULL)
+            alSource3i(source, AL_AUXILIARY_SEND_FILTER, 0, 0, This->filter[1]);
+        else if(This->current.fxslot_targets[0] == FXSLOT_TARGET_PRIMARY)
+            alSource3i(source, AL_AUXILIARY_SEND_FILTER, prim->primary_slot, 0, This->filter[1]);
+        else
+            alSource3i(source, AL_AUXILIARY_SEND_FILTER,
+                prim->auxslot[This->current.fxslot_targets[0]], 0, This->filter[1]
+            );
+    }
+    if(dirty.bit.send1_filter)
+    {
+        if(This->current.fxslot_targets[1] >= FXSLOT_TARGET_NULL)
+            alSource3i(source, AL_AUXILIARY_SEND_FILTER, 0, 1, This->filter[2]);
+        else if(This->current.fxslot_targets[1] == FXSLOT_TARGET_PRIMARY)
+            alSource3i(source, AL_AUXILIARY_SEND_FILTER, prim->primary_slot, 1, This->filter[2]);
+        else
+            alSource3i(source, AL_AUXILIARY_SEND_FILTER,
+                prim->auxslot[This->current.fxslot_targets[1]], 1, This->filter[2]
+            );
+    }
     if(dirty.bit.doppler)
         alSourcef(source, AL_DOPPLER_FACTOR, This->current.eax.flDopplerFactor);
     if(dirty.bit.rolloff)

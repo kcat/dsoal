@@ -887,7 +887,7 @@ HRESULT EAX3Buffer_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
             ApplyFilterParams(buf, data.props, APPLY_DRY_PARAMS|APPLY_WET_PARAMS);
 
             buf->dirty.bit.dry_filter = 1;
-            buf->dirty.bit.wet_filter = 1;
+            buf->dirty.bit.send0_filter = 1;
             buf->dirty.bit.doppler = 1;
             buf->dirty.bit.rolloff = 1;
             buf->dirty.bit.room_rolloff = 1;
@@ -935,7 +935,7 @@ HRESULT EAX3Buffer_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_DRY_PARAMS|APPLY_WET_PARAMS);
 
             buf->dirty.bit.dry_filter = 1;
-            buf->dirty.bit.wet_filter = 1;
+            buf->dirty.bit.send0_filter = 1;
             hr = DS_OK;
         }
         break;
@@ -953,7 +953,7 @@ HRESULT EAX3Buffer_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
             buf->deferred.eax.flExclusionLFRatio = data.props->flExclusionLFRatio;
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_WET_PARAMS);
 
-            buf->dirty.bit.wet_filter = 1;
+            buf->dirty.bit.send0_filter = 1;
             hr = DS_OK;
         }
         break;
@@ -994,7 +994,7 @@ HRESULT EAX3Buffer_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
             buf->deferred.eax.lRoom = *data.l;
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_WET_PARAMS);
 
-            buf->dirty.bit.wet_filter = 1;
+            buf->dirty.bit.send0_filter = 1;
             hr = DS_OK;
         }
         break;
@@ -1007,7 +1007,7 @@ HRESULT EAX3Buffer_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
             buf->deferred.eax.lRoomHF = *data.l;
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_WET_PARAMS);
 
-            buf->dirty.bit.wet_filter = 1;
+            buf->dirty.bit.send0_filter = 1;
             hr = DS_OK;
         }
         break;
@@ -1049,7 +1049,7 @@ HRESULT EAX3Buffer_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_DRY_PARAMS|APPLY_WET_PARAMS);
 
             buf->dirty.bit.dry_filter = 1;
-            buf->dirty.bit.wet_filter = 1;
+            buf->dirty.bit.send0_filter = 1;
             hr = DS_OK;
         }
         break;
@@ -1063,7 +1063,7 @@ HRESULT EAX3Buffer_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_DRY_PARAMS|APPLY_WET_PARAMS);
 
             buf->dirty.bit.dry_filter = 1;
-            buf->dirty.bit.wet_filter = 1;
+            buf->dirty.bit.send0_filter = 1;
             hr = DS_OK;
         }
         break;
@@ -1076,7 +1076,7 @@ HRESULT EAX3Buffer_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
             buf->deferred.eax.flOcclusionRoomRatio = *data.fl;
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_WET_PARAMS);
 
-            buf->dirty.bit.wet_filter = 1;
+            buf->dirty.bit.send0_filter = 1;
             hr = DS_OK;
         }
         break;
@@ -1103,7 +1103,7 @@ HRESULT EAX3Buffer_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
             buf->deferred.eax.lExclusion = *data.l;
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_WET_PARAMS);
 
-            buf->dirty.bit.wet_filter = 1;
+            buf->dirty.bit.send0_filter = 1;
             hr = DS_OK;
         }
         break;
@@ -1116,7 +1116,7 @@ HRESULT EAX3Buffer_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
             buf->deferred.eax.flExclusionLFRatio = *data.fl;
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_WET_PARAMS);
 
-            buf->dirty.bit.wet_filter = 1;
+            buf->dirty.bit.send0_filter = 1;
             hr = DS_OK;
         }
         break;
@@ -1853,7 +1853,7 @@ HRESULT EAX2Buffer_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_DRY_PARAMS|APPLY_WET_PARAMS);
 
             buf->dirty.bit.dry_filter = 1;
-            buf->dirty.bit.wet_filter = 1;
+            buf->dirty.bit.send0_filter = 1;
             buf->dirty.bit.room_rolloff = 1;
             buf->dirty.bit.cone_outsidevolumehf = 1;
             buf->dirty.bit.air_absorb = 1;
@@ -1898,7 +1898,7 @@ HRESULT EAX2Buffer_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
             buf->deferred.eax.lRoom = *data.l;
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_WET_PARAMS);
 
-            buf->dirty.bit.wet_filter = 1;
+            buf->dirty.bit.send0_filter = 1;
             hr = DS_OK;
         }
         break;
@@ -1911,7 +1911,7 @@ HRESULT EAX2Buffer_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
             buf->deferred.eax.lRoomHF = *data.l;
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_WET_PARAMS);
 
-            buf->dirty.bit.wet_filter = 1;
+            buf->dirty.bit.send0_filter = 1;
             hr = DS_OK;
         }
         break;
@@ -1966,7 +1966,7 @@ HRESULT EAX2Buffer_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_DRY_PARAMS|APPLY_WET_PARAMS);
 
             buf->dirty.bit.dry_filter = 1;
-            buf->dirty.bit.wet_filter = 1;
+            buf->dirty.bit.send0_filter = 1;
             hr = DS_OK;
         }
         break;
@@ -1980,7 +1980,7 @@ HRESULT EAX2Buffer_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_DRY_PARAMS|APPLY_WET_PARAMS);
 
             buf->dirty.bit.dry_filter = 1;
-            buf->dirty.bit.wet_filter = 1;
+            buf->dirty.bit.send0_filter = 1;
             hr = DS_OK;
         }
         break;
@@ -1993,7 +1993,7 @@ HRESULT EAX2Buffer_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
             buf->deferred.eax.flOcclusionRoomRatio = *data.fl;
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_WET_PARAMS);
 
-            buf->dirty.bit.wet_filter = 1;
+            buf->dirty.bit.send0_filter = 1;
             hr = DS_OK;
         }
         break;
@@ -2422,7 +2422,7 @@ HRESULT EAX1Buffer_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
             buf->deferred.eax1_reverbmix = *data.fl;
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_WET_PARAMS);
 
-            buf->dirty.bit.wet_filter = 1;
+            buf->dirty.bit.send0_filter = 1;
             hr = DS_OK;
         }
         break;

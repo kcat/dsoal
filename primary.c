@@ -1172,9 +1172,9 @@ static void DSPrimary_SetParams(DSPrimary *This, const DS3DLISTENER *params, LON
 
     if(dirty.bit.prim_slotid)
     {
-        /* TODO: Search buffers for any using the primary fx slot amd update
-         * the source's aux slot target.
-         */
+        struct DSBufferGroup *bufgroup = This->BufferGroups;
+        ALuint slot;
+
         if(IsEqualGUID(&This->current.ctx.guidPrimaryFXSlotID, &EAXPROPERTYID_EAX40_FXSlot0))
             This->primary_slot = This->auxslot[0];
         else if(IsEqualGUID(&This->current.ctx.guidPrimaryFXSlotID, &EAXPROPERTYID_EAX40_FXSlot1))
@@ -1183,6 +1183,29 @@ static void DSPrimary_SetParams(DSPrimary *This, const DS3DLISTENER *params, LON
             This->primary_slot = This->auxslot[2];
         else if(IsEqualGUID(&This->current.ctx.guidPrimaryFXSlotID, &EAXPROPERTYID_EAX40_FXSlot3))
             This->primary_slot = This->auxslot[3];
+        else /*if(IsEqualGUID(&This->current.ctx.guidPrimaryFXSlotID, &EAX_NULL_GUID))*/
+            This->primary_slot = 0;
+        slot = This->primary_slot;
+
+        for(i = 0;i < This->NumBufferGroups;++i)
+        {
+            DWORD64 usemask = ~bufgroup[i].FreeBuffers;
+            while(usemask)
+            {
+                int idx = CTZ64(usemask);
+                DSBuffer *buf = bufgroup[i].Buffers + idx;
+                DSData *data = buf->buffer;
+                usemask &= ~(U64(1) << idx);
+
+                if(buf->source && (data->dsbflags&DSBCAPS_CTRL3D))
+                {
+                    if(buf->current.fxslot_targets[0] == FXSLOT_TARGET_PRIMARY)
+                        alSource3i(buf->source, AL_AUXILIARY_SEND_FILTER, slot, 0, buf->filter[1]);
+                    if(buf->current.fxslot_targets[1] == FXSLOT_TARGET_PRIMARY)
+                        alSource3i(buf->source, AL_AUXILIARY_SEND_FILTER, slot, 1, buf->filter[2]);
+                }
+            }
+        }
     }
     if(dirty.bit.distancefactor2) {
         /* TODO: Find out what this affects. */
