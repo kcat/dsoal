@@ -2765,6 +2765,14 @@ static HRESULT WINAPI DSBufferProp_Get(IKsPropertySet *iface,
         hr = EAX3Buffer_Get(This, dwPropID, pPropData, cbPropData, pcbReturned);
     else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX20_BufferProperties))
         hr = EAX2Buffer_Get(This, dwPropID, pPropData, cbPropData, pcbReturned);
+    else if(IsEqualIID(guidPropSet, &EAXPROPERTYID_EAX40_FXSlot0))
+        hr = EAX4Slot_Get(This->primary, 0, dwPropID, pPropData, cbPropData, pcbReturned);
+    else if(IsEqualIID(guidPropSet, &EAXPROPERTYID_EAX40_FXSlot1))
+        hr = EAX4Slot_Get(This->primary, 1, dwPropID, pPropData, cbPropData, pcbReturned);
+    else if(IsEqualIID(guidPropSet, &EAXPROPERTYID_EAX40_FXSlot2))
+        hr = EAX4Slot_Get(This->primary, 2, dwPropID, pPropData, cbPropData, pcbReturned);
+    else if(IsEqualIID(guidPropSet, &EAXPROPERTYID_EAX40_FXSlot3))
+        hr = EAX4Slot_Get(This->primary, 3, dwPropID, pPropData, cbPropData, pcbReturned);
     else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX30_ListenerProperties))
         hr = EAX3_Get(This->primary, dwPropID, pPropData, cbPropData, pcbReturned);
     else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX20_ListenerProperties))
@@ -2789,6 +2797,7 @@ static HRESULT WINAPI DSBufferProp_Set(IKsPropertySet *iface,
 {
     DSBuffer *This = impl_from_IKsPropertySet(iface);
     HRESULT hr = E_PROP_ID_UNSUPPORTED;
+    LONG idx;
 
     TRACE("(%p)->(%s, 0x%lx, %p, %lu, %p, %lu)\n", iface, debugstr_guid(guidPropSet),
           dwPropID, pInstanceData, cbInstanceData, pPropData, cbPropData);
@@ -2826,6 +2835,21 @@ static HRESULT WINAPI DSBufferProp_Set(IKsPropertySet *iface,
             DSPrimary *prim = This->primary;
             DSPrimary3D_CommitDeferredSettings(&prim->IDirectSound3DListener_iface);
         }
+        popALContext();
+    }
+    else if((idx=0),IsEqualIID(guidPropSet, &EAXPROPERTYID_EAX40_FXSlot0) ||
+            (idx=1),IsEqualIID(guidPropSet, &EAXPROPERTYID_EAX40_FXSlot1) ||
+            (idx=2),IsEqualIID(guidPropSet, &EAXPROPERTYID_EAX40_FXSlot2) ||
+            (idx=3),IsEqualIID(guidPropSet, &EAXPROPERTYID_EAX40_FXSlot3))
+    {
+        DSPrimary *prim = This->primary;
+        DWORD propid = dwPropID & ~EAXFXSLOT_PARAMETER_DEFERRED;
+        BOOL immediate = !(dwPropID&EAXFXSLOT_PARAMETER_DEFERRED);
+
+        setALContext(prim->ctx);
+        hr = EAX4Slot_Set(prim, idx, propid, pPropData, cbPropData);
+        if(hr == DS_OK && immediate)
+            DSPrimary3D_CommitDeferredSettings(&prim->IDirectSound3DListener_iface);
         popALContext();
     }
     else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX30_ListenerProperties))
@@ -2915,6 +2939,14 @@ static HRESULT WINAPI DSBufferProp_QuerySupport(IKsPropertySet *iface,
         hr = EAX3Buffer_Query(This, dwPropID, pTypeSupport);
     else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX20_BufferProperties))
         hr = EAX2Buffer_Query(This, dwPropID, pTypeSupport);
+    else if(IsEqualIID(guidPropSet, &EAXPROPERTYID_EAX40_FXSlot0))
+        hr = EAX4Slot_Query(This->primary, 0, dwPropID, pTypeSupport);
+    else if(IsEqualIID(guidPropSet, &EAXPROPERTYID_EAX40_FXSlot1))
+        hr = EAX4Slot_Query(This->primary, 1, dwPropID, pTypeSupport);
+    else if(IsEqualIID(guidPropSet, &EAXPROPERTYID_EAX40_FXSlot2))
+        hr = EAX4Slot_Query(This->primary, 2, dwPropID, pTypeSupport);
+    else if(IsEqualIID(guidPropSet, &EAXPROPERTYID_EAX40_FXSlot3))
+        hr = EAX4Slot_Query(This->primary, 3, dwPropID, pTypeSupport);
     else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX30_ListenerProperties))
         hr = EAX3_Query(This->primary, dwPropID, pTypeSupport);
     else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX20_ListenerProperties))

@@ -26,64 +26,6 @@
 #include "eax-presets.h"
 
 
-static void ApplyReverbParams(ALuint effect, const EAXREVERBPROPERTIES *props)
-{
-    /* FIXME: Need to validate property values... Ignore? Clamp? Error? */
-    alEffectf(effect, AL_EAXREVERB_DENSITY,
-        clampF(powf(props->flEnvironmentSize, 3.0f) / 16.0f, 0.0f, 1.0f)
-    );
-    alEffectf(effect, AL_EAXREVERB_DIFFUSION, props->flEnvironmentDiffusion);
-
-    alEffectf(effect, AL_EAXREVERB_GAIN, mB_to_gain(props->lRoom));
-    alEffectf(effect, AL_EAXREVERB_GAINHF, mB_to_gain(props->lRoomHF));
-    alEffectf(effect, AL_EAXREVERB_GAINLF, mB_to_gain(props->lRoomLF));
-
-    alEffectf(effect, AL_EAXREVERB_DECAY_TIME, props->flDecayTime);
-    alEffectf(effect, AL_EAXREVERB_DECAY_HFRATIO, props->flDecayHFRatio);
-    alEffectf(effect, AL_EAXREVERB_DECAY_LFRATIO, props->flDecayLFRatio);
-
-    /* NOTE: Imprecision can cause some converted volume levels to land outside
-     * EFX's gain limits (e.g. EAX's +1000mB volume limit gets converted to
-     * 3.162something, while EFX defines the limit as 3.16; close enough for
-     * practical uses, but still technically an error).
-     */
-    alEffectf(effect, AL_EAXREVERB_REFLECTIONS_GAIN,
-        clampF(mB_to_gain(props->lReflections), AL_EAXREVERB_MIN_REFLECTIONS_GAIN,
-               AL_EAXREVERB_MAX_REFLECTIONS_GAIN)
-    );
-    alEffectf(effect, AL_EAXREVERB_REFLECTIONS_DELAY, props->flReflectionsDelay);
-    alEffectfv(effect, AL_EAXREVERB_REFLECTIONS_PAN, &props->vReflectionsPan.x);
-
-    alEffectf(effect, AL_EAXREVERB_LATE_REVERB_GAIN,
-        clampF(mB_to_gain(props->lReverb), AL_EAXREVERB_MIN_LATE_REVERB_GAIN,
-               AL_EAXREVERB_MAX_LATE_REVERB_GAIN)
-    );
-    alEffectf(effect, AL_EAXREVERB_LATE_REVERB_DELAY, props->flReverbDelay);
-    alEffectfv(effect, AL_EAXREVERB_LATE_REVERB_PAN, &props->vReverbPan.x);
-
-    alEffectf(effect, AL_EAXREVERB_ECHO_TIME, props->flEchoTime);
-    alEffectf(effect, AL_EAXREVERB_ECHO_DEPTH, props->flEchoDepth);
-
-    alEffectf(effect, AL_EAXREVERB_MODULATION_TIME, props->flModulationTime);
-    alEffectf(effect, AL_EAXREVERB_MODULATION_DEPTH, props->flModulationDepth);
-
-    alEffectf(effect, AL_EAXREVERB_AIR_ABSORPTION_GAINHF,
-        clampF(mB_to_gain(props->flAirAbsorptionHF), AL_EAXREVERB_MIN_AIR_ABSORPTION_GAINHF,
-               AL_EAXREVERB_MAX_AIR_ABSORPTION_GAINHF)
-    );
-
-    alEffectf(effect, AL_EAXREVERB_HFREFERENCE, props->flHFReference);
-    alEffectf(effect, AL_EAXREVERB_LFREFERENCE, props->flLFReference);
-
-    alEffectf(effect, AL_EAXREVERB_ROOM_ROLLOFF_FACTOR, props->flRoomRolloffFactor);
-
-    alEffecti(effect, AL_EAXREVERB_DECAY_HFLIMIT,
-              (props->dwFlags&EAX30LISTENERFLAGS_DECAYHFLIMIT) ?
-              AL_TRUE : AL_FALSE);
-
-    checkALError();
-}
-
 static inline float minF(float a, float b)
 { return (a <= b) ? a : b; }
 static inline float maxF(float a, float b)
@@ -137,55 +79,6 @@ static void ApplyFilterParams(DSBuffer *buf, const EAXSOURCEPROPERTIES *props, i
     checkALError();
 }
 
-
-static void RescaleEnvSize(EAXREVERBPROPERTIES *props, float newsize)
-{
-    float scale = newsize / props->flEnvironmentSize;
-
-    props->flEnvironmentSize = newsize;
-
-    if((props->dwFlags&EAX30LISTENERFLAGS_DECAYTIMESCALE))
-    {
-        props->flDecayTime *= scale;
-        props->flDecayTime = clampF(props->flDecayTime, 0.1f, 20.0f);
-    }
-    if((props->dwFlags&EAX30LISTENERFLAGS_REFLECTIONSSCALE))
-    {
-        props->lReflections -= gain_to_mB(scale);
-        props->lReflections = clampI(props->lReflections, -10000, 1000);
-    }
-    if((props->dwFlags&EAX30LISTENERFLAGS_REFLECTIONSDELAYSCALE))
-    {
-        props->flReflectionsDelay *= scale;
-        props->flReflectionsDelay = clampF(props->flReflectionsDelay, 0.0f, 0.3f);
-    }
-    if((props->dwFlags&EAX30LISTENERFLAGS_REVERBSCALE))
-    {
-        LONG diff = gain_to_mB(scale);
-        /* This is scaled by an extra 1/3rd if decay time isn't also scaled, to
-         * account for the (lack of) change on the send's initial decay.
-         */
-        if(!(props->dwFlags&EAX30LISTENERFLAGS_DECAYTIMESCALE))
-            diff = diff * 3 / 2;
-        props->lReverb -= diff;
-        props->lReverb = clampI(props->lReverb, -10000, 2000);
-    }
-    if((props->dwFlags&EAX30LISTENERFLAGS_REVERBDELAYSCALE))
-    {
-        props->flReverbDelay *= scale;
-        props->flReverbDelay = clampF(props->flReverbDelay, 0.0f, 0.1f);
-    }
-    if((props->dwFlags&EAX30LISTENERFLAGS_ECHOTIMESCALE))
-    {
-        props->flEchoTime *= scale;
-        props->flEchoTime = clampF(props->flEchoTime, 0.075f, 0.25f);
-    }
-    if((props->dwFlags&EAX30LISTENERFLAGS_MODTIMESCALE))
-    {
-        props->flModulationTime *= scale;
-        props->flModulationTime = clampF(props->flModulationTime, 0.04f, 4.0f);
-    }
-}
 
 
 /*******************
