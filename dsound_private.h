@@ -649,6 +649,11 @@ union PrimaryParamFlags {
         BOOL rollofffactor : 1;
         BOOL dopplerfactor : 1;
 
+        BOOL prim_slotid : 1;
+        BOOL distancefactor2 : 1;
+        BOOL air_absorbhf : 1;
+        BOOL hfreference : 1;
+
         BOOL fx_effect : 1;
         BOOL fx_vol : 1;
         BOOL fx_lock : 1;
@@ -685,12 +690,14 @@ struct DSPrimary {
 
     struct {
         DS3DLISTENER ds3d;
+        EAXCONTEXTPROPERTIES ctx;
         struct FXSlot fxslot0;
         float eax1_volume; /* Mirrored by fxslot0.fx.reverb.lRoom. */
         float eax1_dampening; /* Not used. */
     } current;
     struct {
         DS3DLISTENER ds3d;
+        EAXCONTEXTPROPERTIES ctx;
         struct FXSlot fxslot0;
         float eax1_volume;
         float eax1_dampening;

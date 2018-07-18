@@ -322,15 +322,20 @@ HRESULT DSPrimary_PreInit(DSPrimary *This, DSDevice *parent)
      */
     This->buf_size = 32768;
 
-    /* This should be unlocked for true EAX4 support. */
+    This->current.ctx.guidPrimaryFXSlotID = EAXPROPERTYID_EAX40_FXSlot0;
+    This->current.ctx.flDistanceFactor = 1.0f;
+    This->current.ctx.flAirAbsorptionHF = -5.0f;
+    This->current.ctx.flHFReference = 5000.0f;
     This->current.fxslot0.fx.reverb = EnvironmentDefaults[EAX_ENVIRONMENT_GENERIC];
     This->current.fxslot0.props.guidLoadEffect = EAX_REVERB_EFFECT;
     This->current.fxslot0.props.lVolume = 0;
+    /* This should be unlocked for true EAX4 support. */
     This->current.fxslot0.props.lLock = EAXFXSLOT_LOCKED;
     This->current.fxslot0.props.dwFlags = EAXFXSLOTFLAGS_ENVIRONMENT;
     This->current.eax1_volume = 0.5f;
     This->current.eax1_dampening = 0.5f;
 
+    This->deferred.ctx = This->current.ctx;
     This->deferred.fxslot0 = This->current.fxslot0;
     This->deferred.eax1_volume = This->current.eax1_volume;
     This->deferred.eax1_dampening = This->current.eax1_dampening;
@@ -1102,6 +1107,7 @@ static void DSPrimary_SetParams(DSPrimary *This, const DS3DLISTENER *params, LON
     /* Always copy EAX params (they're always set deferred first, then applied
      * when committing all params).
      */
+    This->current.ctx = This->deferred.ctx;
     This->current.fxslot0 = This->deferred.fxslot0;
     This->current.eax1_volume = This->deferred.eax1_volume;
     This->current.eax1_dampening = This->deferred.eax1_dampening;
@@ -1148,6 +1154,23 @@ static void DSPrimary_SetParams(DSPrimary *This, const DS3DLISTENER *params, LON
     }
     if(dirty.bit.dopplerfactor)
         alDopplerFactor(params->flDopplerFactor);
+
+    if(dirty.bit.prim_slotid) {
+        /* TODO: Search buffers for any using the primary fx slot amd update
+         * the source's aux slot target.
+         */
+    }
+    if(dirty.bit.distancefactor2) {
+        /* TODO: Find out what this affects. */
+    }
+    if(dirty.bit.air_absorbhf) {
+        /* TODO: Apply as an extra multiplier to the sources' air absorption
+         * factor.
+         */
+    }
+    if(dirty.bit.hfreference) {
+        /* NOTE: Not currently handlable in OpenAL. */
+    }
 
     if(dirty.bit.fx_effect)
         alAuxiliaryEffectSloti(This->auxslot, AL_EFFECTSLOT_EFFECT, This->effect);
