@@ -346,6 +346,8 @@ HRESULT DSPrimary_PreInit(DSPrimary *This, DSDevice *parent)
     {
         ALenum err;
 
+        This->primary_slot = This->auxslot[0];
+
         alGetError();
         alGenEffects(EAX_MAX_FXSLOTS, This->effect);
         alEffecti(This->effect[0], AL_EFFECT_TYPE, AL_EFFECT_EAXREVERB);
@@ -1158,10 +1160,19 @@ static void DSPrimary_SetParams(DSPrimary *This, const DS3DLISTENER *params, LON
     if(dirty.bit.dopplerfactor)
         alDopplerFactor(params->flDopplerFactor);
 
-    if(dirty.bit.prim_slotid) {
+    if(dirty.bit.prim_slotid)
+    {
         /* TODO: Search buffers for any using the primary fx slot amd update
          * the source's aux slot target.
          */
+        if(IsEqualGUID(&This->current.ctx.guidPrimaryFXSlotID, &EAXPROPERTYID_EAX40_FXSlot0))
+            This->primary_slot = This->auxslot[0];
+        else if(IsEqualGUID(&This->current.ctx.guidPrimaryFXSlotID, &EAXPROPERTYID_EAX40_FXSlot1))
+            This->primary_slot = This->auxslot[1];
+        else if(IsEqualGUID(&This->current.ctx.guidPrimaryFXSlotID, &EAXPROPERTYID_EAX40_FXSlot2))
+            This->primary_slot = This->auxslot[2];
+        else if(IsEqualGUID(&This->current.ctx.guidPrimaryFXSlotID, &EAXPROPERTYID_EAX40_FXSlot3))
+            This->primary_slot = This->auxslot[3];
     }
     if(dirty.bit.distancefactor2) {
         /* TODO: Find out what this affects. */

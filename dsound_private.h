@@ -687,6 +687,7 @@ struct DSPrimary {
     ALfloat filter_mBLimit;
 
     ALuint effect[EAX_MAX_FXSLOTS];
+    ALuint primary_slot;
 
     struct {
         DS3DLISTENER ds3d;
