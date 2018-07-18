@@ -645,7 +645,16 @@ struct DSBufferGroup {
 };
 
 
+enum {
+    FXSLOT_EFFECT_REVERB,
+    FXSLOT_EFFECT_CHORUS,
+
+    FXSLOT_EFFECT_NULL,
+};
+
 struct FXSlot {
+    /* See FXSLOT_EFFECT enums */
+    DWORD effect_type;
     union {
         EAXREVERBPROPERTIES reverb;
         EAXCHORUSPROPERTIES chorus;

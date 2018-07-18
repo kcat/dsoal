@@ -327,6 +327,7 @@ HRESULT DSPrimary_PreInit(DSPrimary *This, DSDevice *parent)
     This->current.ctx.flDistanceFactor = 1.0f;
     This->current.ctx.flAirAbsorptionHF = -5.0f;
     This->current.ctx.flHFReference = 5000.0f;
+    This->current.fxslot[0].effect_type = FXSLOT_EFFECT_REVERB;
     This->current.fxslot[0].fx.reverb = EnvironmentDefaults[EAX_ENVIRONMENT_GENERIC];
     This->current.fxslot[0].props.guidLoadEffect = EAX_REVERB_EFFECT;
     This->current.fxslot[0].props.lVolume = 0;
@@ -334,6 +335,14 @@ HRESULT DSPrimary_PreInit(DSPrimary *This, DSDevice *parent)
     This->current.fxslot[0].props.lLock = EAXFXSLOT_LOCKED;
     This->current.fxslot[0].props.dwFlags = EAXFXSLOTFLAGS_ENVIRONMENT;
     /* FIXME: Should fxslot[1] be chorus? Or left as a NULL effect? */
+    for(i = 1;i < EAX_MAX_FXSLOTS;++i)
+    {
+        This->current.fxslot[i].effect_type = FXSLOT_EFFECT_NULL;
+        This->current.fxslot[i].props.guidLoadEffect = EAX_NULL_GUID;
+        This->current.fxslot[i].props.lVolume = 0;
+        This->current.fxslot[i].props.lLock = EAXFXSLOT_UNLOCKED;
+        This->current.fxslot[i].props.dwFlags = EAXFXSLOTFLAGS_ENVIRONMENT;
+    }
     This->current.eax1_volume = 0.5f;
     This->current.eax1_dampening = 0.5f;
 
