@@ -350,6 +350,12 @@ static HRESULT DSShare_Create(REFIID guid, DeviceShare **out)
 
     if(HAS_EXTENSION(share, EXT_EFX))
     {
+        alcGetIntegerv(share->device, ALC_MAX_AUXILIARY_SENDS, 1, &share->num_sends);
+        checkALCError(share->device);
+        if(share->num_sends > EAX_MAX_ACTIVE_FXSLOTS)
+            share->num_sends = EAX_MAX_ACTIVE_FXSLOTS;
+        TRACE("Got %d auxiliary source send%s\n", share->num_sends, (share->num_sends==1)?"":"s");
+
         for(i = 0;i < EAX_MAX_FXSLOTS;++i)
         {
             alGenAuxiliaryEffectSlots(1, &share->auxslot[i]);

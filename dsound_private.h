@@ -499,6 +499,7 @@ typedef struct DeviceShare {
     ALCdevice *device;
     ALCcontext *ctx;
     ALCint refresh;
+    ALCint num_sends;
 
     ALboolean Exts[BITFIELD_ARRAY_SIZE(MAX_EXTENSIONS)];
 
