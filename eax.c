@@ -83,7 +83,7 @@ static void ApplyReverbParams(DSPrimary *prim, const EAXREVERBPROPERTIES *props)
 
     checkALError();
 
-    prim->dirty.bit.effect = 1;
+    prim->dirty.bit.fx_effect = 1;
 }
 
 static inline float minF(float a, float b)
@@ -346,7 +346,7 @@ HRESULT EAX3_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
                       prim->deferred.fxslot0.fx.reverb.flEnvironmentDiffusion);
             checkALError();
 
-            prim->dirty.bit.effect = 1;
+            prim->dirty.bit.fx_effect = 1;
             hr = DS_OK;
         }
         break;
@@ -362,7 +362,7 @@ HRESULT EAX3_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
                       mB_to_gain(prim->deferred.fxslot0.fx.reverb.lRoom));
             checkALError();
 
-            prim->dirty.bit.effect = 1;
+            prim->dirty.bit.fx_effect = 1;
             hr = DS_OK;
         }
         break;
@@ -377,7 +377,7 @@ HRESULT EAX3_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
                       mB_to_gain(prim->deferred.fxslot0.fx.reverb.lRoomHF));
             checkALError();
 
-            prim->dirty.bit.effect = 1;
+            prim->dirty.bit.fx_effect = 1;
             hr = DS_OK;
         }
         break;
@@ -392,7 +392,7 @@ HRESULT EAX3_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
                       mB_to_gain(prim->deferred.fxslot0.fx.reverb.lRoomLF));
             checkALError();
 
-            prim->dirty.bit.effect = 1;
+            prim->dirty.bit.fx_effect = 1;
             hr = DS_OK;
         }
         break;
@@ -408,7 +408,7 @@ HRESULT EAX3_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
                       prim->deferred.fxslot0.fx.reverb.flDecayTime);
             checkALError();
 
-            prim->dirty.bit.effect = 1;
+            prim->dirty.bit.fx_effect = 1;
             hr = DS_OK;
         }
         break;
@@ -423,7 +423,7 @@ HRESULT EAX3_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
                       prim->deferred.fxslot0.fx.reverb.flDecayHFRatio);
             checkALError();
 
-            prim->dirty.bit.effect = 1;
+            prim->dirty.bit.fx_effect = 1;
             hr = DS_OK;
         }
         break;
@@ -438,7 +438,7 @@ HRESULT EAX3_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
                       prim->deferred.fxslot0.fx.reverb.flDecayLFRatio);
             checkALError();
 
-            prim->dirty.bit.effect = 1;
+            prim->dirty.bit.fx_effect = 1;
             hr = DS_OK;
         }
         break;
@@ -454,7 +454,7 @@ HRESULT EAX3_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
                       mB_to_gain(prim->deferred.fxslot0.fx.reverb.lReflections));
             checkALError();
 
-            prim->dirty.bit.effect = 1;
+            prim->dirty.bit.fx_effect = 1;
             hr = DS_OK;
         }
         break;
@@ -469,7 +469,7 @@ HRESULT EAX3_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
                       prim->deferred.fxslot0.fx.reverb.flReflectionsDelay);
             checkALError();
 
-            prim->dirty.bit.effect = 1;
+            prim->dirty.bit.fx_effect = 1;
             hr = DS_OK;
         }
         break;
@@ -484,7 +484,7 @@ HRESULT EAX3_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
                        &prim->deferred.fxslot0.fx.reverb.vReflectionsPan.x);
             checkALError();
 
-            prim->dirty.bit.effect = 1;
+            prim->dirty.bit.fx_effect = 1;
             hr = DS_OK;
         }
         break;
@@ -500,7 +500,7 @@ HRESULT EAX3_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
                       mB_to_gain(prim->deferred.fxslot0.fx.reverb.lReverb));
             checkALError();
 
-            prim->dirty.bit.effect = 1;
+            prim->dirty.bit.fx_effect = 1;
             hr = DS_OK;
         }
         break;
@@ -515,7 +515,7 @@ HRESULT EAX3_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
                       prim->deferred.fxslot0.fx.reverb.flReverbDelay);
             checkALError();
 
-            prim->dirty.bit.effect = 1;
+            prim->dirty.bit.fx_effect = 1;
             hr = DS_OK;
         }
         break;
@@ -530,7 +530,7 @@ HRESULT EAX3_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
                        &prim->deferred.fxslot0.fx.reverb.vReverbPan.x);
             checkALError();
 
-            prim->dirty.bit.effect = 1;
+            prim->dirty.bit.fx_effect = 1;
             hr = DS_OK;
         }
         break;
@@ -546,7 +546,7 @@ HRESULT EAX3_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
                       prim->deferred.fxslot0.fx.reverb.flEchoTime);
             checkALError();
 
-            prim->dirty.bit.effect = 1;
+            prim->dirty.bit.fx_effect = 1;
             hr = DS_OK;
         }
         break;
@@ -561,7 +561,7 @@ HRESULT EAX3_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
                       prim->deferred.fxslot0.fx.reverb.flEchoDepth);
             checkALError();
 
-            prim->dirty.bit.effect = 1;
+            prim->dirty.bit.fx_effect = 1;
             hr = DS_OK;
         }
         break;
@@ -577,7 +577,7 @@ HRESULT EAX3_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
                       prim->deferred.fxslot0.fx.reverb.flModulationTime);
             checkALError();
 
-            prim->dirty.bit.effect = 1;
+            prim->dirty.bit.fx_effect = 1;
             hr = DS_OK;
         }
         break;
@@ -592,7 +592,7 @@ HRESULT EAX3_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
                       prim->deferred.fxslot0.fx.reverb.flModulationDepth);
             checkALError();
 
-            prim->dirty.bit.effect = 1;
+            prim->dirty.bit.fx_effect = 1;
             hr = DS_OK;
         }
         break;
@@ -608,7 +608,7 @@ HRESULT EAX3_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
                       mB_to_gain(prim->deferred.fxslot0.fx.reverb.flAirAbsorptionHF));
             checkALError();
 
-            prim->dirty.bit.effect = 1;
+            prim->dirty.bit.fx_effect = 1;
             hr = DS_OK;
         }
         break;
@@ -624,7 +624,7 @@ HRESULT EAX3_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
                       prim->deferred.fxslot0.fx.reverb.flHFReference);
             checkALError();
 
-            prim->dirty.bit.effect = 1;
+            prim->dirty.bit.fx_effect = 1;
             hr = DS_OK;
         }
         break;
@@ -639,7 +639,7 @@ HRESULT EAX3_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
                       prim->deferred.fxslot0.fx.reverb.flLFReference);
             checkALError();
 
-            prim->dirty.bit.effect = 1;
+            prim->dirty.bit.fx_effect = 1;
             hr = DS_OK;
         }
         break;
@@ -655,7 +655,7 @@ HRESULT EAX3_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
                       prim->deferred.fxslot0.fx.reverb.flRoomRolloffFactor);
             checkALError();
 
-            prim->dirty.bit.effect = 1;
+            prim->dirty.bit.fx_effect = 1;
             hr = DS_OK;
         }
         break;
@@ -672,7 +672,7 @@ HRESULT EAX3_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
                       AL_TRUE : AL_FALSE);
             checkALError();
 
-            prim->dirty.bit.effect = 1;
+            prim->dirty.bit.fx_effect = 1;
             hr = DS_OK;
         }
         break;
@@ -1468,7 +1468,7 @@ HRESULT EAX2_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
                       mB_to_gain(prim->deferred.fxslot0.fx.reverb.lRoom));
             checkALError();
 
-            prim->dirty.bit.effect = 1;
+            prim->dirty.bit.fx_effect = 1;
             hr = DS_OK;
         }
         break;
@@ -1483,7 +1483,7 @@ HRESULT EAX2_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
                       mB_to_gain(prim->deferred.fxslot0.fx.reverb.lRoomHF));
             checkALError();
 
-            prim->dirty.bit.effect = 1;
+            prim->dirty.bit.fx_effect = 1;
             hr = DS_OK;
         }
         break;
@@ -1499,7 +1499,7 @@ HRESULT EAX2_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
                       prim->deferred.fxslot0.fx.reverb.flRoomRolloffFactor);
             checkALError();
 
-            prim->dirty.bit.effect = 1;
+            prim->dirty.bit.fx_effect = 1;
             hr = DS_OK;
         }
         break;
@@ -1515,7 +1515,7 @@ HRESULT EAX2_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
                       prim->deferred.fxslot0.fx.reverb.flDecayTime);
             checkALError();
 
-            prim->dirty.bit.effect = 1;
+            prim->dirty.bit.fx_effect = 1;
             hr = DS_OK;
         }
         break;
@@ -1530,7 +1530,7 @@ HRESULT EAX2_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
                       prim->deferred.fxslot0.fx.reverb.flDecayHFRatio);
             checkALError();
 
-            prim->dirty.bit.effect = 1;
+            prim->dirty.bit.fx_effect = 1;
             hr = DS_OK;
         }
         break;
@@ -1546,7 +1546,7 @@ HRESULT EAX2_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
                       mB_to_gain(prim->deferred.fxslot0.fx.reverb.lReflections));
             checkALError();
 
-            prim->dirty.bit.effect = 1;
+            prim->dirty.bit.fx_effect = 1;
             hr = DS_OK;
         }
         break;
@@ -1561,7 +1561,7 @@ HRESULT EAX2_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
                       prim->deferred.fxslot0.fx.reverb.flReflectionsDelay);
             checkALError();
 
-            prim->dirty.bit.effect = 1;
+            prim->dirty.bit.fx_effect = 1;
             hr = DS_OK;
         }
         break;
@@ -1577,7 +1577,7 @@ HRESULT EAX2_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
                       mB_to_gain(prim->deferred.fxslot0.fx.reverb.lReverb));
             checkALError();
 
-            prim->dirty.bit.effect = 1;
+            prim->dirty.bit.fx_effect = 1;
             hr = DS_OK;
         }
         break;
@@ -1592,7 +1592,7 @@ HRESULT EAX2_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
                       prim->deferred.fxslot0.fx.reverb.flReverbDelay);
             checkALError();
 
-            prim->dirty.bit.effect = 1;
+            prim->dirty.bit.fx_effect = 1;
             hr = DS_OK;
         }
         break;
@@ -1634,7 +1634,7 @@ HRESULT EAX2_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
                       prim->deferred.fxslot0.fx.reverb.flEnvironmentDiffusion);
             checkALError();
 
-            prim->dirty.bit.effect = 1;
+            prim->dirty.bit.fx_effect = 1;
             hr = DS_OK;
         }
         break;
@@ -1650,7 +1650,7 @@ HRESULT EAX2_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
                       mB_to_gain(prim->deferred.fxslot0.fx.reverb.flAirAbsorptionHF));
             checkALError();
 
-            prim->dirty.bit.effect = 1;
+            prim->dirty.bit.fx_effect = 1;
             hr = DS_OK;
         }
         break;
@@ -1667,7 +1667,7 @@ HRESULT EAX2_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
                       AL_TRUE : AL_FALSE);
             checkALError();
 
-            prim->dirty.bit.effect = 1;
+            prim->dirty.bit.fx_effect = 1;
             hr = DS_OK;
         }
         break;
@@ -2248,7 +2248,7 @@ HRESULT EAX1_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
             alEffectf(prim->effect, AL_EAXREVERB_GAIN, mB_to_gain(room_vol));
             checkALError();
 
-            prim->dirty.bit.effect = 1;
+            prim->dirty.bit.fx_effect = 1;
             hr = DS_OK;
         }
         break;
@@ -2263,7 +2263,7 @@ HRESULT EAX1_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
                       prim->deferred.fxslot0.fx.reverb.flDecayTime);
             checkALError();
 
-            prim->dirty.bit.effect = 1;
+            prim->dirty.bit.fx_effect = 1;
             hr = DS_OK;
         }
         break;

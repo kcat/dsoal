@@ -211,6 +211,7 @@ LPALEFFECTFV palEffectfv = NULL;
 LPALGENAUXILIARYEFFECTSLOTS palGenAuxiliaryEffectSlots = NULL;
 LPALDELETEAUXILIARYEFFECTSLOTS palDeleteAuxiliaryEffectSlots = NULL;
 LPALAUXILIARYEFFECTSLOTI palAuxiliaryEffectSloti = NULL;
+LPALAUXILIARYEFFECTSLOTF palAuxiliaryEffectSlotf = NULL;
 LPALDEFERUPDATESSOFT palDeferUpdatesSOFT = NULL;
 LPALPROCESSUPDATESSOFT palProcessUpdatesSOFT = NULL;
 LPALBUFFERSTORAGESOFT palBufferStorageSOFT = NULL;
@@ -381,6 +382,7 @@ static BOOL load_libopenal(void)
     LOAD_FUNCPTR(alGenAuxiliaryEffectSlots);
     LOAD_FUNCPTR(alDeleteAuxiliaryEffectSlots);
     LOAD_FUNCPTR(alAuxiliaryEffectSloti);
+    LOAD_FUNCPTR(alAuxiliaryEffectSlotf);
     LOAD_FUNCPTR(alDeferUpdatesSOFT);
     LOAD_FUNCPTR(alProcessUpdatesSOFT);
     LOAD_FUNCPTR(alBufferStorageSOFT);

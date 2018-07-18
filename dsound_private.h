@@ -410,6 +410,7 @@ extern LPALEFFECTFV palEffectfv;
 extern LPALGENAUXILIARYEFFECTSLOTS palGenAuxiliaryEffectSlots;
 extern LPALDELETEAUXILIARYEFFECTSLOTS palDeleteAuxiliaryEffectSlots;
 extern LPALAUXILIARYEFFECTSLOTI palAuxiliaryEffectSloti;
+extern LPALAUXILIARYEFFECTSLOTF palAuxiliaryEffectSlotf;
 extern LPALDEFERUPDATESSOFT palDeferUpdatesSOFT;
 extern LPALPROCESSUPDATESSOFT palProcessUpdatesSOFT;
 extern LPALBUFFERSTORAGESOFT palBufferStorageSOFT;
@@ -429,6 +430,7 @@ extern LPALFLUSHMAPPEDBUFFERSOFT palFlushMappedBufferSOFT;
 #define alGenAuxiliaryEffectSlots palGenAuxiliaryEffectSlots
 #define alDeleteAuxiliaryEffectSlots palDeleteAuxiliaryEffectSlots
 #define alAuxiliaryEffectSloti palAuxiliaryEffectSloti
+#define alAuxiliaryEffectSlotf palAuxiliaryEffectSlotf
 #define alDeferUpdatesSOFT palDeferUpdatesSOFT
 #define alProcessUpdatesSOFT palProcessUpdatesSOFT
 #define alBufferStorageSOFT palBufferStorageSOFT
@@ -646,7 +648,11 @@ union PrimaryParamFlags {
         BOOL distancefactor : 1;
         BOOL rollofffactor : 1;
         BOOL dopplerfactor : 1;
-        BOOL effect : 1;
+
+        BOOL fx_effect : 1;
+        BOOL fx_vol : 1;
+        BOOL fx_lock : 1;
+        BOOL fx_flags : 1;
     } bit;
 };
 

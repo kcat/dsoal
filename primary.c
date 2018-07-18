@@ -1148,8 +1148,21 @@ static void DSPrimary_SetParams(DSPrimary *This, const DS3DLISTENER *params, LON
     }
     if(dirty.bit.dopplerfactor)
         alDopplerFactor(params->flDopplerFactor);
-    if(dirty.bit.effect)
+
+    if(dirty.bit.fx_effect)
         alAuxiliaryEffectSloti(This->auxslot, AL_EFFECTSLOT_EFFECT, This->effect);
+    if(dirty.bit.fx_vol)
+        alAuxiliaryEffectSlotf(This->auxslot, AL_EFFECTSLOT_GAIN,
+                               mB_to_gain(This->current.fxslot0.props.lVolume));
+    /* EAXFXSLOT_LOCK has no OpenAL equivalent. It just prevents the effect
+     * type from being changed when updating effect slot properties, causing an
+     * error instead.
+     */
+    if(dirty.bit.fx_flags)
+        alAuxiliaryEffectSloti(This->auxslot, AL_EFFECTSLOT_AUXILIARY_SEND_AUTO,
+            (This->current.fxslot0.props.dwFlags&EAXFXSLOTFLAGS_ENVIRONMENT) ?
+            AL_TRUE : AL_FALSE
+        );
 }
 
 static HRESULT WINAPI DSPrimary3D_QueryInterface(IDirectSound3DListener *iface, REFIID riid, void **ppv)
