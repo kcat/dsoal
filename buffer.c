@@ -776,7 +776,10 @@ static HRESULT DSBuffer_SetLoc(DSBuffer *buf, DWORD loc_status)
             alSource3i(source, AL_AUXILIARY_SEND_FILTER, prim->auxslot, 0, buf->filter[1]);
             alSourcef(source, AL_ROOM_ROLLOFF_FACTOR, eax_params->flRoomRolloffFactor);
             alSourcef(source, AL_CONE_OUTER_GAINHF, mB_to_gain(eax_params->lOutsideVolumeHF));
-            alSourcef(source, AL_AIR_ABSORPTION_FACTOR, eax_params->flAirAbsorptionFactor);
+            alSourcef(source, AL_AIR_ABSORPTION_FACTOR,
+                clampF(prim->current.ctx.flAirAbsorptionHF / -5.0f *
+                       eax_params->flAirAbsorptionFactor, 0.0f, 10.0f)
+            );
             alSourcei(source, AL_DIRECT_FILTER_GAINHF_AUTO,
                       (eax_params->dwFlags&EAX30BUFFERFLAGS_DIRECTHFAUTO) ? AL_TRUE : AL_FALSE);
             alSourcei(source, AL_AUXILIARY_SEND_FILTER_GAIN_AUTO,
@@ -1975,7 +1978,8 @@ void DSBuffer_SetParams(DSBuffer *This, const DS3DBUFFER *params, LONG flags)
     if(dirty.bit.cone_outsidevolumehf)
         alSourcef(source, AL_CONE_OUTER_GAINHF, mB_to_gain(This->current.eax.lOutsideVolumeHF));
     if(dirty.bit.air_absorb)
-        alSourcef(source, AL_AIR_ABSORPTION_FACTOR, This->current.eax.flAirAbsorptionFactor);
+        alSourcef(source, AL_AIR_ABSORPTION_FACTOR, This->current.eax.flAirAbsorptionFactor *
+                  prim->current.ctx.flAirAbsorptionHF / -5.0f);
     if(dirty.bit.flags)
     {
         alSourcei(source, AL_DIRECT_FILTER_GAINHF_AUTO,

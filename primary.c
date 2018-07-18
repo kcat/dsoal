@@ -1163,10 +1163,27 @@ static void DSPrimary_SetParams(DSPrimary *This, const DS3DLISTENER *params, LON
     if(dirty.bit.distancefactor2) {
         /* TODO: Find out what this affects. */
     }
-    if(dirty.bit.air_absorbhf) {
-        /* TODO: Apply as an extra multiplier to the sources' air absorption
-         * factor.
-         */
+    if(dirty.bit.air_absorbhf)
+    {
+        struct DSBufferGroup *bufgroup = This->BufferGroups;
+        ALfloat mult = This->current.ctx.flAirAbsorptionHF / -5.0f;
+
+        for(i = 0;i < This->NumBufferGroups;++i)
+        {
+            DWORD64 usemask = ~bufgroup[i].FreeBuffers;
+            while(usemask)
+            {
+                int idx = CTZ64(usemask);
+                DSBuffer *buf = bufgroup[i].Buffers + idx;
+                DSData *data = buf->buffer;
+                usemask &= ~(U64(1) << idx);
+
+                if(buf->source && (data->dsbflags&DSBCAPS_CTRL3D))
+                    alSourcef(buf->source, AL_AIR_ABSORPTION_FACTOR,
+                        clampF(buf->current.eax.flAirAbsorptionFactor*mult, 0.0f, 10.0f)
+                    );
+            }
+        }
     }
     if(dirty.bit.hfreference) {
         /* NOTE: Not currently handlable in OpenAL. */
