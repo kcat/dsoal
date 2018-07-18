@@ -723,6 +723,7 @@ struct DSPrimary {
 
     ALuint effect[EAX_MAX_FXSLOTS];
     ALuint primary_slot;
+    LONG eax_error;
 
     struct {
         DS3DLISTENER ds3d;

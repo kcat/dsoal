@@ -323,6 +323,7 @@ HRESULT DSPrimary_PreInit(DSPrimary *This, DSDevice *parent)
      */
     This->buf_size = 32768;
 
+    This->eax_error = EAX_OK;
     This->current.ctx.guidPrimaryFXSlotID = EAXPROPERTYID_EAX40_FXSlot0;
     This->current.ctx.flDistanceFactor = 1.0f;
     This->current.ctx.flAirAbsorptionHF = -5.0f;
