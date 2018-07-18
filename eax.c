@@ -266,6 +266,12 @@ HRESULT EAX3_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
 
     if(prim->effect[0] == 0)
         return E_PROP_ID_UNSUPPORTED;
+    /* Should this be using slot 0 or the primary slot? */
+    if(prim->deferred.fxslot[0].effect_type != FXSLOT_EFFECT_REVERB)
+    {
+        ERR("Trying to set reverb parameters on non-reverb slot\n");
+        return DSERR_INVALIDCALL;
+    }
 
     hr = DSERR_INVALIDPARAM;
     switch(propid)
@@ -693,6 +699,11 @@ HRESULT EAX3_Get(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
 
     if(prim->effect[0] == 0)
         return E_PROP_ID_UNSUPPORTED;
+    if(prim->deferred.fxslot[0].effect_type != FXSLOT_EFFECT_REVERB)
+    {
+        ERR("Trying to get reverb parameters on non-reverb slot\n");
+        return DSERR_INVALIDCALL;
+    }
 
 #define GET_PROP(src, T) do {                              \
     if(cbPropData >= sizeof(T))                            \
@@ -1406,6 +1417,11 @@ HRESULT EAX2_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
 
     if(prim->effect[0] == 0)
         return E_PROP_ID_UNSUPPORTED;
+    if(prim->deferred.fxslot[0].effect_type != FXSLOT_EFFECT_REVERB)
+    {
+        ERR("Trying to set reverb parameters on non-reverb slot\n");
+        return DSERR_INVALIDCALL;
+    }
 
     hr = DSERR_INVALIDPARAM;
     switch(propid)
@@ -1693,6 +1709,11 @@ HRESULT EAX2_Get(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
 
     if(prim->effect[0] == 0)
         return E_PROP_ID_UNSUPPORTED;
+    if(prim->deferred.fxslot[0].effect_type != FXSLOT_EFFECT_REVERB)
+    {
+        ERR("Trying to get reverb parameters on non-reverb slot\n");
+        return DSERR_INVALIDCALL;
+    }
 
 #define GET_PROP(src, T) do {                              \
     if(cbPropData >= sizeof(T))                            \
@@ -2170,6 +2191,11 @@ HRESULT EAX1_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
 
     if(prim->effect[0] == 0)
         return E_PROP_ID_UNSUPPORTED;
+    if(prim->deferred.fxslot[0].effect_type != FXSLOT_EFFECT_REVERB)
+    {
+        ERR("Trying to set reverb parameters on non-reverb slot\n");
+        return DSERR_INVALIDCALL;
+    }
 
     hr = DSERR_INVALIDPARAM;
     switch(propid)
@@ -2304,6 +2330,11 @@ HRESULT EAX1_Get(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
 
     if(prim->effect[0] == 0)
         return E_PROP_ID_UNSUPPORTED;
+    if(prim->deferred.fxslot[0].effect_type != FXSLOT_EFFECT_REVERB)
+    {
+        ERR("Trying to get reverb parameters on non-reverb slot\n");
+        return DSERR_INVALIDCALL;
+    }
 
     hr = DSERR_INVALIDPARAM;
     switch(propid)
