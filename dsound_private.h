@@ -692,14 +692,14 @@ struct DSPrimary {
     struct {
         DS3DLISTENER ds3d;
         EAXCONTEXTPROPERTIES ctx;
-        struct FXSlot fxslot0;
-        float eax1_volume; /* Mirrored by fxslot0.fx.reverb.lRoom. */
+        struct FXSlot fxslot[EAX_MAX_FXSLOTS];
+        float eax1_volume; /* Mirrored by fxslot[0].fx.reverb.lRoom. */
         float eax1_dampening; /* Not used. */
     } current;
     struct {
         DS3DLISTENER ds3d;
         EAXCONTEXTPROPERTIES ctx;
-        struct FXSlot fxslot0;
+        struct FXSlot fxslot[EAX_MAX_FXSLOTS];
         float eax1_volume;
         float eax1_dampening;
     } deferred;

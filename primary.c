@@ -327,17 +327,19 @@ HRESULT DSPrimary_PreInit(DSPrimary *This, DSDevice *parent)
     This->current.ctx.flDistanceFactor = 1.0f;
     This->current.ctx.flAirAbsorptionHF = -5.0f;
     This->current.ctx.flHFReference = 5000.0f;
-    This->current.fxslot0.fx.reverb = EnvironmentDefaults[EAX_ENVIRONMENT_GENERIC];
-    This->current.fxslot0.props.guidLoadEffect = EAX_REVERB_EFFECT;
-    This->current.fxslot0.props.lVolume = 0;
+    This->current.fxslot[0].fx.reverb = EnvironmentDefaults[EAX_ENVIRONMENT_GENERIC];
+    This->current.fxslot[0].props.guidLoadEffect = EAX_REVERB_EFFECT;
+    This->current.fxslot[0].props.lVolume = 0;
     /* This should be unlocked for true EAX4 support. */
-    This->current.fxslot0.props.lLock = EAXFXSLOT_LOCKED;
-    This->current.fxslot0.props.dwFlags = EAXFXSLOTFLAGS_ENVIRONMENT;
+    This->current.fxslot[0].props.lLock = EAXFXSLOT_LOCKED;
+    This->current.fxslot[0].props.dwFlags = EAXFXSLOTFLAGS_ENVIRONMENT;
+    /* FIXME: Should fxslot[1] be chorus? Or left as a NULL effect? */
     This->current.eax1_volume = 0.5f;
     This->current.eax1_dampening = 0.5f;
 
     This->deferred.ctx = This->current.ctx;
-    This->deferred.fxslot0 = This->current.fxslot0;
+    for(i = 0;i < EAX_MAX_FXSLOTS;++i)
+        This->deferred.fxslot[i] = This->current.fxslot[i];
     This->deferred.eax1_volume = This->current.eax1_volume;
     This->deferred.eax1_dampening = This->current.eax1_dampening;
 
@@ -350,11 +352,18 @@ HRESULT DSPrimary_PreInit(DSPrimary *This, DSDevice *parent)
 
         alGetError();
         alGenEffects(EAX_MAX_FXSLOTS, This->effect);
-        alEffecti(This->effect[0], AL_EFFECT_TYPE, AL_EFFECT_EAXREVERB);
-        if((err=alGetError()) != AL_NO_ERROR)
+        if((err=alGetError()) == AL_NO_ERROR)
         {
-            ERR("Failed to set effect type: %s (0x%04x)\n", alGetString(err), err);
-            alDeleteEffects(EAX_MAX_FXSLOTS, This->effect);
+            alEffecti(This->effect[0], AL_EFFECT_TYPE, AL_EFFECT_EAXREVERB);
+            if((err=alGetError()) != AL_NO_ERROR)
+            {
+                alDeleteEffects(EAX_MAX_FXSLOTS, This->effect);
+                checkALError();
+            }
+        }
+        if(err != AL_NO_ERROR)
+        {
+            ERR("Failed to setup effects: %s (0x%04x)\n", alGetString(err), err);
             This->effect[0] = This->effect[1] =
             This->effect[2] = This->effect[3] = 0;
         }
@@ -1113,7 +1122,8 @@ static void DSPrimary_SetParams(DSPrimary *This, const DS3DLISTENER *params, LON
      * when committing all params).
      */
     This->current.ctx = This->deferred.ctx;
-    This->current.fxslot0 = This->deferred.fxslot0;
+    for(i = 0;i < EAX_MAX_FXSLOTS;++i)
+        This->current.fxslot[i] = This->deferred.fxslot[i];
     This->current.eax1_volume = This->deferred.eax1_volume;
     This->current.eax1_dampening = This->deferred.eax1_dampening;
 
@@ -1207,14 +1217,14 @@ static void DSPrimary_SetParams(DSPrimary *This, const DS3DLISTENER *params, LON
         alAuxiliaryEffectSloti(This->auxslot[0], AL_EFFECTSLOT_EFFECT, This->effect[0]);
     if(dirty.bit.fx_vol)
         alAuxiliaryEffectSlotf(This->auxslot[0], AL_EFFECTSLOT_GAIN,
-                               mB_to_gain(This->current.fxslot0.props.lVolume));
+                               mB_to_gain(This->current.fxslot[0].props.lVolume));
     /* EAXFXSLOT_LOCK has no OpenAL equivalent. It just prevents the effect
      * type from being changed when updating effect slot properties, causing an
      * error instead.
      */
     if(dirty.bit.fx_flags)
         alAuxiliaryEffectSloti(This->auxslot[0], AL_EFFECTSLOT_AUXILIARY_SEND_AUTO,
-            (This->current.fxslot0.props.dwFlags&EAXFXSLOTFLAGS_ENVIRONMENT) ?
+            (This->current.fxslot[0].props.dwFlags&EAXFXSLOTFLAGS_ENVIRONMENT) ?
             AL_TRUE : AL_FALSE
         );
 }
