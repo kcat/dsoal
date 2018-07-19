@@ -142,7 +142,6 @@ HRESULT EAXReverb_Set(DSPrimary *prim, LONG idx, DWORD propid, void *pPropData, 
     case EAXREVERB_NONE: /* not setting any property, just applying */
         return DS_OK;
 
-    /* TODO: Validate slot effect type. */
     case EAXREVERB_ALLPARAMETERS:
         if(cbPropData >= sizeof(EAXREVERBPROPERTIES))
         {
