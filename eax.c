@@ -152,9 +152,9 @@ HRESULT EAX3_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
 {
     HRESULT hr;
 
+    /* Should this be using slot 0 or the primary slot? */
     if(prim->effect[0] == 0)
         return E_PROP_ID_UNSUPPORTED;
-    /* Should this be using slot 0 or the primary slot? */
     if(prim->deferred.fxslot[0].effect_type != FXSLOT_EFFECT_REVERB)
     {
         ERR("Trying to set reverb parameters on non-reverb slot\n");
@@ -165,412 +165,45 @@ HRESULT EAX3_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
     switch(propid)
     {
     case DSPROPERTY_EAX30LISTENER_NONE: /* not setting any property, just applying */
-        hr = DS_OK;
-        break;
+        return DS_OK;
 
-    /* TODO: Validate slot effect type. */
     case DSPROPERTY_EAX30LISTENER_ALLPARAMETERS:
         if(cbPropData >= sizeof(EAX30LISTENERPROPERTIES))
         {
-            union {
-                const void *v;
-                const EAX30LISTENERPROPERTIES *props;
-            } data = { pPropData };
-            TRACE("Parameters:\n\tEnvironment: %lu\n\tEnvSize: %f\n\tEnvDiffusion: %f\n\t"
-                "Room: %ld\n\tRoom HF: %ld\n\tRoom LF: %ld\n\tDecay Time: %f\n\t"
-                "Decay HF Ratio: %f\n\tDecay LF Ratio: %f\n\tReflections: %ld\n\t"
-                "Reflections Delay: %f\n\tReflections Pan: { %f, %f, %f }\n\tReverb: %ld\n\t"
-                "Reverb Delay: %f\n\tReverb Pan: { %f, %f, %f }\n\tEcho Time: %f\n\t"
-                "Echo Depth: %f\n\tMod Time: %f\n\tMod Depth: %f\n\tAir Absorption: %f\n\t"
-                "HF Reference: %f\n\tLF Reference: %f\n\tRoom Rolloff: %f\n\tFlags: 0x%02lx\n",
-                data.props->dwEnvironment, data.props->flEnvironmentSize,
-                data.props->flEnvironmentDiffusion, data.props->lRoom, data.props->lRoomHF,
-                data.props->lRoomLF, data.props->flDecayTime, data.props->flDecayHFRatio,
-                data.props->flDecayLFRatio, data.props->lReflections,
-                data.props->flReflectionsDelay, data.props->vReflectionsPan.x,
-                data.props->vReflectionsPan.y, data.props->vReflectionsPan.z, data.props->lReverb,
-                data.props->flReverbDelay, data.props->vReverbPan.x, data.props->vReverbPan.y,
-                data.props->vReverbPan.z, data.props->flEchoTime, data.props->flEchoDepth,
-                data.props->flModulationTime, data.props->flModulationDepth,
-                data.props->flAirAbsorptionHF, data.props->flHFReference,
-                data.props->flLFReference, data.props->flRoomRolloffFactor, data.props->dwFlags
-            );
-
-            ApplyReverbParams(prim->effect[0], data.props);
-            FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
-            hr = DS_OK;
+            /* Ensure compatible types (should generate a warning if not). */
+            union { void *v; EAX30LISTENERPROPERTIES *props; } data = { pPropData };
+            EAXREVERBPROPERTIES *revprops = data.props;
+            return EAXReverb_Set(prim, 0, EAXREVERB_ALLPARAMETERS, revprops, cbPropData);
         }
         break;
 
-    case DSPROPERTY_EAX30LISTENER_ENVIRONMENT:
-        if(cbPropData >= sizeof(DWORD))
-        {
-            union { const void *v; const DWORD *dw; } data = { pPropData };
-            TRACE("Environment: %lu\n", *data.dw);
-            if(*data.dw < EAX_ENVIRONMENT_UNDEFINED)
-            {
-                prim->deferred.fxslot[0].fx.reverb = EnvironmentDefaults[*data.dw];
-                ApplyReverbParams(prim->effect[0], &EnvironmentDefaults[*data.dw]);
-                FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
-                hr = DS_OK;
-            }
-        }
-        break;
-
-    case DSPROPERTY_EAX30LISTENER_ENVIRONMENTSIZE:
-        if(cbPropData >= sizeof(float))
-        {
-            union { const void *v; const float *fl; } data = { pPropData };
-            TRACE("Environment Size: %f\n", *data.fl);
-
-            RescaleEnvSize(&prim->deferred.fxslot[0].fx.reverb, clampF(*data.fl, 1.0f, 100.0f));
-            ApplyReverbParams(prim->effect[0], &prim->deferred.fxslot[0].fx.reverb);
-
-            FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
-            hr = DS_OK;
-        }
-        break;
-    case DSPROPERTY_EAX30LISTENER_ENVIRONMENTDIFFUSION:
-        if(cbPropData >= sizeof(float))
-        {
-            union { const void *v; const float *fl; } data = { pPropData };
-            TRACE("Environment Diffusion: %f\n", *data.fl);
-
-            prim->deferred.fxslot[0].fx.reverb.flEnvironmentDiffusion = *data.fl;
-            alEffectf(prim->effect[0], AL_EAXREVERB_DIFFUSION,
-                      prim->deferred.fxslot[0].fx.reverb.flEnvironmentDiffusion);
-            checkALError();
-
-            FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
-            hr = DS_OK;
-        }
-        break;
-
-    case DSPROPERTY_EAX30LISTENER_ROOM:
-        if(cbPropData >= sizeof(long))
-        {
-            union { const void *v; const long *l; } data = { pPropData };
-            TRACE("Room: %ld\n", *data.l);
-
-            prim->deferred.fxslot[0].fx.reverb.lRoom = *data.l;
-            alEffectf(prim->effect[0], AL_EAXREVERB_GAIN,
-                      mB_to_gain(prim->deferred.fxslot[0].fx.reverb.lRoom));
-            checkALError();
-
-            FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
-            hr = DS_OK;
-        }
-        break;
-    case DSPROPERTY_EAX30LISTENER_ROOMHF:
-        if(cbPropData >= sizeof(long))
-        {
-            union { const void *v; const long *l; } data = { pPropData };
-            TRACE("Room HF: %ld\n", *data.l);
-
-            prim->deferred.fxslot[0].fx.reverb.lRoomHF = *data.l;
-            alEffectf(prim->effect[0], AL_EAXREVERB_GAINHF,
-                      mB_to_gain(prim->deferred.fxslot[0].fx.reverb.lRoomHF));
-            checkALError();
-
-            FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
-            hr = DS_OK;
-        }
-        break;
-    case DSPROPERTY_EAX30LISTENER_ROOMLF:
-        if(cbPropData >= sizeof(long))
-        {
-            union { const void *v; const long *l; } data = { pPropData };
-            TRACE("Room LF: %ld\n", *data.l);
-
-            prim->deferred.fxslot[0].fx.reverb.lRoomLF = *data.l;
-            alEffectf(prim->effect[0], AL_EAXREVERB_GAINLF,
-                      mB_to_gain(prim->deferred.fxslot[0].fx.reverb.lRoomLF));
-            checkALError();
-
-            FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
-            hr = DS_OK;
-        }
-        break;
-
-    case DSPROPERTY_EAX30LISTENER_DECAYTIME:
-        if(cbPropData >= sizeof(float))
-        {
-            union { const void *v; const float *fl; } data = { pPropData };
-            TRACE("Decay Time: %f\n", *data.fl);
-
-            prim->deferred.fxslot[0].fx.reverb.flDecayTime = *data.fl;
-            alEffectf(prim->effect[0], AL_EAXREVERB_DECAY_TIME,
-                      prim->deferred.fxslot[0].fx.reverb.flDecayTime);
-            checkALError();
-
-            FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
-            hr = DS_OK;
-        }
-        break;
-    case DSPROPERTY_EAX30LISTENER_DECAYHFRATIO:
-        if(cbPropData >= sizeof(float))
-        {
-            union { const void *v; const float *fl; } data = { pPropData };
-            TRACE("Decay HF Ratio: %f\n", *data.fl);
-
-            prim->deferred.fxslot[0].fx.reverb.flDecayHFRatio = *data.fl;
-            alEffectf(prim->effect[0], AL_EAXREVERB_DECAY_HFRATIO,
-                      prim->deferred.fxslot[0].fx.reverb.flDecayHFRatio);
-            checkALError();
-
-            FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
-            hr = DS_OK;
-        }
-        break;
-    case DSPROPERTY_EAX30LISTENER_DECAYLFRATIO:
-        if(cbPropData >= sizeof(float))
-        {
-            union { const void *v; const float *fl; } data = { pPropData };
-            TRACE("Decay LF Ratio: %f\n", *data.fl);
-
-            prim->deferred.fxslot[0].fx.reverb.flDecayLFRatio = *data.fl;
-            alEffectf(prim->effect[0], AL_EAXREVERB_DECAY_LFRATIO,
-                      prim->deferred.fxslot[0].fx.reverb.flDecayLFRatio);
-            checkALError();
-
-            FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
-            hr = DS_OK;
-        }
-        break;
-
-    case DSPROPERTY_EAX30LISTENER_REFLECTIONS:
-        if(cbPropData >= sizeof(long))
-        {
-            union { const void *v; const long *l; } data = { pPropData };
-            TRACE("Reflections: %ld\n", *data.l);
-
-            prim->deferred.fxslot[0].fx.reverb.lReflections = *data.l;
-            alEffectf(prim->effect[0], AL_EAXREVERB_REFLECTIONS_GAIN,
-                      mB_to_gain(prim->deferred.fxslot[0].fx.reverb.lReflections));
-            checkALError();
-
-            FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
-            hr = DS_OK;
-        }
-        break;
-    case DSPROPERTY_EAX30LISTENER_REFLECTIONSDELAY:
-        if(cbPropData >= sizeof(float))
-        {
-            union { const void *v; const float *fl; } data = { pPropData };
-            TRACE("Reflections Delay: %f\n", *data.fl);
-
-            prim->deferred.fxslot[0].fx.reverb.flReflectionsDelay = *data.fl;
-            alEffectf(prim->effect[0], AL_EAXREVERB_REFLECTIONS_DELAY,
-                      prim->deferred.fxslot[0].fx.reverb.flReflectionsDelay);
-            checkALError();
-
-            FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
-            hr = DS_OK;
-        }
-        break;
-    case DSPROPERTY_EAX30LISTENER_REFLECTIONSPAN:
-        if(cbPropData >= sizeof(EAXVECTOR))
-        {
-            union { const void *v; const EAXVECTOR *vec; } data = { pPropData };
-            TRACE("Reflections Pan: { %f, %f, %f }\n", data.vec->x, data.vec->y, data.vec->z);
-
-            prim->deferred.fxslot[0].fx.reverb.vReflectionsPan = *data.vec;
-            alEffectfv(prim->effect[0], AL_EAXREVERB_REFLECTIONS_PAN,
-                       &prim->deferred.fxslot[0].fx.reverb.vReflectionsPan.x);
-            checkALError();
-
-            FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
-            hr = DS_OK;
-        }
-        break;
-
-    case DSPROPERTY_EAX30LISTENER_REVERB:
-        if(cbPropData >= sizeof(long))
-        {
-            union { const void *v; const long *l; } data = { pPropData };
-            TRACE("Reverb: %ld\n", *data.l);
-
-            prim->deferred.fxslot[0].fx.reverb.lReverb = *data.l;
-            alEffectf(prim->effect[0], AL_EAXREVERB_LATE_REVERB_GAIN,
-                      mB_to_gain(prim->deferred.fxslot[0].fx.reverb.lReverb));
-            checkALError();
-
-            FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
-            hr = DS_OK;
-        }
-        break;
-    case DSPROPERTY_EAX30LISTENER_REVERBDELAY:
-        if(cbPropData >= sizeof(float))
-        {
-            union { const void *v; const float *fl; } data = { pPropData };
-            TRACE("Reverb Delay: %f\n", *data.fl);
-
-            prim->deferred.fxslot[0].fx.reverb.flReverbDelay = *data.fl;
-            alEffectf(prim->effect[0], AL_EAXREVERB_LATE_REVERB_DELAY,
-                      prim->deferred.fxslot[0].fx.reverb.flReverbDelay);
-            checkALError();
-
-            FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
-            hr = DS_OK;
-        }
-        break;
-    case DSPROPERTY_EAX30LISTENER_REVERBPAN:
-        if(cbPropData >= sizeof(EAXVECTOR))
-        {
-            union { const void *v; const EAXVECTOR *vec; } data = { pPropData };
-            TRACE("Reverb Pan: { %f, %f, %f }\n", data.vec->x, data.vec->y, data.vec->z);
-
-            prim->deferred.fxslot[0].fx.reverb.vReverbPan = *data.vec;
-            alEffectfv(prim->effect[0], AL_EAXREVERB_LATE_REVERB_PAN,
-                       &prim->deferred.fxslot[0].fx.reverb.vReverbPan.x);
-            checkALError();
-
-            FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
-            hr = DS_OK;
-        }
-        break;
-
-    case DSPROPERTY_EAX30LISTENER_ECHOTIME:
-        if(cbPropData >= sizeof(float))
-        {
-            union { const void *v; const float *fl; } data = { pPropData };
-            TRACE("Echo Time: %f\n", *data.fl);
-
-            prim->deferred.fxslot[0].fx.reverb.flEchoTime = *data.fl;
-            alEffectf(prim->effect[0], AL_EAXREVERB_ECHO_TIME,
-                      prim->deferred.fxslot[0].fx.reverb.flEchoTime);
-            checkALError();
-
-            FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
-            hr = DS_OK;
-        }
-        break;
-    case DSPROPERTY_EAX30LISTENER_ECHODEPTH:
-        if(cbPropData >= sizeof(float))
-        {
-            union { const void *v; const float *fl; } data = { pPropData };
-            TRACE("Echo Depth: %f\n", *data.fl);
-
-            prim->deferred.fxslot[0].fx.reverb.flEchoDepth = *data.fl;
-            alEffectf(prim->effect[0], AL_EAXREVERB_ECHO_DEPTH,
-                      prim->deferred.fxslot[0].fx.reverb.flEchoDepth);
-            checkALError();
-
-            FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
-            hr = DS_OK;
-        }
-        break;
-
-    case DSPROPERTY_EAX30LISTENER_MODULATIONTIME:
-        if(cbPropData >= sizeof(float))
-        {
-            union { const void *v; const float *fl; } data = { pPropData };
-            TRACE("Modulation Time: %f\n", *data.fl);
-
-            prim->deferred.fxslot[0].fx.reverb.flModulationTime = *data.fl;
-            alEffectf(prim->effect[0], AL_EAXREVERB_MODULATION_TIME,
-                      prim->deferred.fxslot[0].fx.reverb.flModulationTime);
-            checkALError();
-
-            FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
-            hr = DS_OK;
-        }
-        break;
-    case DSPROPERTY_EAX30LISTENER_MODULATIONDEPTH:
-        if(cbPropData >= sizeof(float))
-        {
-            union { const void *v; const float *fl; } data = { pPropData };
-            TRACE("Modulation Depth: %f\n", *data.fl);
-
-            prim->deferred.fxslot[0].fx.reverb.flModulationDepth = *data.fl;
-            alEffectf(prim->effect[0], AL_EAXREVERB_MODULATION_DEPTH,
-                      prim->deferred.fxslot[0].fx.reverb.flModulationDepth);
-            checkALError();
-
-            FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
-            hr = DS_OK;
-        }
-        break;
-
-    case DSPROPERTY_EAX30LISTENER_AIRABSORPTIONHF:
-        if(cbPropData >= sizeof(float))
-        {
-            union { const void *v; const float *fl; } data = { pPropData };
-            TRACE("Air Absorption HF: %f\n", *data.fl);
-
-            prim->deferred.fxslot[0].fx.reverb.flAirAbsorptionHF = *data.fl;
-            alEffectf(prim->effect[0], AL_EAXREVERB_AIR_ABSORPTION_GAINHF,
-                      mB_to_gain(prim->deferred.fxslot[0].fx.reverb.flAirAbsorptionHF));
-            checkALError();
-
-            FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
-            hr = DS_OK;
-        }
-        break;
-
-    case DSPROPERTY_EAX30LISTENER_HFREFERENCE:
-        if(cbPropData >= sizeof(float))
-        {
-            union { const void *v; const float *fl; } data = { pPropData };
-            TRACE("HF Reference: %f\n", *data.fl);
-
-            prim->deferred.fxslot[0].fx.reverb.flHFReference = *data.fl;
-            alEffectf(prim->effect[0], AL_EAXREVERB_HFREFERENCE,
-                      prim->deferred.fxslot[0].fx.reverb.flHFReference);
-            checkALError();
-
-            FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
-            hr = DS_OK;
-        }
-        break;
-    case DSPROPERTY_EAX30LISTENER_LFREFERENCE:
-        if(cbPropData >= sizeof(float))
-        {
-            union { const void *v; const float *fl; } data = { pPropData };
-            TRACE("LF Reference: %f\n", *data.fl);
-
-            prim->deferred.fxslot[0].fx.reverb.flLFReference = *data.fl;
-            alEffectf(prim->effect[0], AL_EAXREVERB_LFREFERENCE,
-                      prim->deferred.fxslot[0].fx.reverb.flLFReference);
-            checkALError();
-
-            FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
-            hr = DS_OK;
-        }
-        break;
-
-    case DSPROPERTY_EAX30LISTENER_ROOMROLLOFFFACTOR:
-        if(cbPropData >= sizeof(float))
-        {
-            union { const void *v; const float *fl; } data = { pPropData };
-            TRACE("Room Rolloff Factor: %f\n", *data.fl);
-
-            prim->deferred.fxslot[0].fx.reverb.flRoomRolloffFactor = *data.fl;
-            alEffectf(prim->effect[0], AL_EAXREVERB_ROOM_ROLLOFF_FACTOR,
-                      prim->deferred.fxslot[0].fx.reverb.flRoomRolloffFactor);
-            checkALError();
-
-            FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
-            hr = DS_OK;
-        }
-        break;
-
-    case DSPROPERTY_EAX30LISTENER_FLAGS:
-        if(cbPropData >= sizeof(DWORD))
-        {
-            union { const void *v; const DWORD *dw; } data = { pPropData };
-            TRACE("Flags: %lu\n", *data.dw);
-
-            prim->deferred.fxslot[0].fx.reverb.dwFlags = *data.dw;
-            alEffecti(prim->effect[0], AL_EAXREVERB_DECAY_HFLIMIT,
-                      (prim->deferred.fxslot[0].fx.reverb.dwFlags&EAX30LISTENERFLAGS_DECAYHFLIMIT) ?
-                      AL_TRUE : AL_FALSE);
-            checkALError();
-
-            FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
-            hr = DS_OK;
-        }
-        break;
+#define HANDLE_PROP(P) case DSPROPERTY_EAX30LISTENER_##P: \
+    return EAXReverb_Set(prim, 0, EAXREVERB_##P, pPropData, cbPropData);
+    HANDLE_PROP(ENVIRONMENT)
+    HANDLE_PROP(ENVIRONMENTSIZE)
+    HANDLE_PROP(ENVIRONMENTDIFFUSION)
+    HANDLE_PROP(ROOM)
+    HANDLE_PROP(ROOMHF)
+    HANDLE_PROP(ROOMLF)
+    HANDLE_PROP(DECAYTIME)
+    HANDLE_PROP(DECAYHFRATIO)
+    HANDLE_PROP(DECAYLFRATIO)
+    HANDLE_PROP(REFLECTIONS)
+    HANDLE_PROP(REFLECTIONSDELAY)
+    HANDLE_PROP(REFLECTIONSPAN)
+    HANDLE_PROP(REVERB)
+    HANDLE_PROP(REVERBDELAY)
+    HANDLE_PROP(REVERBPAN)
+    HANDLE_PROP(ECHOTIME)
+    HANDLE_PROP(ECHODEPTH)
+    HANDLE_PROP(MODULATIONTIME)
+    HANDLE_PROP(MODULATIONDEPTH)
+    HANDLE_PROP(AIRABSORPTIONHF)
+    HANDLE_PROP(HFREFERENCE)
+    HANDLE_PROP(LFREFERENCE)
+    HANDLE_PROP(ROOMROLLOFFFACTOR)
+    HANDLE_PROP(FLAGS)
+#undef HANDLE_PROP
 
     default:
         hr = E_PROP_ID_UNSUPPORTED;
@@ -580,6 +213,16 @@ HRESULT EAX3_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
 
     return hr;
 }
+
+#define GET_PROP(src, T) do {                              \
+    if(cbPropData >= sizeof(T))                            \
+    {                                                      \
+        union { void *v; T *props; } data = { pPropData }; \
+        *data.props = src;                                 \
+        *pcbReturned = sizeof(T);                          \
+        hr = DS_OK;                                        \
+    }                                                      \
+} while(0)
 
 HRESULT EAX3_Get(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropData, ULONG *pcbReturned)
 {
@@ -593,22 +236,12 @@ HRESULT EAX3_Get(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
         return DSERR_INVALIDCALL;
     }
 
-#define GET_PROP(src, T) do {                              \
-    if(cbPropData >= sizeof(T))                            \
-    {                                                      \
-        union { void *v; T *props; } data = { pPropData }; \
-        *data.props = src;                                 \
-        *pcbReturned = sizeof(T);                          \
-        hr = DS_OK;                                        \
-    }                                                      \
-} while(0)
     hr = DSERR_INVALIDPARAM;
     switch(propid)
     {
     case DSPROPERTY_EAX30LISTENER_NONE:
         *pcbReturned = 0;
-        hr = DS_OK;
-        break;
+        return DS_OK;
 
     case DSPROPERTY_EAX30LISTENER_ALLPARAMETERS:
         GET_PROP(prim->deferred.fxslot[0].fx.reverb, EAX30LISTENERPROPERTIES);
@@ -703,7 +336,6 @@ HRESULT EAX3_Get(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
         FIXME("Unhandled propid: 0x%08lx\n", propid);
         break;
     }
-#undef GET_PROP
 
     return hr;
 }
@@ -1111,22 +743,12 @@ HRESULT EAX3Buffer_Get(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
 {
     HRESULT hr;
 
-#define GET_PROP(src, T) do {                              \
-    if(cbPropData >= sizeof(T))                            \
-    {                                                      \
-        union { void *v; T *props; } data = { pPropData }; \
-        *data.props = src;                                 \
-        *pcbReturned = sizeof(T);                          \
-        hr = DS_OK;                                        \
-    }                                                      \
-} while(0)
     hr = DSERR_INVALIDPARAM;
     switch(propid)
     {
     case DSPROPERTY_EAX30BUFFER_NONE:
         *pcbReturned = 0;
-        hr = DS_OK;
-        break;
+        return DS_OK;
 
     case DSPROPERTY_EAX30BUFFER_ALLPARAMETERS:
         GET_PROP(buf->current.eax, EAX30BUFFERPROPERTIES);
@@ -1210,7 +832,6 @@ HRESULT EAX3Buffer_Get(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
         FIXME("Unhandled propid: 0x%08lx\n", propid);
         break;
     }
-#undef GET_PROP
 
     return hr;
 }
@@ -1355,232 +976,27 @@ HRESULT EAX2_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
             props.flAirAbsorptionHF = data.props->flAirAbsorptionHF;
             props.flRoomRolloffFactor = data.props->flRoomRolloffFactor;
             props.dwFlags = data.props->dwFlags;
-
-            prim->deferred.fxslot[0].fx.reverb = props;
-            ApplyReverbParams(prim->effect[0], &props);
-
-            FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
-            hr = DS_OK;
+            return EAXReverb_Set(prim, 0, EAXREVERB_ALLPARAMETERS, &props, sizeof(props));
         }
         break;
 
-    case DSPROPERTY_EAX20LISTENER_ROOM:
-        if(cbPropData >= sizeof(long))
-        {
-            union { const void *v; const long *l; } data = { pPropData };
-            TRACE("Room: %ld\n", *data.l);
-
-            prim->deferred.fxslot[0].fx.reverb.lRoom = *data.l;
-            alEffectf(prim->effect[0], AL_EAXREVERB_GAIN,
-                      mB_to_gain(prim->deferred.fxslot[0].fx.reverb.lRoom));
-            checkALError();
-
-            FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
-            hr = DS_OK;
-        }
-        break;
-    case DSPROPERTY_EAX20LISTENER_ROOMHF:
-        if(cbPropData >= sizeof(long))
-        {
-            union { const void *v; const long *l; } data = { pPropData };
-            TRACE("Room HF: %ld\n", *data.l);
-
-            prim->deferred.fxslot[0].fx.reverb.lRoomHF = *data.l;
-            alEffectf(prim->effect[0], AL_EAXREVERB_GAINHF,
-                      mB_to_gain(prim->deferred.fxslot[0].fx.reverb.lRoomHF));
-            checkALError();
-
-            FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
-            hr = DS_OK;
-        }
-        break;
-
-    case DSPROPERTY_EAX20LISTENER_ROOMROLLOFFFACTOR:
-        if(cbPropData >= sizeof(float))
-        {
-            union { const void *v; const float *fl; } data = { pPropData };
-            TRACE("Room Rolloff Factor: %f\n", *data.fl);
-
-            prim->deferred.fxslot[0].fx.reverb.flRoomRolloffFactor = *data.fl;
-            alEffectf(prim->effect[0], AL_EAXREVERB_ROOM_ROLLOFF_FACTOR,
-                      prim->deferred.fxslot[0].fx.reverb.flRoomRolloffFactor);
-            checkALError();
-
-            FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
-            hr = DS_OK;
-        }
-        break;
-
-    case DSPROPERTY_EAX20LISTENER_DECAYTIME:
-        if(cbPropData >= sizeof(float))
-        {
-            union { const void *v; const float *fl; } data = { pPropData };
-            TRACE("Decay Time: %f\n", *data.fl);
-
-            prim->deferred.fxslot[0].fx.reverb.flDecayTime = *data.fl;
-            alEffectf(prim->effect[0], AL_EAXREVERB_DECAY_TIME,
-                      prim->deferred.fxslot[0].fx.reverb.flDecayTime);
-            checkALError();
-
-            FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
-            hr = DS_OK;
-        }
-        break;
-    case DSPROPERTY_EAX20LISTENER_DECAYHFRATIO:
-        if(cbPropData >= sizeof(float))
-        {
-            union { const void *v; const float *fl; } data = { pPropData };
-            TRACE("Decay HF Ratio: %f\n", *data.fl);
-
-            prim->deferred.fxslot[0].fx.reverb.flDecayHFRatio = *data.fl;
-            alEffectf(prim->effect[0], AL_EAXREVERB_DECAY_HFRATIO,
-                      prim->deferred.fxslot[0].fx.reverb.flDecayHFRatio);
-            checkALError();
-
-            FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
-            hr = DS_OK;
-        }
-        break;
-
-    case DSPROPERTY_EAX20LISTENER_REFLECTIONS:
-        if(cbPropData >= sizeof(long))
-        {
-            union { const void *v; const long *l; } data = { pPropData };
-            TRACE("Reflections: %ld\n", *data.l);
-
-            prim->deferred.fxslot[0].fx.reverb.lReflections = *data.l;
-            alEffectf(prim->effect[0], AL_EAXREVERB_REFLECTIONS_GAIN,
-                      mB_to_gain(prim->deferred.fxslot[0].fx.reverb.lReflections));
-            checkALError();
-
-            FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
-            hr = DS_OK;
-        }
-        break;
-    case DSPROPERTY_EAX20LISTENER_REFLECTIONSDELAY:
-        if(cbPropData >= sizeof(float))
-        {
-            union { const void *v; const float *fl; } data = { pPropData };
-            TRACE("Reflections Delay: %f\n", *data.fl);
-
-            prim->deferred.fxslot[0].fx.reverb.flReflectionsDelay = *data.fl;
-            alEffectf(prim->effect[0], AL_EAXREVERB_REFLECTIONS_DELAY,
-                      prim->deferred.fxslot[0].fx.reverb.flReflectionsDelay);
-            checkALError();
-
-            FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
-            hr = DS_OK;
-        }
-        break;
-
-    case DSPROPERTY_EAX20LISTENER_REVERB:
-        if(cbPropData >= sizeof(long))
-        {
-            union { const void *v; const long *l; } data = { pPropData };
-            TRACE("Reverb: %ld\n", *data.l);
-
-            prim->deferred.fxslot[0].fx.reverb.lReverb = *data.l;
-            alEffectf(prim->effect[0], AL_EAXREVERB_LATE_REVERB_GAIN,
-                      mB_to_gain(prim->deferred.fxslot[0].fx.reverb.lReverb));
-            checkALError();
-
-            FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
-            hr = DS_OK;
-        }
-        break;
-    case DSPROPERTY_EAX20LISTENER_REVERBDELAY:
-        if(cbPropData >= sizeof(float))
-        {
-            union { const void *v; const float *fl; } data = { pPropData };
-            TRACE("Reverb Delay: %f\n", *data.fl);
-
-            prim->deferred.fxslot[0].fx.reverb.flReverbDelay = *data.fl;
-            alEffectf(prim->effect[0], AL_EAXREVERB_LATE_REVERB_DELAY,
-                      prim->deferred.fxslot[0].fx.reverb.flReverbDelay);
-            checkALError();
-
-            FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
-            hr = DS_OK;
-        }
-        break;
-
-    case DSPROPERTY_EAX20LISTENER_ENVIRONMENT:
-        if(cbPropData >= sizeof(DWORD))
-        {
-            union { const void *v; const DWORD *dw; } data = { pPropData };
-            TRACE("Environment: %lu\n", *data.dw);
-            if(*data.dw < EAX_ENVIRONMENT_UNDEFINED)
-            {
-                prim->deferred.fxslot[0].fx.reverb = EnvironmentDefaults[*data.dw];
-                ApplyReverbParams(prim->effect[0], &EnvironmentDefaults[*data.dw]);
-
-                FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
-                hr = DS_OK;
-            }
-        }
-        break;
-
-    case DSPROPERTY_EAX20LISTENER_ENVIRONMENTSIZE:
-        if(cbPropData >= sizeof(float))
-        {
-            union { const void *v; const float *fl; } data = { pPropData };
-            TRACE("Environment Size: %f\n", *data.fl);
-
-            RescaleEnvSize(&prim->deferred.fxslot[0].fx.reverb, clampF(*data.fl, 1.0f, 100.0f));
-            ApplyReverbParams(prim->effect[0], &prim->deferred.fxslot[0].fx.reverb);
-
-            FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
-            hr = DS_OK;
-        }
-        break;
-    case DSPROPERTY_EAX20LISTENER_ENVIRONMENTDIFFUSION:
-        if(cbPropData >= sizeof(float))
-        {
-            union { const void *v; const float *fl; } data = { pPropData };
-            TRACE("Environment Diffusion: %f\n", *data.fl);
-
-            prim->deferred.fxslot[0].fx.reverb.flEnvironmentDiffusion = *data.fl;
-            alEffectf(prim->effect[0], AL_EAXREVERB_DIFFUSION,
-                      prim->deferred.fxslot[0].fx.reverb.flEnvironmentDiffusion);
-            checkALError();
-
-            FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
-            hr = DS_OK;
-        }
-        break;
-
-    case DSPROPERTY_EAX20LISTENER_AIRABSORPTIONHF:
-        if(cbPropData >= sizeof(float))
-        {
-            union { const void *v; const float *fl; } data = { pPropData };
-            TRACE("Air Absorption HF: %f\n", *data.fl);
-
-            prim->deferred.fxslot[0].fx.reverb.flAirAbsorptionHF = *data.fl;
-            alEffectf(prim->effect[0], AL_EAXREVERB_AIR_ABSORPTION_GAINHF,
-                      mB_to_gain(prim->deferred.fxslot[0].fx.reverb.flAirAbsorptionHF));
-            checkALError();
-
-            FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
-            hr = DS_OK;
-        }
-        break;
-
-    case DSPROPERTY_EAX20LISTENER_FLAGS:
-        if(cbPropData >= sizeof(DWORD))
-        {
-            union { const void *v; const DWORD *dw; } data = { pPropData };
-            TRACE("Flags: %lu\n", *data.dw);
-
-            prim->deferred.fxslot[0].fx.reverb.dwFlags = *data.dw;
-            alEffecti(prim->effect[0], AL_EAXREVERB_DECAY_HFLIMIT,
-                      (prim->deferred.fxslot[0].fx.reverb.dwFlags&EAX30LISTENERFLAGS_DECAYHFLIMIT) ?
-                      AL_TRUE : AL_FALSE);
-            checkALError();
-
-            FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
-            hr = DS_OK;
-        }
-        break;
+#define HANDLE_PROP(P) case DSPROPERTY_EAX20LISTENER_##P: \
+    return EAXReverb_Set(prim, 0, EAXREVERB_##P, pPropData, cbPropData);
+    HANDLE_PROP(ROOM)
+    HANDLE_PROP(ROOMHF)
+    HANDLE_PROP(DECAYTIME)
+    HANDLE_PROP(DECAYHFRATIO)
+    HANDLE_PROP(REFLECTIONS)
+    HANDLE_PROP(REFLECTIONSDELAY)
+    HANDLE_PROP(REVERB)
+    HANDLE_PROP(REVERBDELAY)
+    HANDLE_PROP(ENVIRONMENT)
+    HANDLE_PROP(ENVIRONMENTSIZE)
+    HANDLE_PROP(ENVIRONMENTDIFFUSION)
+    HANDLE_PROP(AIRABSORPTIONHF)
+    HANDLE_PROP(ROOMROLLOFFFACTOR)
+    HANDLE_PROP(FLAGS)
+#undef HANDLE_PROP
 
     default:
         hr = E_PROP_ID_UNSUPPORTED;
@@ -1603,22 +1019,12 @@ HRESULT EAX2_Get(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
         return DSERR_INVALIDCALL;
     }
 
-#define GET_PROP(src, T) do {                              \
-    if(cbPropData >= sizeof(T))                            \
-    {                                                      \
-        union { void *v; T *props; } data = { pPropData }; \
-        *data.props = src;                                 \
-        *pcbReturned = sizeof(T);                          \
-        hr = DS_OK;                                        \
-    }                                                      \
-} while(0)
     hr = DSERR_INVALIDPARAM;
     switch(propid)
     {
     case DSPROPERTY_EAX20LISTENER_NONE:
         *pcbReturned = 0;
-        hr = DS_OK;
-        break;
+        return DS_OK;
 
     case DSPROPERTY_EAX20LISTENER_ALLPARAMETERS:
         GET_PROP(EAXRevTo2(&prim->deferred.fxslot[0].fx.reverb), EAX20LISTENERPROPERTIES);
@@ -1680,7 +1086,6 @@ HRESULT EAX2_Get(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
         FIXME("Unhandled listener propid: 0x%08lx\n", propid);
         break;
     }
-#undef GET_PROP
 
     return hr;
 }
@@ -1959,22 +1364,12 @@ HRESULT EAX2Buffer_Get(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
 {
     HRESULT hr;
 
-#define GET_PROP(src, T) do {                              \
-    if(cbPropData >= sizeof(T))                            \
-    {                                                      \
-        union { void *v; T *props; } data = { pPropData }; \
-        *data.props = src;                                 \
-        *pcbReturned = sizeof(T);                          \
-        hr = DS_OK;                                        \
-    }                                                      \
-} while(0)
     hr = DSERR_INVALIDPARAM;
     switch(propid)
     {
     case DSPROPERTY_EAX20BUFFER_NONE:
         *pcbReturned = 0;
-        hr = DS_OK;
-        break;
+        return DS_OK;
 
     case DSPROPERTY_EAX20BUFFER_ALLPARAMETERS:
         GET_PROP(EAXSourceTo2(&buf->current.eax), EAX20BUFFERPROPERTIES);
@@ -2032,7 +1427,6 @@ HRESULT EAX2Buffer_Get(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
         FIXME("Unhandled propid: 0x%08lx\n", propid);
         break;
     }
-#undef GET_PROP
 
     return hr;
 }
@@ -2123,35 +1517,26 @@ HRESULT EAX1_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
                 env.lRoom = clampI(env.lRoom + db_vol, -10000, 0);
                 env.flDecayTime = data.props->fDecayTime;
 
-                prim->deferred.fxslot[0].fx.reverb = env;
-                prim->deferred.eax1_volume = data.props->fVolume;
-                prim->deferred.eax1_dampening = data.props->fDamping;
-                ApplyReverbParams(prim->effect[0], &env);
-
-                FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
-                hr = DS_OK;
+                hr = EAXReverb_Set(prim, 0, EAXREVERB_ALLPARAMETERS, &env, sizeof(env));
+                if(SUCCEEDED(hr))
+                {
+                    prim->deferred.eax1_volume = data.props->fVolume;
+                    prim->deferred.eax1_dampening = data.props->fDamping;
+                }
+                return hr;
             }
         }
         break;
 
     case DSPROPERTY_EAX10LISTENER_ENVIRONMENT:
-        if(cbPropData >= sizeof(DWORD))
+        hr = EAXReverb_Set(prim, 0, EAXREVERB_ENVIRONMENT, pPropData, cbPropData);
+        if(SUCCEEDED(hr))
         {
             union { const void *v; const DWORD *dw; } data = { pPropData };
-            TRACE("Environment: %lu\n", *data.dw);
-
-            if(*data.dw < EAX_ENVIRONMENT_UNDEFINED)
-            {
-                prim->deferred.fxslot[0].fx.reverb = EnvironmentDefaults[*data.dw];
-                prim->deferred.eax1_volume = eax1_env_volume[*data.dw];
-                prim->deferred.eax1_dampening = eax1_env_dampening[*data.dw];
-                ApplyReverbParams(prim->effect[0], &EnvironmentDefaults[*data.dw]);
-
-                FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
-                hr = DS_OK;
-            }
+            prim->deferred.eax1_volume = eax1_env_volume[*data.dw];
+            prim->deferred.eax1_dampening = eax1_env_dampening[*data.dw];
         }
-        break;
+        return hr;
 
     case DSPROPERTY_EAX10LISTENER_VOLUME:
         if(cbPropData >= sizeof(float))
@@ -2167,30 +1552,13 @@ HRESULT EAX1_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
             );
             TRACE("Volume: %f\n", *data.fl);
 
-            prim->deferred.fxslot[0].fx.reverb.lRoom = room_vol;
-            prim->deferred.eax1_volume = *data.fl;
-            alEffectf(prim->effect[0], AL_EAXREVERB_GAIN, mB_to_gain(room_vol));
-            checkALError();
-
-            FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
-            hr = DS_OK;
+            hr = EAXReverb_Set(prim, 0, EAXREVERB_ROOM, &room_vol, sizeof(room_vol));
+            if(SUCCEEDED(hr)) prim->deferred.eax1_volume = *data.fl;
+            return hr;
         }
         break;
     case DSPROPERTY_EAX10LISTENER_DECAYTIME:
-        if(cbPropData >= sizeof(float))
-        {
-            union { const void *v; const float *fl; } data = { pPropData };
-            TRACE("Decay Time: %f\n", *data.fl);
-
-            prim->deferred.fxslot[0].fx.reverb.flDecayTime = *data.fl;
-            alEffectf(prim->effect[0], AL_EAXREVERB_DECAY_TIME,
-                      prim->deferred.fxslot[0].fx.reverb.flDecayTime);
-            checkALError();
-
-            FXSLOT_SET_DIRTY(prim->dirty.bit, 0, FXSLOT_EFFECT_BIT);
-            hr = DS_OK;
-        }
-        break;
+        return EAXReverb_Set(prim, 0, EAXREVERB_DECAYTIME, pPropData, cbPropData);
     case DSPROPERTY_EAX10LISTENER_DAMPING:
         if(cbPropData >= sizeof(float))
         {
@@ -2198,8 +1566,7 @@ HRESULT EAX1_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
             TRACE("Damping: %f\n", *data.fl);
 
             prim->deferred.eax1_dampening = *data.fl;
-
-            hr = DS_OK;
+            return DS_OK;
         }
         break;
 
@@ -2246,50 +1613,28 @@ HRESULT EAX1_Get(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
         break;
 
     case DSPROPERTY_EAX10LISTENER_ENVIRONMENT:
-        if(cbPropData >= sizeof(DWORD))
-        {
-            union { void *v; DWORD *dw; } data = { pPropData };
-
-            *data.dw = prim->deferred.fxslot[0].fx.reverb.dwEnvironment;
-
-            *pcbReturned = sizeof(DWORD);
-            hr = DS_OK;
-        }
-        break;
+        return EAXReverb_Get(prim, 0, EAXREVERB_ENVIRONMENT, pPropData, cbPropData, pcbReturned);
 
     case DSPROPERTY_EAX10LISTENER_VOLUME:
         if(cbPropData >= sizeof(float))
         {
             union { void *v; float *fl; } data = { pPropData };
-
             *data.fl = prim->deferred.eax1_volume;
-
             *pcbReturned = sizeof(float);
-            hr = DS_OK;
+            return DS_OK;
         }
         break;
 
     case DSPROPERTY_EAX10LISTENER_DECAYTIME:
-        if(cbPropData >= sizeof(float))
-        {
-            union { void *v; float *fl; } data = { pPropData };
-
-            *data.fl = prim->deferred.fxslot[0].fx.reverb.flDecayTime;
-
-            *pcbReturned = sizeof(float);
-            hr = DS_OK;
-        }
-        break;
+        return EAXReverb_Get(prim, 0, EAXREVERB_DECAYTIME, pPropData, cbPropData, pcbReturned);
 
     case DSPROPERTY_EAX10LISTENER_DAMPING:
         if(cbPropData >= sizeof(float))
         {
             union { void *v; float *fl; } data = { pPropData };
-
             *data.fl = prim->deferred.eax1_dampening;
-
             *pcbReturned = sizeof(float);
-            hr = DS_OK;
+            return DS_OK;
         }
         break;
 

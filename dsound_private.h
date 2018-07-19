@@ -807,9 +807,6 @@ HRESULT WINAPI DSBuffer_GetCurrentPosition(IDirectSoundBuffer8 *iface, DWORD *pl
 HRESULT WINAPI DSBuffer_GetStatus(IDirectSoundBuffer8 *iface, DWORD *status);
 HRESULT WINAPI DSBuffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSound *ds, const DSBUFFERDESC *desc);
 
-void ApplyReverbParams(ALuint effect, const EAXREVERBPROPERTIES *props);
-void RescaleEnvSize(EAXREVERBPROPERTIES *props, float newsize);
-
 HRESULT EAX1_Query(DSPrimary *prim, DWORD propid, ULONG *pTypeSupport);
 HRESULT EAX1_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropData);
 HRESULT EAX1_Get(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropData, ULONG *pcbReturned);
@@ -842,6 +839,9 @@ HRESULT EAX4Slot_Get(DSPrimary *prim, LONG idx, DWORD propid, void *pPropData, U
 HRESULT EAX4Source_Query(DSBuffer *buf, DWORD propid, ULONG *pTypeSupport);
 HRESULT EAX4Source_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPropData);
 HRESULT EAX4Source_Get(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPropData, ULONG *pcbReturned);
+
+HRESULT EAXReverb_Set(DSPrimary *prim, LONG idx, DWORD propid, void *pPropData, ULONG cbPropData);
+HRESULT EAXReverb_Get(DSPrimary *prim, DWORD idx, DWORD propid, void *pPropData, ULONG cbPropData, ULONG *pcbReturned);
 
 
 static inline LONG gain_to_mB(float gain)
