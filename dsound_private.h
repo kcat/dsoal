@@ -558,10 +558,11 @@ union BufferParamFlags {
         BOOL max_distance : 1;
         BOOL mode : 1;
 
-        /* EAX */
         BOOL dry_filter : 1;
-        BOOL send0_filter : 1;
-        BOOL send1_filter : 1;
+        /* Can't use an array for the filters since this is a bitfield, so we
+         * use a sub-bitfield -- bit 0 for send 0, bit 1 for send 1, etc.
+         */
+        BOOL send_filter : EAX_MAX_ACTIVE_FXSLOTS;
         BOOL doppler : 1;
         BOOL rolloff : 1;
         BOOL room_rolloff : 1;
@@ -837,6 +838,10 @@ HRESULT EAX4Context_Get(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cb
 HRESULT EAX4Slot_Query(DSPrimary *prim, LONG idx, DWORD propid, ULONG *pTypeSupport);
 HRESULT EAX4Slot_Set(DSPrimary *prim, LONG idx, DWORD propid, void *pPropData, ULONG cbPropData);
 HRESULT EAX4Slot_Get(DSPrimary *prim, LONG idx, DWORD propid, void *pPropData, ULONG cbPropData, ULONG *pcbReturned);
+
+HRESULT EAX4Source_Query(DSBuffer *buf, DWORD propid, ULONG *pTypeSupport);
+HRESULT EAX4Source_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPropData);
+HRESULT EAX4Source_Get(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPropData, ULONG *pcbReturned);
 
 
 static inline LONG gain_to_mB(float gain)

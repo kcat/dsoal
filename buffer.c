@@ -794,15 +794,12 @@ static HRESULT DSBuffer_SetLoc(DSBuffer *buf, DWORD loc_status)
             alSourcei(source, AL_DIRECT_FILTER, buf->filter[0]);
             for(i = 0;i < share->num_sends;++i)
             {
-                if(buf->current.fxslot_targets[i] >= FXSLOT_TARGET_NULL)
-                    alSource3i(source, AL_AUXILIARY_SEND_FILTER, 0, 0, buf->filter[i+1]);
-                else if(buf->current.fxslot_targets[i] == FXSLOT_TARGET_PRIMARY)
-                    alSource3i(source, AL_AUXILIARY_SEND_FILTER, prim->primary_slot, 0,
-                               buf->filter[i+1]);
-                else
-                    alSource3i(source, AL_AUXILIARY_SEND_FILTER,
-                        prim->auxslot[buf->current.fxslot_targets[i]], 0, buf->filter[i+1]
-                    );
+                DWORD target = buf->current.fxslot_targets[i];
+                ALuint slot;
+                if(target >= FXSLOT_TARGET_NULL) slot = 0;
+                else if(target == FXSLOT_TARGET_PRIMARY) slot = prim->primary_slot;
+                else slot = prim->auxslot[buf->current.fxslot_targets[i]];
+                alSource3i(source, AL_AUXILIARY_SEND_FILTER, slot, i, buf->filter[1+i]);
             }
             alSourcef(source, AL_ROOM_ROLLOFF_FACTOR, eax_params->flRoomRolloffFactor);
             alSourcef(source, AL_CONE_OUTER_GAINHF, mB_to_gain(eax_params->lOutsideVolumeHF));
@@ -2005,27 +2002,17 @@ void DSBuffer_SetParams(DSBuffer *This, const DS3DBUFFER *params, LONG flags)
 
     if(dirty.bit.dry_filter)
         alSourcei(source, AL_DIRECT_FILTER, This->filter[0]);
-    if(dirty.bit.send0_filter)
+    for(i = 0;i < EAX_MAX_ACTIVE_FXSLOTS;++i)
     {
-        if(This->current.fxslot_targets[0] >= FXSLOT_TARGET_NULL)
-            alSource3i(source, AL_AUXILIARY_SEND_FILTER, 0, 0, This->filter[1]);
-        else if(This->current.fxslot_targets[0] == FXSLOT_TARGET_PRIMARY)
-            alSource3i(source, AL_AUXILIARY_SEND_FILTER, prim->primary_slot, 0, This->filter[1]);
-        else
-            alSource3i(source, AL_AUXILIARY_SEND_FILTER,
-                prim->auxslot[This->current.fxslot_targets[0]], 0, This->filter[1]
-            );
-    }
-    if(dirty.bit.send1_filter)
-    {
-        if(This->current.fxslot_targets[1] >= FXSLOT_TARGET_NULL)
-            alSource3i(source, AL_AUXILIARY_SEND_FILTER, 0, 1, This->filter[2]);
-        else if(This->current.fxslot_targets[1] == FXSLOT_TARGET_PRIMARY)
-            alSource3i(source, AL_AUXILIARY_SEND_FILTER, prim->primary_slot, 1, This->filter[2]);
-        else
-            alSource3i(source, AL_AUXILIARY_SEND_FILTER,
-                prim->auxslot[This->current.fxslot_targets[1]], 1, This->filter[2]
-            );
+        if((dirty.bit.send_filter&(1<<i)))
+        {
+            DWORD target = This->current.fxslot_targets[i];
+            ALuint slot;
+            if(target >= FXSLOT_TARGET_NULL) slot = 0;
+            else if(target == FXSLOT_TARGET_PRIMARY) slot = prim->primary_slot;
+            else slot = prim->auxslot[This->current.fxslot_targets[i]];
+            alSource3i(source, AL_AUXILIARY_SEND_FILTER, slot, i, This->filter[1+i]);
+        }
     }
     if(dirty.bit.doppler)
         alSourcef(source, AL_DOPPLER_FACTOR, This->current.eax.flDopplerFactor);
@@ -2776,7 +2763,9 @@ static HRESULT WINAPI DSBufferProp_Get(IKsPropertySet *iface,
     }
 
     EnterCriticalSection(&This->share->crst);
-    if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX30_BufferProperties))
+    if(IsEqualIID(guidPropSet, &EAXPROPERTYID_EAX40_Source))
+        hr = EAX4Source_Get(This, dwPropID, pPropData, cbPropData, pcbReturned);
+    else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX30_BufferProperties))
         hr = EAX3Buffer_Get(This, dwPropID, pPropData, cbPropData, pcbReturned);
     else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX20_BufferProperties))
         hr = EAX2Buffer_Get(This, dwPropID, pPropData, cbPropData, pcbReturned);
@@ -2824,7 +2813,21 @@ static HRESULT WINAPI DSBufferProp_Set(IKsPropertySet *iface,
     }
 
     EnterCriticalSection(&This->share->crst);
-    if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX30_BufferProperties))
+    if(IsEqualIID(guidPropSet, &EAXPROPERTYID_EAX40_Source))
+    {
+        DWORD propid = dwPropID & ~EAXSOURCE_PARAMETER_DEFERRED;
+        BOOL immediate = !(dwPropID&EAXSOURCE_PARAMETER_DEFERRED);
+
+        setALContext(This->ctx);
+        hr = EAX4Source_Set(This, propid, pPropData, cbPropData);
+        if(hr == DS_OK && immediate)
+        {
+            DSPrimary *prim = This->primary;
+            DSPrimary3D_CommitDeferredSettings(&prim->IDirectSound3DListener_iface);
+        }
+        popALContext();
+    }
+    else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX30_BufferProperties))
     {
         DWORD propid = dwPropID & ~DSPROPERTY_EAX30BUFFER_DEFERRED;
         BOOL immediate = !(dwPropID&DSPROPERTY_EAX30BUFFER_DEFERRED);
@@ -2852,10 +2855,10 @@ static HRESULT WINAPI DSBufferProp_Set(IKsPropertySet *iface,
         }
         popALContext();
     }
-    else if((idx=0),IsEqualIID(guidPropSet, &EAXPROPERTYID_EAX40_FXSlot0) ||
-            (idx=1),IsEqualIID(guidPropSet, &EAXPROPERTYID_EAX40_FXSlot1) ||
-            (idx=2),IsEqualIID(guidPropSet, &EAXPROPERTYID_EAX40_FXSlot2) ||
-            (idx=3),IsEqualIID(guidPropSet, &EAXPROPERTYID_EAX40_FXSlot3))
+    else if(((idx=0),IsEqualIID(guidPropSet, &EAXPROPERTYID_EAX40_FXSlot0)) ||
+            ((idx=1),IsEqualIID(guidPropSet, &EAXPROPERTYID_EAX40_FXSlot1)) ||
+            ((idx=2),IsEqualIID(guidPropSet, &EAXPROPERTYID_EAX40_FXSlot2)) ||
+            ((idx=3),IsEqualIID(guidPropSet, &EAXPROPERTYID_EAX40_FXSlot3)))
     {
         DSPrimary *prim = This->primary;
         DWORD propid = dwPropID & ~EAXFXSLOT_PARAMETER_DEFERRED;
@@ -2950,7 +2953,9 @@ static HRESULT WINAPI DSBufferProp_QuerySupport(IKsPropertySet *iface,
     *pTypeSupport = 0;
 
     EnterCriticalSection(&This->share->crst);
-    if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX30_BufferProperties))
+    if(IsEqualIID(guidPropSet, &EAXPROPERTYID_EAX40_Source))
+        hr = EAX4Source_Query(This, dwPropID, pTypeSupport);
+    else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX30_BufferProperties))
         hr = EAX3Buffer_Query(This, dwPropID, pTypeSupport);
     else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX20_BufferProperties))
         hr = EAX2Buffer_Query(This, dwPropID, pTypeSupport);
