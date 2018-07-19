@@ -372,6 +372,10 @@ HRESULT EAX4Context_Get(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cb
         GET_PROP(prim->current.ctx.flHFReference, float);
         break;
 
+    case EAXCONTEXT_LASTERROR:
+        GET_PROP(InterlockedExchange(&prim->eax_error, EAX_OK), long);
+        break;
+
     default:
         hr = E_PROP_ID_UNSUPPORTED;
         FIXME("Unhandled propid: 0x%08lx\n", propid);
