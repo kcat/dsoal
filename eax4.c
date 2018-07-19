@@ -1318,12 +1318,12 @@ static struct Send *FindSourceSend(DSBuffer *buf, const GUID *guid)
     for(i = 0;i < EAX_MAX_ACTIVE_FXSLOTS;i++)
     {
         DWORD target = buf->deferred.fxslot_targets[i];
-        if((IsEqualGUID(guid, &EAXPROPERTYID_EAX40_FXSlot0) && target == FXSLOT_TARGET_0) ||
-           (IsEqualGUID(guid, &EAXPROPERTYID_EAX40_FXSlot1) && target == FXSLOT_TARGET_1) ||
-           (IsEqualGUID(guid, &EAXPROPERTYID_EAX40_FXSlot2) && target == FXSLOT_TARGET_2) ||
-           (IsEqualGUID(guid, &EAXPROPERTYID_EAX40_FXSlot3) && target == FXSLOT_TARGET_3) ||
-           (IsEqualGUID(guid, &EAX_PrimaryFXSlotID) && target == FXSLOT_TARGET_PRIMARY) ||
-           (IsEqualGUID(guid, &EAX_NULL_GUID) && target == FXSLOT_TARGET_NULL))
+        if((target == FXSLOT_TARGET_0 && IsEqualGUID(guid, &EAXPROPERTYID_EAX40_FXSlot0)) ||
+           (target == FXSLOT_TARGET_1 && IsEqualGUID(guid, &EAXPROPERTYID_EAX40_FXSlot1)) ||
+           (target == FXSLOT_TARGET_2 && IsEqualGUID(guid, &EAXPROPERTYID_EAX40_FXSlot2)) ||
+           (target == FXSLOT_TARGET_3 && IsEqualGUID(guid, &EAXPROPERTYID_EAX40_FXSlot3)) ||
+           (target == FXSLOT_TARGET_PRIMARY && IsEqualGUID(guid, &EAX_PrimaryFXSlotID)) ||
+           (target == FXSLOT_TARGET_NULL && IsEqualGUID(guid, &EAX_NULL_GUID)))
             return &buf->deferred.send[i];
     }
     return NULL;
