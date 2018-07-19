@@ -26,15 +26,6 @@
 #include "eax-presets.h"
 
 
-static inline LONG minL(LONG a, LONG b)
-{ return (a < b) ? a : b; }
-
-static inline float minF(float a, float b)
-{ return (a < b) ? a : b; }
-
-static inline float maxF(float a, float b)
-{ return (a > b) ? a : b; }
-
 void ApplyReverbParams(ALuint effect, const EAXREVERBPROPERTIES *props)
 {
     /* FIXME: Need to validate property values... Ignore? Clamp? Error? */
@@ -2061,7 +2052,7 @@ HRESULT EAX4Source_Get(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
         {
             union { void *v; EAXSOURCESENDPROPERTIES *send; } data = { pPropData };
             const struct Send *srcsend[EAX_MAX_ACTIVE_FXSLOTS];
-            LONG count = minL(cbPropData / sizeof(EAXSOURCESENDPROPERTIES),
+            LONG count = minI(cbPropData / sizeof(EAXSOURCESENDPROPERTIES),
                               EAX_MAX_ACTIVE_FXSLOTS);
             LONG i;
 
@@ -2091,7 +2082,7 @@ HRESULT EAX4Source_Get(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
         {
             union { void *v; EAXSOURCEALLSENDPROPERTIES *send; } data = { pPropData };
             const struct Send *srcsend[EAX_MAX_ACTIVE_FXSLOTS];
-            LONG count = minL(cbPropData / sizeof(EAXSOURCESENDPROPERTIES),
+            LONG count = minI(cbPropData / sizeof(EAXSOURCESENDPROPERTIES),
                               EAX_MAX_ACTIVE_FXSLOTS);
             LONG i;
 
@@ -2126,7 +2117,7 @@ HRESULT EAX4Source_Get(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
         {
             union { void *v; EAXSOURCEOCCLUSIONSENDPROPERTIES *send; } data = { pPropData };
             const struct Send *srcsend[EAX_MAX_ACTIVE_FXSLOTS];
-            LONG count = minL(cbPropData / sizeof(EAXSOURCESENDPROPERTIES),
+            LONG count = minI(cbPropData / sizeof(EAXSOURCESENDPROPERTIES),
                               EAX_MAX_ACTIVE_FXSLOTS);
             LONG i;
 
@@ -2157,7 +2148,7 @@ HRESULT EAX4Source_Get(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
         {
             union { void *v; EAXSOURCEEXCLUSIONSENDPROPERTIES *send; } data = { pPropData };
             const struct Send *srcsend[EAX_MAX_ACTIVE_FXSLOTS];
-            LONG count = minL(cbPropData / sizeof(EAXSOURCESENDPROPERTIES),
+            LONG count = minI(cbPropData / sizeof(EAXSOURCESENDPROPERTIES),
                               EAX_MAX_ACTIVE_FXSLOTS);
             LONG i;
 
@@ -2185,7 +2176,7 @@ HRESULT EAX4Source_Get(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
         if(cbPropData >= sizeof(GUID))
         {
             union { void *v; GUID *guid; } data = { pPropData };
-            LONG count = minL(cbPropData / sizeof(EAXSOURCESENDPROPERTIES),
+            LONG count = minI(cbPropData / sizeof(EAXSOURCESENDPROPERTIES),
                               EAX_MAX_ACTIVE_FXSLOTS);
             LONG i;
 

@@ -872,6 +872,14 @@ static inline FLOAT clampF(FLOAT val, FLOAT minval, FLOAT maxval)
     return val;
 }
 
+static inline LONG minI(LONG a, LONG b)
+{ return (a < b) ? a : b; }
+static inline float minF(float a, float b)
+{ return (a < b) ? a : b; }
+
+static inline float maxF(float a, float b)
+{ return (a > b) ? a : b; }
+
 
 #define checkALError() do {                                                   \
     ALenum err = alGetError();                                                \

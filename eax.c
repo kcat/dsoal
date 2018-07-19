@@ -26,11 +26,6 @@
 #include "eax-presets.h"
 
 
-static inline float minF(float a, float b)
-{ return (a <= b) ? a : b; }
-static inline float maxF(float a, float b)
-{ return (a >= b) ? a : b; }
-
 #define APPLY_DRY_PARAMS 1
 #define APPLY_WET_PARAMS 2
 static void ApplyFilterParams(DSBuffer *buf, const EAXSOURCEPROPERTIES *props, int apply)
