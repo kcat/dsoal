@@ -661,7 +661,24 @@ static EAXEXCLUSIONPROPERTIES EAXSourceExclusion(const EAXSOURCEPROPERTIES *prop
     return ret;
 }
 
-static struct Send *FindSourceSend(DSBuffer *buf, const GUID *guid)
+static struct Send *FindCurrentSend(DSBuffer *buf, const GUID *guid)
+{
+    int i;
+    for(i = 0;i < EAX_MAX_ACTIVE_FXSLOTS;i++)
+    {
+        DWORD target = buf->current.fxslot_targets[i];
+        if((target == FXSLOT_TARGET_0 && IsEqualGUID(guid, &EAXPROPERTYID_EAX40_FXSlot0)) ||
+           (target == FXSLOT_TARGET_1 && IsEqualGUID(guid, &EAXPROPERTYID_EAX40_FXSlot1)) ||
+           (target == FXSLOT_TARGET_2 && IsEqualGUID(guid, &EAXPROPERTYID_EAX40_FXSlot2)) ||
+           (target == FXSLOT_TARGET_3 && IsEqualGUID(guid, &EAXPROPERTYID_EAX40_FXSlot3)) ||
+           (target == FXSLOT_TARGET_PRIMARY && IsEqualGUID(guid, &EAX_PrimaryFXSlotID)) ||
+           (target == FXSLOT_TARGET_NULL && IsEqualGUID(guid, &EAX_NULL_GUID)))
+            return &buf->current.send[i];
+    }
+    return NULL;
+}
+
+static struct Send *FindDeferredSend(DSBuffer *buf, const GUID *guid)
 {
     int i;
     for(i = 0;i < EAX_MAX_ACTIVE_FXSLOTS;i++)
@@ -1094,7 +1111,7 @@ HRESULT EAX4Source_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
                     debugstr_guid(&data.send[i].guidReceivingFXSlotID),
                     data.send[i].lSend, data.send[i].lSendHF
                 );
-                srcsend[i] = FindSourceSend(buf, &data.send[i].guidReceivingFXSlotID);
+                srcsend[i] = FindDeferredSend(buf, &data.send[i].guidReceivingFXSlotID);
                 if(!srcsend[i])
                 {
                     ERR("Failed to find FXSlot target: %s\n",
@@ -1140,7 +1157,7 @@ HRESULT EAX4Source_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
                     data.send[i].flOcclusionDirectRatio, data.send[i].lExclusion,
                     data.send[i].flExclusionLFRatio
                 );
-                srcsend[i] = FindSourceSend(buf, &data.send[i].guidReceivingFXSlotID);
+                srcsend[i] = FindDeferredSend(buf, &data.send[i].guidReceivingFXSlotID);
                 if(!srcsend[i])
                 {
                     ERR("Failed to find FXSlot target: %s\n",
@@ -1191,7 +1208,7 @@ HRESULT EAX4Source_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
                     data.send[i].flOcclusionLFRatio, data.send[i].flOcclusionRoomRatio,
                     data.send[i].flOcclusionDirectRatio
                 );
-                srcsend[i] = FindSourceSend(buf, &data.send[i].guidReceivingFXSlotID);
+                srcsend[i] = FindDeferredSend(buf, &data.send[i].guidReceivingFXSlotID);
                 if(!srcsend[i])
                 {
                     ERR("Failed to find FXSlot target: %s\n",
@@ -1236,7 +1253,7 @@ HRESULT EAX4Source_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
                     debugstr_guid(&data.send[i].guidReceivingFXSlotID),
                     data.send[i].lExclusion, data.send[i].flExclusionLFRatio
                 );
-                srcsend[i] = FindSourceSend(buf, &data.send[i].guidReceivingFXSlotID);
+                srcsend[i] = FindDeferredSend(buf, &data.send[i].guidReceivingFXSlotID);
                 if(!srcsend[i])
                 {
                     ERR("Failed to find FXSlot target: %s\n",
@@ -1412,7 +1429,7 @@ HRESULT EAX4Source_Get(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
 
             for(i = 0;i < count;++i)
             {
-                srcsend[i] = FindSourceSend(buf, &data.send[i].guidReceivingFXSlotID);
+                srcsend[i] = FindCurrentSend(buf, &data.send[i].guidReceivingFXSlotID);
                 if(!srcsend[i])
                 {
                     ERR("Failed to find FXSlot target: %s\n",
@@ -1436,13 +1453,13 @@ HRESULT EAX4Source_Get(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
         {
             union { void *v; EAXSOURCEALLSENDPROPERTIES *send; } data = { pPropData };
             const struct Send *srcsend[EAX_MAX_ACTIVE_FXSLOTS];
-            LONG count = minI(cbPropData / sizeof(EAXSOURCESENDPROPERTIES),
+            LONG count = minI(cbPropData / sizeof(EAXSOURCEALLSENDPROPERTIES),
                               EAX_MAX_ACTIVE_FXSLOTS);
             LONG i;
 
             for(i = 0;i < count;++i)
             {
-                srcsend[i] = FindSourceSend(buf, &data.send[i].guidReceivingFXSlotID);
+                srcsend[i] = FindCurrentSend(buf, &data.send[i].guidReceivingFXSlotID);
                 if(!srcsend[i])
                 {
                     ERR("Failed to find FXSlot target: %s\n",
@@ -1471,13 +1488,13 @@ HRESULT EAX4Source_Get(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
         {
             union { void *v; EAXSOURCEOCCLUSIONSENDPROPERTIES *send; } data = { pPropData };
             const struct Send *srcsend[EAX_MAX_ACTIVE_FXSLOTS];
-            LONG count = minI(cbPropData / sizeof(EAXSOURCESENDPROPERTIES),
+            LONG count = minI(cbPropData / sizeof(EAXSOURCEOCCLUSIONSENDPROPERTIES),
                               EAX_MAX_ACTIVE_FXSLOTS);
             LONG i;
 
             for(i = 0;i < count;++i)
             {
-                srcsend[i] = FindSourceSend(buf, &data.send[i].guidReceivingFXSlotID);
+                srcsend[i] = FindCurrentSend(buf, &data.send[i].guidReceivingFXSlotID);
                 if(!srcsend[i])
                 {
                     ERR("Failed to find FXSlot target: %s\n",
@@ -1502,13 +1519,13 @@ HRESULT EAX4Source_Get(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
         {
             union { void *v; EAXSOURCEEXCLUSIONSENDPROPERTIES *send; } data = { pPropData };
             const struct Send *srcsend[EAX_MAX_ACTIVE_FXSLOTS];
-            LONG count = minI(cbPropData / sizeof(EAXSOURCESENDPROPERTIES),
+            LONG count = minI(cbPropData / sizeof(EAXSOURCEEXCLUSIONSENDPROPERTIES),
                               EAX_MAX_ACTIVE_FXSLOTS);
             LONG i;
 
             for(i = 0;i < count;++i)
             {
-                srcsend[i] = FindSourceSend(buf, &data.send[i].guidReceivingFXSlotID);
+                srcsend[i] = FindCurrentSend(buf, &data.send[i].guidReceivingFXSlotID);
                 if(!srcsend[i])
                 {
                     ERR("Failed to find FXSlot target: %s\n",
@@ -1530,8 +1547,7 @@ HRESULT EAX4Source_Get(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
         if(cbPropData >= sizeof(GUID))
         {
             union { void *v; GUID *guid; } data = { pPropData };
-            LONG count = minI(cbPropData / sizeof(EAXSOURCESENDPROPERTIES),
-                              EAX_MAX_ACTIVE_FXSLOTS);
+            LONG count = minI(cbPropData / sizeof(GUID), EAX_MAX_ACTIVE_FXSLOTS);
             LONG i;
 
             for(i = 0;i < count;++i)
