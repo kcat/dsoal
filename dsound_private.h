@@ -843,6 +843,8 @@ HRESULT EAX4Source_Get(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
 HRESULT EAXReverb_Set(DSPrimary *prim, LONG idx, DWORD propid, void *pPropData, ULONG cbPropData);
 HRESULT EAXReverb_Get(DSPrimary *prim, DWORD idx, DWORD propid, void *pPropData, ULONG cbPropData, ULONG *pcbReturned);
 
+HRESULT EAXChorus_Set(DSPrimary *prim, LONG idx, DWORD propid, void *pPropData, ULONG cbPropData);
+HRESULT EAXChorus_Get(DSPrimary *prim, DWORD idx, DWORD propid, void *pPropData, ULONG cbPropData, ULONG *pcbReturned);
 
 static inline LONG gain_to_mB(float gain)
 {

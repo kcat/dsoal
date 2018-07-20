@@ -23,6 +23,7 @@ set(DSOAL_LIBS "")
 
 set(DSOAL_OBJS buffer.c
                capture.c
+               chorus.c
                dsound8.c
                dsound_main.c
                dsound_private.h

@@ -283,7 +283,6 @@ HRESULT EAX4Slot_Query(DSPrimary *prim, LONG idx, DWORD propid, ULONG *pTypeSupp
                 *pTypeSupport = KSPROPERTY_SUPPORT_GET | KSPROPERTY_SUPPORT_SET;
                 return DS_OK;
             }
-
             FIXME("Unhandled reverb propid: 0x%08lx\n", propid);
         }
         else if(prim->current.fxslot[idx].effect_type == FXSLOT_EFFECT_CHORUS)
@@ -293,7 +292,6 @@ HRESULT EAX4Slot_Query(DSPrimary *prim, LONG idx, DWORD propid, ULONG *pTypeSupp
                 *pTypeSupport = KSPROPERTY_SUPPORT_GET | KSPROPERTY_SUPPORT_SET;
                 return DS_OK;
             }
-
             FIXME("Unhandled chorus propid: 0x%08lx\n", propid);
         }
         else /*if(prim->current.fxslot[idx].effect_type == FXSLOT_EFFECT_NULL)*/
@@ -332,10 +330,7 @@ HRESULT EAX4Slot_Set(DSPrimary *prim, LONG idx, DWORD propid, void *pPropData, U
         if(prim->deferred.fxslot[idx].effect_type == FXSLOT_EFFECT_REVERB)
             hr = EAXReverb_Set(prim, idx, propid, pPropData, cbPropData);
         else if(prim->deferred.fxslot[idx].effect_type == FXSLOT_EFFECT_CHORUS)
-        {
-            ERR("Chorus effect not yet handled\n");
-            hr = E_PROP_ID_UNSUPPORTED;
-        }
+            hr = EAXChorus_Set(prim, idx, propid, pPropData, cbPropData);
         else /*if(prim->deferred.fxslot[idx].effect_type == FXSLOT_EFFECT_NULL)*/
         {
             ERR("Unexpected null effect propid 0x%08lx\n", propid);
@@ -531,10 +526,7 @@ HRESULT EAX4Slot_Get(DSPrimary *prim, LONG idx, DWORD propid, void *pPropData, U
         if(prim->deferred.fxslot[idx].effect_type == FXSLOT_EFFECT_REVERB)
             hr = EAXReverb_Get(prim, idx, propid, pPropData, cbPropData, pcbReturned);
         else if(prim->deferred.fxslot[idx].effect_type == FXSLOT_EFFECT_CHORUS)
-        {
-            ERR("Chorus effect not yet handled\n");
-            hr = E_PROP_ID_UNSUPPORTED;
-        }
+            hr = EAXChorus_Get(prim, idx, propid, pPropData, cbPropData, pcbReturned);
         else /*if(prim->deferred.fxslot[idx].effect_type == FXSLOT_EFFECT_NULL)*/
         {
             ERR("Unexpected null effect propid 0x%08lx\n", propid);
