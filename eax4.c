@@ -26,6 +26,40 @@
 #include "eax-presets.h"
 
 
+static const char *debug_fxslot(const GUID *guid)
+{
+#define HANDLE_ID(id) if(IsEqualGUID(guid, &(id))) return #id
+    HANDLE_ID(EAX_NULL_GUID);
+    HANDLE_ID(EAX_PrimaryFXSlotID);
+    HANDLE_ID(EAXPROPERTYID_EAX40_FXSlot0);
+    HANDLE_ID(EAXPROPERTYID_EAX40_FXSlot1);
+    HANDLE_ID(EAXPROPERTYID_EAX40_FXSlot2);
+    HANDLE_ID(EAXPROPERTYID_EAX40_FXSlot3);
+#undef HANDLE_ID
+    return debugstr_guid(guid);
+}
+
+static const char *debug_fxguid(const GUID *guid)
+{
+#define HANDLE_ID(id) if(IsEqualGUID(guid, &(id))) return #id
+    HANDLE_ID(EAX_NULL_GUID);
+    HANDLE_ID(EAX_REVERB_EFFECT);
+    HANDLE_ID(EAX_AGCCOMPRESSOR_EFFECT);
+    HANDLE_ID(EAX_AUTOWAH_EFFECT);
+    HANDLE_ID(EAX_CHORUS_EFFECT);
+    HANDLE_ID(EAX_DISTORTION_EFFECT);
+    HANDLE_ID(EAX_ECHO_EFFECT);
+    HANDLE_ID(EAX_EQUALIZER_EFFECT);
+    HANDLE_ID(EAX_FLANGER_EFFECT);
+    HANDLE_ID(EAX_FREQUENCYSHIFTER_EFFECT);
+    HANDLE_ID(EAX_VOCALMORPHER_EFFECT);
+    HANDLE_ID(EAX_PITCHSHIFTER_EFFECT);
+    HANDLE_ID(EAX_RINGMODULATOR_EFFECT);
+#undef HANDLE_ID
+    return debugstr_guid(guid);
+}
+
+
 HRESULT EAX4Context_Query(DSPrimary *prim, DWORD propid, ULONG *pTypeSupport)
 {
     if(!HAS_EXTENSION(prim->share, EXT_EFX))
@@ -72,7 +106,7 @@ HRESULT EAX4Context_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cb
             ALuint prim_slot;
             TRACE("Parameters:\n\tPrimary FXSlot: %s\n\tDistance Factor: %f\n\t"
                 "Air Absorption: %f\n\tHF Reference: %f\n",
-                debugstr_guid(&data.props->guidPrimaryFXSlotID), data.props->flDistanceFactor,
+                debug_fxslot(&data.props->guidPrimaryFXSlotID), data.props->flDistanceFactor,
                 data.props->flAirAbsorptionHF, data.props->flHFReference
             );
 
@@ -88,7 +122,7 @@ HRESULT EAX4Context_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cb
             if(prim_slot == 0 && !IsEqualGUID(&data.props->guidPrimaryFXSlotID, &EAX_NULL_GUID))
             {
                 ERR("Unexpected primary FXSlot: %s\n",
-                    debugstr_guid(&data.props->guidPrimaryFXSlotID));
+                    debug_fxslot(&data.props->guidPrimaryFXSlotID));
                 return DSERR_INVALIDPARAM;
             }
             if(!(data.props->flDistanceFactor >= DS3D_MINDISTANCEFACTOR &&
@@ -124,7 +158,7 @@ HRESULT EAX4Context_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cb
         {
             union { void *v; const GUID *guid; } data = { pPropData };
             ALuint prim_slot;
-            TRACE("Primary FXSlot: %s\n", debugstr_guid(data.guid));
+            TRACE("Primary FXSlot: %s\n", debug_fxslot(data.guid));
 
             prim_slot = 0;
             if(IsEqualGUID(data.guid, &EAXPROPERTYID_EAX40_FXSlot0))
@@ -137,7 +171,7 @@ HRESULT EAX4Context_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cb
                 prim_slot = prim->auxslot[3];
             if(prim_slot == 0 && !IsEqualGUID(data.guid, &EAX_NULL_GUID))
             {
-                ERR("Unexpected primary FXSlot: %s\n", debugstr_guid(data.guid));
+                ERR("Unexpected primary FXSlot: %s\n", debug_fxslot(data.guid));
                 return DSERR_INVALIDPARAM;
             }
 
@@ -349,7 +383,7 @@ HRESULT EAX4Slot_Set(DSPrimary *prim, LONG idx, DWORD propid, void *pPropData, U
             union { const void *v; const EAXFXSLOTPROPERTIES *props; } data = { pPropData };
             DWORD effect_type;
             TRACE("Parameters:\n\tLoad Effect: %s\n\tVolume: %ld\n\tLock: %ld\n\tFlags: 0x%lx\n",
-                debugstr_guid(&data.props->guidLoadEffect), data.props->lVolume, data.props->lLock,
+                debug_fxguid(&data.props->guidLoadEffect), data.props->lVolume, data.props->lLock,
                 data.props->dwFlags
             );
 
@@ -360,7 +394,7 @@ HRESULT EAX4Slot_Set(DSPrimary *prim, LONG idx, DWORD propid, void *pPropData, U
                 effect_type = FXSLOT_EFFECT_CHORUS;
             else if(!IsEqualGUID(&data.props->guidLoadEffect, &EAX_NULL_GUID))
             {
-                ERR("Unhandled effect GUID: %s\n", debugstr_guid(&data.props->guidLoadEffect));
+                ERR("Unhandled effect: %s\n", debug_fxguid(&data.props->guidLoadEffect));
                 return DSERR_INVALIDPARAM;
             }
 
@@ -377,7 +411,8 @@ HRESULT EAX4Slot_Set(DSPrimary *prim, LONG idx, DWORD propid, void *pPropData, U
                 alGetError();
                 alEffecti(prim->effect[idx], AL_EFFECT_TYPE,
                     (effect_type == FXSLOT_EFFECT_REVERB) ? AL_EFFECT_EAXREVERB :
-                    (effect_type == FXSLOT_EFFECT_CHORUS) ? AL_EFFECT_CHORUS : AL_EFFECT_NULL
+                    (effect_type == FXSLOT_EFFECT_CHORUS) ? AL_EFFECT_CHORUS :
+                    AL_EFFECT_NULL
                 );
                 if(alGetError() != AL_NO_ERROR)
                 {
@@ -415,7 +450,7 @@ HRESULT EAX4Slot_Set(DSPrimary *prim, LONG idx, DWORD propid, void *pPropData, U
         {
             union { const void *v; const GUID *guid; } data = { pPropData };
             DWORD effect_type;
-            TRACE("Load Effect: %s\n", debugstr_guid(data.guid));
+            TRACE("Load Effect: %s\n", debug_fxguid(data.guid));
 
             effect_type = FXSLOT_EFFECT_NULL;
             if(IsEqualGUID(data.guid, &EAX_REVERB_EFFECT))
@@ -424,7 +459,7 @@ HRESULT EAX4Slot_Set(DSPrimary *prim, LONG idx, DWORD propid, void *pPropData, U
                 effect_type = FXSLOT_EFFECT_CHORUS;
             else if(!IsEqualGUID(data.guid, &EAX_NULL_GUID))
             {
-                ERR("Unhandled effect GUID: %s\n", debugstr_guid(data.guid));
+                ERR("Unhandled effect: %s\n", debug_fxguid(data.guid));
                 return DSERR_INVALIDPARAM;
             }
 
@@ -437,7 +472,8 @@ HRESULT EAX4Slot_Set(DSPrimary *prim, LONG idx, DWORD propid, void *pPropData, U
             alGetError();
             alEffecti(prim->effect[idx], AL_EFFECT_TYPE,
                 (effect_type == FXSLOT_EFFECT_REVERB) ? AL_EFFECT_EAXREVERB :
-                (effect_type == FXSLOT_EFFECT_CHORUS) ? AL_EFFECT_CHORUS : AL_EFFECT_NULL
+                (effect_type == FXSLOT_EFFECT_CHORUS) ? AL_EFFECT_CHORUS :
+                AL_EFFECT_NULL
             );
             if(alGetError() != AL_NO_ERROR)
             {
@@ -1108,14 +1144,14 @@ HRESULT EAX4Source_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
             for(i = 0;i < count;++i)
             {
                 TRACE("Send parameters:\n\tReceiving: %s\n\tSend: %ld\n\tSend HF: %ld\n",
-                    debugstr_guid(&data.send[i].guidReceivingFXSlotID),
+                    debug_fxslot(&data.send[i].guidReceivingFXSlotID),
                     data.send[i].lSend, data.send[i].lSendHF
                 );
                 srcsend[i] = FindDeferredSend(buf, &data.send[i].guidReceivingFXSlotID);
                 if(!srcsend[i])
                 {
-                    ERR("Failed to find FXSlot target: %s\n",
-                        debugstr_guid(&data.send[i].guidReceivingFXSlotID));
+                    ERR("Failed to find active FXSlot target: %s\n",
+                        debug_fxslot(&data.send[i].guidReceivingFXSlotID));
                     return DSERR_INVALIDPARAM;
                 }
                 wetmask |= 1 << (srcsend[i]-buf->deferred.send);
@@ -1151,7 +1187,7 @@ HRESULT EAX4Source_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
                 TRACE("All send parameters:\n\tReceiving: %s\n\tSend: %ld\n\tSend HF: %ld\n\t"
                     "Occlusion: %ld\n\tOcclusion LF Ratio: %f\n\tOcclusion Room Ratio: %f\n\t"
                     "Occlusion Direct Ratio: %f\n\tExclusion: %ld\n\tExclusion LF Ratio: %f\n",
-                    debugstr_guid(&data.send[i].guidReceivingFXSlotID),
+                    debug_fxslot(&data.send[i].guidReceivingFXSlotID),
                     data.send[i].lSend, data.send[i].lSendHF, data.send[i].lOcclusion,
                     data.send[i].flOcclusionLFRatio, data.send[i].flOcclusionRoomRatio,
                     data.send[i].flOcclusionDirectRatio, data.send[i].lExclusion,
@@ -1160,8 +1196,8 @@ HRESULT EAX4Source_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
                 srcsend[i] = FindDeferredSend(buf, &data.send[i].guidReceivingFXSlotID);
                 if(!srcsend[i])
                 {
-                    ERR("Failed to find FXSlot target: %s\n",
-                        debugstr_guid(&data.send[i].guidReceivingFXSlotID));
+                    ERR("Failed to find active FXSlot target: %s\n",
+                        debug_fxslot(&data.send[i].guidReceivingFXSlotID));
                     return DSERR_INVALIDPARAM;
                 }
                 wetmask |= 1 << (srcsend[i]-buf->deferred.send);
@@ -1204,15 +1240,15 @@ HRESULT EAX4Source_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
                 TRACE("Occlusion send parameters:\n\tReceiving: %s\n\tOcclusion: %ld\n\t"
                     "Occlusion LF Ratio: %f\n\tOcclusion Room Ratio: %f\n\t"
                     "Occlusion Direct Ratio: %f\n",
-                    debugstr_guid(&data.send[i].guidReceivingFXSlotID),  data.send[i].lOcclusion,
+                    debug_fxslot(&data.send[i].guidReceivingFXSlotID),  data.send[i].lOcclusion,
                     data.send[i].flOcclusionLFRatio, data.send[i].flOcclusionRoomRatio,
                     data.send[i].flOcclusionDirectRatio
                 );
                 srcsend[i] = FindDeferredSend(buf, &data.send[i].guidReceivingFXSlotID);
                 if(!srcsend[i])
                 {
-                    ERR("Failed to find FXSlot target: %s\n",
-                        debugstr_guid(&data.send[i].guidReceivingFXSlotID));
+                    ERR("Failed to find active FXSlot target: %s\n",
+                        debug_fxslot(&data.send[i].guidReceivingFXSlotID));
                     return DSERR_INVALIDPARAM;
                 }
                 wetmask |= 1 << (srcsend[i]-buf->deferred.send);
@@ -1250,14 +1286,14 @@ HRESULT EAX4Source_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
             {
                 TRACE("Exclusion send parameters:\n\tReceiving: %s\n\tExclusion: %ld\n\t"
                     "Exclusion LF Ratio: %f\n",
-                    debugstr_guid(&data.send[i].guidReceivingFXSlotID),
+                    debug_fxslot(&data.send[i].guidReceivingFXSlotID),
                     data.send[i].lExclusion, data.send[i].flExclusionLFRatio
                 );
                 srcsend[i] = FindDeferredSend(buf, &data.send[i].guidReceivingFXSlotID);
                 if(!srcsend[i])
                 {
-                    ERR("Failed to find FXSlot target: %s\n",
-                        debugstr_guid(&data.send[i].guidReceivingFXSlotID));
+                    ERR("Failed to find active FXSlot target: %s\n",
+                        debug_fxslot(&data.send[i].guidReceivingFXSlotID));
                     return DSERR_INVALIDPARAM;
                 }
                 wetmask |= 1 << (srcsend[i]-buf->deferred.send);
@@ -1291,7 +1327,7 @@ HRESULT EAX4Source_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
 
             for(i = 0;i < count;i++)
             {
-                TRACE("Active FXSlot %ld: %s\n", i, debugstr_guid(&data.guid[i]));
+                TRACE("Active FXSlot %ld: %s\n", i, debug_fxslot(&data.guid[i]));
 
                 targets[i] = FXSLOT_TARGET_NULL;
                 if(IsEqualGUID(&data.guid[i], &EAXPROPERTYID_EAX40_FXSlot0))
@@ -1306,7 +1342,7 @@ HRESULT EAX4Source_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
                     targets[i] = FXSLOT_TARGET_PRIMARY;
                 if(targets[i] == FXSLOT_TARGET_NULL && !IsEqualGUID(&data.guid[i], &EAX_NULL_GUID))
                 {
-                    ERR("Invalid FXSlot GUID: %s\n", debugstr_guid(&data.guid[i]));
+                    ERR("Invalid FXSlot: %s\n", debug_fxslot(&data.guid[i]));
                     return DSERR_INVALIDPARAM;
                 }
             }
@@ -1432,8 +1468,8 @@ HRESULT EAX4Source_Get(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
                 srcsend[i] = FindCurrentSend(buf, &data.send[i].guidReceivingFXSlotID);
                 if(!srcsend[i])
                 {
-                    ERR("Failed to find FXSlot target: %s\n",
-                        debugstr_guid(&data.send[i].guidReceivingFXSlotID));
+                    ERR("Failed to find active FXSlot target: %s\n",
+                        debug_fxslot(&data.send[i].guidReceivingFXSlotID));
                     return DSERR_INVALIDPARAM;
                 }
             }
@@ -1462,8 +1498,8 @@ HRESULT EAX4Source_Get(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
                 srcsend[i] = FindCurrentSend(buf, &data.send[i].guidReceivingFXSlotID);
                 if(!srcsend[i])
                 {
-                    ERR("Failed to find FXSlot target: %s\n",
-                        debugstr_guid(&data.send[i].guidReceivingFXSlotID));
+                    ERR("Failed to find active FXSlot target: %s\n",
+                        debug_fxslot(&data.send[i].guidReceivingFXSlotID));
                     return DSERR_INVALIDPARAM;
                 }
             }
@@ -1497,8 +1533,8 @@ HRESULT EAX4Source_Get(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
                 srcsend[i] = FindCurrentSend(buf, &data.send[i].guidReceivingFXSlotID);
                 if(!srcsend[i])
                 {
-                    ERR("Failed to find FXSlot target: %s\n",
-                        debugstr_guid(&data.send[i].guidReceivingFXSlotID));
+                    ERR("Failed to find active FXSlot target: %s\n",
+                        debug_fxslot(&data.send[i].guidReceivingFXSlotID));
                     return DSERR_INVALIDPARAM;
                 }
             }
@@ -1528,8 +1564,8 @@ HRESULT EAX4Source_Get(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
                 srcsend[i] = FindCurrentSend(buf, &data.send[i].guidReceivingFXSlotID);
                 if(!srcsend[i])
                 {
-                    ERR("Failed to find FXSlot target: %s\n",
-                        debugstr_guid(&data.send[i].guidReceivingFXSlotID));
+                    ERR("Failed to find active FXSlot target: %s\n",
+                        debug_fxslot(&data.send[i].guidReceivingFXSlotID));
                     return DSERR_INVALIDPARAM;
                 }
             }
