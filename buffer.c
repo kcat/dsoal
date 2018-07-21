@@ -2721,6 +2721,10 @@ static const char *debug_bufferprop(const GUID *guid)
     HANDLE_ID(EAXPROPERTYID_EAX40_Context);
     HANDLE_ID(DSPROPSETID_EAX10_BufferProperties);
     HANDLE_ID(DSPROPSETID_EAX10_ListenerProperties);
+    HANDLE_ID(DSPROPSETID_VoiceManager);
+    HANDLE_ID(DSPROPSETID_ZOOMFX_BufferProperties);
+    HANDLE_ID(DSPROPSETID_I3DL2_ListenerProperties);
+    HANDLE_ID(DSPROPSETID_I3DL2_BufferProperties);
 #undef HANDLE_ID
     return debugstr_guid(guid);
 }
