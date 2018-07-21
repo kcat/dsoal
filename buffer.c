@@ -2706,6 +2706,25 @@ static const IDirectSoundNotifyVtbl DSBufferNot_Vtbl =
 };
 
 
+static const char *debug_bufferprop(const GUID *guid)
+{
+#define HANDLE_ID(id) if(IsEqualGUID(guid, &(id))) return #id
+    HANDLE_ID(EAXPROPERTYID_EAX40_Source);
+    HANDLE_ID(DSPROPSETID_EAX30_BufferProperties);
+    HANDLE_ID(DSPROPSETID_EAX20_BufferProperties);
+    HANDLE_ID(EAXPROPERTYID_EAX40_FXSlot0);
+    HANDLE_ID(EAXPROPERTYID_EAX40_FXSlot1);
+    HANDLE_ID(EAXPROPERTYID_EAX40_FXSlot2);
+    HANDLE_ID(EAXPROPERTYID_EAX40_FXSlot3);
+    HANDLE_ID(DSPROPSETID_EAX30_ListenerProperties);
+    HANDLE_ID(DSPROPSETID_EAX20_ListenerProperties);
+    HANDLE_ID(EAXPROPERTYID_EAX40_Context);
+    HANDLE_ID(DSPROPSETID_EAX10_BufferProperties);
+    HANDLE_ID(DSPROPSETID_EAX10_ListenerProperties);
+#undef HANDLE_ID
+    return debugstr_guid(guid);
+}
+
 static HRESULT WINAPI DSBufferProp_QueryInterface(IKsPropertySet *iface, REFIID riid, void **ppv)
 {
     DSBuffer *This = impl_from_IKsPropertySet(iface);
@@ -2749,7 +2768,7 @@ static HRESULT WINAPI DSBufferProp_Get(IKsPropertySet *iface,
     DSBuffer *This = impl_from_IKsPropertySet(iface);
     HRESULT hr = E_PROP_ID_UNSUPPORTED;
 
-    TRACE("(%p)->(%s, 0x%lx, %p, %lu, %p, %lu, %p)\n", iface, debugstr_guid(guidPropSet),
+    TRACE("(%p)->(%s, 0x%lx, %p, %lu, %p, %lu, %p)\n", iface, debug_bufferprop(guidPropSet),
           dwPropID, pInstanceData, cbInstanceData, pPropData, cbPropData, pcbReturned);
 
     if(!pcbReturned)
@@ -2788,7 +2807,7 @@ static HRESULT WINAPI DSBufferProp_Get(IKsPropertySet *iface,
     else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX10_ListenerProperties))
         hr = EAX1_Get(This->primary, dwPropID, pPropData, cbPropData, pcbReturned);
     else
-        FIXME("Unhandled propset: %s\n", debugstr_guid(guidPropSet));
+        FIXME("Unhandled propset: %s\n", debug_bufferprop(guidPropSet));
     LeaveCriticalSection(&This->share->crst);
 
     return hr;
@@ -2803,7 +2822,7 @@ static HRESULT WINAPI DSBufferProp_Set(IKsPropertySet *iface,
     HRESULT hr = E_PROP_ID_UNSUPPORTED;
     LONG idx;
 
-    TRACE("(%p)->(%s, 0x%lx, %p, %lu, %p, %lu)\n", iface, debugstr_guid(guidPropSet),
+    TRACE("(%p)->(%s, 0x%lx, %p, %lu, %p, %lu)\n", iface, debug_bufferprop(guidPropSet),
           dwPropID, pInstanceData, cbInstanceData, pPropData, cbPropData);
 
     if(cbPropData > 0 && !pPropData)
@@ -2933,7 +2952,7 @@ static HRESULT WINAPI DSBufferProp_Set(IKsPropertySet *iface,
         popALContext();
     }
     else
-        FIXME("Unhandled propset: %s\n", debugstr_guid(guidPropSet));
+        FIXME("Unhandled propset: %s\n", debug_bufferprop(guidPropSet));
     LeaveCriticalSection(&This->share->crst);
 
     return hr;
@@ -2946,7 +2965,8 @@ static HRESULT WINAPI DSBufferProp_QuerySupport(IKsPropertySet *iface,
     DSBuffer *This = impl_from_IKsPropertySet(iface);
     HRESULT hr = E_PROP_ID_UNSUPPORTED;
 
-    TRACE("(%p)->(%s, 0x%lx, %p)\n", iface, debugstr_guid(guidPropSet), dwPropID, pTypeSupport);
+    TRACE("(%p)->(%s, 0x%lx, %p)\n", iface, debug_bufferprop(guidPropSet), dwPropID,
+          pTypeSupport);
 
     if(!pTypeSupport)
         return E_POINTER;
@@ -2978,7 +2998,7 @@ static HRESULT WINAPI DSBufferProp_QuerySupport(IKsPropertySet *iface,
     else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX10_BufferProperties))
         hr = EAX1Buffer_Query(This, dwPropID, pTypeSupport);
     else
-        FIXME("Unhandled propset: %s (propid: %lu)\n", debugstr_guid(guidPropSet), dwPropID);
+        FIXME("Unhandled propset: %s (propid: %lu)\n", debug_bufferprop(guidPropSet), dwPropID);
     LeaveCriticalSection(&This->share->crst);
 
     return hr;
