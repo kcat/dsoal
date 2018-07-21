@@ -141,17 +141,13 @@ HRESULT EAX3_Query(DSPrimary *prim, DWORD propid, ULONG *pTypeSupport)
     case DSPROPERTY_EAX30LISTENER_FLAGS:
         *pTypeSupport = KSPROPERTY_SUPPORT_GET | KSPROPERTY_SUPPORT_SET;
         return DS_OK;
-
-    default:
-        FIXME("Unhandled propid: 0x%08lx\n", propid);
     }
+    FIXME("Unhandled propid: 0x%08lx\n", propid);
     return E_PROP_ID_UNSUPPORTED;
 }
 
 HRESULT EAX3_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropData)
 {
-    HRESULT hr;
-
     /* Should this be using slot 0 or the primary slot? */
     if(prim->effect[0] == 0)
         return E_PROP_ID_UNSUPPORTED;
@@ -161,7 +157,6 @@ HRESULT EAX3_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
         return DSERR_INVALIDCALL;
     }
 
-    hr = DSERR_INVALIDPARAM;
     switch(propid)
     {
     case DSPROPERTY_EAX30LISTENER_NONE: /* not setting any property, just applying */
@@ -175,7 +170,7 @@ HRESULT EAX3_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
             EAXREVERBPROPERTIES *revprops = data.props;
             return EAXReverb_Set(prim, 0, EAXREVERB_ALLPARAMETERS, revprops, cbPropData);
         }
-        break;
+        return DSERR_INVALIDPARAM;
 
 #define HANDLE_PROP(P) case DSPROPERTY_EAX30LISTENER_##P: \
     return EAXReverb_Set(prim, 0, EAXREVERB_##P, pPropData, cbPropData);
@@ -204,14 +199,9 @@ HRESULT EAX3_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
     HANDLE_PROP(ROOMROLLOFFFACTOR)
     HANDLE_PROP(FLAGS)
 #undef HANDLE_PROP
-
-    default:
-        hr = E_PROP_ID_UNSUPPORTED;
-        FIXME("Unhandled propid: 0x%08lx\n", propid);
-        break;
     }
-
-    return hr;
+    FIXME("Unhandled propid: 0x%08lx\n", propid);
+    return DSERR_INVALIDPARAM;
 }
 
 #define GET_PROP(src, T) do {                              \
@@ -220,14 +210,13 @@ HRESULT EAX3_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
         union { void *v; T *props; } data = { pPropData }; \
         *data.props = src;                                 \
         *pcbReturned = sizeof(T);                          \
-        hr = DS_OK;                                        \
+        return DS_OK;                                      \
     }                                                      \
+    return DSERR_INVALIDPARAM;                             \
 } while(0)
 
 HRESULT EAX3_Get(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropData, ULONG *pcbReturned)
 {
-    HRESULT hr;
-
     if(prim->effect[0] == 0)
         return E_PROP_ID_UNSUPPORTED;
     if(prim->deferred.fxslot[0].effect_type != FXSLOT_EFFECT_REVERB)
@@ -236,7 +225,6 @@ HRESULT EAX3_Get(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
         return DSERR_INVALIDCALL;
     }
 
-    hr = DSERR_INVALIDPARAM;
     switch(propid)
     {
     case DSPROPERTY_EAX30LISTENER_NONE:
@@ -245,99 +233,69 @@ HRESULT EAX3_Get(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
 
     case DSPROPERTY_EAX30LISTENER_ALLPARAMETERS:
         GET_PROP(prim->deferred.fxslot[0].fx.reverb, EAX30LISTENERPROPERTIES);
-        break;
 
     case DSPROPERTY_EAX30LISTENER_ENVIRONMENT:
         GET_PROP(prim->deferred.fxslot[0].fx.reverb.dwEnvironment, DWORD);
-        break;
 
     case DSPROPERTY_EAX30LISTENER_ENVIRONMENTSIZE:
         GET_PROP(prim->deferred.fxslot[0].fx.reverb.flEnvironmentSize, float);
-        break;
     case DSPROPERTY_EAX30LISTENER_ENVIRONMENTDIFFUSION:
         GET_PROP(prim->deferred.fxslot[0].fx.reverb.flEnvironmentDiffusion, float);
-        break;
 
     case DSPROPERTY_EAX30LISTENER_ROOM:
         GET_PROP(prim->deferred.fxslot[0].fx.reverb.lRoom, long);
-        break;
     case DSPROPERTY_EAX30LISTENER_ROOMHF:
         GET_PROP(prim->deferred.fxslot[0].fx.reverb.lRoomHF, long);
-        break;
     case DSPROPERTY_EAX30LISTENER_ROOMLF:
         GET_PROP(prim->deferred.fxslot[0].fx.reverb.lRoomLF, long);
-        break;
 
     case DSPROPERTY_EAX30LISTENER_DECAYTIME:
         GET_PROP(prim->deferred.fxslot[0].fx.reverb.flDecayTime, float);
-        break;
     case DSPROPERTY_EAX30LISTENER_DECAYHFRATIO:
         GET_PROP(prim->deferred.fxslot[0].fx.reverb.flDecayHFRatio, float);
-        break;
     case DSPROPERTY_EAX30LISTENER_DECAYLFRATIO:
         GET_PROP(prim->deferred.fxslot[0].fx.reverb.flDecayLFRatio, float);
-        break;
 
     case DSPROPERTY_EAX30LISTENER_REFLECTIONS:
         GET_PROP(prim->deferred.fxslot[0].fx.reverb.lReflections, long);
-        break;
     case DSPROPERTY_EAX30LISTENER_REFLECTIONSDELAY:
         GET_PROP(prim->deferred.fxslot[0].fx.reverb.flReflectionsDelay, float);
-        break;
     case DSPROPERTY_EAX30LISTENER_REFLECTIONSPAN:
         GET_PROP(prim->deferred.fxslot[0].fx.reverb.vReflectionsPan, EAXVECTOR);
-        break;
 
     case DSPROPERTY_EAX30LISTENER_REVERB:
         GET_PROP(prim->deferred.fxslot[0].fx.reverb.lReverb, long);
-        break;
     case DSPROPERTY_EAX30LISTENER_REVERBDELAY:
         GET_PROP(prim->deferred.fxslot[0].fx.reverb.flReverbDelay, float);
-        break;
     case DSPROPERTY_EAX30LISTENER_REVERBPAN:
         GET_PROP(prim->deferred.fxslot[0].fx.reverb.vReverbPan, EAXVECTOR);
-        break;
 
     case DSPROPERTY_EAX30LISTENER_ECHOTIME:
         GET_PROP(prim->deferred.fxslot[0].fx.reverb.flEchoTime, float);
-        break;
     case DSPROPERTY_EAX30LISTENER_ECHODEPTH:
         GET_PROP(prim->deferred.fxslot[0].fx.reverb.flEchoDepth, float);
-        break;
 
     case DSPROPERTY_EAX30LISTENER_MODULATIONTIME:
         GET_PROP(prim->deferred.fxslot[0].fx.reverb.flModulationTime, float);
-        break;
     case DSPROPERTY_EAX30LISTENER_MODULATIONDEPTH:
         GET_PROP(prim->deferred.fxslot[0].fx.reverb.flModulationDepth, float);
-        break;
 
     case DSPROPERTY_EAX30LISTENER_AIRABSORPTIONHF:
         GET_PROP(prim->deferred.fxslot[0].fx.reverb.flAirAbsorptionHF, float);
-        break;
 
     case DSPROPERTY_EAX30LISTENER_HFREFERENCE:
         GET_PROP(prim->deferred.fxslot[0].fx.reverb.flHFReference, float);
-        break;
     case DSPROPERTY_EAX30LISTENER_LFREFERENCE:
         GET_PROP(prim->deferred.fxslot[0].fx.reverb.flLFReference, float);
-        break;
 
     case DSPROPERTY_EAX30LISTENER_ROOMROLLOFFFACTOR:
         GET_PROP(prim->deferred.fxslot[0].fx.reverb.flRoomRolloffFactor, float);
-        break;
 
     case DSPROPERTY_EAX30LISTENER_FLAGS:
         GET_PROP(prim->deferred.fxslot[0].fx.reverb.dwFlags, DWORD);
-        break;
-
-    default:
-        hr = E_PROP_ID_UNSUPPORTED;
-        FIXME("Unhandled propid: 0x%08lx\n", propid);
-        break;
     }
-
-    return hr;
+    FIXME("Unhandled propid: 0x%08lx\n", propid);
+    return DSERR_INVALIDPARAM;
 }
 
 
@@ -372,24 +330,18 @@ HRESULT EAX3Buffer_Query(DSBuffer *buf, DWORD propid, ULONG *pTypeSupport)
     case DSPROPERTY_EAX30BUFFER_FLAGS:
         *pTypeSupport = KSPROPERTY_SUPPORT_GET | KSPROPERTY_SUPPORT_SET;
         return DS_OK;
-
-    default:
-        FIXME("Unhandled propid: 0x%08lx\n", propid);
     }
+    FIXME("Unhandled propid: 0x%08lx\n", propid);
     return E_PROP_ID_UNSUPPORTED;
 }
 
 
 HRESULT EAX3Buffer_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPropData)
 {
-    HRESULT hr;
-
-    hr = DSERR_INVALIDPARAM;
     switch(propid)
     {
     case DSPROPERTY_EAX30BUFFER_NONE: /* not setting any property, just applying */
-        hr = DS_OK;
-        break;
+        return DS_OK;
 
     case DSPROPERTY_EAX30BUFFER_ALLPARAMETERS:
         if(cbPropData >= sizeof(EAX30BUFFERPROPERTIES))
@@ -425,9 +377,9 @@ HRESULT EAX3Buffer_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
             buf->dirty.bit.cone_outsidevolumehf = 1;
             buf->dirty.bit.air_absorb = 1;
             buf->dirty.bit.flags = 1;
-            hr = DS_OK;
+            return DS_OK;
         }
-        break;
+        return DSERR_INVALIDPARAM;
     case DSPROPERTY_EAX30BUFFER_OBSTRUCTIONPARAMETERS:
         if(cbPropData >= sizeof(EAXOBSTRUCTIONPROPERTIES))
         {
@@ -443,9 +395,9 @@ HRESULT EAX3Buffer_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_DRY_PARAMS);
 
             buf->dirty.bit.dry_filter = 1;
-            hr = DS_OK;
+            return DS_OK;
         }
-        break;
+        return DSERR_INVALIDPARAM;
     case DSPROPERTY_EAX30BUFFER_OCCLUSIONPARAMETERS:
         if(cbPropData >= sizeof(EAXOCCLUSIONPROPERTIES))
         {
@@ -467,9 +419,9 @@ HRESULT EAX3Buffer_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
 
             buf->dirty.bit.dry_filter = 1;
             buf->dirty.bit.send_filter |= 1;
-            hr = DS_OK;
+            return DS_OK;
         }
-        break;
+        return DSERR_INVALIDPARAM;
     case DSPROPERTY_EAX30BUFFER_EXCLUSIONPARAMETERS:
         if(cbPropData >= sizeof(EAXEXCLUSIONPROPERTIES))
         {
@@ -485,9 +437,9 @@ HRESULT EAX3Buffer_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_WET_PARAMS);
 
             buf->dirty.bit.send_filter |= 1;
-            hr = DS_OK;
+            return DS_OK;
         }
-        break;
+        return DSERR_INVALIDPARAM;
 
     case DSPROPERTY_EAX30BUFFER_DIRECT:
         if(cbPropData >= sizeof(long))
@@ -499,9 +451,9 @@ HRESULT EAX3Buffer_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_DRY_PARAMS);
 
             buf->dirty.bit.dry_filter = 1;
-            hr = DS_OK;
+            return DS_OK;
         }
-        break;
+        return DSERR_INVALIDPARAM;
     case DSPROPERTY_EAX30BUFFER_DIRECTHF:
         if(cbPropData >= sizeof(long))
         {
@@ -512,9 +464,9 @@ HRESULT EAX3Buffer_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_DRY_PARAMS);
 
             buf->dirty.bit.dry_filter = 1;
-            hr = DS_OK;
+            return DS_OK;
         }
-        break;
+        return DSERR_INVALIDPARAM;
 
     case DSPROPERTY_EAX30BUFFER_ROOM:
         if(cbPropData >= sizeof(long))
@@ -526,9 +478,9 @@ HRESULT EAX3Buffer_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_WET_PARAMS);
 
             buf->dirty.bit.send_filter |= 1;
-            hr = DS_OK;
+            return DS_OK;
         }
-        break;
+        return DSERR_INVALIDPARAM;
     case DSPROPERTY_EAX30BUFFER_ROOMHF:
         if(cbPropData >= sizeof(long))
         {
@@ -539,9 +491,9 @@ HRESULT EAX3Buffer_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_WET_PARAMS);
 
             buf->dirty.bit.send_filter |= 1;
-            hr = DS_OK;
+            return DS_OK;
         }
-        break;
+        return DSERR_INVALIDPARAM;
 
     case DSPROPERTY_EAX30BUFFER_OBSTRUCTION:
         if(cbPropData >= sizeof(long))
@@ -553,9 +505,9 @@ HRESULT EAX3Buffer_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_DRY_PARAMS);
 
             buf->dirty.bit.dry_filter = 1;
-            hr = DS_OK;
+            return DS_OK;
         }
-        break;
+        return DSERR_INVALIDPARAM;
     case DSPROPERTY_EAX30BUFFER_OBSTRUCTIONLFRATIO:
         if(cbPropData >= sizeof(float))
         {
@@ -566,9 +518,9 @@ HRESULT EAX3Buffer_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_DRY_PARAMS);
 
             buf->dirty.bit.dry_filter = 1;
-            hr = DS_OK;
+            return DS_OK;
         }
-        break;
+        return DSERR_INVALIDPARAM;
 
     case DSPROPERTY_EAX30BUFFER_OCCLUSION:
         if(cbPropData >= sizeof(long))
@@ -581,9 +533,9 @@ HRESULT EAX3Buffer_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
 
             buf->dirty.bit.dry_filter = 1;
             buf->dirty.bit.send_filter |= 1;
-            hr = DS_OK;
+            return DS_OK;
         }
-        break;
+        return DSERR_INVALIDPARAM;
     case DSPROPERTY_EAX30BUFFER_OCCLUSIONLFRATIO:
         if(cbPropData >= sizeof(float))
         {
@@ -595,9 +547,9 @@ HRESULT EAX3Buffer_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
 
             buf->dirty.bit.dry_filter = 1;
             buf->dirty.bit.send_filter |= 1;
-            hr = DS_OK;
+            return DS_OK;
         }
-        break;
+        return DSERR_INVALIDPARAM;
     case DSPROPERTY_EAX30BUFFER_OCCLUSIONROOMRATIO:
         if(cbPropData >= sizeof(float))
         {
@@ -608,9 +560,9 @@ HRESULT EAX3Buffer_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_WET_PARAMS);
 
             buf->dirty.bit.send_filter |= 1;
-            hr = DS_OK;
+            return DS_OK;
         }
-        break;
+        return DSERR_INVALIDPARAM;
     case DSPROPERTY_EAX30BUFFER_OCCLUSIONDIRECTRATIO:
         if(cbPropData >= sizeof(float))
         {
@@ -621,9 +573,9 @@ HRESULT EAX3Buffer_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_DRY_PARAMS);
 
             buf->dirty.bit.dry_filter = 1;
-            hr = DS_OK;
+            return DS_OK;
         }
-        break;
+        return DSERR_INVALIDPARAM;
 
     case DSPROPERTY_EAX30BUFFER_EXCLUSION:
         if(cbPropData >= sizeof(long))
@@ -635,9 +587,9 @@ HRESULT EAX3Buffer_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_WET_PARAMS);
 
             buf->dirty.bit.send_filter |= 1;
-            hr = DS_OK;
+            return DS_OK;
         }
-        break;
+        return DSERR_INVALIDPARAM;
     case DSPROPERTY_EAX30BUFFER_EXCLUSIONLFRATIO:
         if(cbPropData >= sizeof(float))
         {
@@ -648,9 +600,9 @@ HRESULT EAX3Buffer_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_WET_PARAMS);
 
             buf->dirty.bit.send_filter |= 1;
-            hr = DS_OK;
+            return DS_OK;
         }
-        break;
+        return DSERR_INVALIDPARAM;
 
     case DSPROPERTY_EAX30BUFFER_OUTSIDEVOLUMEHF:
         if(cbPropData >= sizeof(long))
@@ -661,9 +613,9 @@ HRESULT EAX3Buffer_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
             buf->deferred.eax.lOutsideVolumeHF = *data.l;
 
             buf->dirty.bit.cone_outsidevolumehf = 1;
-            hr = DS_OK;
+            return DS_OK;
         }
-        break;
+        return DSERR_INVALIDPARAM;
 
     case DSPROPERTY_EAX30BUFFER_DOPPLERFACTOR:
         if(cbPropData >= sizeof(float))
@@ -674,9 +626,9 @@ HRESULT EAX3Buffer_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
             buf->deferred.eax.flDopplerFactor = *data.fl;
 
             buf->dirty.bit.doppler = 1;
-            hr = DS_OK;
+            return DS_OK;
         }
-        break;
+        return DSERR_INVALIDPARAM;
 
     case DSPROPERTY_EAX30BUFFER_ROLLOFFFACTOR:
         if(cbPropData >= sizeof(float))
@@ -687,9 +639,9 @@ HRESULT EAX3Buffer_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
             buf->deferred.eax.flRolloffFactor = *data.fl;
 
             buf->dirty.bit.rolloff = 1;
-            hr = DS_OK;
+            return DS_OK;
         }
-        break;
+        return DSERR_INVALIDPARAM;
 
     case DSPROPERTY_EAX30BUFFER_ROOMROLLOFFFACTOR:
         if(cbPropData >= sizeof(float))
@@ -700,9 +652,9 @@ HRESULT EAX3Buffer_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
             buf->deferred.eax.flRoomRolloffFactor = *data.fl;
 
             buf->dirty.bit.room_rolloff = 1;
-            hr = DS_OK;
+            return DS_OK;
         }
-        break;
+        return DSERR_INVALIDPARAM;
 
     case DSPROPERTY_EAX30BUFFER_AIRABSORPTIONFACTOR:
         if(cbPropData >= sizeof(float))
@@ -713,9 +665,9 @@ HRESULT EAX3Buffer_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
             buf->deferred.eax.flAirAbsorptionFactor = *data.fl;
 
             buf->dirty.bit.air_absorb = 1;
-            hr = DS_OK;
+            return DS_OK;
         }
-        break;
+        return DSERR_INVALIDPARAM;
 
     case DSPROPERTY_EAX30BUFFER_FLAGS:
         if(cbPropData >= sizeof(DWORD))
@@ -726,24 +678,16 @@ HRESULT EAX3Buffer_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
             buf->deferred.eax.dwFlags = *data.dw;
 
             buf->dirty.bit.flags = 1;
-            hr = DS_OK;
+            return DS_OK;
         }
-        break;
-
-    default:
-        hr = E_PROP_ID_UNSUPPORTED;
-        FIXME("Unhandled propid: 0x%08lx\n", propid);
-        break;
+        return DSERR_INVALIDPARAM;
     }
-
-    return hr;
+    FIXME("Unhandled propid: 0x%08lx\n", propid);
+    return E_PROP_ID_UNSUPPORTED;
 }
 
 HRESULT EAX3Buffer_Get(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPropData, ULONG *pcbReturned)
 {
-    HRESULT hr;
-
-    hr = DSERR_INVALIDPARAM;
     switch(propid)
     {
     case DSPROPERTY_EAX30BUFFER_NONE:
@@ -752,88 +696,61 @@ HRESULT EAX3Buffer_Get(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
 
     case DSPROPERTY_EAX30BUFFER_ALLPARAMETERS:
         GET_PROP(buf->current.eax, EAX30BUFFERPROPERTIES);
-        break;
     case DSPROPERTY_EAX30BUFFER_OBSTRUCTIONPARAMETERS:
         GET_PROP(EAXSourceObstruction(&buf->current.eax), EAXOBSTRUCTIONPROPERTIES);
-        break;
     case DSPROPERTY_EAX30BUFFER_OCCLUSIONPARAMETERS:
         GET_PROP(EAXSourceOcclusion(&buf->current.eax), EAXOCCLUSIONPROPERTIES);
-        break;
     case DSPROPERTY_EAX30BUFFER_EXCLUSIONPARAMETERS:
         GET_PROP(EAXSourceExclusion(&buf->current.eax), EAXEXCLUSIONPROPERTIES);
-        break;
 
     case DSPROPERTY_EAX30BUFFER_DIRECT:
         GET_PROP(buf->current.eax.lDirect, long);
-        break;
     case DSPROPERTY_EAX30BUFFER_DIRECTHF:
         GET_PROP(buf->current.eax.lDirectHF, long);
-        break;
 
     case DSPROPERTY_EAX30BUFFER_ROOM:
         GET_PROP(buf->current.eax.lRoom, long);
-        break;
     case DSPROPERTY_EAX30BUFFER_ROOMHF:
         GET_PROP(buf->current.eax.lRoomHF, long);
-        break;
 
     case DSPROPERTY_EAX30BUFFER_OBSTRUCTION:
         GET_PROP(buf->current.eax.lObstruction, long);
-        break;
     case DSPROPERTY_EAX30BUFFER_OBSTRUCTIONLFRATIO:
         GET_PROP(buf->current.eax.flObstructionLFRatio, float);
-        break;
 
     case DSPROPERTY_EAX30BUFFER_OCCLUSION:
         GET_PROP(buf->current.eax.lOcclusion, long);
-        break;
     case DSPROPERTY_EAX30BUFFER_OCCLUSIONLFRATIO:
         GET_PROP(buf->current.eax.flOcclusionLFRatio, float);
-        break;
     case DSPROPERTY_EAX30BUFFER_OCCLUSIONROOMRATIO:
         GET_PROP(buf->current.eax.flOcclusionRoomRatio, float);
-        break;
     case DSPROPERTY_EAX30BUFFER_OCCLUSIONDIRECTRATIO:
         GET_PROP(buf->current.eax.flOcclusionDirectRatio, float);
-        break;
 
     case DSPROPERTY_EAX30BUFFER_EXCLUSION:
         GET_PROP(buf->current.eax.lExclusion, long);
-        break;
     case DSPROPERTY_EAX30BUFFER_EXCLUSIONLFRATIO:
         GET_PROP(buf->current.eax.flExclusionLFRatio, float);
-        break;
 
     case DSPROPERTY_EAX30BUFFER_OUTSIDEVOLUMEHF:
         GET_PROP(buf->current.eax.lOutsideVolumeHF, long);
-        break;
 
     case DSPROPERTY_EAX30BUFFER_DOPPLERFACTOR:
         GET_PROP(buf->current.eax.flDopplerFactor, float);
-        break;
 
     case DSPROPERTY_EAX30BUFFER_ROLLOFFFACTOR:
         GET_PROP(buf->current.eax.flRolloffFactor, float);
-        break;
     case DSPROPERTY_EAX30BUFFER_ROOMROLLOFFFACTOR:
         GET_PROP(buf->current.eax.flRoomRolloffFactor, float);
-        break;
 
     case DSPROPERTY_EAX30BUFFER_AIRABSORPTIONFACTOR:
         GET_PROP(buf->current.eax.flAirAbsorptionFactor, float);
-        break;
 
     case DSPROPERTY_EAX30BUFFER_FLAGS:
         GET_PROP(buf->current.eax.dwFlags, DWORD);
-        break;
-
-    default:
-        hr = E_PROP_ID_UNSUPPORTED;
-        FIXME("Unhandled propid: 0x%08lx\n", propid);
-        break;
     }
-
-    return hr;
+    FIXME("Unhandled propid: 0x%08lx\n", propid);
+    return DSERR_INVALIDPARAM;
 }
 
 
@@ -913,17 +830,13 @@ HRESULT EAX2_Query(DSPrimary *prim, DWORD propid, ULONG *pTypeSupport)
     case DSPROPERTY_EAX20LISTENER_FLAGS:
         *pTypeSupport = KSPROPERTY_SUPPORT_GET | KSPROPERTY_SUPPORT_SET;
         return DS_OK;
-
-    default:
-        FIXME("Unhandled propid: 0x%08lx\n", propid);
     }
+    FIXME("Unhandled propid: 0x%08lx\n", propid);
     return E_PROP_ID_UNSUPPORTED;
 }
 
 HRESULT EAX2_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropData)
 {
-    HRESULT hr;
-
     if(prim->effect[0] == 0)
         return E_PROP_ID_UNSUPPORTED;
     if(prim->deferred.fxslot[0].effect_type != FXSLOT_EFFECT_REVERB)
@@ -932,12 +845,10 @@ HRESULT EAX2_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
         return DSERR_INVALIDCALL;
     }
 
-    hr = DSERR_INVALIDPARAM;
     switch(propid)
     {
     case DSPROPERTY_EAX20LISTENER_NONE: /* not setting any property, just applying */
-        hr = DS_OK;
-        break;
+        return DS_OK;
 
     case DSPROPERTY_EAX20LISTENER_ALLPARAMETERS:
         if(cbPropData >= sizeof(EAX20LISTENERPROPERTIES))
@@ -978,7 +889,7 @@ HRESULT EAX2_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
             props.dwFlags = data.props->dwFlags;
             return EAXReverb_Set(prim, 0, EAXREVERB_ALLPARAMETERS, &props, sizeof(props));
         }
-        break;
+        return DSERR_INVALIDPARAM;
 
 #define HANDLE_PROP(P) case DSPROPERTY_EAX20LISTENER_##P: \
     return EAXReverb_Set(prim, 0, EAXREVERB_##P, pPropData, cbPropData);
@@ -997,20 +908,13 @@ HRESULT EAX2_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
     HANDLE_PROP(ROOMROLLOFFFACTOR)
     HANDLE_PROP(FLAGS)
 #undef HANDLE_PROP
-
-    default:
-        hr = E_PROP_ID_UNSUPPORTED;
-        FIXME("Unhandled propid: 0x%08lx\n", propid);
-        break;
     }
-
-    return hr;
+    FIXME("Unhandled propid: 0x%08lx\n", propid);
+    return E_PROP_ID_UNSUPPORTED;
 }
 
 HRESULT EAX2_Get(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropData, ULONG *pcbReturned)
 {
-    HRESULT hr;
-
     if(prim->effect[0] == 0)
         return E_PROP_ID_UNSUPPORTED;
     if(prim->deferred.fxslot[0].effect_type != FXSLOT_EFFECT_REVERB)
@@ -1019,7 +923,6 @@ HRESULT EAX2_Get(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
         return DSERR_INVALIDCALL;
     }
 
-    hr = DSERR_INVALIDPARAM;
     switch(propid)
     {
     case DSPROPERTY_EAX20LISTENER_NONE:
@@ -1028,66 +931,46 @@ HRESULT EAX2_Get(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
 
     case DSPROPERTY_EAX20LISTENER_ALLPARAMETERS:
         GET_PROP(EAXRevTo2(&prim->deferred.fxslot[0].fx.reverb), EAX20LISTENERPROPERTIES);
-        break;
 
     case DSPROPERTY_EAX20LISTENER_ROOM:
         GET_PROP(prim->deferred.fxslot[0].fx.reverb.lRoom, long);
-        break;
     case DSPROPERTY_EAX20LISTENER_ROOMHF:
         GET_PROP(prim->deferred.fxslot[0].fx.reverb.lRoomHF, long);
-        break;
 
     case DSPROPERTY_EAX20LISTENER_ROOMROLLOFFFACTOR:
         GET_PROP(prim->deferred.fxslot[0].fx.reverb.flRoomRolloffFactor, float);
-        break;
 
     case DSPROPERTY_EAX20LISTENER_DECAYTIME:
         GET_PROP(prim->deferred.fxslot[0].fx.reverb.flDecayTime, float);
-        break;
     case DSPROPERTY_EAX20LISTENER_DECAYHFRATIO:
         GET_PROP(prim->deferred.fxslot[0].fx.reverb.flDecayHFRatio, float);
-        break;
 
     case DSPROPERTY_EAX20LISTENER_REFLECTIONS:
         GET_PROP(prim->deferred.fxslot[0].fx.reverb.lReflections, long);
-        break;
     case DSPROPERTY_EAX20LISTENER_REFLECTIONSDELAY:
         GET_PROP(prim->deferred.fxslot[0].fx.reverb.flReflectionsDelay, float);
-        break;
 
     case DSPROPERTY_EAX20LISTENER_REVERB:
         GET_PROP(prim->deferred.fxslot[0].fx.reverb.lReverb, long);
-        break;
     case DSPROPERTY_EAX20LISTENER_REVERBDELAY:
         GET_PROP(prim->deferred.fxslot[0].fx.reverb.flReverbDelay, float);
-        break;
 
     case DSPROPERTY_EAX20LISTENER_ENVIRONMENT:
         GET_PROP(prim->deferred.fxslot[0].fx.reverb.dwEnvironment, DWORD);
-        break;
 
     case DSPROPERTY_EAX20LISTENER_ENVIRONMENTSIZE:
         GET_PROP(prim->deferred.fxslot[0].fx.reverb.flEnvironmentSize, float);
-        break;
     case DSPROPERTY_EAX20LISTENER_ENVIRONMENTDIFFUSION:
         GET_PROP(prim->deferred.fxslot[0].fx.reverb.flEnvironmentDiffusion, float);
-        break;
 
     case DSPROPERTY_EAX20LISTENER_AIRABSORPTIONHF:
         GET_PROP(prim->deferred.fxslot[0].fx.reverb.flAirAbsorptionHF, float);
-        break;
 
     case DSPROPERTY_EAX20LISTENER_FLAGS:
         GET_PROP(prim->deferred.fxslot[0].fx.reverb.dwFlags&EAX2LISTENERFLAGS_MASK, DWORD);
-        break;
-
-    default:
-        hr = E_PROP_ID_UNSUPPORTED;
-        FIXME("Unhandled listener propid: 0x%08lx\n", propid);
-        break;
     }
-
-    return hr;
+    FIXME("Unhandled listener propid: 0x%08lx\n", propid);
+    return E_PROP_ID_UNSUPPORTED;
 }
 
 
@@ -1114,23 +997,17 @@ HRESULT EAX2Buffer_Query(DSBuffer *buf, DWORD propid, ULONG *pTypeSupport)
     case DSPROPERTY_EAX20BUFFER_FLAGS:
         *pTypeSupport = KSPROPERTY_SUPPORT_GET | KSPROPERTY_SUPPORT_SET;
         return DS_OK;
-
-    default:
-        FIXME("Unhandled propid: 0x%08lx\n", propid);
     }
+    FIXME("Unhandled propid: 0x%08lx\n", propid);
     return E_PROP_ID_UNSUPPORTED;
 }
 
 HRESULT EAX2Buffer_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPropData)
 {
-    HRESULT hr;
-
-    hr = DSERR_INVALIDPARAM;
     switch(propid)
     {
     case DSPROPERTY_EAX20BUFFER_NONE: /* not setting any property, just applying */
-        hr = DS_OK;
-        break;
+        return DS_OK;
 
     case DSPROPERTY_EAX20BUFFER_ALLPARAMETERS:
         if(cbPropData >= sizeof(EAX20BUFFERPROPERTIES))
@@ -1172,9 +1049,9 @@ HRESULT EAX2Buffer_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
             buf->dirty.bit.cone_outsidevolumehf = 1;
             buf->dirty.bit.air_absorb = 1;
             buf->dirty.bit.flags = 1;
-            hr = DS_OK;
+            return DS_OK;
         }
-        break;
+        return DSERR_INVALIDPARAM;
 
     case DSPROPERTY_EAX20BUFFER_DIRECT:
         if(cbPropData >= sizeof(long))
@@ -1186,9 +1063,9 @@ HRESULT EAX2Buffer_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_DRY_PARAMS);
 
             buf->dirty.bit.dry_filter = 1;
-            hr = DS_OK;
+            return DS_OK;
         }
-        break;
+        return DSERR_INVALIDPARAM;
     case DSPROPERTY_EAX20BUFFER_DIRECTHF:
         if(cbPropData >= sizeof(long))
         {
@@ -1199,9 +1076,9 @@ HRESULT EAX2Buffer_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_DRY_PARAMS);
 
             buf->dirty.bit.dry_filter = 1;
-            hr = DS_OK;
+            return DS_OK;
         }
-        break;
+        return DSERR_INVALIDPARAM;
 
     case DSPROPERTY_EAX20BUFFER_ROOM:
         if(cbPropData >= sizeof(long))
@@ -1213,9 +1090,9 @@ HRESULT EAX2Buffer_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_WET_PARAMS);
 
             buf->dirty.bit.send_filter |= 1;
-            hr = DS_OK;
+            return DS_OK;
         }
-        break;
+        return DSERR_INVALIDPARAM;
     case DSPROPERTY_EAX20BUFFER_ROOMHF:
         if(cbPropData >= sizeof(long))
         {
@@ -1226,9 +1103,9 @@ HRESULT EAX2Buffer_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_WET_PARAMS);
 
             buf->dirty.bit.send_filter |= 1;
-            hr = DS_OK;
+            return DS_OK;
         }
-        break;
+        return DSERR_INVALIDPARAM;
 
     case DSPROPERTY_EAX20BUFFER_ROOMROLLOFFFACTOR:
         if(cbPropData >= sizeof(float))
@@ -1239,9 +1116,9 @@ HRESULT EAX2Buffer_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
             buf->deferred.eax.flRoomRolloffFactor = *data.fl;
 
             buf->dirty.bit.room_rolloff = 1;
-            hr = DS_OK;
+            return DS_OK;
         }
-        break;
+        return DSERR_INVALIDPARAM;
 
     case DSPROPERTY_EAX20BUFFER_OBSTRUCTION:
         if(cbPropData >= sizeof(long))
@@ -1253,9 +1130,9 @@ HRESULT EAX2Buffer_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_DRY_PARAMS);
 
             buf->dirty.bit.dry_filter = 1;
-            hr = DS_OK;
+            return DS_OK;
         }
-        break;
+        return DSERR_INVALIDPARAM;
     case DSPROPERTY_EAX20BUFFER_OBSTRUCTIONLFRATIO:
         if(cbPropData >= sizeof(float))
         {
@@ -1266,9 +1143,9 @@ HRESULT EAX2Buffer_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_DRY_PARAMS);
 
             buf->dirty.bit.dry_filter = 1;
-            hr = DS_OK;
+            return DS_OK;
         }
-        break;
+        return DSERR_INVALIDPARAM;
 
     case DSPROPERTY_EAX20BUFFER_OCCLUSION:
         if(cbPropData >= sizeof(long))
@@ -1281,9 +1158,9 @@ HRESULT EAX2Buffer_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
 
             buf->dirty.bit.dry_filter = 1;
             buf->dirty.bit.send_filter |= 1;
-            hr = DS_OK;
+            return DS_OK;
         }
-        break;
+        return DSERR_INVALIDPARAM;
     case DSPROPERTY_EAX20BUFFER_OCCLUSIONLFRATIO:
         if(cbPropData >= sizeof(float))
         {
@@ -1295,9 +1172,9 @@ HRESULT EAX2Buffer_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
 
             buf->dirty.bit.dry_filter = 1;
             buf->dirty.bit.send_filter |= 1;
-            hr = DS_OK;
+            return DS_OK;
         }
-        break;
+        return DSERR_INVALIDPARAM;
     case DSPROPERTY_EAX20BUFFER_OCCLUSIONROOMRATIO:
         if(cbPropData >= sizeof(float))
         {
@@ -1308,9 +1185,9 @@ HRESULT EAX2Buffer_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_WET_PARAMS);
 
             buf->dirty.bit.send_filter |= 1;
-            hr = DS_OK;
+            return DS_OK;
         }
-        break;
+        return DSERR_INVALIDPARAM;
 
     case DSPROPERTY_EAX20BUFFER_OUTSIDEVOLUMEHF:
         if(cbPropData >= sizeof(long))
@@ -1321,9 +1198,9 @@ HRESULT EAX2Buffer_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
             buf->deferred.eax.lOutsideVolumeHF = *data.l;
 
             buf->dirty.bit.cone_outsidevolumehf = 1;
-            hr = DS_OK;
+            return DS_OK;
         }
-        break;
+        return DSERR_INVALIDPARAM;
 
     case DSPROPERTY_EAX20BUFFER_AIRABSORPTIONFACTOR:
         if(cbPropData >= sizeof(float))
@@ -1334,9 +1211,9 @@ HRESULT EAX2Buffer_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
             buf->deferred.eax.flAirAbsorptionFactor = *data.fl;
 
             buf->dirty.bit.air_absorb = 1;
-            hr = DS_OK;
+            return DS_OK;
         }
-        break;
+        return DSERR_INVALIDPARAM;
 
     case DSPROPERTY_EAX20BUFFER_FLAGS:
         if(cbPropData >= sizeof(DWORD))
@@ -1347,24 +1224,16 @@ HRESULT EAX2Buffer_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
             buf->deferred.eax.dwFlags = *data.dw;
 
             buf->dirty.bit.flags = 1;
-            hr = DS_OK;
+            return DS_OK;
         }
-        break;
-
-    default:
-        hr = E_PROP_ID_UNSUPPORTED;
-        FIXME("Unhandled propid: 0x%08lx\n", propid);
-        break;
+        return DSERR_INVALIDPARAM;
     }
-
-    return hr;
+    FIXME("Unhandled propid: 0x%08lx\n", propid);
+    return E_PROP_ID_UNSUPPORTED;
 }
 
 HRESULT EAX2Buffer_Get(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPropData, ULONG *pcbReturned)
 {
-    HRESULT hr;
-
-    hr = DSERR_INVALIDPARAM;
     switch(propid)
     {
     case DSPROPERTY_EAX20BUFFER_NONE:
@@ -1373,62 +1242,43 @@ HRESULT EAX2Buffer_Get(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
 
     case DSPROPERTY_EAX20BUFFER_ALLPARAMETERS:
         GET_PROP(EAXSourceTo2(&buf->current.eax), EAX20BUFFERPROPERTIES);
-        break;
 
     case DSPROPERTY_EAX20BUFFER_DIRECT:
         GET_PROP(buf->current.eax.lDirect, long);
-        break;
     case DSPROPERTY_EAX20BUFFER_DIRECTHF:
         GET_PROP(buf->current.eax.lDirectHF, long);
-        break;
 
     case DSPROPERTY_EAX20BUFFER_ROOM:
         GET_PROP(buf->current.eax.lRoom, long);
-        break;
     case DSPROPERTY_EAX20BUFFER_ROOMHF:
         GET_PROP(buf->current.eax.lRoomHF, long);
-        break;
 
     case DSPROPERTY_EAX20BUFFER_ROOMROLLOFFFACTOR:
         GET_PROP(buf->current.eax.flRoomRolloffFactor, float);
-        break;
 
     case DSPROPERTY_EAX20BUFFER_OBSTRUCTION:
         GET_PROP(buf->current.eax.lObstruction, long);
-        break;
     case DSPROPERTY_EAX20BUFFER_OBSTRUCTIONLFRATIO:
         GET_PROP(buf->current.eax.flObstructionLFRatio, float);
-        break;
 
     case DSPROPERTY_EAX20BUFFER_OCCLUSION:
         GET_PROP(buf->current.eax.lOcclusion, long);
-        break;
     case DSPROPERTY_EAX20BUFFER_OCCLUSIONLFRATIO:
         GET_PROP(buf->current.eax.flOcclusionLFRatio, float);
-        break;
     case DSPROPERTY_EAX20BUFFER_OCCLUSIONROOMRATIO:
         GET_PROP(buf->current.eax.flOcclusionRoomRatio, float);
-        break;
 
     case DSPROPERTY_EAX20BUFFER_OUTSIDEVOLUMEHF:
         GET_PROP(buf->current.eax.lOutsideVolumeHF, long);
-        break;
 
     case DSPROPERTY_EAX20BUFFER_AIRABSORPTIONFACTOR:
         GET_PROP(buf->current.eax.flAirAbsorptionFactor, float);
-        break;
 
     case DSPROPERTY_EAX20BUFFER_FLAGS:
         GET_PROP(buf->current.eax.dwFlags, DWORD);
-        break;
-
-    default:
-        hr = E_PROP_ID_UNSUPPORTED;
-        FIXME("Unhandled propid: 0x%08lx\n", propid);
-        break;
     }
-
-    return hr;
+    FIXME("Unhandled propid: 0x%08lx\n", propid);
+    return E_PROP_ID_UNSUPPORTED;
 }
 
 
@@ -1450,10 +1300,8 @@ HRESULT EAX1_Query(DSPrimary *prim, DWORD propid, ULONG *pTypeSupport)
     case DSPROPERTY_EAX10LISTENER_DAMPING:
         *pTypeSupport = KSPROPERTY_SUPPORT_GET | KSPROPERTY_SUPPORT_SET;
         return DS_OK;
-
-    default:
-        FIXME("Unhandled propid: 0x%08lx\n", propid);
     }
+    FIXME("Unhandled propid: 0x%08lx\n", propid);
     return E_PROP_ID_UNSUPPORTED;
 }
 
@@ -1479,7 +1327,6 @@ HRESULT EAX1_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
         return DSERR_INVALIDCALL;
     }
 
-    hr = DSERR_INVALIDPARAM;
     switch(propid)
     {
     case DSPROPERTY_EAX10LISTENER_ALL:
@@ -1526,7 +1373,7 @@ HRESULT EAX1_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
                 return hr;
             }
         }
-        break;
+        return DSERR_INVALIDPARAM;
 
     case DSPROPERTY_EAX10LISTENER_ENVIRONMENT:
         hr = EAXReverb_Set(prim, 0, EAXREVERB_ENVIRONMENT, pPropData, cbPropData);
@@ -1556,7 +1403,7 @@ HRESULT EAX1_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
             if(SUCCEEDED(hr)) prim->deferred.eax1_volume = *data.fl;
             return hr;
         }
-        break;
+        return DSERR_INVALIDPARAM;
     case DSPROPERTY_EAX10LISTENER_DECAYTIME:
         return EAXReverb_Set(prim, 0, EAXREVERB_DECAYTIME, pPropData, cbPropData);
     case DSPROPERTY_EAX10LISTENER_DAMPING:
@@ -1568,21 +1415,14 @@ HRESULT EAX1_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
             prim->deferred.eax1_dampening = *data.fl;
             return DS_OK;
         }
-        break;
-
-    default:
-        hr = E_PROP_ID_UNSUPPORTED;
-        FIXME("Unhandled propid: 0x%08lx\n", propid);
-        break;
+        return DSERR_INVALIDPARAM;
     }
-
-    return hr;
+    FIXME("Unhandled propid: 0x%08lx\n", propid);
+    return E_PROP_ID_UNSUPPORTED;
 }
 
 HRESULT EAX1_Get(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropData, ULONG *pcbReturned)
 {
-    HRESULT hr;
-
     if(prim->effect[0] == 0)
         return E_PROP_ID_UNSUPPORTED;
     if(prim->deferred.fxslot[0].effect_type != FXSLOT_EFFECT_REVERB)
@@ -1591,7 +1431,6 @@ HRESULT EAX1_Get(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
         return DSERR_INVALIDCALL;
     }
 
-    hr = DSERR_INVALIDPARAM;
     switch(propid)
     {
     case DSPROPERTY_EAX10LISTENER_ALL:
@@ -1608,9 +1447,9 @@ HRESULT EAX1_Get(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
             data.props->fDamping = prim->deferred.eax1_dampening;
 
             *pcbReturned = sizeof(EAX10LISTENERPROPERTIES);
-            hr = DS_OK;
+            return DS_OK;
         }
-        break;
+        return DSERR_INVALIDPARAM;
 
     case DSPROPERTY_EAX10LISTENER_ENVIRONMENT:
         return EAXReverb_Get(prim, 0, EAXREVERB_ENVIRONMENT, pPropData, cbPropData, pcbReturned);
@@ -1623,7 +1462,7 @@ HRESULT EAX1_Get(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
             *pcbReturned = sizeof(float);
             return DS_OK;
         }
-        break;
+        return DSERR_INVALIDPARAM;
 
     case DSPROPERTY_EAX10LISTENER_DECAYTIME:
         return EAXReverb_Get(prim, 0, EAXREVERB_DECAYTIME, pPropData, cbPropData, pcbReturned);
@@ -1636,15 +1475,10 @@ HRESULT EAX1_Get(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropDat
             *pcbReturned = sizeof(float);
             return DS_OK;
         }
-        break;
-
-    default:
-        hr = E_PROP_ID_UNSUPPORTED;
-        FIXME("Unhandled propid: 0x%08lx\n", propid);
-        break;
+        return DSERR_INVALIDPARAM;
     }
-
-    return hr;
+    FIXME("Unhandled propid: 0x%08lx\n", propid);
+    return E_PROP_ID_UNSUPPORTED;
 }
 
 
@@ -1658,18 +1492,13 @@ HRESULT EAX1Buffer_Query(DSBuffer *buf, DWORD propid, ULONG *pTypeSupport)
     case DSPROPERTY_EAX10BUFFER_REVERBMIX:
         *pTypeSupport = KSPROPERTY_SUPPORT_GET | KSPROPERTY_SUPPORT_SET;
         return DS_OK;
-
-    default:
-        FIXME("Unhandled propid: 0x%08lx\n", propid);
     }
+    FIXME("Unhandled propid: 0x%08lx\n", propid);
     return E_PROP_ID_UNSUPPORTED;
 }
 
 HRESULT EAX1Buffer_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPropData)
 {
-    HRESULT hr;
-
-    hr = DSERR_INVALIDPARAM;
     switch(propid)
     {
     /* NOTE: DSPROPERTY_EAX10BUFFER_ALL is for EAX10BUFFERPROPERTIES, however
@@ -1687,24 +1516,16 @@ HRESULT EAX1Buffer_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_WET_PARAMS);
 
             buf->dirty.bit.send_filter |= 1;
-            hr = DS_OK;
+            return DS_OK;
         }
-        break;
-
-    default:
-        hr = E_PROP_ID_UNSUPPORTED;
-        FIXME("Unhandled propid: 0x%08lx\n", propid);
-        break;
+        return DSERR_INVALIDPARAM;
     }
-
-    return hr;
+    FIXME("Unhandled propid: 0x%08lx\n", propid);
+    return E_PROP_ID_UNSUPPORTED;
 }
 
 HRESULT EAX1Buffer_Get(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPropData, ULONG *pcbReturned)
 {
-    HRESULT hr;
-
-    hr = DSERR_INVALIDPARAM;
     switch(propid)
     {
     case DSPROPERTY_EAX10BUFFER_ALL:
@@ -1715,15 +1536,10 @@ HRESULT EAX1Buffer_Get(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
 
             *data.fl = buf->current.eax1_reverbmix;
             *pcbReturned = sizeof(float);
-            hr = DS_OK;
+            return DS_OK;
         }
-        break;
-
-    default:
-        hr = E_PROP_ID_UNSUPPORTED;
-        FIXME("Unhandled propid: 0x%08lx\n", propid);
-        break;
+        return DSERR_INVALIDPARAM;
     }
-
-    return hr;
+    FIXME("Unhandled propid: 0x%08lx\n", propid);
+    return E_PROP_ID_UNSUPPORTED;
 }

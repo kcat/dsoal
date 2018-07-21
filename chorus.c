@@ -221,10 +221,8 @@ HRESULT EAXChorus_Set(DSPrimary *prim, LONG idx, DWORD propid, void *pPropData, 
             return DS_OK;
         }
         return DSERR_INVALIDPARAM;
-
-    default:
-        FIXME("Unhandled propid: 0x%08lx\n", propid);
     }
+    FIXME("Unhandled propid: 0x%08lx\n", propid);
     return E_PROP_ID_UNSUPPORTED;
 }
 
@@ -236,6 +234,7 @@ HRESULT EAXChorus_Set(DSPrimary *prim, LONG idx, DWORD propid, void *pPropData, 
         *pcbReturned = sizeof(T);                          \
         return DS_OK;                                      \
     }                                                      \
+    return DSERR_INVALIDPARAM;                             \
 } while(0)
 
 HRESULT EAXChorus_Get(DSPrimary *prim, DWORD idx, DWORD propid, void *pPropData, ULONG cbPropData, ULONG *pcbReturned)
@@ -248,34 +247,20 @@ HRESULT EAXChorus_Get(DSPrimary *prim, DWORD idx, DWORD propid, void *pPropData,
 
     case EAXCHORUS_ALLPARAMETERS:
         GET_PROP(prim->current.fxslot[idx].fx.chorus, EAXCHORUSPROPERTIES);
-        return DSERR_INVALIDPARAM;
 
     case EAXCHORUS_WAVEFORM:
         GET_PROP(prim->deferred.fxslot[idx].fx.chorus.dwWaveform, DWORD);
-        return DSERR_INVALIDPARAM;
-
     case EAXCHORUS_PHASE:
         GET_PROP(prim->deferred.fxslot[idx].fx.chorus.lPhase, long);
-        return DSERR_INVALIDPARAM;
-
     case EAXCHORUS_RATE:
         GET_PROP(prim->deferred.fxslot[idx].fx.chorus.flRate, float);
-        return DSERR_INVALIDPARAM;
-
     case EAXCHORUS_DEPTH:
         GET_PROP(prim->deferred.fxslot[idx].fx.chorus.flDepth, float);
-        return DSERR_INVALIDPARAM;
-
     case EAXCHORUS_FEEDBACK:
         GET_PROP(prim->deferred.fxslot[idx].fx.chorus.flFeedback, float);
-        return DSERR_INVALIDPARAM;
-
     case EAXCHORUS_DELAY:
         GET_PROP(prim->deferred.fxslot[idx].fx.chorus.flDelay, float);
-        return DSERR_INVALIDPARAM;
-
-    default:
-        FIXME("Unhandled propid: 0x%08lx\n", propid);
     }
+    FIXME("Unhandled propid: 0x%08lx\n", propid);
     return E_PROP_ID_UNSUPPORTED;
 }

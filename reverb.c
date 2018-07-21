@@ -136,7 +136,6 @@ static void RescaleEnvSize(EAXREVERBPROPERTIES *props, float newsize)
 
 HRESULT EAXReverb_Set(DSPrimary *prim, LONG idx, DWORD propid, void *pPropData, ULONG cbPropData)
 {
-    HRESULT hr = DSERR_INVALIDPARAM;
     switch(propid)
     {
     case EAXREVERB_NONE: /* not setting any property, just applying */
@@ -173,7 +172,7 @@ HRESULT EAXReverb_Set(DSPrimary *prim, LONG idx, DWORD propid, void *pPropData, 
             FXSLOT_SET_DIRTY(prim->dirty.bit, idx, FXSLOT_EFFECT_BIT);
             return DS_OK;
         }
-        break;
+        return DSERR_INVALIDPARAM;
 
     case EAXREVERB_ENVIRONMENT:
         if(cbPropData >= sizeof(DWORD))
@@ -188,7 +187,7 @@ HRESULT EAXReverb_Set(DSPrimary *prim, LONG idx, DWORD propid, void *pPropData, 
                 return DS_OK;
             }
         }
-        break;
+        return DSERR_INVALIDPARAM;
 
     case EAXREVERB_ENVIRONMENTSIZE:
         if(cbPropData >= sizeof(float))
@@ -202,7 +201,7 @@ HRESULT EAXReverb_Set(DSPrimary *prim, LONG idx, DWORD propid, void *pPropData, 
             FXSLOT_SET_DIRTY(prim->dirty.bit, idx, FXSLOT_EFFECT_BIT);
             return DS_OK;
         }
-        break;
+        return DSERR_INVALIDPARAM;
     case EAXREVERB_ENVIRONMENTDIFFUSION:
         if(cbPropData >= sizeof(float))
         {
@@ -217,7 +216,7 @@ HRESULT EAXReverb_Set(DSPrimary *prim, LONG idx, DWORD propid, void *pPropData, 
             FXSLOT_SET_DIRTY(prim->dirty.bit, idx, FXSLOT_EFFECT_BIT);
             return DS_OK;
         }
-        break;
+        return DSERR_INVALIDPARAM;
 
     case EAXREVERB_ROOM:
         if(cbPropData >= sizeof(long))
@@ -233,7 +232,7 @@ HRESULT EAXReverb_Set(DSPrimary *prim, LONG idx, DWORD propid, void *pPropData, 
             FXSLOT_SET_DIRTY(prim->dirty.bit, idx, FXSLOT_EFFECT_BIT);
             return DS_OK;
         }
-        break;
+        return DSERR_INVALIDPARAM;
     case EAXREVERB_ROOMHF:
         if(cbPropData >= sizeof(long))
         {
@@ -248,7 +247,7 @@ HRESULT EAXReverb_Set(DSPrimary *prim, LONG idx, DWORD propid, void *pPropData, 
             FXSLOT_SET_DIRTY(prim->dirty.bit, idx, FXSLOT_EFFECT_BIT);
             return DS_OK;
         }
-        break;
+        return DSERR_INVALIDPARAM;
     case EAXREVERB_ROOMLF:
         if(cbPropData >= sizeof(long))
         {
@@ -263,7 +262,7 @@ HRESULT EAXReverb_Set(DSPrimary *prim, LONG idx, DWORD propid, void *pPropData, 
             FXSLOT_SET_DIRTY(prim->dirty.bit, idx, FXSLOT_EFFECT_BIT);
             return DS_OK;
         }
-        break;
+        return DSERR_INVALIDPARAM;
 
     case EAXREVERB_DECAYTIME:
         if(cbPropData >= sizeof(float))
@@ -279,7 +278,7 @@ HRESULT EAXReverb_Set(DSPrimary *prim, LONG idx, DWORD propid, void *pPropData, 
             FXSLOT_SET_DIRTY(prim->dirty.bit, idx, FXSLOT_EFFECT_BIT);
             return DS_OK;
         }
-        break;
+        return DSERR_INVALIDPARAM;
     case EAXREVERB_DECAYHFRATIO:
         if(cbPropData >= sizeof(float))
         {
@@ -294,7 +293,7 @@ HRESULT EAXReverb_Set(DSPrimary *prim, LONG idx, DWORD propid, void *pPropData, 
             FXSLOT_SET_DIRTY(prim->dirty.bit, idx, FXSLOT_EFFECT_BIT);
             return DS_OK;
         }
-        break;
+        return DSERR_INVALIDPARAM;
     case EAXREVERB_DECAYLFRATIO:
         if(cbPropData >= sizeof(float))
         {
@@ -309,7 +308,7 @@ HRESULT EAXReverb_Set(DSPrimary *prim, LONG idx, DWORD propid, void *pPropData, 
             FXSLOT_SET_DIRTY(prim->dirty.bit, idx, FXSLOT_EFFECT_BIT);
             return DS_OK;
         }
-        break;
+        return DSERR_INVALIDPARAM;
 
     case EAXREVERB_REFLECTIONS:
         if(cbPropData >= sizeof(long))
@@ -325,7 +324,7 @@ HRESULT EAXReverb_Set(DSPrimary *prim, LONG idx, DWORD propid, void *pPropData, 
             FXSLOT_SET_DIRTY(prim->dirty.bit, idx, FXSLOT_EFFECT_BIT);
             return DS_OK;
         }
-        break;
+        return DSERR_INVALIDPARAM;
     case EAXREVERB_REFLECTIONSDELAY:
         if(cbPropData >= sizeof(float))
         {
@@ -340,7 +339,7 @@ HRESULT EAXReverb_Set(DSPrimary *prim, LONG idx, DWORD propid, void *pPropData, 
             FXSLOT_SET_DIRTY(prim->dirty.bit, idx, FXSLOT_EFFECT_BIT);
             return DS_OK;
         }
-        break;
+        return DSERR_INVALIDPARAM;
     case EAXREVERB_REFLECTIONSPAN:
         if(cbPropData >= sizeof(EAXVECTOR))
         {
@@ -355,7 +354,7 @@ HRESULT EAXReverb_Set(DSPrimary *prim, LONG idx, DWORD propid, void *pPropData, 
             FXSLOT_SET_DIRTY(prim->dirty.bit, idx, FXSLOT_EFFECT_BIT);
             return DS_OK;
         }
-        break;
+        return DSERR_INVALIDPARAM;
 
     case EAXREVERB_REVERB:
         if(cbPropData >= sizeof(long))
@@ -371,7 +370,7 @@ HRESULT EAXReverb_Set(DSPrimary *prim, LONG idx, DWORD propid, void *pPropData, 
             FXSLOT_SET_DIRTY(prim->dirty.bit, idx, FXSLOT_EFFECT_BIT);
             return DS_OK;
         }
-        break;
+        return DSERR_INVALIDPARAM;
     case EAXREVERB_REVERBDELAY:
         if(cbPropData >= sizeof(float))
         {
@@ -386,7 +385,7 @@ HRESULT EAXReverb_Set(DSPrimary *prim, LONG idx, DWORD propid, void *pPropData, 
             FXSLOT_SET_DIRTY(prim->dirty.bit, idx, FXSLOT_EFFECT_BIT);
             return DS_OK;
         }
-        break;
+        return DSERR_INVALIDPARAM;
     case EAXREVERB_REVERBPAN:
         if(cbPropData >= sizeof(EAXVECTOR))
         {
@@ -401,7 +400,7 @@ HRESULT EAXReverb_Set(DSPrimary *prim, LONG idx, DWORD propid, void *pPropData, 
             FXSLOT_SET_DIRTY(prim->dirty.bit, idx, FXSLOT_EFFECT_BIT);
             return DS_OK;
         }
-        break;
+        return DSERR_INVALIDPARAM;
 
     case EAXREVERB_ECHOTIME:
         if(cbPropData >= sizeof(float))
@@ -417,7 +416,7 @@ HRESULT EAXReverb_Set(DSPrimary *prim, LONG idx, DWORD propid, void *pPropData, 
             FXSLOT_SET_DIRTY(prim->dirty.bit, idx, FXSLOT_EFFECT_BIT);
             return DS_OK;
         }
-        break;
+        return DSERR_INVALIDPARAM;
     case EAXREVERB_ECHODEPTH:
         if(cbPropData >= sizeof(float))
         {
@@ -432,7 +431,7 @@ HRESULT EAXReverb_Set(DSPrimary *prim, LONG idx, DWORD propid, void *pPropData, 
             FXSLOT_SET_DIRTY(prim->dirty.bit, idx, FXSLOT_EFFECT_BIT);
             return DS_OK;
         }
-        break;
+        return DSERR_INVALIDPARAM;
 
     case EAXREVERB_MODULATIONTIME:
         if(cbPropData >= sizeof(float))
@@ -448,7 +447,7 @@ HRESULT EAXReverb_Set(DSPrimary *prim, LONG idx, DWORD propid, void *pPropData, 
             FXSLOT_SET_DIRTY(prim->dirty.bit, idx, FXSLOT_EFFECT_BIT);
             return DS_OK;
         }
-        break;
+        return DSERR_INVALIDPARAM;
     case EAXREVERB_MODULATIONDEPTH:
         if(cbPropData >= sizeof(float))
         {
@@ -463,7 +462,7 @@ HRESULT EAXReverb_Set(DSPrimary *prim, LONG idx, DWORD propid, void *pPropData, 
             FXSLOT_SET_DIRTY(prim->dirty.bit, idx, FXSLOT_EFFECT_BIT);
             return DS_OK;
         }
-        break;
+        return DSERR_INVALIDPARAM;
 
     case EAXREVERB_AIRABSORPTIONHF:
         if(cbPropData >= sizeof(float))
@@ -479,7 +478,7 @@ HRESULT EAXReverb_Set(DSPrimary *prim, LONG idx, DWORD propid, void *pPropData, 
             FXSLOT_SET_DIRTY(prim->dirty.bit, idx, FXSLOT_EFFECT_BIT);
             return DS_OK;
         }
-        break;
+        return DSERR_INVALIDPARAM;
 
     case EAXREVERB_HFREFERENCE:
         if(cbPropData >= sizeof(float))
@@ -495,7 +494,7 @@ HRESULT EAXReverb_Set(DSPrimary *prim, LONG idx, DWORD propid, void *pPropData, 
             FXSLOT_SET_DIRTY(prim->dirty.bit, idx, FXSLOT_EFFECT_BIT);
             return DS_OK;
         }
-        break;
+        return DSERR_INVALIDPARAM;
     case EAXREVERB_LFREFERENCE:
         if(cbPropData >= sizeof(float))
         {
@@ -510,7 +509,7 @@ HRESULT EAXReverb_Set(DSPrimary *prim, LONG idx, DWORD propid, void *pPropData, 
             FXSLOT_SET_DIRTY(prim->dirty.bit, idx, FXSLOT_EFFECT_BIT);
             return DS_OK;
         }
-        break;
+        return DSERR_INVALIDPARAM;
 
     case EAXREVERB_ROOMROLLOFFFACTOR:
         if(cbPropData >= sizeof(float))
@@ -526,7 +525,7 @@ HRESULT EAXReverb_Set(DSPrimary *prim, LONG idx, DWORD propid, void *pPropData, 
             FXSLOT_SET_DIRTY(prim->dirty.bit, idx, FXSLOT_EFFECT_BIT);
             return DS_OK;
         }
-        break;
+        return DSERR_INVALIDPARAM;
 
     case EAXREVERB_FLAGS:
         if(cbPropData >= sizeof(DWORD))
@@ -544,14 +543,10 @@ HRESULT EAXReverb_Set(DSPrimary *prim, LONG idx, DWORD propid, void *pPropData, 
             FXSLOT_SET_DIRTY(prim->dirty.bit, idx, FXSLOT_EFFECT_BIT);
             return DS_OK;
         }
-        break;
-
-    default:
-        hr = E_PROP_ID_UNSUPPORTED;
-        FIXME("Unhandled propid: 0x%08lx\n", propid);
+        return DSERR_INVALIDPARAM;
     }
-
-    return hr;
+    FIXME("Unhandled propid: 0x%08lx\n", propid);
+    return E_PROP_ID_UNSUPPORTED;
 }
 
 #define GET_PROP(src, T) do {                              \
@@ -562,11 +557,11 @@ HRESULT EAXReverb_Set(DSPrimary *prim, LONG idx, DWORD propid, void *pPropData, 
         *pcbReturned = sizeof(T);                          \
         return DS_OK;                                      \
     }                                                      \
+    return DSERR_INVALIDPARAM;                             \
 } while(0)
 
 HRESULT EAXReverb_Get(DSPrimary *prim, DWORD idx, DWORD propid, void *pPropData, ULONG cbPropData, ULONG *pcbReturned)
 {
-    HRESULT hr = DSERR_INVALIDPARAM;
     switch(propid)
     {
     case EAXREVERB_NONE:
@@ -575,96 +570,67 @@ HRESULT EAXReverb_Get(DSPrimary *prim, DWORD idx, DWORD propid, void *pPropData,
 
     case EAXREVERB_ALLPARAMETERS:
         GET_PROP(prim->current.fxslot[idx].fx.reverb, EAXREVERBPROPERTIES);
-        break;
 
     case EAXREVERB_ENVIRONMENT:
         GET_PROP(prim->current.fxslot[idx].fx.reverb.dwEnvironment, DWORD);
-        break;
 
     case EAXREVERB_ENVIRONMENTSIZE:
         GET_PROP(prim->current.fxslot[idx].fx.reverb.flEnvironmentSize, float);
-        break;
     case EAXREVERB_ENVIRONMENTDIFFUSION:
         GET_PROP(prim->current.fxslot[idx].fx.reverb.flEnvironmentDiffusion, float);
-        break;
 
     case EAXREVERB_ROOM:
         GET_PROP(prim->current.fxslot[idx].fx.reverb.lRoom, long);
-        break;
     case EAXREVERB_ROOMHF:
         GET_PROP(prim->current.fxslot[idx].fx.reverb.lRoomHF, long);
-        break;
     case EAXREVERB_ROOMLF:
         GET_PROP(prim->current.fxslot[idx].fx.reverb.lRoomLF, long);
-        break;
 
     case EAXREVERB_DECAYTIME:
         GET_PROP(prim->current.fxslot[idx].fx.reverb.flDecayTime, float);
-        break;
     case EAXREVERB_DECAYHFRATIO:
         GET_PROP(prim->current.fxslot[idx].fx.reverb.flDecayHFRatio, float);
-        break;
     case EAXREVERB_DECAYLFRATIO:
         GET_PROP(prim->current.fxslot[idx].fx.reverb.flDecayLFRatio, float);
-        break;
 
     case EAXREVERB_REFLECTIONS:
         GET_PROP(prim->current.fxslot[idx].fx.reverb.lReflections, long);
-        break;
     case EAXREVERB_REFLECTIONSDELAY:
         GET_PROP(prim->current.fxslot[idx].fx.reverb.flReflectionsDelay, float);
-        break;
     case EAXREVERB_REFLECTIONSPAN:
         GET_PROP(prim->current.fxslot[idx].fx.reverb.vReflectionsPan, EAXVECTOR);
-        break;
 
     case EAXREVERB_REVERB:
         GET_PROP(prim->current.fxslot[idx].fx.reverb.lReverb, long);
-        break;
     case EAXREVERB_REVERBDELAY:
         GET_PROP(prim->current.fxslot[idx].fx.reverb.flReverbDelay, float);
-        break;
     case EAXREVERB_REVERBPAN:
         GET_PROP(prim->current.fxslot[idx].fx.reverb.vReverbPan, EAXVECTOR);
-        break;
 
     case EAXREVERB_ECHOTIME:
         GET_PROP(prim->current.fxslot[idx].fx.reverb.flEchoTime, float);
-        break;
     case EAXREVERB_ECHODEPTH:
         GET_PROP(prim->current.fxslot[idx].fx.reverb.flEchoDepth, float);
-        break;
 
     case EAXREVERB_MODULATIONTIME:
         GET_PROP(prim->current.fxslot[idx].fx.reverb.flModulationTime, float);
-        break;
     case EAXREVERB_MODULATIONDEPTH:
         GET_PROP(prim->current.fxslot[idx].fx.reverb.flModulationDepth, float);
-        break;
 
     case EAXREVERB_AIRABSORPTIONHF:
         GET_PROP(prim->current.fxslot[idx].fx.reverb.flAirAbsorptionHF, float);
-        break;
 
     case EAXREVERB_HFREFERENCE:
         GET_PROP(prim->current.fxslot[idx].fx.reverb.flHFReference, float);
-        break;
     case EAXREVERB_LFREFERENCE:
         GET_PROP(prim->current.fxslot[idx].fx.reverb.flLFReference, float);
-        break;
 
     case EAXREVERB_ROOMROLLOFFFACTOR:
         GET_PROP(prim->current.fxslot[idx].fx.reverb.flRoomRolloffFactor, float);
-        break;
 
     case EAXREVERB_FLAGS:
         GET_PROP(prim->current.fxslot[idx].fx.reverb.dwFlags, DWORD);
-        break;
-
-    default:
-        hr = E_PROP_ID_UNSUPPORTED;
-        FIXME("Unhandled propid: 0x%08lx\n", propid);
     }
-
-    return hr;
+    FIXME("Unhandled propid: 0x%08lx\n", propid);
+    return E_PROP_ID_UNSUPPORTED;
 }
