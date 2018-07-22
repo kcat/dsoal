@@ -65,7 +65,7 @@ HRESULT EAX4Context_Query(DSPrimary *prim, DWORD propid, ULONG *pTypeSupport)
     if(!HAS_EXTENSION(prim->share, EXT_EFX))
         return E_PROP_ID_UNSUPPORTED;
 
-    switch((propid&~EAXCONTEXT_PARAMETER_DEFER))
+    switch((propid&~EAXCONTEXT_PARAMETER_DEFERRED))
     {
     case EAXCONTEXT_NONE:
     case EAXCONTEXT_ALLPARAMETERS:

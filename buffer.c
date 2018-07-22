@@ -2920,8 +2920,8 @@ static HRESULT WINAPI DSBufferProp_Set(IKsPropertySet *iface,
     else if(IsEqualIID(guidPropSet, &EAXPROPERTYID_EAX40_Context))
     {
         DSPrimary *prim = This->primary;
-        DWORD propid = dwPropID & ~EAXCONTEXT_PARAMETER_DEFER;
-        BOOL immediate = !(dwPropID&EAXCONTEXT_PARAMETER_DEFER);
+        DWORD propid = dwPropID & ~EAXCONTEXT_PARAMETER_DEFERRED;
+        BOOL immediate = !(dwPropID&EAXCONTEXT_PARAMETER_DEFERRED);
 
         setALContext(prim->ctx);
         hr = EAX4Context_Set(prim, propid, pPropData, cbPropData);
