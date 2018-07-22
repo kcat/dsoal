@@ -395,12 +395,8 @@ HRESULT EAX4Slot_Set(DSPrimary *prim, LONG idx, DWORD propid, void *pPropData, U
                     prim->deferred.fxslot[idx].fx.reverb = EnvironmentDefaults[EAX_ENVIRONMENT_GENERIC];
                 else if(effect_type == FXSLOT_EFFECT_CHORUS)
                 {
-                    prim->deferred.fxslot[idx].fx.chorus.dwWaveform = EAX_CHORUS_TRIANGLE;
-                    prim->deferred.fxslot[idx].fx.chorus.lPhase = 90;
-                    prim->deferred.fxslot[idx].fx.chorus.flRate = 1.1f;
-                    prim->deferred.fxslot[idx].fx.chorus.flDepth = 0.1f;
-                    prim->deferred.fxslot[idx].fx.chorus.flFeedback = 0.25f;
-                    prim->deferred.fxslot[idx].fx.chorus.flDelay = 0.016f;
+                    const EAXCHORUSPROPERTIES chorus_def = CHORUS_PRESET_DEFAULT;
+                    prim->deferred.fxslot[idx].fx.chorus = chorus_def;
                 }
 
                 FXSLOT_SET_DIRTY(prim->dirty.bit, idx, FXSLOT_EFFECT_BIT);
@@ -456,12 +452,8 @@ HRESULT EAX4Slot_Set(DSPrimary *prim, LONG idx, DWORD propid, void *pPropData, U
                 prim->deferred.fxslot[idx].fx.reverb = EnvironmentDefaults[EAX_ENVIRONMENT_GENERIC];
             else if(effect_type == FXSLOT_EFFECT_CHORUS)
             {
-                prim->deferred.fxslot[idx].fx.chorus.dwWaveform = EAX_CHORUS_TRIANGLE;
-                prim->deferred.fxslot[idx].fx.chorus.lPhase = 90;
-                prim->deferred.fxslot[idx].fx.chorus.flRate = 1.1f;
-                prim->deferred.fxslot[idx].fx.chorus.flDepth = 0.1f;
-                prim->deferred.fxslot[idx].fx.chorus.flFeedback = 0.25f;
-                prim->deferred.fxslot[idx].fx.chorus.flDelay = 0.016f;
+                const EAXCHORUSPROPERTIES chorus_def = CHORUS_PRESET_DEFAULT;
+                prim->deferred.fxslot[idx].fx.chorus = chorus_def;
             }
             prim->deferred.fxslot[idx].props.guidLoadEffect = *data.guid;
 

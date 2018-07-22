@@ -95,4 +95,10 @@ enum {
 
 extern const EAXREVERBPROPERTIES EnvironmentDefaults[EAX_ENVIRONMENT_UNDEFINED];
 
+
+//  Waveform               Phase  Rate   Depth  Fdback  Delay
+#define CHORUS_PRESET_DEFAULT \
+    {EAX_CHORUS_TRIANGLE,  90,    1.1f,  0.1f,  0.25f,  0.016f}
+
+
 #endif /* EAX_PRESETS_H */
