@@ -540,8 +540,8 @@ HRESULT DSBuffer_Create(DSBuffer **ppv, DSPrimary *prim, IDirectSoundBuffer *ori
     This->current.eax.flRolloffFactor = 0.0f;
     This->current.eax.flRoomRolloffFactor = 0.0f;
     This->current.eax.flAirAbsorptionFactor = 0.0f;
-    This->current.eax.dwFlags = EAX30BUFFERFLAGS_DIRECTHFAUTO | EAX30BUFFERFLAGS_ROOMAUTO |
-                                EAX30BUFFERFLAGS_ROOMHFAUTO;
+    This->current.eax.dwFlags = EAXSOURCEFLAGS_DIRECTHFAUTO | EAXSOURCEFLAGS_ROOMAUTO |
+                                EAXSOURCEFLAGS_ROOMHFAUTO;
     This->current.fxslot_targets[0] = FXSLOT_TARGET_PRIMARY;
     for(i = 1;i < EAX_MAX_ACTIVE_FXSLOTS;++i)
         This->current.fxslot_targets[i] = FXSLOT_TARGET_NULL;
@@ -808,11 +808,11 @@ static HRESULT DSBuffer_SetLoc(DSBuffer *buf, DWORD loc_status)
                        eax_params->flAirAbsorptionFactor, 0.0f, 10.0f)
             );
             alSourcei(source, AL_DIRECT_FILTER_GAINHF_AUTO,
-                      (eax_params->dwFlags&EAX30BUFFERFLAGS_DIRECTHFAUTO) ? AL_TRUE : AL_FALSE);
+                      (eax_params->dwFlags&EAXSOURCEFLAGS_DIRECTHFAUTO) ? AL_TRUE : AL_FALSE);
             alSourcei(source, AL_AUXILIARY_SEND_FILTER_GAIN_AUTO,
-                      (eax_params->dwFlags&EAX30BUFFERFLAGS_ROOMAUTO) ? AL_TRUE : AL_FALSE);
+                      (eax_params->dwFlags&EAXSOURCEFLAGS_ROOMAUTO) ? AL_TRUE : AL_FALSE);
             alSourcei(source, AL_AUXILIARY_SEND_FILTER_GAINHF_AUTO,
-                      (eax_params->dwFlags&EAX30BUFFERFLAGS_ROOMHFAUTO) ? AL_TRUE : AL_FALSE);
+                      (eax_params->dwFlags&EAXSOURCEFLAGS_ROOMHFAUTO) ? AL_TRUE : AL_FALSE);
         }
         checkALError();
     }
@@ -2029,11 +2029,11 @@ void DSBuffer_SetParams(DSBuffer *This, const DS3DBUFFER *params, LONG flags)
     if(dirty.bit.flags)
     {
         alSourcei(source, AL_DIRECT_FILTER_GAINHF_AUTO,
-                  (This->current.eax.dwFlags&EAX30BUFFERFLAGS_DIRECTHFAUTO) ? AL_TRUE : AL_FALSE);
+                  (This->current.eax.dwFlags&EAXSOURCEFLAGS_DIRECTHFAUTO) ? AL_TRUE : AL_FALSE);
         alSourcei(source, AL_AUXILIARY_SEND_FILTER_GAIN_AUTO,
-                  (This->current.eax.dwFlags&EAX30BUFFERFLAGS_ROOMAUTO) ? AL_TRUE : AL_FALSE);
+                  (This->current.eax.dwFlags&EAXSOURCEFLAGS_ROOMAUTO) ? AL_TRUE : AL_FALSE);
         alSourcei(source, AL_AUXILIARY_SEND_FILTER_GAINHF_AUTO,
-                  (This->current.eax.dwFlags&EAX30BUFFERFLAGS_ROOMHFAUTO) ? AL_TRUE : AL_FALSE);
+                  (This->current.eax.dwFlags&EAXSOURCEFLAGS_ROOMHFAUTO) ? AL_TRUE : AL_FALSE);
     }
 }
 
