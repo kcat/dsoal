@@ -332,7 +332,6 @@ HRESULT DSPrimary_PreInit(DSPrimary *This, DSDevice *parent)
     This->current.fxslot[0].fx.reverb = EnvironmentDefaults[EAX_ENVIRONMENT_GENERIC];
     This->current.fxslot[0].props.guidLoadEffect = EAX_REVERB_EFFECT;
     This->current.fxslot[0].props.lVolume = 0;
-    /* This should be unlocked for true EAX4 support. */
     This->current.fxslot[0].props.lLock = EAXFXSLOT_UNLOCKED;
     This->current.fxslot[0].props.dwFlags = EAXFXSLOTFLAGS_ENVIRONMENT;
     /* FIXME: Should fxslot[1] be chorus? Or left as a NULL effect? */
