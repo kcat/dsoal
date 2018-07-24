@@ -709,14 +709,16 @@ static HRESULT WINAPI DS8_CreateSoundBuffer(IDirectSound8 *iface, LPCDSBUFFERDES
 
         hr = DSBuffer_Create(&dsb, &This->primary, NULL);
         if(SUCCEEDED(hr))
-            hr = DSBuffer_Initialize(&dsb->IDirectSoundBuffer8_iface, &This->IDirectSound_iface, desc);
-        if(SUCCEEDED(hr))
         {
-            dsb->bufferlost = (This->prio_level == DSSCL_WRITEPRIMARY);
-            hr = DSBuffer_GetInterface(dsb, &IID_IDirectSoundBuffer, (void**)buf);
+            hr = DSBuffer_Initialize(&dsb->IDirectSoundBuffer8_iface, &This->IDirectSound_iface, desc);
+            if(SUCCEEDED(hr))
+            {
+                dsb->bufferlost = (This->prio_level == DSSCL_WRITEPRIMARY);
+                hr = DSBuffer_GetInterface(dsb, &IID_IDirectSoundBuffer, (void**)buf);
+            }
+            if(FAILED(hr))
+                DSBuffer_Destroy(dsb);
         }
-        if(FAILED(hr))
-            DSBuffer_Destroy(dsb);
     }
     LeaveCriticalSection(&This->share->crst);
 
@@ -833,11 +835,13 @@ static HRESULT WINAPI DS8_DuplicateSoundBuffer(IDirectSound8 *iface, IDirectSoun
     if(SUCCEEDED(hr))
         hr = DSBuffer_Create(&buf, &This->primary, in);
     if(SUCCEEDED(hr))
+    {
         hr = DSBuffer_Initialize(&buf->IDirectSoundBuffer8_iface, NULL, NULL);
-    if(SUCCEEDED(hr))
-        hr = DSBuffer_GetInterface(buf, &IID_IDirectSoundBuffer, (void**)out);
-    if(FAILED(hr) && buf)
-        DSBuffer_Destroy(buf);
+        if(SUCCEEDED(hr))
+            hr = DSBuffer_GetInterface(buf, &IID_IDirectSoundBuffer, (void**)out);
+        if(FAILED(hr))
+            DSBuffer_Destroy(buf);
+    }
 
     return hr;
 }
@@ -910,13 +914,15 @@ static HRESULT WINAPI DS8_SetCooperativeLevel(IDirectSound8 *iface, HWND hwnd, D
 
             hr = DSBuffer_Create(&emu, &This->primary, NULL);
             if(SUCCEEDED(hr))
+            {
                 hr = DSBuffer_Initialize(&emu->IDirectSoundBuffer8_iface,
                                          &This->IDirectSound_iface, &desc);
-            if(SUCCEEDED(hr))
-                hr = DSBuffer_GetInterface(emu, &IID_IDirectSoundBuffer,
-                                           (void**)&This->primary.write_emu);
-            if(FAILED(hr))
-                DSBuffer_Destroy(emu);
+                if(SUCCEEDED(hr))
+                    hr = DSBuffer_GetInterface(emu, &IID_IDirectSoundBuffer,
+                                               (void**)&This->primary.write_emu);
+                if(FAILED(hr))
+                    DSBuffer_Destroy(emu);
+            }
         }
     }
     else if(This->prio_level == DSSCL_WRITEPRIMARY && level != DSSCL_WRITEPRIMARY)

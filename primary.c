@@ -724,11 +724,13 @@ HRESULT WINAPI DSPrimary_Initialize(IDirectSoundBuffer *iface, IDirectSound *ds,
 
         hr = DSBuffer_Create(&emu, This, NULL);
         if(SUCCEEDED(hr))
+        {
             hr = DSBuffer_Initialize(&emu->IDirectSoundBuffer8_iface, ds, &emudesc);
-        if(SUCCEEDED(hr))
-            hr = DSBuffer_GetInterface(emu, &IID_IDirectSoundBuffer, (void**)&This->write_emu);
-        if(FAILED(hr))
-            DSBuffer_Destroy(emu);
+            if(SUCCEEDED(hr))
+                hr = DSBuffer_GetInterface(emu, &IID_IDirectSoundBuffer, (void**)&This->write_emu);
+            if(FAILED(hr))
+                DSBuffer_Destroy(emu);
+        }
     }
 
     if(SUCCEEDED(hr))
@@ -962,12 +964,14 @@ static HRESULT WINAPI DSPrimary_SetFormat(IDirectSoundBuffer *iface, const WAVEF
 
         hr = DSBuffer_Create(&buf, This, NULL);
         if(SUCCEEDED(hr))
+        {
             hr = DSBuffer_Initialize(&buf->IDirectSoundBuffer8_iface,
                                      &This->parent->IDirectSound_iface, &desc);
-        if(SUCCEEDED(hr))
-            hr = DSBuffer_GetInterface(buf, &IID_IDirectSoundBuffer, (void**)&This->write_emu);
-        if(FAILED(hr))
-            DSBuffer_Destroy(buf);
+            if(SUCCEEDED(hr))
+                hr = DSBuffer_GetInterface(buf, &IID_IDirectSoundBuffer, (void**)&This->write_emu);
+            if(FAILED(hr))
+                DSBuffer_Destroy(buf);
+        }
     }
 
 out:
