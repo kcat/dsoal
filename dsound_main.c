@@ -59,8 +59,12 @@ int LogLevel = 1;
 FILE *LogFile;
 
 
-static GUID *EnumeratedDevices = NULL;
-static size_t EnumeratedDeviceCount = 0;
+typedef struct DeviceList {
+    GUID *Guids;
+    size_t Count;
+} DeviceList;
+static DeviceList PlaybackDevices = { NULL, 0 };
+static DeviceList CaptureDevices = { NULL, 0 };
 
 const WCHAR aldriver_name[] = L"dsoal-aldrv.dll";
 
@@ -532,7 +536,7 @@ static HRESULT get_mmdevice_guid(IMMDevice *device, IPropertyStore *ps, GUID *gu
 }
 
 
-static BOOL send_device(IMMDevice *device, const GUID *defguid, EDataFlow flow, PRVTENUMCALLBACK cb, void *user)
+static BOOL send_device(IMMDevice *device, EDataFlow flow, DeviceList *devlist, PRVTENUMCALLBACK cb, void *user)
 {
     IPropertyStore *ps;
     PROPVARIANT pv;
@@ -551,7 +555,7 @@ static BOOL send_device(IMMDevice *device, const GUID *defguid, EDataFlow flow, 
     }
 
     hr = get_mmdevice_guid(device, ps, &guid);
-    if(FAILED(hr) || (defguid && IsEqualGUID(defguid, &guid)))
+    if(FAILED(hr) || (devlist->Count > 0 && IsEqualGUID(&devlist->Guids[0], &guid)))
     {
         IPropertyStore_Release(ps);
         return TRUE;
@@ -565,15 +569,15 @@ static BOOL send_device(IMMDevice *device, const GUID *defguid, EDataFlow flow, 
         return TRUE;
     }
 
-    dev_count = EnumeratedDeviceCount++;
-    EnumeratedDevices[dev_count] = guid;
+    dev_count = devlist->Count++;
+    devlist->Guids[dev_count] = guid;
 
     keep_going = FALSE;
     if(cb)
     {
-        TRACE("Calling back with %s - %ls\n", debugstr_guid(&EnumeratedDevices[dev_count]),
+        TRACE("Calling back with %s - %ls\n", debugstr_guid(&devlist->Guids[dev_count]),
               pv.pwszVal);
-        keep_going = cb(flow, &EnumeratedDevices[dev_count], pv.pwszVal, aldriver_name, user);
+        keep_going = cb(flow, &devlist->Guids[dev_count], pv.pwszVal, aldriver_name, user);
     }
 
     PropVariantClear(&pv);
@@ -650,7 +654,7 @@ HRESULT enumerate_mmdevices(EDataFlow flow, PRVTENUMCALLBACK cb, void *user)
     IMMDeviceEnumerator *devenum;
     IMMDeviceCollection *coll;
     IMMDevice *device;
-    GUID defguid = GUID_NULL;
+    DeviceList *devlist;
     UINT count, i;
     BOOL keep_going;
     HRESULT hr, init_hr;
@@ -682,10 +686,12 @@ HRESULT enumerate_mmdevices(EDataFlow flow, PRVTENUMCALLBACK cb, void *user)
         return DS_OK;
     }
 
-    HeapFree(GetProcessHeap(), 0, EnumeratedDevices);
-    EnumeratedDeviceCount = 0;
-    EnumeratedDevices = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY,
-                                  sizeof(EnumeratedDevices[0])*count);
+    devlist = (flow==eCapture) ? &CaptureDevices : &PlaybackDevices;
+
+    HeapFree(GetProcessHeap(), 0, devlist->Guids);
+    devlist->Count = 0;
+    devlist->Guids = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY,
+                               sizeof(devlist->Guids[0])*count);
 
     TRACE("Calling back with NULL (%ls)\n", primary_desc);
     keep_going = cb(flow, NULL, primary_desc, L"", user);
@@ -695,8 +701,7 @@ HRESULT enumerate_mmdevices(EDataFlow flow, PRVTENUMCALLBACK cb, void *user)
     if(SUCCEEDED(hr))
     {
         if(!keep_going) cb = NULL;
-        keep_going = send_device(device, NULL, flow, cb, user);
-        defguid = EnumeratedDevices[0];
+        keep_going = send_device(device, flow, devlist, cb, user);
         IMMDevice_Release(device);
     }
 
@@ -712,7 +717,7 @@ HRESULT enumerate_mmdevices(EDataFlow flow, PRVTENUMCALLBACK cb, void *user)
             continue;
         }
 
-        keep_going = send_device(device, &defguid, flow, cb, user);
+        keep_going = send_device(device, flow, devlist, cb, user);
 
         IMMDevice_Release(device);
     }
@@ -1389,9 +1394,12 @@ DECLSPEC_EXPORT BOOL WINAPI DllMain(HINSTANCE hInstDLL, DWORD fdwReason, LPVOID 
         break;
 
     case DLL_PROCESS_DETACH:
-        HeapFree(GetProcessHeap(), 0, EnumeratedDevices);
-        EnumeratedDevices = NULL;
-        EnumeratedDeviceCount = 0;
+        HeapFree(GetProcessHeap(), 0, PlaybackDevices.Guids);
+        PlaybackDevices.Guids = NULL;
+        PlaybackDevices.Count = 0;
+        HeapFree(GetProcessHeap(), 0, CaptureDevices.Guids);
+        CaptureDevices.Guids = NULL;
+        CaptureDevices.Count = 0;
 
         if(openal_handle)
             FreeLibrary(openal_handle);
