@@ -746,57 +746,52 @@ HRESULT enumerate_mmdevices(EDataFlow flow, PRVTENUMCALLBACK cb, void *user)
 DECLSPEC_EXPORT HRESULT WINAPI GetDeviceID(LPCGUID pGuidSrc, LPGUID pGuidDest)
 {
     IMMDeviceEnumerator *devenum;
-    EDataFlow flow = (EDataFlow)-1;
-    ERole role = (ERole)-1;
     HRESULT hr, init_hr;
+    IMMDevice *device;
+    EDataFlow flow;
+    ERole role;
 
     TRACE("(%s, %p)\n", get_device_id(pGuidSrc), pGuidDest);
 
     if(!pGuidSrc || !pGuidDest)
         return DSERR_INVALIDPARAM;
 
+    flow = eRender;
+    if(IsEqualGUID(&DSDEVID_DefaultPlayback, pGuidSrc))
+        role = eMultimedia;
+    else if(IsEqualGUID(&DSDEVID_DefaultVoicePlayback, pGuidSrc))
+        role = eCommunications;
+    else
+    {
+        flow = eCapture;
+        if(IsEqualGUID(&DSDEVID_DefaultCapture, pGuidSrc))
+            role = eMultimedia;
+        else if(IsEqualGUID(&DSDEVID_DefaultVoiceCapture, pGuidSrc))
+            role = eCommunications;
+        else
+        {
+            *pGuidDest = *pGuidSrc;
+            return DS_OK;
+        }
+    }
+
     init_hr = get_mmdevenum(&devenum);
     if(!devenum) return init_hr;
 
-    if(IsEqualGUID(&DSDEVID_DefaultPlayback, pGuidSrc)){
-        role = eMultimedia;
-        flow = eRender;
-    }else if(IsEqualGUID(&DSDEVID_DefaultVoicePlayback, pGuidSrc)){
-        role = eCommunications;
-        flow = eRender;
-    }else if(IsEqualGUID(&DSDEVID_DefaultCapture, pGuidSrc)){
-        role = eMultimedia;
-        flow = eCapture;
-    }else if(IsEqualGUID(&DSDEVID_DefaultVoiceCapture, pGuidSrc)){
-        role = eCommunications;
-        flow = eCapture;
-    }
-
-    if(role != (ERole)-1 && flow != (EDataFlow)-1)
+    hr = IMMDeviceEnumerator_GetDefaultAudioEndpoint(devenum, flow, role, &device);
+    if(FAILED(hr))
     {
-        IMMDevice *device;
-
-        hr = IMMDeviceEnumerator_GetDefaultAudioEndpoint(devenum, flow, role, &device);
-        if(FAILED(hr))
-        {
-            WARN("GetDefaultAudioEndpoint failed: %08lx\n", hr);
-            release_mmdevenum(devenum, init_hr);
-            return DSERR_NODRIVER;
-        }
-
-        hr = get_mmdevice_guid(device, NULL, pGuidDest);
-        IMMDevice_Release(device);
-
+        WARN("GetDefaultAudioEndpoint failed: %08lx\n", hr);
         release_mmdevenum(devenum, init_hr);
-
-        return hr;
+        return DSERR_NODRIVER;
     }
+
+    hr = get_mmdevice_guid(device, NULL, pGuidDest);
+    IMMDevice_Release(device);
 
     release_mmdevenum(devenum, init_hr);
 
-    *pGuidDest = *pGuidSrc;
-
-    return DS_OK;
+    return hr;
 }
 
 
