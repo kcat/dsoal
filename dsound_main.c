@@ -259,12 +259,13 @@ static BOOL load_libopenal(void)
         return FALSE;
     }
 
-#define LOAD_FUNCPTR(f) do {                                           \
-    if((*((void**)&p##f) = GetProcAddress(openal_handle, #f)) == NULL) \
-    {                                                                  \
-        ERR("Couldn't lookup %s in %ls\n", #f, aldriver_name);         \
-        failed = TRUE;                                                 \
-    }                                                                  \
+#define LOAD_FUNCPTR(f) do {                                     \
+    union { void *ptr; FARPROC *proc; } func = { &p##f };        \
+    if((*func.proc = GetProcAddress(openal_handle, #f)) == NULL) \
+    {                                                            \
+        ERR("Couldn't lookup %s in %ls\n", #f, aldriver_name);   \
+        failed = TRUE;                                           \
+    }                                                            \
 } while(0)
 
     LOAD_FUNCPTR(alcCreateContext);
@@ -373,7 +374,7 @@ static BOOL load_libopenal(void)
     openal_loaded = 1;
     TRACE("Loaded %ls\n", aldriver_name);
 
-#define LOAD_FUNCPTR(f) *((void**)&p##f) = alcGetProcAddress(NULL, #f)
+#define LOAD_FUNCPTR(f) p##f = alcGetProcAddress(NULL, #f)
     LOAD_FUNCPTR(alGenFilters);
     LOAD_FUNCPTR(alDeleteFilters);
     LOAD_FUNCPTR(alFilteri);
