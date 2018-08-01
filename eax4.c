@@ -564,15 +564,18 @@ static void ApplyFilterParams(DSBuffer *buf, const EAXSOURCEPROPERTIES *props, i
     /* The interaction of ratios is pretty wierd. The typical combination of
      * the two act as a minimal baseline, while the sum minus one is used when
      * larger. This creates a more linear change with the individual ratios as
-     * DirectRatio goes beyond 1, but eases down as the two ratios go toward 0.
+     * Direct/RoomRatio goes beyond 1, but eases down as the two ratios go
+     * toward 0.
      */
+    float dryoccl = maxF(props->flOcclusionLFRatio+props->flOcclusionDirectRatio-1.0f,
+                         props->flOcclusionLFRatio*props->flOcclusionDirectRatio) *
+                    props->lOcclusion;
+    float dryocclhf = props->lOcclusion*props->flOcclusionDirectRatio;
     float room_mb = props->lRoom + props->lExclusion*props->flExclusionLFRatio +
         maxF(props->flOcclusionLFRatio+props->flOcclusionRoomRatio-1.0f,
              props->flOcclusionLFRatio*props->flOcclusionRoomRatio) * props->lOcclusion;
     float room_mbhf = props->lRoomHF + props->lExclusion +
                       props->lOcclusion*props->flOcclusionRoomRatio;
-    float direct_mb = 0;
-    float direct_mbhf = 0;
     int i;
 
     for(i = 0;i < EAX_MAX_ACTIVE_FXSLOTS;i++)
@@ -580,6 +583,9 @@ static void ApplyFilterParams(DSBuffer *buf, const EAXSOURCEPROPERTIES *props, i
         const struct Send *send = &buf->deferred.send[i];
         if((apply&(1<<i)) && buf->filter[1+i])
         {
+            /* Add the main room occlusion and exclusion properties with the
+             * sends', or take the minimum or maximum?
+             */
             float mb = room_mb + send->lExclusion*send->flExclusionLFRatio +
                        maxF(send->flOcclusionLFRatio+send->flOcclusionRoomRatio-1.0f,
                             send->flOcclusionLFRatio*send->flOcclusionRoomRatio)*send->lOcclusion;
@@ -589,21 +595,20 @@ static void ApplyFilterParams(DSBuffer *buf, const EAXSOURCEPROPERTIES *props, i
             alFilterf(buf->filter[1+i], AL_LOWPASS_GAIN, mB_to_gain(minF(mb, buf->filter_mBLimit)));
             alFilterf(buf->filter[1+i], AL_LOWPASS_GAINHF, mB_to_gain(mbhf));
         }
-        /* FIXME: This should either be added like this, or take the minimum
-         * volume level from the separate occlusion properties.
+
+        /* Take the minimum, maximum, or average of the sends' direct occlusion with the main
+         * property?
          */
-        direct_mb += maxF(send->flOcclusionLFRatio+send->flOcclusionDirectRatio-1.0f,
-                          send->flOcclusionLFRatio*send->flOcclusionDirectRatio) *
-                     send->lOcclusion;
-        direct_mbhf += send->lOcclusion*send->flOcclusionDirectRatio;
+        dryoccl = minF(dryoccl,
+            maxF(send->flOcclusionLFRatio+send->flOcclusionDirectRatio-1.0f,
+                 send->flOcclusionLFRatio*send->flOcclusionDirectRatio) * send->lOcclusion
+        );
+        dryocclhf = minF(dryocclhf, send->lOcclusion*send->flOcclusionDirectRatio);
     }
     if((apply&APPLY_DRY_PARAMS) && buf->filter[0])
     {
-        float mb = direct_mb + props->lDirect + props->lObstruction*props->flObstructionLFRatio +
-                   maxF(props->flOcclusionLFRatio+props->flOcclusionDirectRatio-1.0f,
-                        props->flOcclusionLFRatio*props->flOcclusionDirectRatio)*props->lOcclusion;
-        float mbhf = direct_mbhf + props->lDirectHF + props->lObstruction +
-                     props->lOcclusion*props->flOcclusionDirectRatio;
+        float mb = props->lDirect + props->lObstruction*props->flObstructionLFRatio + dryoccl;
+        float mbhf = props->lDirectHF + props->lObstruction + dryocclhf;
 
         alFilterf(buf->filter[0], AL_LOWPASS_GAIN, mB_to_gain(minF(mb, buf->filter_mBLimit)));
         alFilterf(buf->filter[0], AL_LOWPASS_GAINHF, mB_to_gain(mbhf));
