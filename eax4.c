@@ -73,10 +73,8 @@ HRESULT EAX4Context_Query(DSPrimary *prim, DWORD propid, ULONG *pTypeSupport)
     case EAXCONTEXT_DISTANCEFACTOR:
     case EAXCONTEXT_AIRABSORPTIONHF:
     case EAXCONTEXT_HFREFERENCE:
-        *pTypeSupport = KSPROPERTY_SUPPORT_GET | KSPROPERTY_SUPPORT_SET;
-        return DS_OK;
     case EAXCONTEXT_LASTERROR:
-        *pTypeSupport = KSPROPERTY_SUPPORT_GET;
+        *pTypeSupport = KSPROPERTY_SUPPORT_GET | KSPROPERTY_SUPPORT_SET;
         return DS_OK;
     }
     FIXME("Unhandled propid: 0x%08lx\n", propid);
@@ -230,6 +228,18 @@ HRESULT EAX4Context_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cb
             prim->deferred.ctx.flHFReference = *data.fl;
 
             prim->dirty.bit.hfreference = 1;
+            return DS_OK;
+        }
+        return DSERR_INVALIDPARAM;
+
+    case EAXCONTEXT_LASTERROR:
+        if(cbPropData >= sizeof(long))
+        {
+            union { void *v; const long *l; } data = { pPropData };
+            TRACE("Last Error: %ld\n", *data.l);
+
+            prim->eax_error = *data.l;
+
             return DS_OK;
         }
         return DSERR_INVALIDPARAM;
