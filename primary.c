@@ -1155,11 +1155,7 @@ static void DSPrimary_SetParams(DSPrimary *This, const DS3DLISTENER *params, LON
         alListenerfv(AL_ORIENTATION, orient);
     }
     if(dirty.bit.distancefactor)
-    {
         alSpeedOfSound(343.3f/params->flDistanceFactor);
-        if(HAS_EXTENSION(This->share, EXT_EFX))
-            alListenerf(AL_METERS_PER_UNIT, params->flDistanceFactor);
-    }
     if(dirty.bit.rollofffactor)
     {
         struct DSBufferGroup *bufgroup = This->BufferGroups;
@@ -1220,9 +1216,8 @@ static void DSPrimary_SetParams(DSPrimary *This, const DS3DLISTENER *params, LON
             }
         }
     }
-    if(dirty.bit.distancefactor2) {
-        /* TODO: Find out what this affects. */
-    }
+    if(dirty.bit.distancefactor2)
+        alListenerf(AL_METERS_PER_UNIT, This->current.ctx.flDistanceFactor);
     if(dirty.bit.air_absorbhf)
     {
         struct DSBufferGroup *bufgroup = This->BufferGroups;
@@ -1451,8 +1446,6 @@ static HRESULT WINAPI DSPrimary3D_SetDistanceFactor(IDirectSound3DListener *ifac
         setALContext(This->ctx);
         This->current.ds3d.flDistanceFactor = factor;
         alSpeedOfSound(343.3f/factor);
-        if(HAS_EXTENSION(This->share, EXT_EFX))
-            alListenerf(AL_METERS_PER_UNIT, factor);
         checkALError();
         popALContext();
     }
