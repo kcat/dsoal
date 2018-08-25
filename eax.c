@@ -654,11 +654,23 @@ HRESULT EAX2Buffer_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
             props.flObstructionLFRatio = data.props->flObstructionLFRatio;
             props.lOcclusion = data.props->lOcclusion;
             props.flOcclusionLFRatio = data.props->flOcclusionLFRatio;
-            props.flOcclusionRoomRatio = data.props->flOcclusionRoomRatio;
+            props.flOcclusionRoomRatio = data.props->flOcclusionRoomRatio + 1.0f;
             props.lOutsideVolumeHF = data.props->lOutsideVolumeHF;
             props.flAirAbsorptionFactor = data.props->flAirAbsorptionFactor;
             props.dwFlags = data.props->dwFlags;
             return EAX4Source_Set(buf, EAXSOURCE_ALLPARAMETERS, &props, sizeof(props));
+        }
+        return DSERR_INVALIDPARAM;
+
+    /* Special-case occlusion room ratio, since its behavior changed with EAX3
+     * and up.
+     */
+    case DSPROPERTY_EAX20BUFFER_OCCLUSIONROOMRATIO:
+        if(cbPropData >= sizeof(float))
+        {
+            union { const void *v; const float *fl; } data = { pPropData };
+            float f = *data.fl + 1.0f;
+            return EAX4Source_Set(buf, EAXSOURCE_OCCLUSIONROOMRATIO, &f, sizeof(f));
         }
         return DSERR_INVALIDPARAM;
 
@@ -672,7 +684,6 @@ HRESULT EAX2Buffer_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
     HANDLE_PROP(OBSTRUCTIONLFRATIO)
     HANDLE_PROP(OCCLUSION)
     HANDLE_PROP(OCCLUSIONLFRATIO)
-    HANDLE_PROP(OCCLUSIONROOMRATIO)
     HANDLE_PROP(OUTSIDEVOLUMEHF)
     HANDLE_PROP(ROOMROLLOFFFACTOR)
     HANDLE_PROP(AIRABSORPTIONFACTOR)
@@ -712,7 +723,7 @@ HRESULT EAX2Buffer_Get(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
     case DSPROPERTY_EAX20BUFFER_OCCLUSIONLFRATIO:
         GET_PROP(buf->current.eax.flOcclusionLFRatio, float);
     case DSPROPERTY_EAX20BUFFER_OCCLUSIONROOMRATIO:
-        GET_PROP(buf->current.eax.flOcclusionRoomRatio, float);
+        GET_PROP(maxF(buf->current.eax.flOcclusionRoomRatio-1.0f, 0.0f), float);
     case DSPROPERTY_EAX20BUFFER_OUTSIDEVOLUMEHF:
         GET_PROP(buf->current.eax.lOutsideVolumeHF, long);
     case DSPROPERTY_EAX20BUFFER_AIRABSORPTIONFACTOR:
