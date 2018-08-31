@@ -196,14 +196,6 @@ static inline int fallback_ctz64(DWORD64 value)
 #endif
 #endif
 
-#ifdef __GNUC__
-#define LIKELY(x) __builtin_expect(!!(x), !0)
-#define UNLIKELY(x) __builtin_expect(!!(x), !!0)
-#else
-#define LIKELY(x) (x)
-#define UNLIKELY(x) (x)
-#endif
-
 
 /* All openal functions */
 extern int openal_loaded;
