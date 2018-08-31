@@ -26,6 +26,7 @@
 
 #include <windows.h>
 #include <dsound.h>
+#include <ks.h>
 #include <ksmedia.h>
 
 #include "dsound_private.h"
