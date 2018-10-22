@@ -95,23 +95,23 @@ HRESULT EAX4Context_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cb
         if(cbPropData >= sizeof(EAXCONTEXTPROPERTIES))
         {
             union { void *v; const EAXCONTEXTPROPERTIES *props; } data = { pPropData };
-            ALuint prim_slot;
+            ALint prim_idx;
             TRACE("Parameters:\n\tPrimary FXSlot: %s\n\tDistance Factor: %f\n\t"
                 "Air Absorption: %f\n\tHF Reference: %f\n",
                 debug_fxslot(&data.props->guidPrimaryFXSlotID), data.props->flDistanceFactor,
                 data.props->flAirAbsorptionHF, data.props->flHFReference
             );
 
-            prim_slot = 0;
+            prim_idx = -1;
             if(IsEqualGUID(&data.props->guidPrimaryFXSlotID, &EAXPROPERTYID_EAX40_FXSlot0))
-                prim_slot = prim->auxslot[0];
+                prim_idx = 0;
             else if(IsEqualGUID(&data.props->guidPrimaryFXSlotID, &EAXPROPERTYID_EAX40_FXSlot1))
-                prim_slot = prim->auxslot[1];
+                prim_idx = 1;
             else if(IsEqualGUID(&data.props->guidPrimaryFXSlotID, &EAXPROPERTYID_EAX40_FXSlot2))
-                prim_slot = prim->auxslot[2];
+                prim_idx = 2;
             else if(IsEqualGUID(&data.props->guidPrimaryFXSlotID, &EAXPROPERTYID_EAX40_FXSlot3))
-                prim_slot = prim->auxslot[3];
-            if(prim_slot == 0 && !IsEqualGUID(&data.props->guidPrimaryFXSlotID, &EAX_NULL_GUID))
+                prim_idx = 3;
+            if(prim_idx == -1 && !IsEqualGUID(&data.props->guidPrimaryFXSlotID, &EAX_NULL_GUID))
             {
                 ERR("Unexpected primary FXSlot: %s\n",
                     debug_fxslot(&data.props->guidPrimaryFXSlotID));
@@ -135,7 +135,7 @@ HRESULT EAX4Context_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cb
             }
 
             prim->deferred.ctx = *data.props;
-            prim->primary_slot = prim_slot;
+            prim->primary_idx = prim_idx;
 
             prim->dirty.bit.prim_slotid = 1;
             prim->dirty.bit.distancefactor2 = 1;
@@ -149,26 +149,26 @@ HRESULT EAX4Context_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cb
         if(cbPropData >= sizeof(GUID))
         {
             union { void *v; const GUID *guid; } data = { pPropData };
-            ALuint prim_slot;
+            ALint prim_idx;
             TRACE("Primary FXSlot: %s\n", debug_fxslot(data.guid));
 
-            prim_slot = 0;
+            prim_idx = -1;
             if(IsEqualGUID(data.guid, &EAXPROPERTYID_EAX40_FXSlot0))
-                prim_slot = prim->auxslot[0];
+                prim_idx = 0;
             else if(IsEqualGUID(data.guid, &EAXPROPERTYID_EAX40_FXSlot1))
-                prim_slot = prim->auxslot[1];
+                prim_idx = 1;
             else if(IsEqualGUID(data.guid, &EAXPROPERTYID_EAX40_FXSlot2))
-                prim_slot = prim->auxslot[2];
+                prim_idx = 2;
             else if(IsEqualGUID(data.guid, &EAXPROPERTYID_EAX40_FXSlot3))
-                prim_slot = prim->auxslot[3];
-            if(prim_slot == 0 && !IsEqualGUID(data.guid, &EAX_NULL_GUID))
+                prim_idx = 3;
+            if(prim_idx == -1 && !IsEqualGUID(data.guid, &EAX_NULL_GUID))
             {
                 ERR("Unexpected primary FXSlot: %s\n", debug_fxslot(data.guid));
                 return DSERR_INVALIDPARAM;
             }
 
             prim->deferred.ctx.guidPrimaryFXSlotID = *data.guid;
-            prim->primary_slot = prim_slot;
+            prim->primary_idx = prim_idx;
 
             prim->dirty.bit.prim_slotid = 1;
             return DS_OK;
@@ -554,9 +554,11 @@ HRESULT EAX4Slot_Get(DSPrimary *prim, LONG idx, DWORD propid, void *pPropData, U
 
 #define APPLY_WET0_PARAMS 1
 #define APPLY_WET1_PARAMS 2
+#define APPLY_WET2_PARAMS 3
+#define APPLY_WET3_PARAMS 4
 #define APPLY_DRY_PARAMS 4
-#define APPLY_ALL_PARAMS (APPLY_WET0_PARAMS | APPLY_WET1_PARAMS | APPLY_DRY_PARAMS)
-#define APPLY_ALLWET_PARAMS (APPLY_WET0_PARAMS | APPLY_WET1_PARAMS)
+#define APPLY_ALL_PARAMS (APPLY_WET0_PARAMS | APPLY_WET1_PARAMS | APPLY_WET2_PARAMS | APPLY_WET3_PARAMS | APPLY_DRY_PARAMS)
+#define APPLY_ALLWET_PARAMS (APPLY_WET0_PARAMS | APPLY_WET1_PARAMS | APPLY_WET2_PARAMS | APPLY_WET3_PARAMS)
 static void ApplyFilterParams(DSBuffer *buf, const EAXSOURCEPROPERTIES *props, int apply)
 {
     /* The LFRatio properties determine how much the given level applies to low
@@ -588,7 +590,7 @@ static void ApplyFilterParams(DSBuffer *buf, const EAXSOURCEPROPERTIES *props, i
                       props->lOcclusion*props->flOcclusionRoomRatio;
     int i;
 
-    for(i = 0;i < EAX_MAX_ACTIVE_FXSLOTS;i++)
+    for(i = 0;i < EAX_MAX_FXSLOTS;i++)
     {
         const struct Send *send = &buf->deferred.send[i];
         if((apply&(1<<i)) && buf->filter[1+i])
@@ -654,35 +656,27 @@ static EAXEXCLUSIONPROPERTIES EAXSourceExclusion(const EAXSOURCEPROPERTIES *prop
 
 static struct Send *FindCurrentSend(DSBuffer *buf, const GUID *guid)
 {
-    int i;
-    for(i = 0;i < EAX_MAX_ACTIVE_FXSLOTS;i++)
-    {
-        DWORD target = buf->current.fxslot_targets[i];
-        if((target == FXSLOT_TARGET_0 && IsEqualGUID(guid, &EAXPROPERTYID_EAX40_FXSlot0)) ||
-           (target == FXSLOT_TARGET_1 && IsEqualGUID(guid, &EAXPROPERTYID_EAX40_FXSlot1)) ||
-           (target == FXSLOT_TARGET_2 && IsEqualGUID(guid, &EAXPROPERTYID_EAX40_FXSlot2)) ||
-           (target == FXSLOT_TARGET_3 && IsEqualGUID(guid, &EAXPROPERTYID_EAX40_FXSlot3)) ||
-           (target == FXSLOT_TARGET_PRIMARY && IsEqualGUID(guid, &EAX_PrimaryFXSlotID)) ||
-           (target == FXSLOT_TARGET_NULL && IsEqualGUID(guid, &EAX_NULL_GUID)))
-            return &buf->current.send[i];
-    }
+    if(IsEqualGUID(guid, &EAXPROPERTYID_EAX40_FXSlot0))
+        return &buf->current.send[0];
+    if(IsEqualGUID(guid, &EAXPROPERTYID_EAX40_FXSlot1))
+        return &buf->current.send[1];
+    if(IsEqualGUID(guid, &EAXPROPERTYID_EAX40_FXSlot2))
+        return &buf->current.send[2];
+    if(IsEqualGUID(guid, &EAXPROPERTYID_EAX40_FXSlot3))
+        return &buf->current.send[3];
     return NULL;
 }
 
 static struct Send *FindDeferredSend(DSBuffer *buf, const GUID *guid)
 {
-    int i;
-    for(i = 0;i < EAX_MAX_ACTIVE_FXSLOTS;i++)
-    {
-        DWORD target = buf->deferred.fxslot_targets[i];
-        if((target == FXSLOT_TARGET_0 && IsEqualGUID(guid, &EAXPROPERTYID_EAX40_FXSlot0)) ||
-           (target == FXSLOT_TARGET_1 && IsEqualGUID(guid, &EAXPROPERTYID_EAX40_FXSlot1)) ||
-           (target == FXSLOT_TARGET_2 && IsEqualGUID(guid, &EAXPROPERTYID_EAX40_FXSlot2)) ||
-           (target == FXSLOT_TARGET_3 && IsEqualGUID(guid, &EAXPROPERTYID_EAX40_FXSlot3)) ||
-           (target == FXSLOT_TARGET_PRIMARY && IsEqualGUID(guid, &EAX_PrimaryFXSlotID)) ||
-           (target == FXSLOT_TARGET_NULL && IsEqualGUID(guid, &EAX_NULL_GUID)))
-            return &buf->deferred.send[i];
-    }
+    if(IsEqualGUID(guid, &EAXPROPERTYID_EAX40_FXSlot0))
+        return &buf->deferred.send[0];
+    if(IsEqualGUID(guid, &EAXPROPERTYID_EAX40_FXSlot1))
+        return &buf->deferred.send[1];
+    if(IsEqualGUID(guid, &EAXPROPERTYID_EAX40_FXSlot2))
+        return &buf->deferred.send[2];
+    if(IsEqualGUID(guid, &EAXPROPERTYID_EAX40_FXSlot3))
+        return &buf->deferred.send[3];
     return NULL;
 }
 
@@ -765,7 +759,7 @@ HRESULT EAX4Source_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
             ApplyFilterParams(buf, data.props, APPLY_ALL_PARAMS);
 
             buf->dirty.bit.dry_filter = 1;
-            buf->dirty.bit.send_filter = (1<<buf->share->num_sends) - 1;
+            buf->dirty.bit.send_filters = 1;
             buf->dirty.bit.doppler = 1;
             buf->dirty.bit.rolloff = 1;
             buf->dirty.bit.room_rolloff = 1;
@@ -813,7 +807,7 @@ HRESULT EAX4Source_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_ALL_PARAMS);
 
             buf->dirty.bit.dry_filter = 1;
-            buf->dirty.bit.send_filter = (1<<buf->share->num_sends) - 1;
+            buf->dirty.bit.send_filters = 1;
             return DS_OK;
         }
         return DSERR_INVALIDPARAM;
@@ -831,7 +825,7 @@ HRESULT EAX4Source_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
             buf->deferred.eax.flExclusionLFRatio = data.props->flExclusionLFRatio;
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_ALLWET_PARAMS);
 
-            buf->dirty.bit.send_filter = (1<<buf->share->num_sends) - 1;
+            buf->dirty.bit.send_filters = 1;
             return DS_OK;
         }
         return DSERR_INVALIDPARAM;
@@ -872,7 +866,7 @@ HRESULT EAX4Source_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
             buf->deferred.eax.lRoom = *data.l;
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_ALLWET_PARAMS);
 
-            buf->dirty.bit.send_filter = (1<<buf->share->num_sends) - 1;
+            buf->dirty.bit.send_filters = 1;
             return DS_OK;
         }
         return DSERR_INVALIDPARAM;
@@ -885,7 +879,7 @@ HRESULT EAX4Source_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
             buf->deferred.eax.lRoomHF = *data.l;
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_ALLWET_PARAMS);
 
-            buf->dirty.bit.send_filter = (1<<buf->share->num_sends) - 1;
+            buf->dirty.bit.send_filters = 1;
             return DS_OK;
         }
         return DSERR_INVALIDPARAM;
@@ -927,7 +921,7 @@ HRESULT EAX4Source_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_ALL_PARAMS);
 
             buf->dirty.bit.dry_filter = 1;
-            buf->dirty.bit.send_filter = (1<<buf->share->num_sends) - 1;
+            buf->dirty.bit.send_filters = 1;
             return DS_OK;
         }
         return DSERR_INVALIDPARAM;
@@ -941,7 +935,7 @@ HRESULT EAX4Source_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_ALL_PARAMS);
 
             buf->dirty.bit.dry_filter = 1;
-            buf->dirty.bit.send_filter = (1<<buf->share->num_sends) - 1;
+            buf->dirty.bit.send_filters = 1;
             return DS_OK;
         }
         return DSERR_INVALIDPARAM;
@@ -954,7 +948,7 @@ HRESULT EAX4Source_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
             buf->deferred.eax.flOcclusionRoomRatio = *data.fl;
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_ALLWET_PARAMS);
 
-            buf->dirty.bit.send_filter = (1<<buf->share->num_sends) - 1;
+            buf->dirty.bit.send_filters = 1;
             return DS_OK;
         }
         return DSERR_INVALIDPARAM;
@@ -981,7 +975,7 @@ HRESULT EAX4Source_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
             buf->deferred.eax.lExclusion = *data.l;
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_ALLWET_PARAMS);
 
-            buf->dirty.bit.send_filter = (1<<buf->share->num_sends) - 1;
+            buf->dirty.bit.send_filters = 1;
             return DS_OK;
         }
         return DSERR_INVALIDPARAM;
@@ -994,7 +988,7 @@ HRESULT EAX4Source_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
             buf->deferred.eax.flExclusionLFRatio = *data.fl;
             ApplyFilterParams(buf, &buf->deferred.eax, APPLY_ALLWET_PARAMS);
 
-            buf->dirty.bit.send_filter = (1<<buf->share->num_sends) - 1;
+            buf->dirty.bit.send_filters = 1;
             return DS_OK;
         }
         return DSERR_INVALIDPARAM;
@@ -1081,13 +1075,13 @@ HRESULT EAX4Source_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
         if(cbPropData >= sizeof(EAXSOURCESENDPROPERTIES))
         {
             union { const void *v; const EAXSOURCESENDPROPERTIES *send; } data = { pPropData };
-            struct Send *srcsend[EAX_MAX_ACTIVE_FXSLOTS];
+            struct Send *srcsend[EAX_MAX_FXSLOTS];
             LONG count = cbPropData / sizeof(EAXSOURCESENDPROPERTIES);
             LONG wetmask=0, i;
 
-            if(count > buf->share->num_sends)
+            if(count > buf->share->num_slots)
             {
-                ERR("Setting %ld sends, only %d supported\n", count, buf->share->num_sends);
+                ERR("Setting %ld sends, only %d supported\n", count, buf->share->num_slots);
                 return DSERR_INVALIDPARAM;
             }
 
@@ -1114,7 +1108,7 @@ HRESULT EAX4Source_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
             }
             ApplyFilterParams(buf, &buf->deferred.eax, wetmask);
 
-            buf->dirty.bit.send_filter |= wetmask;
+            buf->dirty.bit.send_filters = 1;
             return DS_OK;
         }
         return DSERR_INVALIDPARAM;
@@ -1122,13 +1116,13 @@ HRESULT EAX4Source_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
         if(cbPropData >= sizeof(EAXSOURCEALLSENDPROPERTIES))
         {
             union { const void *v; const EAXSOURCEALLSENDPROPERTIES *send; } data = { pPropData };
-            struct Send *srcsend[EAX_MAX_ACTIVE_FXSLOTS];
+            struct Send *srcsend[EAX_MAX_FXSLOTS];
             LONG count = cbPropData / sizeof(EAXSOURCEALLSENDPROPERTIES);
             LONG wetmask=0, i;
 
-            if(count > buf->share->num_sends)
+            if(count > buf->share->num_slots)
             {
-                ERR("Setting %ld sends, only %d supported\n", count, buf->share->num_sends);
+                ERR("Setting %ld sends, only %d supported\n", count, buf->share->num_slots);
                 return DSERR_INVALIDPARAM;
             }
 
@@ -1167,7 +1161,7 @@ HRESULT EAX4Source_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
             ApplyFilterParams(buf, &buf->deferred.eax, wetmask|APPLY_DRY_PARAMS);
 
             buf->dirty.bit.dry_filter = 1;
-            buf->dirty.bit.send_filter |= wetmask;
+            buf->dirty.bit.send_filters = 1;
             return DS_OK;
         }
         return DSERR_INVALIDPARAM;
@@ -1175,13 +1169,13 @@ HRESULT EAX4Source_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
         if(cbPropData >= sizeof(EAXSOURCEOCCLUSIONSENDPROPERTIES))
         {
             union { const void *v; const EAXSOURCEOCCLUSIONSENDPROPERTIES *send; } data = { pPropData };
-            struct Send *srcsend[EAX_MAX_ACTIVE_FXSLOTS];
+            struct Send *srcsend[EAX_MAX_FXSLOTS];
             LONG count = cbPropData / sizeof(EAXSOURCEOCCLUSIONSENDPROPERTIES);
             LONG wetmask=0, i;
 
-            if(count > buf->share->num_sends)
+            if(count > buf->share->num_slots)
             {
-                ERR("Setting %ld sends, only %d supported\n", count, buf->share->num_sends);
+                ERR("Setting %ld sends, only %d supported\n", count, buf->share->num_slots);
                 return DSERR_INVALIDPARAM;
             }
 
@@ -1214,7 +1208,7 @@ HRESULT EAX4Source_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
             ApplyFilterParams(buf, &buf->deferred.eax, wetmask|APPLY_DRY_PARAMS);
 
             buf->dirty.bit.dry_filter = 1;
-            buf->dirty.bit.send_filter |= wetmask;
+            buf->dirty.bit.send_filters = 1;
             return DS_OK;
         }
         return DSERR_INVALIDPARAM;
@@ -1222,13 +1216,13 @@ HRESULT EAX4Source_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
         if(cbPropData >= sizeof(EAXSOURCEEXCLUSIONSENDPROPERTIES))
         {
             union { const void *v; const EAXSOURCEEXCLUSIONSENDPROPERTIES *send; } data = { pPropData };
-            struct Send *srcsend[EAX_MAX_ACTIVE_FXSLOTS];
+            struct Send *srcsend[EAX_MAX_FXSLOTS];
             LONG count = cbPropData / sizeof(EAXSOURCEEXCLUSIONSENDPROPERTIES);
             LONG wetmask=0, i;
 
-            if(count > buf->share->num_sends)
+            if(count > buf->share->num_slots)
             {
-                ERR("Setting %ld sends, only %d supported\n", count, buf->share->num_sends);
+                ERR("Setting %ld sends, only %d supported\n", count, buf->share->num_slots);
                 return DSERR_INVALIDPARAM;
             }
 
@@ -1256,7 +1250,7 @@ HRESULT EAX4Source_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
             }
             ApplyFilterParams(buf, &buf->deferred.eax, wetmask);
 
-            buf->dirty.bit.send_filter |= wetmask;
+            buf->dirty.bit.send_filters = 1;
             return DS_OK;
         }
         return DSERR_INVALIDPARAM;
@@ -1299,7 +1293,7 @@ HRESULT EAX4Source_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
 
             for(i = 0;i < count;++i)
                 buf->deferred.fxslot_targets[i] = targets[i];
-            buf->dirty.bit.send_filter |= (1<<count) - 1;
+            buf->dirty.bit.send_filters = 1;
             return DS_OK;
         }
         return DSERR_INVALIDPARAM;
@@ -1379,9 +1373,8 @@ HRESULT EAX4Source_Get(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
         if(cbPropData >= sizeof(EAXSOURCESENDPROPERTIES))
         {
             union { void *v; EAXSOURCESENDPROPERTIES *send; } data = { pPropData };
-            const struct Send *srcsend[EAX_MAX_ACTIVE_FXSLOTS];
-            LONG count = minI(cbPropData / sizeof(EAXSOURCESENDPROPERTIES),
-                              EAX_MAX_ACTIVE_FXSLOTS);
+            const struct Send *srcsend[EAX_MAX_FXSLOTS];
+            LONG count = minI(cbPropData / sizeof(EAXSOURCESENDPROPERTIES), EAX_MAX_FXSLOTS);
             LONG i;
 
             for(i = 0;i < count;++i)
@@ -1409,9 +1402,8 @@ HRESULT EAX4Source_Get(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
         if(cbPropData >= sizeof(EAXSOURCEALLSENDPROPERTIES))
         {
             union { void *v; EAXSOURCEALLSENDPROPERTIES *send; } data = { pPropData };
-            const struct Send *srcsend[EAX_MAX_ACTIVE_FXSLOTS];
-            LONG count = minI(cbPropData / sizeof(EAXSOURCEALLSENDPROPERTIES),
-                              EAX_MAX_ACTIVE_FXSLOTS);
+            const struct Send *srcsend[EAX_MAX_FXSLOTS];
+            LONG count = minI(cbPropData / sizeof(EAXSOURCEALLSENDPROPERTIES), EAX_MAX_FXSLOTS);
             LONG i;
 
             for(i = 0;i < count;++i)
@@ -1444,9 +1436,9 @@ HRESULT EAX4Source_Get(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
         if(cbPropData >= sizeof(EAXSOURCEOCCLUSIONSENDPROPERTIES))
         {
             union { void *v; EAXSOURCEOCCLUSIONSENDPROPERTIES *send; } data = { pPropData };
-            const struct Send *srcsend[EAX_MAX_ACTIVE_FXSLOTS];
+            const struct Send *srcsend[EAX_MAX_FXSLOTS];
             LONG count = minI(cbPropData / sizeof(EAXSOURCEOCCLUSIONSENDPROPERTIES),
-                              EAX_MAX_ACTIVE_FXSLOTS);
+                              EAX_MAX_FXSLOTS);
             LONG i;
 
             for(i = 0;i < count;++i)
@@ -1475,9 +1467,9 @@ HRESULT EAX4Source_Get(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPro
         if(cbPropData >= sizeof(EAXSOURCEEXCLUSIONSENDPROPERTIES))
         {
             union { void *v; EAXSOURCEEXCLUSIONSENDPROPERTIES *send; } data = { pPropData };
-            const struct Send *srcsend[EAX_MAX_ACTIVE_FXSLOTS];
+            const struct Send *srcsend[EAX_MAX_FXSLOTS];
             LONG count = minI(cbPropData / sizeof(EAXSOURCEEXCLUSIONSENDPROPERTIES),
-                              EAX_MAX_ACTIVE_FXSLOTS);
+                              EAX_MAX_FXSLOTS);
             LONG i;
 
             for(i = 0;i < count;++i)

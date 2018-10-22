@@ -500,6 +500,7 @@ typedef struct DeviceShare {
     SourceCollection sources;
 
     ALuint auxslot[EAX_MAX_FXSLOTS];
+    ALsizei num_slots;
 
     HANDLE thread_hdl;
     DWORD thread_id;
@@ -551,10 +552,7 @@ union BufferParamFlags {
         BOOL mode : 1;
 
         BOOL dry_filter : 1;
-        /* Can't use an array for the filters since this is a bitfield, so we
-         * use a sub-bitfield -- bit 0 for send 0, bit 1 for send 1, etc.
-         */
-        BOOL send_filter : EAX_MAX_ACTIVE_FXSLOTS;
+        BOOL send_filters : 1;
         BOOL doppler : 1;
         BOOL rolloff : 1;
         BOOL room_rolloff : 1;
@@ -625,20 +623,20 @@ struct DSBuffer {
         EAXSOURCEPROPERTIES eax;
         /* See FXSLOT_TARGET enums */
         DWORD fxslot_targets[EAX_MAX_ACTIVE_FXSLOTS];
-        struct Send send[EAX_MAX_ACTIVE_FXSLOTS];
+        struct Send send[EAX_MAX_FXSLOTS];
         float eax1_reverbmix; /* Mirrored by eax.lRoom. */
     } current;
     struct {
         DS3DBUFFER ds3d;
         EAXSOURCEPROPERTIES eax;
         DWORD fxslot_targets[EAX_MAX_ACTIVE_FXSLOTS];
-        struct Send send[EAX_MAX_ACTIVE_FXSLOTS];
+        struct Send send[EAX_MAX_FXSLOTS];
         float eax1_reverbmix;
     } deferred;
     union BufferParamFlags dirty;
 
     ALfloat filter_mBLimit;
-    ALuint filter[1+EAX_MAX_ACTIVE_FXSLOTS];
+    ALuint filter[1+EAX_MAX_FXSLOTS];
 
     DWORD nnotify, lastpos;
     DSBPOSITIONNOTIFY *notify;
@@ -728,7 +726,7 @@ struct DSPrimary {
     ALfloat filter_mBLimit;
 
     ALuint effect[EAX_MAX_FXSLOTS];
-    ALuint primary_slot;
+    ALint primary_idx;
     LONG eax_error;
 
     struct {

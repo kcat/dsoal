@@ -349,6 +349,7 @@ static HRESULT DSShare_Create(REFIID guid, DeviceShare **out)
         share->sources.maxhw_alloc++;
     }
 
+    share->num_slots = 0;
     if(HAS_EXTENSION(share, EXT_EFX))
     {
         alcGetIntegerv(share->device, ALC_MAX_AUXILIARY_SENDS, 1, &share->num_sends);
@@ -361,6 +362,7 @@ static HRESULT DSShare_Create(REFIID guid, DeviceShare **out)
         {
             alGenAuxiliaryEffectSlots(1, &share->auxslot[i]);
             if(alGetError() != AL_NO_ERROR) break;
+            share->num_slots++;
         }
         TRACE("Allocated %d auxiliary effect slot%s\n", i, (i==1)?"":"s");
         while(i < EAX_MAX_FXSLOTS)

@@ -545,7 +545,7 @@ HRESULT DSBuffer_Create(DSBuffer **ppv, DSPrimary *prim, IDirectSoundBuffer *ori
     This->current.fxslot_targets[0] = FXSLOT_TARGET_PRIMARY;
     for(i = 1;i < EAX_MAX_ACTIVE_FXSLOTS;++i)
         This->current.fxslot_targets[i] = FXSLOT_TARGET_NULL;
-    for(i = 0;i < EAX_MAX_ACTIVE_FXSLOTS;++i)
+    for(i = 0;i < EAX_MAX_FXSLOTS;++i)
     {
         This->current.send[i].lSend = 0;
         This->current.send[i].lSendHF = 0;
@@ -584,7 +584,7 @@ HRESULT DSBuffer_Create(DSBuffer **ppv, DSPrimary *prim, IDirectSoundBuffer *ori
     This->deferred.eax = This->current.eax;
     for(i = 0;i < EAX_MAX_ACTIVE_FXSLOTS;++i)
         This->deferred.fxslot_targets[i] = This->current.fxslot_targets[i];
-    for(i = 0;i < EAX_MAX_ACTIVE_FXSLOTS;++i)
+    for(i = 0;i < EAX_MAX_FXSLOTS;++i)
         This->deferred.send[i] = This->current.send[i];
     This->deferred.eax1_reverbmix = This->current.eax1_reverbmix;
 
@@ -632,7 +632,7 @@ void DSBuffer_Destroy(DSBuffer *This)
     if(This->stream_bids[0])
         alDeleteBuffers(QBUFFERS, This->stream_bids);
     if(This->filter[0])
-        alDeleteFilters(1+EAX_MAX_ACTIVE_FXSLOTS, This->filter);
+        alDeleteFilters(1+EAX_MAX_FXSLOTS, This->filter);
 
     if(This->buffer)
         DSData_Release(This->buffer);
@@ -795,11 +795,17 @@ static HRESULT DSBuffer_SetLoc(DSBuffer *buf, DWORD loc_status)
             for(i = 0;i < share->num_sends;++i)
             {
                 DWORD target = buf->current.fxslot_targets[i];
-                ALuint slot;
-                if(target >= FXSLOT_TARGET_NULL) slot = 0;
-                else if(target == FXSLOT_TARGET_PRIMARY) slot = prim->primary_slot;
-                else slot = prim->auxslot[buf->current.fxslot_targets[i]];
-                alSource3i(source, AL_AUXILIARY_SEND_FILTER, slot, i, buf->filter[1+i]);
+                ALuint filter, slot;
+                if(target >= FXSLOT_TARGET_NULL)
+                    filter = slot = 0;
+                else
+                {
+                    if(target == FXSLOT_TARGET_PRIMARY)
+                        target = prim->primary_idx;
+                    slot = prim->auxslot[target];
+                    filter = buf->filter[1+target];
+                }
+                alSource3i(source, AL_AUXILIARY_SEND_FILTER, slot, i, filter);
             }
             alSourcef(source, AL_ROOM_ROLLOFF_FACTOR, eax_params->flRoomRolloffFactor);
             alSourcef(source, AL_CONE_OUTER_GAINHF, mB_to_gain(eax_params->lOutsideVolumeHF));
@@ -1263,14 +1269,16 @@ HRESULT WINAPI DSBuffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSound *ds,
         {
             ALsizei i;
 
-            alGenFilters(1+EAX_MAX_ACTIVE_FXSLOTS, This->filter);
+            alGenFilters(1+EAX_MAX_FXSLOTS, This->filter);
             alFilteri(This->filter[0], AL_FILTER_TYPE, AL_FILTER_LOWPASS);
-            for(i = 0;i < EAX_MAX_ACTIVE_FXSLOTS;++i)
+            for(i = 0;i < EAX_MAX_FXSLOTS;++i)
                 alFilteri(This->filter[1+i], AL_FILTER_TYPE, AL_FILTER_LOWPASS);
             if(UNLIKELY(alGetError() != AL_NO_ERROR))
             {
-                alDeleteFilters(1+EAX_MAX_ACTIVE_FXSLOTS, This->filter);
-                This->filter[0] = This->filter[1] = This->filter[2]= 0;
+                alDeleteFilters(1+EAX_MAX_FXSLOTS, This->filter);
+                This->filter[0] = 0;
+                for(i = 0;i < EAX_MAX_FXSLOTS;++i)
+                    This->filter[1+i] = 0;
             }
         }
     }
@@ -1961,7 +1969,7 @@ void DSBuffer_SetParams(DSBuffer *This, const DS3DBUFFER *params, LONG flags)
     This->current.eax = This->deferred.eax;
     for(i = 0;i < EAX_MAX_ACTIVE_FXSLOTS;++i)
         This->current.fxslot_targets[i] = This->deferred.fxslot_targets[i];
-    for(i = 0;i < EAX_MAX_ACTIVE_FXSLOTS;++i)
+    for(i = 0;i < EAX_MAX_FXSLOTS;++i)
         This->current.send[i] = This->deferred.send[i];
     This->current.eax1_reverbmix = This->deferred.eax1_reverbmix;
 
@@ -2002,16 +2010,22 @@ void DSBuffer_SetParams(DSBuffer *This, const DS3DBUFFER *params, LONG flags)
 
     if(dirty.bit.dry_filter)
         alSourcei(source, AL_DIRECT_FILTER, This->filter[0]);
-    for(i = 0;i < EAX_MAX_ACTIVE_FXSLOTS;++i)
+    if(dirty.bit.send_filters)
     {
-        if((dirty.bit.send_filter&(1<<i)))
+        for(i = 0;i < EAX_MAX_ACTIVE_FXSLOTS;++i)
         {
             DWORD target = This->current.fxslot_targets[i];
-            ALuint slot;
-            if(target >= FXSLOT_TARGET_NULL) slot = 0;
-            else if(target == FXSLOT_TARGET_PRIMARY) slot = prim->primary_slot;
-            else slot = prim->auxslot[This->current.fxslot_targets[i]];
-            alSource3i(source, AL_AUXILIARY_SEND_FILTER, slot, i, This->filter[1+i]);
+            ALuint filter, slot;
+            if(target >= FXSLOT_TARGET_NULL)
+                filter = slot = 0;
+            else
+            {
+                if(target == FXSLOT_TARGET_PRIMARY)
+                    target = prim->primary_idx;
+                slot = prim->auxslot[target];
+                filter = This->filter[1+target];
+            }
+            alSource3i(source, AL_AUXILIARY_SEND_FILTER, slot, i, filter);
         }
     }
     if(dirty.bit.doppler)

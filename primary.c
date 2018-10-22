@@ -357,7 +357,7 @@ HRESULT DSPrimary_PreInit(DSPrimary *This, DSDevice *parent)
     {
         ALenum err;
 
-        This->primary_slot = This->auxslot[0];
+        This->primary_idx = 0;
 
         alGetError();
         alGenEffects(EAX_MAX_FXSLOTS, This->effect);
@@ -1185,16 +1185,16 @@ static void DSPrimary_SetParams(DSPrimary *This, const DS3DLISTENER *params, LON
         ALuint slot;
 
         if(IsEqualGUID(&This->current.ctx.guidPrimaryFXSlotID, &EAXPROPERTYID_EAX40_FXSlot0))
-            This->primary_slot = This->auxslot[0];
+            This->primary_idx = 0;
         else if(IsEqualGUID(&This->current.ctx.guidPrimaryFXSlotID, &EAXPROPERTYID_EAX40_FXSlot1))
-            This->primary_slot = This->auxslot[1];
+            This->primary_idx = 1;
         else if(IsEqualGUID(&This->current.ctx.guidPrimaryFXSlotID, &EAXPROPERTYID_EAX40_FXSlot2))
-            This->primary_slot = This->auxslot[2];
+            This->primary_idx = 2;
         else if(IsEqualGUID(&This->current.ctx.guidPrimaryFXSlotID, &EAXPROPERTYID_EAX40_FXSlot3))
-            This->primary_slot = This->auxslot[3];
+            This->primary_idx = 3;
         else /*if(IsEqualGUID(&This->current.ctx.guidPrimaryFXSlotID, &EAX_NULL_GUID))*/
-            This->primary_slot = 0;
-        slot = This->primary_slot;
+            This->primary_idx = -1;
+        slot = (This->primary_idx < 0) ? 0 : This->auxslot[This->primary_idx];
 
         for(i = 0;i < This->NumBufferGroups;++i)
         {
@@ -1208,10 +1208,11 @@ static void DSPrimary_SetParams(DSPrimary *This, const DS3DLISTENER *params, LON
 
                 if(buf->source && (data->dsbflags&DSBCAPS_CTRL3D))
                 {
+                    ALuint filter = (This->primary_idx < 0) ? 0 : buf->filter[1+This->primary_idx];
                     if(buf->current.fxslot_targets[0] == FXSLOT_TARGET_PRIMARY)
-                        alSource3i(buf->source, AL_AUXILIARY_SEND_FILTER, slot, 0, buf->filter[1]);
+                        alSource3i(buf->source, AL_AUXILIARY_SEND_FILTER, slot, 0, filter);
                     if(buf->current.fxslot_targets[1] == FXSLOT_TARGET_PRIMARY)
-                        alSource3i(buf->source, AL_AUXILIARY_SEND_FILTER, slot, 1, buf->filter[2]);
+                        alSource3i(buf->source, AL_AUXILIARY_SEND_FILTER, slot, 1, filter);
                 }
             }
         }
