@@ -795,15 +795,16 @@ static HRESULT DSBuffer_SetLoc(DSBuffer *buf, DWORD loc_status)
             for(i = 0;i < share->num_sends;++i)
             {
                 DWORD target = buf->current.fxslot_targets[i];
-                ALuint filter, slot;
-                if(target >= FXSLOT_TARGET_NULL)
-                    filter = slot = 0;
-                else
+                ALuint filter=0, slot=0;
+                if(target < FXSLOT_TARGET_NULL)
                 {
-                    if(target == FXSLOT_TARGET_PRIMARY)
-                        target = prim->primary_idx;
-                    slot = prim->auxslot[target];
-                    filter = buf->filter[1+target];
+                    ALint idx = (target == FXSLOT_TARGET_PRIMARY) ?
+                                prim->primary_idx : (ALint)target;
+                    if(idx >= 0)
+                    {
+                        slot = prim->auxslot[idx];
+                        filter = buf->filter[1+idx];
+                    }
                 }
                 alSource3i(source, AL_AUXILIARY_SEND_FILTER, slot, i, filter);
             }
@@ -2015,15 +2016,16 @@ void DSBuffer_SetParams(DSBuffer *This, const DS3DBUFFER *params, LONG flags)
         for(i = 0;i < EAX_MAX_ACTIVE_FXSLOTS;++i)
         {
             DWORD target = This->current.fxslot_targets[i];
-            ALuint filter, slot;
-            if(target >= FXSLOT_TARGET_NULL)
-                filter = slot = 0;
-            else
+            ALuint filter=0, slot=0;
+            if(target < FXSLOT_TARGET_NULL)
             {
-                if(target == FXSLOT_TARGET_PRIMARY)
-                    target = prim->primary_idx;
-                slot = prim->auxslot[target];
-                filter = This->filter[1+target];
+                ALint idx = (target == FXSLOT_TARGET_PRIMARY) ?
+                            prim->primary_idx : (ALint)target;
+                if(idx >= 0)
+                {
+                    slot = prim->auxslot[idx];
+                    filter = This->filter[1+idx];
+                }
             }
             alSource3i(source, AL_AUXILIARY_SEND_FILTER, slot, i, filter);
         }
