@@ -201,7 +201,7 @@ static HRESULT DSShare_Create(REFIID guid, DeviceShare **out)
     ALchar drv_name[64];
     DeviceShare *share;
     IMMDevice *mmdev;
-    ALCint attrs[3];
+    ALCint attrs[7];
     void *temp;
     HRESULT hr;
     ALsizei i;
@@ -313,9 +313,17 @@ static HRESULT DSShare_Create(REFIID guid, DeviceShare **out)
           alcGetString(share->device, ALC_ALL_DEVICES_SPECIFIER) :
           alcGetString(share->device, ALC_DEVICE_SPECIFIER));
 
-    attrs[0] = ALC_MONO_SOURCES;
-    attrs[1] = MAX_SOURCES;
-    attrs[2] = 0;
+    i = 0;
+    attrs[i++] = ALC_MONO_SOURCES;
+    attrs[i++] = MAX_SOURCES;
+    attrs[i++] = ALC_STEREO_SOURCES;
+    attrs[i++] = 0;
+    if(alcIsExtensionPresent(share->device, "ALC_EXT_EFX"))
+    {
+        attrs[i++] = ALC_MAX_AUXILIARY_SENDS;
+        attrs[i++] = EAX_MAX_ACTIVE_FXSLOTS;
+    }
+    attrs[i++] = 0;
     share->ctx = alcCreateContext(share->device, attrs);
     if(!share->ctx)
     {
