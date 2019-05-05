@@ -909,3 +909,13 @@ HRESULT enumerate_mmdevices(EDataFlow flow, PRVTENUMCALLBACK cb, void *user);
 HRESULT get_mmdevice(EDataFlow flow, const GUID *tgt, IMMDevice **device);
 
 extern const WCHAR aldriver_name[];
+
+#ifndef DECLSPEC_EXPORT
+#ifdef _WIN32
+#define DECLSPEC_EXPORT __declspec(dllexport)
+#else
+#define DECLSPEC_EXPORT
+#endif
+#endif
+
+HRESULT WINAPI DSOAL_GetDeviceID(LPCGUID pGuidSrc, LPGUID pGuidDest);

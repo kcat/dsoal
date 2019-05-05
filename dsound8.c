@@ -1052,7 +1052,7 @@ static HRESULT WINAPI DS8_Initialize(IDirectSound8 *iface, const GUID *devguid)
             IsEqualGUID(devguid, &DSDEVID_DefaultVoiceCapture))
         return DSERR_NODRIVER;
 
-    hr = GetDeviceID(devguid, &guid);
+    hr = DSOAL_GetDeviceID(devguid, &guid);
     if(FAILED(hr)) return hr;
 
     EnterCriticalSection(&openal_crst);

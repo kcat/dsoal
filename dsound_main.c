@@ -474,6 +474,20 @@ static const char *get_device_id(LPCGUID pGuid)
     return debugstr_guid(pGuid);
 }
 
+const CLSID CLSID_MMDeviceEnumerator = {
+	0xBCDE0395,
+	0xE52F,
+	0x467C,
+	0x8E, 0x3D, 0xC4, 0x57, 0x92, 0x91, 0x69, 0x2E
+};
+
+const IID IID_IMMDeviceEnumerator = {
+	0xA95664D2,
+	0x9614,
+	0x4F35,
+	0xA7, 0x46, 0xDE, 0x8D, 0xB6, 0x36, 0x17, 0xE6
+};
+
 static HRESULT get_mmdevenum(IMMDeviceEnumerator **devenum)
 {
     HRESULT hr, init_hr;
@@ -749,7 +763,7 @@ HRESULT enumerate_mmdevices(EDataFlow flow, PRVTENUMCALLBACK cb, void *user)
  *    Returns pGuidSrc if pGuidSrc is a valid device or the device
  *    GUID for the specified constants.
  */
-DECLSPEC_EXPORT HRESULT WINAPI GetDeviceID(LPCGUID pGuidSrc, LPGUID pGuidDest)
+HRESULT WINAPI DSOAL_GetDeviceID(LPCGUID pGuidSrc, LPGUID pGuidDest)
 {
     IMMDeviceEnumerator *devenum;
     HRESULT hr, init_hr;
@@ -857,7 +871,7 @@ static BOOL CALLBACK w_to_a_callback(EDataFlow flow, LPGUID guid, LPCWSTR descW,
  *    Success: DS_OK
  *    Failure: DSERR_INVALIDPARAM
  */
-DECLSPEC_EXPORT HRESULT WINAPI DirectSoundEnumerateA(
+HRESULT WINAPI DSOAL_DirectSoundEnumerateA(
     LPDSENUMCALLBACKA lpDSEnumCallback,
     LPVOID lpContext)
 {
@@ -893,7 +907,7 @@ DECLSPEC_EXPORT HRESULT WINAPI DirectSoundEnumerateA(
  *    Success: DS_OK
  *    Failure: DSERR_INVALIDPARAM
  */
-DECLSPEC_EXPORT HRESULT WINAPI DirectSoundEnumerateW(
+HRESULT WINAPI DSOAL_DirectSoundEnumerateW(
     LPDSENUMCALLBACKW lpDSEnumCallback,
     LPVOID lpContext )
 {
@@ -928,7 +942,7 @@ DECLSPEC_EXPORT HRESULT WINAPI DirectSoundEnumerateW(
  *    Success: DS_OK
  *    Failure: DSERR_INVALIDPARAM
  */
-DECLSPEC_EXPORT HRESULT WINAPI DirectSoundCaptureEnumerateA(
+HRESULT WINAPI DSOAL_DirectSoundCaptureEnumerateA(
     LPDSENUMCALLBACKA lpDSEnumCallback,
     LPVOID lpContext)
 {
@@ -963,7 +977,7 @@ DECLSPEC_EXPORT HRESULT WINAPI DirectSoundCaptureEnumerateA(
  *    Success: DS_OK
  *    Failure: DSERR_INVALIDPARAM
  */
-DECLSPEC_EXPORT HRESULT WINAPI DirectSoundCaptureEnumerateW(
+HRESULT WINAPI DSOAL_DirectSoundCaptureEnumerateW(
     LPDSENUMCALLBACKW lpDSEnumCallback,
     LPVOID lpContext)
 {
@@ -1000,8 +1014,8 @@ DECLSPEC_EXPORT HRESULT WINAPI DirectSoundCaptureEnumerateW(
  *     Failure: DSERR_ALLOCATED, DSERR_INVALIDPARAM, DSERR_NOAGGREGATION,
  *              DSERR_NODRIVER, DSERR_OUTOFMEMORY
  */
-DECLSPEC_EXPORT HRESULT WINAPI
-DirectSoundCreate(LPCGUID lpcGUID, IDirectSound **ppDS, IUnknown *pUnkOuter)
+HRESULT WINAPI
+DSOAL_DirectSoundCreate(LPCGUID lpcGUID, IDirectSound **ppDS, IUnknown *pUnkOuter)
 {
     HRESULT hr;
     void *pDS;
@@ -1049,8 +1063,8 @@ DirectSoundCreate(LPCGUID lpcGUID, IDirectSound **ppDS, IUnknown *pUnkOuter)
  *     Failure: DSERR_ALLOCATED, DSERR_INVALIDPARAM, DSERR_NOAGGREGATION,
  *              DSERR_NODRIVER, DSERR_OUTOFMEMORY
  */
-DECLSPEC_EXPORT HRESULT WINAPI
-DirectSoundCreate8(LPCGUID lpcGUID, IDirectSound8 **ppDS, IUnknown *pUnkOuter)
+HRESULT WINAPI
+DSOAL_DirectSoundCreate8(LPCGUID lpcGUID, IDirectSound8 **ppDS, IUnknown *pUnkOuter)
 {
     HRESULT hr;
     void *pDS;
@@ -1105,8 +1119,8 @@ DirectSoundCreate8(LPCGUID lpcGUID, IDirectSound8 **ppDS, IUnknown *pUnkOuter)
  *
  *    DSERR_ALLOCATED is returned for sound devices that do not support full duplex.
  */
-DECLSPEC_EXPORT HRESULT WINAPI
-DirectSoundCaptureCreate(LPCGUID lpcGUID, IDirectSoundCapture **ppDSC, IUnknown *pUnkOuter)
+HRESULT WINAPI
+DSOAL_DirectSoundCaptureCreate(LPCGUID lpcGUID, IDirectSoundCapture **ppDSC, IUnknown *pUnkOuter)
 {
     HRESULT hr;
     void *pDSC;
@@ -1163,8 +1177,8 @@ DirectSoundCaptureCreate(LPCGUID lpcGUID, IDirectSoundCapture **ppDSC, IUnknown 
  *
  *    DSERR_ALLOCATED is returned for sound devices that do not support full duplex.
  */
-DECLSPEC_EXPORT HRESULT WINAPI
-DirectSoundCaptureCreate8(LPCGUID lpcGUID, IDirectSoundCapture8 **ppDSC8, IUnknown *pUnkOuter)
+HRESULT WINAPI
+DSOAL_DirectSoundCaptureCreate8(LPCGUID lpcGUID, IDirectSoundCapture8 **ppDSC8, IUnknown *pUnkOuter)
 {
     HRESULT hr;
     void *pDSC8;
@@ -1313,7 +1327,7 @@ static IClassFactoryImpl DSOUND_CF[] = {
  *    Failure: CLASS_E_CLASSNOTAVAILABLE, E_OUTOFMEMORY, E_INVALIDARG,
  *             E_UNEXPECTED
  */
-DECLSPEC_EXPORT HRESULT WINAPI DllGetClassObject(REFCLSID rclsid, REFIID riid, LPVOID *ppv)
+HRESULT WINAPI DSOAL_DllGetClassObject(REFCLSID rclsid, REFIID riid, LPVOID *ppv)
 {
     int i = 0;
     TRACE("(%s, %s, %p)\n", debugstr_guid(rclsid), debugstr_guid(riid), ppv);
@@ -1353,7 +1367,7 @@ DECLSPEC_EXPORT HRESULT WINAPI DllGetClassObject(REFCLSID rclsid, REFIID riid, L
  *    Success: S_OK
  *    Failure: S_FALSE
  */
-DECLSPEC_EXPORT HRESULT WINAPI DllCanUnloadNow(void)
+HRESULT WINAPI DSOAL_DllCanUnloadNow(void)
 {
     FIXME("(void): stub\n");
     return S_FALSE;

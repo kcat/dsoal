@@ -225,7 +225,7 @@ static HRESULT DSPROPERTY_DescriptionW(
         }
     }
 
-    GetDeviceID(&ppd->DeviceId, &dev_guid);
+    DSOAL_GetDeviceID(&ppd->DeviceId, &dev_guid);
 
     hr = get_mmdevice(eRender, &dev_guid, &mmdevice);
     if(FAILED(hr)){
