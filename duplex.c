@@ -538,7 +538,7 @@ HRESULT DSOUND_FullDuplexCreate(
  *             DSERR_OUTOFMEMORY DSERR_INVALIDCALL DSERR_NODRIVER
  */
 HRESULT WINAPI
-DirectSoundFullDuplexCreate(
+DSOAL_DirectSoundFullDuplexCreate(
     LPCGUID pcGuidCaptureDevice, LPCGUID pcGuidRenderDevice,
     LPCDSCBUFFERDESC pcDSCBufferDesc, LPCDSBUFFERDESC pcDSBufferDesc,
     HWND hWnd, DWORD dwLevel,

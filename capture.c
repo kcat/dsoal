@@ -1103,7 +1103,7 @@ static HRESULT WINAPI DSCImpl_Initialize(IDirectSoundCapture *iface, const GUID 
             IsEqualGUID(devguid, &DSDEVID_DefaultVoicePlayback))
         return DSERR_NODRIVER;
 
-    hr = GetDeviceID(devguid, &guid);
+    hr = DSOAL_GetDeviceID(devguid, &guid);
     if(FAILED(hr)) return hr;
 
     devguid = &guid;
