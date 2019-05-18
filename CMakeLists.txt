@@ -96,7 +96,12 @@ else()
 endif()
 set(DSOAL_DEFS ${DSOAL_DEFS} COBJMACROS)
 
-add_library(dsound SHARED ${DSOAL_OBJS} dsound.def)
+if(MSVC)
+	add_library(dsound SHARED ${DSOAL_OBJS} msvc.def)
+else()
+	add_library(dsound SHARED ${DSOAL_OBJS} mingw.def)
+endif(MSVC)
+
 if(WIN32)
     set_target_properties(dsound PROPERTIES PREFIX "")
 endif()
