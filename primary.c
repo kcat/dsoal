@@ -995,7 +995,7 @@ static HRESULT WINAPI DSPrimary_SetVolume(IDirectSoundBuffer *iface, LONG vol)
         return DSERR_CONTROLUNAVAIL;
 
     setALContext(This->ctx);
-    alListenerf(AL_GAIN, mB_to_gain(vol));
+    alListenerf(AL_GAIN, mB_to_gain((float)vol));
     popALContext();
 
     return DS_OK;
@@ -1254,7 +1254,7 @@ static void DSPrimary_SetParams(DSPrimary *This, const DS3DLISTENER *params, LON
                 alAuxiliaryEffectSloti(slot, AL_EFFECTSLOT_EFFECT, This->effect[i]);
             if(FXSLOT_IS_DIRTY(dirty.bit, i, FXSLOT_VOL_BIT))
                 alAuxiliaryEffectSlotf(slot, AL_EFFECTSLOT_GAIN,
-                    mB_to_gain(This->current.fxslot[i].props.lVolume)
+                    mB_to_gain((float)This->current.fxslot[i].props.lVolume)
                 );
             if(FXSLOT_IS_DIRTY(dirty.bit, i, FXSLOT_FLAGS_BIT))
                 alAuxiliaryEffectSloti(slot, AL_EFFECTSLOT_AUXILIARY_SEND_AUTO,

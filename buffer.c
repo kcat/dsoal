@@ -745,7 +745,7 @@ static HRESULT DSBuffer_SetLoc(DSBuffer *buf, DWORD loc_status)
         DWORD base = share->sources.maxhw_alloc;
         buf->source = share->sources.ids[base + --(share->sources.availsw_num)];
     }
-    alSourcef(buf->source, AL_GAIN, mB_to_gain(buf->current.vol));
+    alSourcef(buf->source, AL_GAIN, mB_to_gain((float)buf->current.vol));
     alSourcef(buf->source, AL_PITCH,
         buf->current.frequency ? (float)buf->current.frequency/data->format.Format.nSamplesPerSec
                                : 1.0f);
@@ -775,7 +775,7 @@ static HRESULT DSBuffer_SetLoc(DSBuffer *buf, DWORD loc_status)
         alSource3f(source, AL_DIRECTION, params->vConeOrientation.x,
                                          params->vConeOrientation.y,
                                         -params->vConeOrientation.z);
-        alSourcef(source, AL_CONE_OUTER_GAIN, mB_to_gain(params->lConeOutsideVolume));
+        alSourcef(source, AL_CONE_OUTER_GAIN, mB_to_gain((float)params->lConeOutsideVolume));
         alSourcef(source, AL_REFERENCE_DISTANCE, params->flMinDistance);
         alSourcef(source, AL_MAX_DISTANCE, params->flMaxDistance);
         if(HAS_EXTENSION(share, SOFT_SOURCE_SPATIALIZE))
@@ -809,7 +809,7 @@ static HRESULT DSBuffer_SetLoc(DSBuffer *buf, DWORD loc_status)
                 alSource3i(source, AL_AUXILIARY_SEND_FILTER, slot, i, filter);
             }
             alSourcef(source, AL_ROOM_ROLLOFF_FACTOR, eax_params->flRoomRolloffFactor);
-            alSourcef(source, AL_CONE_OUTER_GAINHF, mB_to_gain(eax_params->lOutsideVolumeHF));
+            alSourcef(source, AL_CONE_OUTER_GAINHF, mB_to_gain((float)eax_params->lOutsideVolumeHF));
             alSourcef(source, AL_AIR_ABSORPTION_FACTOR,
                 clampF(prim->current.ctx.flAirAbsorptionHF / -5.0f *
                        eax_params->flAirAbsorptionFactor, 0.0f, 10.0f)
@@ -1550,7 +1550,7 @@ static HRESULT WINAPI DSBuffer_SetVolume(IDirectSoundBuffer8 *iface, LONG vol)
         if(LIKELY(This->source))
         {
             setALContext(This->ctx);
-            alSourcef(This->source, AL_GAIN, mB_to_gain(vol));
+            alSourcef(This->source, AL_GAIN, mB_to_gain((float)vol));
             popALContext();
         }
     }
@@ -1993,7 +1993,7 @@ void DSBuffer_SetParams(DSBuffer *This, const DS3DBUFFER *params, LONG flags)
                                          params->vConeOrientation.y,
                                         -params->vConeOrientation.z);
     if(dirty.bit.cone_outsidevolume)
-        alSourcef(source, AL_CONE_OUTER_GAIN, mB_to_gain(params->lConeOutsideVolume));
+        alSourcef(source, AL_CONE_OUTER_GAIN, mB_to_gain((float)params->lConeOutsideVolume));
     if(dirty.bit.min_distance)
         alSourcef(source, AL_REFERENCE_DISTANCE, params->flMinDistance);
     if(dirty.bit.max_distance)
@@ -2038,7 +2038,7 @@ void DSBuffer_SetParams(DSBuffer *This, const DS3DBUFFER *params, LONG flags)
     if(dirty.bit.room_rolloff)
         alSourcef(source, AL_ROOM_ROLLOFF_FACTOR, This->current.eax.flRoomRolloffFactor);
     if(dirty.bit.cone_outsidevolumehf)
-        alSourcef(source, AL_CONE_OUTER_GAINHF, mB_to_gain(This->current.eax.lOutsideVolumeHF));
+        alSourcef(source, AL_CONE_OUTER_GAINHF, mB_to_gain((float)This->current.eax.lOutsideVolumeHF));
     if(dirty.bit.air_absorb)
         alSourcef(source, AL_AIR_ABSORPTION_FACTOR, This->current.eax.flAirAbsorptionFactor *
                   prim->current.ctx.flAirAbsorptionHF / -5.0f);
@@ -2336,7 +2336,7 @@ static HRESULT WINAPI DSBuffer3D_SetConeOutsideVolume(IDirectSound3DBuffer *ifac
         This->current.ds3d.lConeOutsideVolume = vol;
         if(LIKELY(This->source))
         {
-            alSourcef(This->source, AL_CONE_OUTER_GAIN, mB_to_gain(vol));
+            alSourcef(This->source, AL_CONE_OUTER_GAIN, mB_to_gain((float)vol));
             checkALError();
         }
         popALContext();
