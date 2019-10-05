@@ -97,9 +97,11 @@ endif()
 set(DSOAL_DEFS ${DSOAL_DEFS} COBJMACROS)
 
 if(MSVC)
-	add_library(dsound SHARED ${DSOAL_OBJS} msvc.def)
+    add_library(dsound SHARED ${DSOAL_OBJS} msvc.def)
+    set(DSOAL_DEFS ${DSOAL_DEFS} _CRT_SECURE_NO_WARNINGS)
+    set(DSOAL_FLAGS ${DSOAL_FLAGS} /W3 /wd4114 /wd4090 /wd4113)
 else()
-	add_library(dsound SHARED ${DSOAL_OBJS} mingw.def)
+    add_library(dsound SHARED ${DSOAL_OBJS} mingw.def)
 endif(MSVC)
 
 if(WIN32)
