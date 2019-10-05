@@ -37,9 +37,9 @@
 #endif
 
 
-static const IDirectSoundBufferVtbl DSPrimary_Vtbl;
-static const IDirectSound3DListenerVtbl DSPrimary3D_Vtbl;
-static const IKsPropertySetVtbl DSPrimaryProp_Vtbl;
+static IDirectSoundBufferVtbl DSPrimary_Vtbl;
+static IDirectSound3DListenerVtbl DSPrimary3D_Vtbl;
+static IKsPropertySetVtbl DSPrimaryProp_Vtbl;
 
 static void DSPrimary_SetParams(DSPrimary *This, const DS3DLISTENER *params, LONG flags);
 
@@ -1085,7 +1085,7 @@ static HRESULT WINAPI DSPrimary_Restore(IDirectSoundBuffer *iface)
     return hr;
 }
 
-static const IDirectSoundBufferVtbl DSPrimary_Vtbl =
+static IDirectSoundBufferVtbl DSPrimary_Vtbl =
 {
     DSPrimary_QueryInterface,
     DSPrimary_AddRef,
@@ -1743,7 +1743,7 @@ HRESULT WINAPI DSPrimary3D_CommitDeferredSettings(IDirectSound3DListener *iface)
     return DS_OK;
 }
 
-static const IDirectSound3DListenerVtbl DSPrimary3D_Vtbl =
+static IDirectSound3DListenerVtbl DSPrimary3D_Vtbl =
 {
     DSPrimary3D_QueryInterface,
     DSPrimary3D_AddRef,
@@ -1842,7 +1842,7 @@ static HRESULT WINAPI DSPrimaryProp_QuerySupport(IKsPropertySet *iface,
     return E_PROP_ID_UNSUPPORTED;
 }
 
-static const IKsPropertySetVtbl DSPrimaryProp_Vtbl =
+static IKsPropertySetVtbl DSPrimaryProp_Vtbl =
 {
     DSPrimaryProp_QueryInterface,
     DSPrimaryProp_AddRef,

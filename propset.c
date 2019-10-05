@@ -608,7 +608,7 @@ static HRESULT WINAPI IKsPrivatePropertySetImpl_QuerySupport(
     return E_PROP_ID_UNSUPPORTED;
 }
 
-static const IKsPropertySetVtbl ikspvt = {
+static IKsPropertySetVtbl ikspvt = {
     IKsPrivatePropertySetImpl_QueryInterface,
     IKsPrivatePropertySetImpl_AddRef,
     IKsPrivatePropertySetImpl_Release,

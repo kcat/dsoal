@@ -45,10 +45,10 @@
 /* TODO: when bufferlost is set, return from all calls except initialize with
  * DSERR_BUFFERLOST
  */
-static const IDirectSoundBuffer8Vtbl DSBuffer_Vtbl;
-static const IDirectSound3DBufferVtbl DSBuffer3d_Vtbl;
-static const IDirectSoundNotifyVtbl DSBufferNot_Vtbl;
-static const IKsPropertySetVtbl DSBufferProp_Vtbl;
+static IDirectSoundBuffer8Vtbl DSBuffer_Vtbl;
+static IDirectSound3DBufferVtbl DSBuffer3d_Vtbl;
+static IDirectSoundNotifyVtbl DSBufferNot_Vtbl;
+static IKsPropertySetVtbl DSBufferProp_Vtbl;
 
 
 static inline DSBuffer *impl_from_IDirectSoundBuffer8(IDirectSoundBuffer8 *iface)
@@ -1909,7 +1909,7 @@ static HRESULT WINAPI DSBuffer_GetObjectInPath(IDirectSoundBuffer8 *iface, REFGU
     return E_NOTIMPL;
 }
 
-static const IDirectSoundBuffer8Vtbl DSBuffer_Vtbl = {
+static IDirectSoundBuffer8Vtbl DSBuffer_Vtbl = {
     DSBuffer_QueryInterface,
     DSBuffer_AddRef,
     DSBuffer_Release,
@@ -2598,7 +2598,7 @@ static HRESULT WINAPI DSBuffer3D_SetAllParameters(IDirectSound3DBuffer *iface, c
     return S_OK;
 }
 
-static const IDirectSound3DBufferVtbl DSBuffer3d_Vtbl =
+static IDirectSound3DBufferVtbl DSBuffer3d_Vtbl =
 {
     DSBuffer3D_QueryInterface,
     DSBuffer3D_AddRef,
@@ -2713,7 +2713,7 @@ out:
     return hr;
 }
 
-static const IDirectSoundNotifyVtbl DSBufferNot_Vtbl =
+static IDirectSoundNotifyVtbl DSBufferNot_Vtbl =
 {
     DSBufferNot_QueryInterface,
     DSBufferNot_AddRef,
@@ -3024,7 +3024,7 @@ static HRESULT WINAPI DSBufferProp_QuerySupport(IKsPropertySet *iface,
     return hr;
 }
 
-static const IKsPropertySetVtbl DSBufferProp_Vtbl =
+static IKsPropertySetVtbl DSBufferProp_Vtbl =
 {
     DSBufferProp_QueryInterface,
     DSBufferProp_AddRef,

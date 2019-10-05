@@ -77,10 +77,10 @@ struct DSCBuffer {
     BOOL playing, looping;
 };
 
-static const IDirectSoundCaptureVtbl DSC_Vtbl;
-static const IUnknownVtbl DSC_Unknown_Vtbl;
-static const IDirectSoundCaptureBuffer8Vtbl DSCBuffer_Vtbl;
-static const IDirectSoundNotifyVtbl DSCNot_Vtbl;
+static IDirectSoundCaptureVtbl DSC_Vtbl;
+static IUnknownVtbl DSC_Unknown_Vtbl;
+static IDirectSoundCaptureBuffer8Vtbl DSCBuffer_Vtbl;
+static IDirectSoundNotifyVtbl DSCNot_Vtbl;
 
 static void DSCImpl_Destroy(DSCImpl *This);
 
@@ -718,7 +718,7 @@ static HRESULT WINAPI DSCBuffer_GetFXStatus(IDirectSoundCaptureBuffer8 *iface, D
     return E_NOTIMPL;
 }
 
-static const IDirectSoundCaptureBuffer8Vtbl DSCBuffer_Vtbl =
+static IDirectSoundCaptureBuffer8Vtbl DSCBuffer_Vtbl =
 {
     DSCBuffer_QueryInterface,
     DSCBuffer_AddRef,
@@ -824,7 +824,7 @@ out:
     return hr;
 }
 
-static const IDirectSoundNotifyVtbl DSCNot_Vtbl =
+static IDirectSoundNotifyVtbl DSCNot_Vtbl =
 {
     DSCBufferNot_QueryInterface,
     DSCBufferNot_AddRef,
@@ -933,7 +933,7 @@ static ULONG WINAPI DSCImpl_IUnknown_Release(IUnknown *iface)
     return ref;
 }
 
-static const IUnknownVtbl DSC_Unknown_Vtbl = {
+static IUnknownVtbl DSC_Unknown_Vtbl = {
     DSCImpl_IUnknown_QueryInterface,
     DSCImpl_IUnknown_AddRef,
     DSCImpl_IUnknown_Release
@@ -1144,7 +1144,7 @@ out:
     return hr;
 }
 
-static const IDirectSoundCaptureVtbl DSC_Vtbl =
+static IDirectSoundCaptureVtbl DSC_Vtbl =
 {
     DSCImpl_QueryInterface,
     DSCImpl_AddRef,
