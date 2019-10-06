@@ -66,6 +66,21 @@ else()
     endif()
 endif()
 
+# MSVC workaround for C99 inline
+if(MSVC)
+    check_c_source_compiles("inline void foo(void) { }
+                             int main() {return 0;}" HAVE_INLINE)
+    if(NOT HAVE_INLINE)
+        check_c_source_compiles("__inline void foo(void) { }
+                                 int main() {return 0;}" HAVE___INLINE)
+        if(NOT HAVE___INLINE)
+            message(FATAL_ERROR "No inline keyword found, please update your MSVC version!")
+        endif()
+
+        set(DSOAL_DEFS ${DSOAL_DEFS} inline=__inline)
+        set(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -Dinline=__inline")
+    endif()
+endif()
 
 if(NOT MSVC)
     set(DSOAL_FLAGS ${DSOAL_FLAGS} -Winline -Wall)
@@ -97,9 +112,11 @@ endif()
 set(DSOAL_DEFS ${DSOAL_DEFS} COBJMACROS)
 
 if(MSVC)
-	add_library(dsound SHARED ${DSOAL_OBJS} msvc.def)
+    add_library(dsound SHARED ${DSOAL_OBJS} msvc.def)
+    set(DSOAL_DEFS ${DSOAL_DEFS} _CRT_SECURE_NO_WARNINGS)
+    set(DSOAL_FLAGS ${DSOAL_FLAGS} /W3 /wd4090 /wd4113)
 else()
-	add_library(dsound SHARED ${DSOAL_OBJS} mingw.def)
+    add_library(dsound SHARED ${DSOAL_OBJS} mingw.def)
 endif(MSVC)
 
 if(WIN32)

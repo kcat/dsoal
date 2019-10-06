@@ -211,7 +211,7 @@ static HRESULT WINAPI IDirectSoundFullDuplex_IDirectSound8_VerifyCertification(
     return IDirectSound8_VerifyCertification(This->renderer_device,cert);
 }
 
-static const IDirectSound8Vtbl DirectSoundFullDuplex_DirectSound8_Vtbl = {
+static IDirectSound8Vtbl DirectSoundFullDuplex_DirectSound8_Vtbl = {
     IDirectSoundFullDuplex_IDirectSound8_QueryInterface,
     IDirectSoundFullDuplex_IDirectSound8_AddRef,
     IDirectSoundFullDuplex_IDirectSound8_Release,
@@ -289,7 +289,7 @@ static HRESULT WINAPI IDirectSoundFullDuplex_IDirectSoundCapture_Initialize(
     return IDirectSoundCapture_Initialize(This->capture_device,lpcGUID);
 }
 
-static const IDirectSoundCaptureVtbl DirectSoundFullDuplex_DirectSoundCapture_Vtbl = {
+static IDirectSoundCaptureVtbl DirectSoundFullDuplex_DirectSoundCapture_Vtbl = {
     IDirectSoundFullDuplex_IDirectSoundCapture_QueryInterface,
     IDirectSoundFullDuplex_IDirectSoundCapture_AddRef,
     IDirectSoundFullDuplex_IDirectSoundCapture_Release,
@@ -460,7 +460,7 @@ static HRESULT WINAPI IDirectSoundFullDuplexImpl_Initialize(
     return hr;
 }
 
-static const IDirectSoundFullDuplexVtbl dsfdvt = {
+static IDirectSoundFullDuplexVtbl dsfdvt = {
     /* IUnknown methods */
     IDirectSoundFullDuplexImpl_QueryInterface,
     IDirectSoundFullDuplexImpl_AddRef,

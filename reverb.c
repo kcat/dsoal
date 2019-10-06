@@ -34,9 +34,9 @@ static void ApplyReverbParams(ALuint effect, const EAXREVERBPROPERTIES *props)
     );
     alEffectf(effect, AL_EAXREVERB_DIFFUSION, props->flEnvironmentDiffusion);
 
-    alEffectf(effect, AL_EAXREVERB_GAIN, mB_to_gain(props->lRoom));
-    alEffectf(effect, AL_EAXREVERB_GAINHF, mB_to_gain(props->lRoomHF));
-    alEffectf(effect, AL_EAXREVERB_GAINLF, mB_to_gain(props->lRoomLF));
+    alEffectf(effect, AL_EAXREVERB_GAIN, mB_to_gain((float)props->lRoom));
+    alEffectf(effect, AL_EAXREVERB_GAINHF, mB_to_gain((float)props->lRoomHF));
+    alEffectf(effect, AL_EAXREVERB_GAINLF, mB_to_gain((float)props->lRoomLF));
 
     alEffectf(effect, AL_EAXREVERB_DECAY_TIME, props->flDecayTime);
     alEffectf(effect, AL_EAXREVERB_DECAY_HFRATIO, props->flDecayHFRatio);
@@ -48,14 +48,14 @@ static void ApplyReverbParams(ALuint effect, const EAXREVERBPROPERTIES *props)
      * practical uses, but still technically an error).
      */
     alEffectf(effect, AL_EAXREVERB_REFLECTIONS_GAIN,
-        clampF(mB_to_gain(props->lReflections), AL_EAXREVERB_MIN_REFLECTIONS_GAIN,
+        clampF(mB_to_gain((float)props->lReflections), AL_EAXREVERB_MIN_REFLECTIONS_GAIN,
                AL_EAXREVERB_MAX_REFLECTIONS_GAIN)
     );
     alEffectf(effect, AL_EAXREVERB_REFLECTIONS_DELAY, props->flReflectionsDelay);
     alEffectfv(effect, AL_EAXREVERB_REFLECTIONS_PAN, &props->vReflectionsPan.x);
 
     alEffectf(effect, AL_EAXREVERB_LATE_REVERB_GAIN,
-        clampF(mB_to_gain(props->lReverb), AL_EAXREVERB_MIN_LATE_REVERB_GAIN,
+        clampF(mB_to_gain((float)props->lReverb), AL_EAXREVERB_MIN_LATE_REVERB_GAIN,
                AL_EAXREVERB_MAX_LATE_REVERB_GAIN)
     );
     alEffectf(effect, AL_EAXREVERB_LATE_REVERB_DELAY, props->flReverbDelay);
@@ -226,7 +226,7 @@ HRESULT EAXReverb_Set(DSPrimary *prim, LONG idx, DWORD propid, void *pPropData, 
 
             prim->deferred.fxslot[idx].fx.reverb.lRoom = *data.l;
             alEffectf(prim->effect[idx], AL_EAXREVERB_GAIN,
-                      mB_to_gain(prim->deferred.fxslot[idx].fx.reverb.lRoom));
+                      mB_to_gain((float)prim->deferred.fxslot[idx].fx.reverb.lRoom));
             checkALError();
 
             FXSLOT_SET_DIRTY(prim->dirty.bit, idx, FXSLOT_EFFECT_BIT);
@@ -241,7 +241,7 @@ HRESULT EAXReverb_Set(DSPrimary *prim, LONG idx, DWORD propid, void *pPropData, 
 
             prim->deferred.fxslot[idx].fx.reverb.lRoomHF = *data.l;
             alEffectf(prim->effect[idx], AL_EAXREVERB_GAINHF,
-                      mB_to_gain(prim->deferred.fxslot[idx].fx.reverb.lRoomHF));
+                      mB_to_gain((float)prim->deferred.fxslot[idx].fx.reverb.lRoomHF));
             checkALError();
 
             FXSLOT_SET_DIRTY(prim->dirty.bit, idx, FXSLOT_EFFECT_BIT);
@@ -256,7 +256,7 @@ HRESULT EAXReverb_Set(DSPrimary *prim, LONG idx, DWORD propid, void *pPropData, 
 
             prim->deferred.fxslot[idx].fx.reverb.lRoomLF = *data.l;
             alEffectf(prim->effect[idx], AL_EAXREVERB_GAINLF,
-                      mB_to_gain(prim->deferred.fxslot[idx].fx.reverb.lRoomLF));
+                      mB_to_gain((float)prim->deferred.fxslot[idx].fx.reverb.lRoomLF));
             checkALError();
 
             FXSLOT_SET_DIRTY(prim->dirty.bit, idx, FXSLOT_EFFECT_BIT);
@@ -318,7 +318,7 @@ HRESULT EAXReverb_Set(DSPrimary *prim, LONG idx, DWORD propid, void *pPropData, 
 
             prim->deferred.fxslot[idx].fx.reverb.lReflections = *data.l;
             alEffectf(prim->effect[idx], AL_EAXREVERB_REFLECTIONS_GAIN,
-                      mB_to_gain(prim->deferred.fxslot[idx].fx.reverb.lReflections));
+                      mB_to_gain((float)prim->deferred.fxslot[idx].fx.reverb.lReflections));
             checkALError();
 
             FXSLOT_SET_DIRTY(prim->dirty.bit, idx, FXSLOT_EFFECT_BIT);
@@ -364,7 +364,7 @@ HRESULT EAXReverb_Set(DSPrimary *prim, LONG idx, DWORD propid, void *pPropData, 
 
             prim->deferred.fxslot[idx].fx.reverb.lReverb = *data.l;
             alEffectf(prim->effect[idx], AL_EAXREVERB_LATE_REVERB_GAIN,
-                      mB_to_gain(prim->deferred.fxslot[idx].fx.reverb.lReverb));
+                      mB_to_gain((float)prim->deferred.fxslot[idx].fx.reverb.lReverb));
             checkALError();
 
             FXSLOT_SET_DIRTY(prim->dirty.bit, idx, FXSLOT_EFFECT_BIT);

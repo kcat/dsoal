@@ -451,9 +451,9 @@ static ULONG DSShare_Release(DeviceShare *share)
 }
 
 
-static const IDirectSound8Vtbl DS8_Vtbl;
-static const IDirectSoundVtbl DS_Vtbl;
-static const IUnknownVtbl DS8_Unknown_Vtbl;
+static IDirectSound8Vtbl DS8_Vtbl;
+static IDirectSoundVtbl DS_Vtbl;
+static IUnknownVtbl DS8_Unknown_Vtbl;
 
 static HRESULT DSDevice_Create(BOOL is8, REFIID riid, LPVOID *ds);
 static void DSDevice_Destroy(DSDevice *This);
@@ -496,7 +496,7 @@ static ULONG WINAPI DSDevice_IUnknown_Release(IUnknown *iface)
     return ref;
 }
 
-static const IUnknownVtbl DS8_Unknown_Vtbl = {
+static IUnknownVtbl DS8_Unknown_Vtbl = {
     DSDevice_IUnknown_QueryInterface,
     DSDevice_IUnknown_AddRef,
     DSDevice_IUnknown_Release
@@ -1139,7 +1139,7 @@ static HRESULT WINAPI DS8_VerifyCertification(IDirectSound8 *iface, DWORD *certi
     return DS_OK;
 }
 
-static const IDirectSound8Vtbl DS8_Vtbl = {
+static IDirectSound8Vtbl DS8_Vtbl = {
     DS8_QueryInterface,
     DS8_AddRef,
     DS8_Release,
@@ -1221,7 +1221,7 @@ static HRESULT WINAPI DS_Initialize(IDirectSound *iface, const GUID *devguid)
     return DS8_Initialize(&This->IDirectSound8_iface, devguid);
 }
 
-static const IDirectSoundVtbl DS_Vtbl = {
+static IDirectSoundVtbl DS_Vtbl = {
     DS_QueryInterface,
     DS_AddRef,
     DS_Release,
