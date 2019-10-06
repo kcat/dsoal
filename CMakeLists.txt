@@ -66,6 +66,21 @@ else()
     endif()
 endif()
 
+# MSVC workaround for C99 inline
+if(MSVC)
+    check_c_source_compiles("inline void foo(void) { }
+                             int main() {return 0;}" HAVE_INLINE)
+    if(NOT HAVE_INLINE)
+        check_c_source_compiles("__inline void foo(void) { }
+                                 int main() {return 0;}" HAVE___INLINE)
+        if(NOT HAVE___INLINE)
+            message(FATAL_ERROR "No inline keyword found, please update your MSVC version!")
+        endif()
+
+        set(DSOAL_DEFS ${DSOAL_DEFS} inline=__inline)
+        set(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -Dinline=__inline")
+    endif()
+endif()
 
 if(NOT MSVC)
     set(DSOAL_FLAGS ${DSOAL_FLAGS} -Winline -Wall)
