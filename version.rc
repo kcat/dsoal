@@ -43,9 +43,12 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
+#ifndef RC_INVOKED
 #include "windef.h"
 #include "winbase.h"
+#endif
 #include "winver.h"
+
 
 /*
 Assign WINE_FILEVERSION and WINE_FILEVERSION_STR high enough number
