@@ -40,5 +40,5 @@ goes to work the next time the application is run.
 
 
 Source releases, the Git repository, and Windows binaries for OpenAL Soft are
-available at its homepage <http://kcat.strangesoft.met/openal.html>.
+available at its homepage <http://kcat.strangesoft.net/openal.html>.
 Instructions are also provided there.
