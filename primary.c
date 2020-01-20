@@ -76,13 +76,13 @@ static void trigger_elapsed_notifies(DSBuffer *buf, DWORD lastpos, DWORD curpos)
         {
             if(ofs < curpos || ofs >= lastpos)
             {
-                TRACE("Triggering notification %d from buffer %p\n", not - buf->notify, buf);
+                TRACE("Triggering notification %d from buffer %p\n", (int)(not-buf->notify), buf);
                 SetEvent(event);
             }
         }
         else if(ofs >= lastpos && ofs < curpos) /* Normal case */
         {
-            TRACE("Triggering notification %d from buffer %p\n", not - buf->notify, buf);
+            TRACE("Triggering notification %d from buffer %p\n", (int)(not-buf->notify), buf);
             SetEvent(event);
         }
     }
@@ -96,7 +96,7 @@ static void trigger_stop_notifies(DSBuffer *buf)
     {
         if(not->dwOffset != (DWORD)DSBPN_OFFSETSTOP)
             continue;
-        TRACE("Triggering notification %d from buffer %p\n", not - buf->notify, buf);
+        TRACE("Triggering notification %d from buffer %p\n", (int)(not-buf->notify), buf);
         SetEvent(not->hEventNotify);
     }
 }
