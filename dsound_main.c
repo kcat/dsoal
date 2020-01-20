@@ -98,14 +98,7 @@ const EAXREVERBPROPERTIES EnvironmentDefaults[EAX_ENVIRONMENT_UNDEFINED] = {
     REVERB_PRESET_PSYCHOTIC
 };
 
-static CRITICAL_SECTION_DEBUG openal_crst_debug =
-{
-    0, 0, &openal_crst,
-    { &openal_crst_debug.ProcessLocksList,
-      &openal_crst_debug.ProcessLocksList },
-      0, 0, { (DWORD_PTR)(__FILE__ ": openal_crst_debug") }
-};
-CRITICAL_SECTION openal_crst = { &openal_crst_debug, -1, 0, 0, 0, 0 };
+CRITICAL_SECTION openal_crst;
 
 int openal_loaded = 0;
 static HANDLE openal_handle = NULL;
@@ -1396,6 +1389,7 @@ DECLSPEC_EXPORT BOOL WINAPI DllMain(HINSTANCE hInstDLL, DWORD fdwReason, LPVOID 
         if(!load_libopenal())
             return FALSE;
         TlsThreadPtr = TlsAlloc();
+        InitializeCriticalSection(&openal_crst);
         /* Increase refcount on dsound by 1 */
         GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, (LPCWSTR)hInstDLL, &hInstDLL);
         break;
@@ -1419,6 +1413,7 @@ DECLSPEC_EXPORT BOOL WINAPI DllMain(HINSTANCE hInstDLL, DWORD fdwReason, LPVOID 
         if(openal_handle)
             FreeLibrary(openal_handle);
         TlsFree(TlsThreadPtr);
+        DeleteCriticalSection(&openal_crst);
         if(LogFile != stderr)
             fclose(LogFile);
         LogFile = stderr;
