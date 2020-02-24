@@ -6,9 +6,11 @@ include(CheckCCompilerFlag)
 include(CheckCSourceCompiles)
 include(CheckTypeSize)
 include(CheckIncludeFile)
+include(GNUInstallDirs)
 
 project(DSOAL C)
 
+set(VERSION 0.9)
 
 IF(NOT CMAKE_BUILD_TYPE)
     SET(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING
@@ -126,3 +128,22 @@ target_compile_definitions(dsound PRIVATE ${DSOAL_DEFS})
 target_include_directories(dsound PRIVATE ${DSOAL_INC})
 target_compile_options(dsound PRIVATE ${DSOAL_FLAGS})
 target_link_libraries(dsound PRIVATE ${DSOAL_LIBS})
+
+install(TARGETS dsound
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
+if(EXISTS "${DSOAL_BINARY_DIR}/dsoal-aldrv.dll")
+    install(FILES
+        "${DSOAL_BINARY_DIR}/dsoal-aldrv.dll"
+        DESTINATION ${CMAKE_INSTALL_BINDIR})
+endif()
+
+
+set(CPACK_GENERATOR "ZIP")
+set(CPACK_PACKAGE_VENDOR "Chris Robinson")
+set(CPACK_PACKAGE_VERSION ${VERSION})
+set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE")
+set(CPACK_STRIP_FILES TRUE)
+
+include(CPack)
