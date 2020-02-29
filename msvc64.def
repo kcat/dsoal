@@ -1,0 +1,15 @@
+LIBRARY DSOUND.dll
+
+EXPORTS
+    DirectSoundCreate               = _DSOAL_DirectSoundCreate            @1
+    DirectSoundEnumerateA           = _DSOAL_DirectSoundEnumerateA        @2
+    DirectSoundEnumerateW           = _DSOAL_DirectSoundEnumerateW        @3
+    DirectSoundCaptureCreate        = _DSOAL_DirectSoundCaptureCreate     @4
+    DirectSoundCaptureEnumerateA    = _DSOAL_DirectSoundCaptureEnumerateA @5
+    DirectSoundCaptureEnumerateW    = _DSOAL_DirectSoundCaptureEnumerateW @6
+    GetDeviceID                     = _DSOAL_GetDeviceID                  @7
+    DirectSoundFullDuplexCreate     = _DSOAL_DirectSoundFullDuplexCreate  @8
+    DirectSoundCreate8              = _DSOAL_DirectSoundCreate8           @9
+    DirectSoundCaptureCreate8       = _DSOAL_DirectSoundCaptureCreate8    @10
+    DllCanUnloadNow                 = _DSOAL_DllCanUnloadNow              PRIVATE
+    DllGetClassObject               = _DSOAL_DllGetClassObject            PRIVATE
