@@ -2,17 +2,18 @@ environment:
     matrix:
       - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2017
         GEN: "Visual Studio 15 2017"
-        ARCH: x64
+        ARCH: Win32
         CFG: Release
       - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2017
         GEN: "Visual Studio 15 2017"
-        ARCH: Win32
+        ARCH: x64
         CFG: Release
 
-install:
-    # Remove the VS Xamarin targets to reduce AppVeyor specific noise in build
-    # logs. See: http://help.appveyor.com/discussions/problems/4569
-    - del "C:\Program Files (x86)\MSBuild\14.0\Microsoft.Common.targets\ImportAfter\Xamarin.Common.targets"
+after_build:
+- 7z a ..\dsoal.zip "%APPVEYOR_BUILD_FOLDER%\build\%CONFIG%\dsound.dll" "%APPVEYOR_BUILD_FOLDER%\readme.txt" "%APPVEYOR_BUILD_FOLDER%\LICENSE"
+
+artifacts:
+- path: dsoal.zip
 
 build_script:
 - cmd: |
