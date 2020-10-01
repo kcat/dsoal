@@ -211,6 +211,7 @@ static HRESULT DSShare_Create(REFIID guid, DeviceShare **out)
     share->ref = 1;
     share->refresh = FAKE_REFRESH_COUNT;
     share->speaker_config = DSSPEAKER_7POINT1_SURROUND;
+    share->vm_managermode = DSPROPERTY_VMANAGER_MODE_DEFAULT;
 
     TRACE("Creating shared device %p\n", share);
 
