@@ -31,7 +31,7 @@ HRESULT VoiceMan_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPropD
     switch (propid) {
         case DSPROPERTY_VMANAGER_MODE:
             if (cbPropData >= sizeof(DWORD) && *(DWORD*)pPropData < VMANAGER_MODE_MAX) {
-                TRACE("DSPROPERTY_VMANAGER_MODE set: %d\n", *(DWORD*)pPropData);
+                TRACE("DSPROPERTY_VMANAGER_MODE set: %ld\n", *(DWORD*)pPropData);
                 buf->share->vm_managermode = *(DWORD*)pPropData;
                 
                 return DS_OK;
@@ -40,7 +40,7 @@ HRESULT VoiceMan_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPropD
             
         case DSPROPERTY_VMANAGER_PRIORITY:
             if (cbPropData >= sizeof(DWORD)) {
-                TRACE("DSPROPERTY_VMANAGER_PRIORITY set: %d\n", *(DWORD*)pPropData);
+                TRACE("DSPROPERTY_VMANAGER_PRIORITY set: %ld\n", *(DWORD*)pPropData);
                 buf->vm_voicepriority = *(DWORD*)pPropData;
                 
                 return DS_OK;
@@ -61,7 +61,7 @@ HRESULT VoiceMan_Get(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPropD
                 *pcbReturned = sizeof(DWORD);
                 
                 *(DWORD*)pPropData = buf->share->vm_managermode;
-                TRACE("DSPROPERTY_VMANAGER_MODE get %d\n", *(DWORD*)pPropData);
+                TRACE("DSPROPERTY_VMANAGER_MODE get %ld\n", *(DWORD*)pPropData);
                 
                 return DS_OK;
             }
@@ -72,7 +72,7 @@ HRESULT VoiceMan_Get(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPropD
                 *pcbReturned = sizeof(DWORD);
                 
                 *(DWORD*)pPropData = buf->vm_voicepriority;
-                TRACE("DSPROPERTY_VMANAGER_PRIORITY get %d\n", *(DWORD*)pPropData);
+                TRACE("DSPROPERTY_VMANAGER_PRIORITY get %ld\n", *(DWORD*)pPropData);
                 
                 return DS_OK;
             }
@@ -88,7 +88,7 @@ HRESULT VoiceMan_Get(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPropD
                 } else {
                     *(DWORD*)pPropData = DSPROPERTY_VMANAGER_STATE_SILENT;
                 }
-                TRACE("DSPROPERTY_VMANAGER_STATE get %d\n", *(DWORD*)pPropData);
+                TRACE("DSPROPERTY_VMANAGER_STATE get %ld\n", *(DWORD*)pPropData);
                 
                 return DS_OK;
             }
