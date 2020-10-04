@@ -690,76 +690,13 @@ HRESULT DSBuffer_GetInterface(DSBuffer *buf, REFIID riid, void **ppv)
     return E_NOINTERFACE;
 }
 
-static HRESULT DSBuffer_SetLoc(DSBuffer *buf, DWORD loc_status)
+static void DSBuffer_UpdateSourceProps(DSBuffer *buf)
 {
     DeviceShare *share = buf->share;
     DSData *data = buf->buffer;
     ALsizei i;
 
-    if((loc_status && buf->loc_status == loc_status) || (!loc_status && buf->loc_status))
-        return DS_OK;
-
-    /* If we have a source, we're changing location, so return the source we
-     * have to get a new one.
-     */
-    if(buf->source)
-    {
-        alSourceRewind(buf->source);
-        alSourcei(buf->source, AL_BUFFER, 0);
-        checkALError();
-
-        if(buf->loc_status == DSBSTATUS_LOCHARDWARE)
-            share->sources.ids[share->sources.availhw_num++] = buf->source;
-        else
-        {
-            DWORD base = share->sources.maxhw_alloc;
-            share->sources.ids[base + share->sources.availsw_num++] = buf->source;
-        }
-        buf->source = 0;
-    }
-    buf->loc_status = 0;
-
-    if(!loc_status)
-    {
-        if(share->sources.availhw_num)
-            loc_status = DSBSTATUS_LOCHARDWARE;
-        else if(share->sources.availsw_num)
-            loc_status = DSBSTATUS_LOCSOFTWARE;
-    }
-
-    if((loc_status == DSBSTATUS_LOCHARDWARE && !share->sources.availhw_num) ||
-       (loc_status == DSBSTATUS_LOCSOFTWARE && !share->sources.availsw_num) ||
-       !loc_status)
-    {
-        ERR("Out of %s sources\n",
-            (loc_status == DSBSTATUS_LOCHARDWARE) ? "hardware" :
-            (loc_status == DSBSTATUS_LOCSOFTWARE) ? "software" : "any"
-        );
-        return DSERR_ALLOCATED;
-    }
-
-    if(loc_status == DSBSTATUS_LOCHARDWARE)
-        buf->source = share->sources.ids[--(share->sources.availhw_num)];
-    else
-    {
-        DWORD base = share->sources.maxhw_alloc;
-        buf->source = share->sources.ids[base + --(share->sources.availsw_num)];
-    }
-    alSourcef(buf->source, AL_GAIN, mB_to_gain((float)buf->current.vol));
-    alSourcef(buf->source, AL_PITCH,
-        buf->current.frequency ? (float)buf->current.frequency/data->format.Format.nSamplesPerSec
-                               : 1.0f);
-    checkALError();
-
-    /* TODO: Don't set EAX parameters or connect to effect slots for software
-     * buffers. Need to check if EAX buffer properties are still tracked, or if
-     * they're lost/reset when leaving hardware.
-     *
-     * Alternatively, we can just allow it and say software processing supports
-     * EAX too. Depends if apps may get upset over that.
-     */
-
-    if((data->dsbflags&DSBCAPS_CTRL3D))
+    if(buf->current.ds3d.dwMode != DS3DMODE_DISABLE)
     {
         const DSPrimary *prim = buf->primary;
         const ALuint source = buf->source;
@@ -779,11 +716,9 @@ static HRESULT DSBuffer_SetLoc(DSBuffer *buf, DWORD loc_status)
         alSourcef(source, AL_REFERENCE_DISTANCE, params->flMinDistance);
         alSourcef(source, AL_MAX_DISTANCE, params->flMaxDistance);
         if(HAS_EXTENSION(share, SOFT_SOURCE_SPATIALIZE))
-            alSourcei(source, AL_SOURCE_SPATIALIZE_SOFT,
-                (params->dwMode==DS3DMODE_DISABLE) ? AL_FALSE : AL_TRUE
-            );
+            alSourcei(source, AL_SOURCE_SPATIALIZE_SOFT, AL_TRUE);
         alSourcei(source, AL_SOURCE_RELATIVE,
-            (params->dwMode!=DS3DMODE_NORMAL) ? AL_TRUE : AL_FALSE
+            (params->dwMode==DS3DMODE_HEADRELATIVE) ? AL_TRUE : AL_FALSE
         );
 
         alSourcef(source, AL_ROLLOFF_FACTOR,
@@ -861,6 +796,77 @@ static HRESULT DSBuffer_SetLoc(DSBuffer *buf, DWORD loc_status)
         }
         checkALError();
     }
+}
+
+static HRESULT DSBuffer_SetLoc(DSBuffer *buf, DWORD loc_status)
+{
+    DeviceShare *share = buf->share;
+    DSData *data = buf->buffer;
+
+    if((loc_status && buf->loc_status == loc_status) || (!loc_status && buf->loc_status))
+        return DS_OK;
+
+    /* If we have a source, we're changing location, so return the source we
+     * have to get a new one.
+     */
+    if(buf->source)
+    {
+        alSourceRewind(buf->source);
+        alSourcei(buf->source, AL_BUFFER, 0);
+        checkALError();
+
+        if(buf->loc_status == DSBSTATUS_LOCHARDWARE)
+            share->sources.ids[share->sources.availhw_num++] = buf->source;
+        else
+        {
+            DWORD base = share->sources.maxhw_alloc;
+            share->sources.ids[base + share->sources.availsw_num++] = buf->source;
+        }
+        buf->source = 0;
+    }
+    buf->loc_status = 0;
+
+    if(!loc_status)
+    {
+        if(share->sources.availhw_num)
+            loc_status = DSBSTATUS_LOCHARDWARE;
+        else if(share->sources.availsw_num)
+            loc_status = DSBSTATUS_LOCSOFTWARE;
+    }
+
+    if((loc_status == DSBSTATUS_LOCHARDWARE && !share->sources.availhw_num) ||
+       (loc_status == DSBSTATUS_LOCSOFTWARE && !share->sources.availsw_num) ||
+       !loc_status)
+    {
+        ERR("Out of %s sources\n",
+            (loc_status == DSBSTATUS_LOCHARDWARE) ? "hardware" :
+            (loc_status == DSBSTATUS_LOCSOFTWARE) ? "software" : "any"
+        );
+        return DSERR_ALLOCATED;
+    }
+
+    if(loc_status == DSBSTATUS_LOCHARDWARE)
+        buf->source = share->sources.ids[--(share->sources.availhw_num)];
+    else
+    {
+        DWORD base = share->sources.maxhw_alloc;
+        buf->source = share->sources.ids[base + --(share->sources.availsw_num)];
+    }
+    alSourcef(buf->source, AL_GAIN, mB_to_gain((float)buf->current.vol));
+    alSourcef(buf->source, AL_PITCH,
+        buf->current.frequency ? (float)buf->current.frequency/data->format.Format.nSamplesPerSec
+                               : 1.0f);
+    checkALError();
+
+    /* TODO: Don't set EAX parameters or connect to effect slots for software
+     * buffers. Need to check if EAX buffer properties are still tracked, or if
+     * they're lost/reset when leaving hardware.
+     *
+     * Alternatively, we can just allow it and say software processing supports
+     * EAX too. Depends if apps may get upset over that.
+     */
+
+    DSBuffer_UpdateSourceProps(buf);
 
     buf->loc_status = loc_status;
     return DS_OK;
@@ -1576,7 +1582,7 @@ static HRESULT WINAPI DSBuffer_SetPan(IDirectSoundBuffer8 *iface, LONG pan)
     else
     {
         This->current.pan = pan;
-        if(LIKELY(This->source && !(This->buffer->dsbflags&DSBCAPS_CTRL3D)))
+        if(LIKELY(This->source && This->current.ds3d.dwMode == DS3DMODE_DISABLE))
         {
             ALfloat pos[3];
             pos[0] = (ALfloat)(pan-DSBPAN_LEFT)/(ALfloat)(DSBPAN_RIGHT-DSBPAN_LEFT) - 0.5f;
@@ -2437,12 +2443,7 @@ static HRESULT WINAPI DSBuffer3D_SetMode(IDirectSound3DBuffer *iface, DWORD mode
         This->current.ds3d.dwMode = mode;
         if(LIKELY(This->source))
         {
-            if(HAS_EXTENSION(This->share, SOFT_SOURCE_SPATIALIZE))
-                alSourcei(This->source, AL_SOURCE_SPATIALIZE_SOFT,
-                          (mode==DS3DMODE_DISABLE) ? AL_FALSE : AL_TRUE);
-            alSourcei(This->source, AL_SOURCE_RELATIVE,
-                      (mode != DS3DMODE_NORMAL) ? AL_TRUE : AL_FALSE);
-            checkALError();
+            DSBuffer_UpdateSourceProps(This);
         }
         popALContext();
     }
