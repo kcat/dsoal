@@ -1398,8 +1398,6 @@ DECLSPEC_EXPORT BOOL WINAPI DllMain(HINSTANCE hInstDLL, DWORD fdwReason, LPVOID 
         break;
 
     case DLL_THREAD_DETACH:
-        if(local_contexts)
-            set_context(NULL);
         break;
 
     case DLL_PROCESS_DETACH:
