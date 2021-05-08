@@ -34,3 +34,7 @@ executable. You must also provide an OpenAL DLL in the same location, named as
 dsoal-aldrv.dll, or else the DLL will fail to work. Some applications may need
 to be configured to use DirectSound3D acceleration and EAX, but it otherwise
 goes to work the next time the application is run.
+
+Source releases and Windows binaries for OpenAL Soft are
+available at its [homepage](https://openal-soft.org/).
+Instructions are also provided there.
