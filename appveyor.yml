@@ -10,7 +10,7 @@ environment:
         CFG: Release
 
 after_build:
-- 7z a ..\dsoal.zip "%APPVEYOR_BUILD_FOLDER%\build\%CFG%\dsound.dll" "%APPVEYOR_BUILD_FOLDER%\readme.txt" "%APPVEYOR_BUILD_FOLDER%\LICENSE"
+- 7z a ..\dsoal.zip "%APPVEYOR_BUILD_FOLDER%\build\%CFG%\dsound.dll" "%APPVEYOR_BUILD_FOLDER%\README.md" "%APPVEYOR_BUILD_FOLDER%\LICENSE"
 
 artifacts:
 - path: dsoal.zip
