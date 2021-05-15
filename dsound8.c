@@ -673,8 +673,8 @@ static HRESULT WINAPI DS8_CreateSoundBuffer(IDirectSound8 *iface, LPCDSBUFFERDES
         {
             if(!IsEqualGUID(&desc->guid3DAlgorithm, &GUID_NULL))
             {
-                WARN("Invalid 3D algorithm GUID specified for non-3D buffer: %s\n", debugstr_guid(&desc->guid3DAlgorithm));
-                return DSERR_INVALIDPARAM;
+                WARN("Invalid 3D algorithm GUID specified for non-3D buffer: %s -- but proceeding anyway!\n", debugstr_guid(&desc->guid3DAlgorithm));
+                //return DSERR_INVALIDPARAM; // Keep going! This must be permitted for the music in Guild Wars 1 to work
             }
         }
         else
