@@ -673,8 +673,9 @@ static HRESULT WINAPI DS8_CreateSoundBuffer(IDirectSound8 *iface, LPCDSBUFFERDES
         {
             if(!IsEqualGUID(&desc->guid3DAlgorithm, &GUID_NULL))
             {
-                WARN("Invalid 3D algorithm GUID specified for non-3D buffer: %s\n", debugstr_guid(&desc->guid3DAlgorithm));
-                return DSERR_INVALIDPARAM;
+                /* Not fatal. Some apps pass unknown values here. */
+                WARN("Unknown 3D algorithm GUID specified for non-3D buffer: %s\n",
+                    debugstr_guid(&desc->guid3DAlgorithm));
             }
         }
         else
