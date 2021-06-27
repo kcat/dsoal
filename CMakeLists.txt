@@ -23,6 +23,9 @@ set(DSOAL_INC "")
 set(DSOAL_FLAGS "")
 set(DSOAL_LIBS "")
 
+set(DSOAL_TEXT LICENSE
+               README.md)
+
 set(DSOAL_OBJS buffer.c
                capture.c
                chorus.c
@@ -143,11 +146,14 @@ if(EXISTS "${DSOAL_BINARY_DIR}/dsoal-aldrv.dll")
         DESTINATION ${CMAKE_INSTALL_BINDIR})
 endif()
 
+target_sources(dsound PRIVATE ${DSOAL_TEXT})
+install(FILES ${DSOAL_TEXT} TYPE DATA)
 
 set(CPACK_GENERATOR "ZIP")
 set(CPACK_PACKAGE_VENDOR "Chris Robinson")
 set(CPACK_PACKAGE_VERSION ${VERSION})
 set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE")
 set(CPACK_STRIP_FILES TRUE)
+set(CPACK_OUTPUT_FILE_PREFIX packages)
 
 include(CPack)
