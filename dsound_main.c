@@ -646,7 +646,7 @@ HRESULT get_mmdevice(EDataFlow flow, const GUID *tgt, IMMDevice **device)
         {
             IMMDeviceCollection_Release(coll);
             release_mmdevenum(devenum, init_hr);
-            return DS_OK;
+            return DSERR_NODRIVER;
         }
 
         IMMDevice_Release(*device);
