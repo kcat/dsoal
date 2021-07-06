@@ -1,0 +1,22 @@
+environment:
+    matrix:
+      - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2017
+        GEN: "Visual Studio 15 2017"
+        ARCH: Win32
+        CFG: Release
+      - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2017
+        GEN: "Visual Studio 15 2017"
+        ARCH: x64
+        CFG: Release
+
+after_build:
+- 7z a ..\dsoal.zip "%APPVEYOR_BUILD_FOLDER%\build\%CFG%\dsound.dll" "%APPVEYOR_BUILD_FOLDER%\README.md" "%APPVEYOR_BUILD_FOLDER%\LICENSE"
+
+artifacts:
+- path: dsoal.zip
+
+build_script:
+- cmd: |
+    cd build
+    cmake -G"%GEN%" -A %ARCH% ..
+    cmake --build . --config %CFG% --clean-first

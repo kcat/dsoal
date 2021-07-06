@@ -1740,7 +1740,8 @@ static HRESULT WINAPI DSBuffer_Unlock(IDirectSoundBuffer8 *iface, void *ptr1, DW
 
 out:
     if(hr != S_OK)
-        WARN("Invalid parameters (0x%lx,%lu) (%p,%lu,%p,%lu)\n", boundary, bufsize, ptr1, len1, ptr2, len2);
+        WARN("Invalid parameters (%p,%lu) (%p,%lu,%p,%lu)\n", (void*)boundary, bufsize,
+            ptr1, len1, ptr2, len2);
     return hr;
 }
 

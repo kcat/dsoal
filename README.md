@@ -1,5 +1,4 @@
-About
-=====
+# DSOAL
 
 This project is for a DirectSound DLL replacement. It implements the
 DirectSound interfaces by translating the calls to OpenAL, and fools
@@ -16,11 +15,10 @@ Or more succinctly: it enables DirectSound3D surround sound and EAX for systems
 without the requisite hardware.
 
 
-Source Code
-===========
+## Source Code
 
-To build the source, you will need CMake 2.6 or newer (you can get it from
-<http://www.cmake.org/>). You can either use the CMake GUI, specifying the
+To build the source, you will need [CMake](http://www.cmake.org/) 2.6 or newer.
+You can either use the CMake GUI, specifying the
 directories for the source and where the build files should go, or using one of
 the command-line programs, for example by first making sure to be in an empty
 directory where the build files will go (such as the provided build/ sub-
@@ -29,8 +27,7 @@ directory) and running cmake with the path to the source.
 Once successfully built, it should have created dsound.dll.
 
 
-Usage
-=====
+## Usage
 
 Once built, copy dsound.dll to the same location as the desired application's
 executable. You must also provide an OpenAL DLL in the same location, named as
@@ -38,7 +35,6 @@ dsoal-aldrv.dll, or else the DLL will fail to work. Some applications may need
 to be configured to use DirectSound3D acceleration and EAX, but it otherwise
 goes to work the next time the application is run.
 
-
-Source releases, the Git repository, and Windows binaries for OpenAL Soft are
-available at its homepage <http://kcat.strangesoft.net/openal.html>.
+Source releases and Windows binaries for OpenAL Soft are
+available at its [homepage](https://openal-soft.org/).
 Instructions are also provided there.
