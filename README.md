@@ -17,7 +17,7 @@ without the requisite hardware.
 
 ## Source Code
 
-To build the source, you will need [CMake](http://www.cmake.org/) 2.6 or newer.
+To build the source, you will need [CMake](https://cmake.org/) 2.6 or newer.
 You can either use the CMake GUI, specifying the
 directories for the source and where the build files should go, or using one of
 the command-line programs, for example by first making sure to be in an empty
