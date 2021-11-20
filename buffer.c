@@ -587,7 +587,9 @@ HRESULT DSBuffer_Create(DSBuffer **ppv, DSPrimary *prim, IDirectSoundBuffer *ori
     for(i = 0;i < EAX_MAX_FXSLOTS;++i)
         This->deferred.send[i] = This->current.send[i];
     This->deferred.eax1_reverbmix = This->current.eax1_reverbmix;
-
+    
+    This->vm_voicepriority = (DWORD)-1;
+    
     *ppv = This;
     return DS_OK;
 }
@@ -2827,6 +2829,8 @@ static HRESULT WINAPI DSBufferProp_Get(IKsPropertySet *iface,
         hr = EAX1Buffer_Get(This, dwPropID, pPropData, cbPropData, pcbReturned);
     else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX10_ListenerProperties))
         hr = EAX1_Get(This->primary, dwPropID, pPropData, cbPropData, pcbReturned);
+    else if(IsEqualIID(guidPropSet, &DSPROPSETID_VoiceManager))
+        hr = VoiceMan_Get(This, dwPropID, pPropData, cbPropData, pcbReturned);
     else
         FIXME("Unhandled propset: %s\n", debug_bufferprop(guidPropSet));
     LeaveCriticalSection(&This->share->crst);
@@ -2972,6 +2976,10 @@ static HRESULT WINAPI DSBufferProp_Set(IKsPropertySet *iface,
             DSPrimary3D_CommitDeferredSettings(&prim->IDirectSound3DListener_iface);
         popALContext();
     }
+    else if(IsEqualIID(guidPropSet, &DSPROPSETID_VoiceManager))
+    {
+        hr = VoiceMan_Set(This, dwPropID, pPropData, cbPropData);
+    }
     else
         FIXME("Unhandled propset: %s\n", debug_bufferprop(guidPropSet));
     LeaveCriticalSection(&This->share->crst);
@@ -3018,6 +3026,8 @@ static HRESULT WINAPI DSBufferProp_QuerySupport(IKsPropertySet *iface,
         hr = EAX1_Query(This->primary, dwPropID, pTypeSupport);
     else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX10_BufferProperties))
         hr = EAX1Buffer_Query(This, dwPropID, pTypeSupport);
+    else if(IsEqualIID(guidPropSet, &DSPROPSETID_VoiceManager))
+        hr = VoiceMan_Query(This, dwPropID, pTypeSupport);
     else
         FIXME("Unhandled propset: %s (propid: %lu)\n", debug_bufferprop(guidPropSet), dwPropID);
     LeaveCriticalSection(&This->share->crst);

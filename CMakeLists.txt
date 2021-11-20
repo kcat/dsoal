@@ -38,7 +38,8 @@ set(DSOAL_OBJS buffer.c
                eax-presets.h
                primary.c
                propset.c
-               reverb.c)
+               reverb.c
+               voiceman.c)
 
 set(DSOAL_INC ${DSOAL_INC} ${DSOAL_BINARY_DIR} ${DSOAL_SOURCE_DIR}/include/AL)
 
