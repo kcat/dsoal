@@ -1917,6 +1917,7 @@ out:
 static HRESULT WINAPI DSBuffer_GetObjectInPath(IDirectSoundBuffer8 *iface, REFGUID guid, DWORD idx, REFGUID rguidiface, void **ppv)
 {
     FIXME("(%p)->(%s, %lu, %s, %p) : stub!\n", iface, debugstr_guid(guid), idx, debugstr_guid(rguidiface), ppv);
+    if(ppv) *ppv = NULL;
     return E_NOTIMPL;
 }
 
