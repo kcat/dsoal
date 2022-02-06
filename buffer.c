@@ -322,13 +322,21 @@ static HRESULT DSData_Create(DSData **ppv, const DSBUFFERDESC *desc, DSPrimary *
              format->nChannels, format->wBitsPerSample);
         return DSERR_INVALIDPARAM;
     }
-    if(format->nAvgBytesPerSec != format->nBlockAlign*format->nSamplesPerSec)
+    /* HACK: Some games provide an incorrect value here and expect to work.
+     * This is clearly not supposed to succeed with just anything, but until
+     * the amount of leeway allowed is discovered, be very lenient.
+     */
+    if(format->nAvgBytesPerSec == 0)
     {
         WARN("Invalid AvgBytesPerSec %lu (expected %lu = %lu*%u)\n",
              format->nAvgBytesPerSec, format->nSamplesPerSec*format->nBlockAlign,
              format->nSamplesPerSec, format->nBlockAlign);
         return DSERR_INVALIDPARAM;
     }
+    if(format->nAvgBytesPerSec != format->nBlockAlign*format->nSamplesPerSec)
+        WARN("Unexpected AvgBytesPerSec %lu (expected %lu = %lu*%u)\n",
+             format->nAvgBytesPerSec, format->nSamplesPerSec*format->nBlockAlign,
+             format->nSamplesPerSec, format->nBlockAlign);
 
     if((desc->dwFlags&(DSBCAPS_LOCSOFTWARE|DSBCAPS_LOCHARDWARE)) == (DSBCAPS_LOCSOFTWARE|DSBCAPS_LOCHARDWARE))
     {
