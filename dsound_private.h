@@ -497,9 +497,9 @@ enum {
 /* Maximum number of emulated hardware buffers. May be less depending on source
  * availability.
  */
-#define MAX_HWBUFFERS 256
+#define MAX_HWBUFFERS 128
 
-#define MAX_SOURCES 512
+#define MAX_SOURCES 256
 typedef struct SourceCollection {
     DWORD maxhw_alloc, availhw_num;
     DWORD maxsw_alloc, availsw_num;
