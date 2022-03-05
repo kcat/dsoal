@@ -164,7 +164,7 @@ typedef enum {
 #define EAXSOURCE_PARAMETER_COMMITDEFERREDSETTINGS (EAXSOURCE_NONE | EAXSOURCE_PARAMETER_IMMEDIATE)
 
 /* EAXSOURCE_ALLPARAMETERS */
-typedef struct _EAXSOURCEPROPERTIES {
+typedef struct _EAX30SOURCEPROPERTIES {
     long  lDirect;
     long  lDirectHF;
     /* TODO: Do these act as offets for individual sends? Or overwrite them all
@@ -187,7 +187,7 @@ typedef struct _EAXSOURCEPROPERTIES {
     float flRoomRolloffFactor;
     float flAirAbsorptionFactor;
     DWORD dwFlags;
-} EAXSOURCEPROPERTIES, *LPEAXSOURCEPROPERTIES;
+} EAX30SOURCEPROPERTIES, *LPEAX30SOURCEPROPERTIES;
 
 /* EAXSOURCE_OBSTRUCTIONPARAMETERS */
 #ifndef EAX_OBSTRUCTIONPROPERTIES_DEFINED

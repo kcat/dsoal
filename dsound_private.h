@@ -390,19 +390,21 @@ extern LPALSPEEDOFSOUND palSpeedOfSound;
 /* Extension functions. Technically device- or driver-specific, but as long as
  * they're pulled from the NULL device it should be routed correctly.
  */
-extern LPALGENFILTERS palGenFilters;
-extern LPALDELETEFILTERS palDeleteFilters;
-extern LPALFILTERI palFilteri;
-extern LPALFILTERF palFilterf;
-extern LPALGENEFFECTS palGenEffects;
-extern LPALDELETEEFFECTS palDeleteEffects;
-extern LPALEFFECTI palEffecti;
-extern LPALEFFECTF palEffectf;
-extern LPALEFFECTFV palEffectfv;
-extern LPALGENAUXILIARYEFFECTSLOTS palGenAuxiliaryEffectSlots;
-extern LPALDELETEAUXILIARYEFFECTSLOTS palDeleteAuxiliaryEffectSlots;
-extern LPALAUXILIARYEFFECTSLOTI palAuxiliaryEffectSloti;
-extern LPALAUXILIARYEFFECTSLOTF palAuxiliaryEffectSlotf;
+typedef ALenum(AL_APIENTRY*LPEAXSET)(
+    const GUID* property_set_id,
+    ALuint property_id,
+    ALuint property_source_id,
+    ALvoid* property_buffer,
+    ALuint property_size);
+typedef ALenum(AL_APIENTRY*LPEAXGET)(
+    const GUID* property_set_id,
+    ALuint property_id,
+    ALuint property_source_id,
+    ALvoid* property_buffer,
+    ALuint property_size);
+
+extern LPEAXSET pEAXSet;
+extern LPEAXGET pEAXGet;
 extern LPALDEFERUPDATESSOFT palDeferUpdatesSOFT;
 extern LPALPROCESSUPDATESSOFT palProcessUpdatesSOFT;
 extern LPALBUFFERSTORAGESOFT palBufferStorageSOFT;
@@ -410,19 +412,8 @@ extern LPALMAPBUFFERSOFT palMapBufferSOFT;
 extern LPALUNMAPBUFFERSOFT palUnmapBufferSOFT;
 extern LPALFLUSHMAPPEDBUFFERSOFT palFlushMappedBufferSOFT;
 
-#define alGenFilters palGenFilters
-#define alDeleteFilters palDeleteFilters
-#define alFilteri palFilteri
-#define alFilterf palFilterf
-#define alGenEffects palGenEffects
-#define alDeleteEffects palDeleteEffects
-#define alEffecti palEffecti
-#define alEffectf palEffectf
-#define alEffectfv palEffectfv
-#define alGenAuxiliaryEffectSlots palGenAuxiliaryEffectSlots
-#define alDeleteAuxiliaryEffectSlots palDeleteAuxiliaryEffectSlots
-#define alAuxiliaryEffectSloti palAuxiliaryEffectSloti
-#define alAuxiliaryEffectSlotf palAuxiliaryEffectSlotf
+#define EAXSet pEAXSet
+#define EAXGet pEAXGet
 #define alDeferUpdatesSOFT palDeferUpdatesSOFT
 #define alProcessUpdatesSOFT palProcessUpdatesSOFT
 #define alBufferStorageSOFT palBufferStorageSOFT
@@ -478,12 +469,11 @@ typedef struct DSBuffer DSBuffer;
 
 
 enum {
-    EXT_EFX,
+    EXT_EAX,
     EXT_FLOAT32,
     EXT_MCFORMATS,
     SOFT_DEFERRED_UPDATES,
     SOFT_SOURCE_SPATIALIZE,
-    SOFTX_FILTER_GAIN_EX,
     SOFTX_MAP_BUFFER,
 
     MAX_EXTENSIONS
@@ -515,7 +505,6 @@ typedef struct DeviceShare {
     ALCdevice *device;
     ALCcontext *ctx;
     ALCint refresh;
-    ALCint num_sends;
 
     ALboolean Exts[BITFIELD_ARRAY_SIZE(MAX_EXTENSIONS)];
 
@@ -523,8 +512,9 @@ typedef struct DeviceShare {
 
     SourceCollection sources;
 
-    ALuint auxslot[EAX_MAX_FXSLOTS];
-    ALsizei num_slots;
+    EAX30SOURCEPROPERTIES default_srcprops;
+    EAXSOURCEALLSENDPROPERTIES default_srcsend[EAX_MAX_FXSLOTS];
+    GUID default_srcslots[EAX_MAX_ACTIVE_FXSLOTS];
 
     HANDLE thread_hdl;
     DWORD thread_id;
@@ -576,36 +566,7 @@ union BufferParamFlags {
         BOOL min_distance : 1;
         BOOL max_distance : 1;
         BOOL mode : 1;
-
-        BOOL dry_filter : 1;
-        BOOL send_filters : 1;
-        BOOL doppler : 1;
-        BOOL rolloff : 1;
-        BOOL room_rolloff : 1;
-        BOOL cone_outsidevolumehf : 1;
-        BOOL air_absorb : 1;
-        BOOL flags : 1;
     } bit;
-};
-
-enum {
-    FXSLOT_TARGET_0,
-    FXSLOT_TARGET_1,
-    FXSLOT_TARGET_2,
-    FXSLOT_TARGET_3,
-    FXSLOT_TARGET_PRIMARY,
-    FXSLOT_TARGET_NULL,
-};
-
-struct Send {
-    long  lSend;
-    long  lSendHF;
-    long  lOcclusion;
-    float flOcclusionLFRatio;
-    float flOcclusionRoomRatio;
-    float flOcclusionDirectRatio;
-    long  lExclusion;
-    float flExclusionLFRatio;
 };
 
 struct DSBuffer {
@@ -646,27 +607,15 @@ struct DSBuffer {
         LONG vol, pan;
         DWORD frequency;
         DS3DBUFFER ds3d;
-        EAXSOURCEPROPERTIES eax;
-        /* See FXSLOT_TARGET enums */
-        DWORD fxslot_targets[EAX_MAX_ACTIVE_FXSLOTS];
-        struct Send send[EAX_MAX_FXSLOTS];
-        float eax1_reverbmix; /* Mirrored by eax.lRoom. */
     } current;
     struct {
         DS3DBUFFER ds3d;
-        EAXSOURCEPROPERTIES eax;
-        DWORD fxslot_targets[EAX_MAX_ACTIVE_FXSLOTS];
-        struct Send send[EAX_MAX_FXSLOTS];
-        float eax1_reverbmix;
     } deferred;
     union BufferParamFlags dirty;
 
-    ALfloat filter_mBLimit;
-    ALuint filter[1+EAX_MAX_FXSLOTS];
-
     DWORD nnotify, lastpos;
     DSBPOSITIONNOTIFY *notify;
-    
+
     DWORD vm_voicepriority;
     //DWORD vm_voicestate;
 };
@@ -685,16 +634,6 @@ enum {
     FXSLOT_EFFECT_NULL,
 };
 
-struct FXSlot {
-    /* See FXSLOT_EFFECT enums */
-    DWORD effect_type;
-    union {
-        EAXREVERBPROPERTIES reverb;
-        EAXCHORUSPROPERTIES chorus;
-    } fx;
-    EAXFXSLOTPROPERTIES props;
-};
-
 union PrimaryParamFlags {
     LONG flags;
     struct {
@@ -704,28 +643,6 @@ union PrimaryParamFlags {
         LONG distancefactor : 1;
         LONG rollofffactor : 1;
         LONG dopplerfactor : 1;
-
-        LONG prim_slotid : 1;
-        LONG distancefactor2 : 1;
-        LONG air_absorbhf : 1;
-        LONG hfreference : 1;
-
-        /* Can't use a proper array for the fxslots here since this is a
-         * bitfield, and each slot only needs 4 bits. So make a sub-bitfield
-         * with macros to access it.
-         */
-#define FXSLOT_EFFECT_BIT 0
-#define FXSLOT_VOL_BIT    1
-#define FXSLOT_LOCK_BIT   2
-#define FXSLOT_FLAGS_BIT  3
-#define FXSLOT_NUM_BITS   4
-
-#define FXSLOT_IS_DIRTY(_flags, _idx, _bit) \
-    (((_flags).fxslots & (1 << ((_idx)*FXSLOT_NUM_BITS + (_bit)))) != 0)
-#define FXSLOT_SET_DIRTY(_flags, _idx, _bit) \
-    ((_flags).fxslots |= (1 << ((_idx)*FXSLOT_NUM_BITS + (_bit))))
-
-        LONG fxslots : (FXSLOT_NUM_BITS*EAX_MAX_FXSLOTS);
     } bit;
 };
 
@@ -742,7 +659,6 @@ struct DSPrimary {
     /* Taken from the share */
     ALCcontext *ctx;
     ALCint refresh;
-    ALuint auxslot[EAX_MAX_FXSLOTS];
 
     DWORD buf_size;
     BOOL stopped;
@@ -752,25 +668,13 @@ struct DSPrimary {
     DSBuffer **notifies;
     DWORD nnotifies, sizenotifies;
 
-    ALfloat filter_mBLimit;
-
-    ALuint effect[EAX_MAX_FXSLOTS];
     ALint primary_idx;
-    LONG eax_error;
 
     struct {
         DS3DLISTENER ds3d;
-        EAXCONTEXTPROPERTIES ctx;
-        struct FXSlot fxslot[EAX_MAX_FXSLOTS];
-        float eax1_volume; /* Mirrored by fxslot[0].fx.reverb.lRoom. */
-        float eax1_dampening; /* Not used. */
     } current;
     struct {
         DS3DLISTENER ds3d;
-        EAXCONTEXTPROPERTIES ctx;
-        struct FXSlot fxslot[EAX_MAX_FXSLOTS];
-        float eax1_volume;
-        float eax1_dampening;
     } deferred;
     union PrimaryParamFlags dirty;
 
@@ -833,43 +737,17 @@ HRESULT WINAPI DSBuffer_GetStatus(IDirectSoundBuffer8 *iface, DWORD *status);
 HRESULT WINAPI DSBuffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSound *ds, const DSBUFFERDESC *desc);
 
 HRESULT EAX1_Query(DSPrimary *prim, DWORD propid, ULONG *pTypeSupport);
-HRESULT EAX1_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropData);
-HRESULT EAX1_Get(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropData, ULONG *pcbReturned);
 HRESULT EAX1Buffer_Query(DSBuffer *buf, DWORD propid, ULONG *pTypeSupport);
-HRESULT EAX1Buffer_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPropData);
-HRESULT EAX1Buffer_Get(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPropData, ULONG *pcbReturned);
 
 HRESULT EAX2_Query(DSPrimary *prim, DWORD propid, ULONG *pTypeSupport);
-HRESULT EAX2_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropData);
-HRESULT EAX2_Get(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropData, ULONG *pcbReturned);
 HRESULT EAX2Buffer_Query(DSBuffer *buf, DWORD propid, ULONG *pTypeSupport);
-HRESULT EAX2Buffer_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPropData);
-HRESULT EAX2Buffer_Get(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPropData, ULONG *pcbReturned);
 
 HRESULT EAX3_Query(DSPrimary *prim, DWORD propid, ULONG *pTypeSupport);
-HRESULT EAX3_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropData);
-HRESULT EAX3_Get(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropData, ULONG *pcbReturned);
 HRESULT EAX3Buffer_Query(DSBuffer *buf, DWORD propid, ULONG *pTypeSupport);
-HRESULT EAX3Buffer_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPropData);
-HRESULT EAX3Buffer_Get(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPropData, ULONG *pcbReturned);
 
 HRESULT EAX4Context_Query(DSPrimary *prim, DWORD propid, ULONG *pTypeSupport);
-HRESULT EAX4Context_Set(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropData);
-HRESULT EAX4Context_Get(DSPrimary *prim, DWORD propid, void *pPropData, ULONG cbPropData, ULONG *pcbReturned);
-
-HRESULT EAX4Slot_Query(DSPrimary *prim, LONG idx, DWORD propid, ULONG *pTypeSupport);
-HRESULT EAX4Slot_Set(DSPrimary *prim, LONG idx, DWORD propid, void *pPropData, ULONG cbPropData);
-HRESULT EAX4Slot_Get(DSPrimary *prim, LONG idx, DWORD propid, void *pPropData, ULONG cbPropData, ULONG *pcbReturned);
-
+HRESULT EAX4Slot_Query(DSPrimary *prim, DWORD propid, ULONG *pTypeSupport);
 HRESULT EAX4Source_Query(DSBuffer *buf, DWORD propid, ULONG *pTypeSupport);
-HRESULT EAX4Source_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPropData);
-HRESULT EAX4Source_Get(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPropData, ULONG *pcbReturned);
-
-HRESULT EAXReverb_Set(DSPrimary *prim, LONG idx, DWORD propid, void *pPropData, ULONG cbPropData);
-HRESULT EAXReverb_Get(DSPrimary *prim, DWORD idx, DWORD propid, void *pPropData, ULONG cbPropData, ULONG *pcbReturned);
-
-HRESULT EAXChorus_Set(DSPrimary *prim, LONG idx, DWORD propid, void *pPropData, ULONG cbPropData);
-HRESULT EAXChorus_Get(DSPrimary *prim, DWORD idx, DWORD propid, void *pPropData, ULONG cbPropData, ULONG *pcbReturned);
 
 HRESULT VoiceMan_Query(DSBuffer *buf, DWORD propid, ULONG *pTypeSupport);
 HRESULT VoiceMan_Set(DSBuffer *buf, DWORD propid, void *pPropData, ULONG cbPropData);

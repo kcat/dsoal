@@ -531,40 +531,6 @@ HRESULT DSBuffer_Create(DSBuffer **ppv, DSPrimary *prim, IDirectSoundBuffer *ori
     This->current.ds3d.flMinDistance = DS3D_DEFAULTMINDISTANCE;
     This->current.ds3d.flMaxDistance = DS3D_DEFAULTMAXDISTANCE;
     This->current.ds3d.dwMode = DS3DMODE_NORMAL;
-    This->current.eax.lDirect = 0;
-    This->current.eax.lDirectHF = 0;
-    This->current.eax.lRoom = 0;
-    This->current.eax.lRoomHF = 0;
-    This->current.eax.lObstruction = 0;
-    This->current.eax.flObstructionLFRatio = 0.0f;
-    This->current.eax.lOcclusion = 0;
-    This->current.eax.flOcclusionLFRatio = 0.25f;
-    This->current.eax.flOcclusionRoomRatio = 1.5f;
-    This->current.eax.flOcclusionDirectRatio = 1.0f;
-    This->current.eax.lExclusion = 0;
-    This->current.eax.flExclusionLFRatio = 1.0f;
-    This->current.eax.lOutsideVolumeHF = 0;
-    This->current.eax.flDopplerFactor = 1.0f;
-    This->current.eax.flRolloffFactor = 0.0f;
-    This->current.eax.flRoomRolloffFactor = 0.0f;
-    This->current.eax.flAirAbsorptionFactor = 0.0f;
-    This->current.eax.dwFlags = EAXSOURCEFLAGS_DIRECTHFAUTO | EAXSOURCEFLAGS_ROOMAUTO |
-                                EAXSOURCEFLAGS_ROOMHFAUTO;
-    This->current.fxslot_targets[0] = FXSLOT_TARGET_PRIMARY;
-    for(i = 1;i < EAX_MAX_ACTIVE_FXSLOTS;++i)
-        This->current.fxslot_targets[i] = FXSLOT_TARGET_NULL;
-    for(i = 0;i < EAX_MAX_FXSLOTS;++i)
-    {
-        This->current.send[i].lSend = 0;
-        This->current.send[i].lSendHF = 0;
-        This->current.send[i].lOcclusion = 0;
-        This->current.send[i].flOcclusionLFRatio = 0.25f;
-        This->current.send[i].flOcclusionRoomRatio = 1.5f;
-        This->current.send[i].flOcclusionDirectRatio = 1.0f;
-        This->current.send[i].lExclusion = 0;
-        This->current.send[i].flExclusionLFRatio = 1.0f;
-    }
-    This->current.eax1_reverbmix = 1.0f;
 
     if(orig)
     {
@@ -589,13 +555,7 @@ HRESULT DSBuffer_Create(DSBuffer **ppv, DSPrimary *prim, IDirectSoundBuffer *ori
     }
 
     This->deferred.ds3d = This->current.ds3d;
-    This->deferred.eax = This->current.eax;
-    for(i = 0;i < EAX_MAX_ACTIVE_FXSLOTS;++i)
-        This->deferred.fxslot_targets[i] = This->current.fxslot_targets[i];
-    for(i = 0;i < EAX_MAX_FXSLOTS;++i)
-        This->deferred.send[i] = This->current.send[i];
-    This->deferred.eax1_reverbmix = This->current.eax1_reverbmix;
-    
+
     This->vm_voicepriority = (DWORD)-1;
     
     *ppv = This;
@@ -641,8 +601,6 @@ void DSBuffer_Destroy(DSBuffer *This)
     }
     if(This->stream_bids[0])
         alDeleteBuffers(QBUFFERS, This->stream_bids);
-    if(This->filter[0])
-        alDeleteFilters(1+EAX_MAX_FXSLOTS, This->filter);
 
     if(This->buffer)
         DSData_Release(This->buffer);
@@ -704,7 +662,6 @@ static HRESULT DSBuffer_SetLoc(DSBuffer *buf, DWORD loc_status)
 {
     DeviceShare *share = buf->share;
     DSData *data = buf->buffer;
-    ALsizei i;
 
     if((loc_status && buf->loc_status == loc_status) || (!loc_status && buf->loc_status))
         return DS_OK;
@@ -774,7 +731,6 @@ static HRESULT DSBuffer_SetLoc(DSBuffer *buf, DWORD loc_status)
         const DSPrimary *prim = buf->primary;
         const ALuint source = buf->source;
         const DS3DBUFFER *params = &buf->current.ds3d;
-        const EAXSOURCEPROPERTIES *eax_params = &buf->current.eax;
 
         alSource3f(source, AL_POSITION, params->vPosition.x, params->vPosition.y,
                                        -params->vPosition.z);
@@ -796,40 +752,15 @@ static HRESULT DSBuffer_SetLoc(DSBuffer *buf, DWORD loc_status)
             (params->dwMode!=DS3DMODE_NORMAL) ? AL_TRUE : AL_FALSE
         );
 
-        alSourcef(source, AL_ROLLOFF_FACTOR,
-                  prim->current.ds3d.flRolloffFactor + eax_params->flRolloffFactor);
-        alSourcef(source, AL_DOPPLER_FACTOR, eax_params->flDopplerFactor);
-        if(HAS_EXTENSION(share, EXT_EFX))
+        alSourcef(source, AL_ROLLOFF_FACTOR, prim->current.ds3d.flRolloffFactor);
+        if(HAS_EXTENSION(share, EXT_EAX))
         {
-            alSourcei(source, AL_DIRECT_FILTER, buf->filter[0]);
-            for(i = 0;i < share->num_sends;++i)
-            {
-                DWORD target = buf->current.fxslot_targets[i];
-                ALuint filter=0, slot=0;
-                if(target < FXSLOT_TARGET_NULL)
-                {
-                    ALint idx = (target == FXSLOT_TARGET_PRIMARY) ?
-                                prim->primary_idx : (ALint)target;
-                    if(idx >= 0)
-                    {
-                        slot = prim->auxslot[idx];
-                        filter = buf->filter[1+idx];
-                    }
-                }
-                alSource3i(source, AL_AUXILIARY_SEND_FILTER, slot, i, filter);
-            }
-            alSourcef(source, AL_ROOM_ROLLOFF_FACTOR, eax_params->flRoomRolloffFactor);
-            alSourcef(source, AL_CONE_OUTER_GAINHF, mB_to_gain((float)eax_params->lOutsideVolumeHF));
-            alSourcef(source, AL_AIR_ABSORPTION_FACTOR,
-                clampF(prim->current.ctx.flAirAbsorptionHF / -5.0f *
-                       eax_params->flAirAbsorptionFactor, 0.0f, 10.0f)
-            );
-            alSourcei(source, AL_DIRECT_FILTER_GAINHF_AUTO,
-                      (eax_params->dwFlags&EAXSOURCEFLAGS_DIRECTHFAUTO) ? AL_TRUE : AL_FALSE);
-            alSourcei(source, AL_AUXILIARY_SEND_FILTER_GAIN_AUTO,
-                      (eax_params->dwFlags&EAXSOURCEFLAGS_ROOMAUTO) ? AL_TRUE : AL_FALSE);
-            alSourcei(source, AL_AUXILIARY_SEND_FILTER_GAINHF_AUTO,
-                      (eax_params->dwFlags&EAXSOURCEFLAGS_ROOMHFAUTO) ? AL_TRUE : AL_FALSE);
+            EAXSet(&EAXPROPERTYID_EAX40_Source, EAXSOURCE_ALLPARAMETERS, source,
+                &share->default_srcprops, sizeof(share->default_srcprops));
+            EAXSet(&EAXPROPERTYID_EAX40_Source, EAXSOURCE_ALLSENDPARAMETERS, source,
+                &share->default_srcsend, sizeof(share->default_srcsend));
+            EAXSet(&EAXPROPERTYID_EAX40_Source, EAXSOURCE_ACTIVEFXSLOTID, source,
+                &share->default_srcslots, sizeof(share->default_srcslots));
         }
         checkALError();
     }
@@ -850,24 +781,22 @@ static HRESULT DSBuffer_SetLoc(DSBuffer *buf, DWORD loc_status)
         alSourcei(source, AL_CONE_INNER_ANGLE, 360);
         alSourcei(source, AL_CONE_OUTER_ANGLE, 360);
         alSourcei(source, AL_SOURCE_RELATIVE, AL_TRUE);
-        if(HAS_EXTENSION(share, EXT_EFX))
-        {
-            alSourcef(source, AL_ROOM_ROLLOFF_FACTOR, 0.0f);
-            alSourcef(source, AL_CONE_OUTER_GAINHF, 1.0f);
-            alSourcef(source, AL_AIR_ABSORPTION_FACTOR, 0.0f);
-            alSourcei(source, AL_DIRECT_FILTER_GAINHF_AUTO, AL_TRUE);
-            alSourcei(source, AL_AUXILIARY_SEND_FILTER_GAIN_AUTO, AL_TRUE);
-            alSourcei(source, AL_AUXILIARY_SEND_FILTER_GAINHF_AUTO, AL_TRUE);
-            alSourcei(source, AL_DIRECT_FILTER, AL_FILTER_NULL);
-            for(i = 0;i < share->num_sends;++i)
-                alSource3i(source, AL_AUXILIARY_SEND_FILTER, 0, i, AL_FILTER_NULL);
-        }
         if(HAS_EXTENSION(share, SOFT_SOURCE_SPATIALIZE))
         {
             /* Set to auto so panning works for mono, and multi-channel works
              * as expected.
              */
             alSourcei(source, AL_SOURCE_SPATIALIZE_SOFT, AL_AUTO_SOFT);
+        }
+        if(HAS_EXTENSION(share, EXT_EAX))
+        {
+            static const GUID NullSlots[EAX_MAX_ACTIVE_FXSLOTS] = { { 0 } };
+            EAXSet(&EAXPROPERTYID_EAX40_Source, EAXSOURCE_ALLPARAMETERS, source,
+                &share->default_srcprops, sizeof(share->default_srcprops));
+            EAXSet(&EAXPROPERTYID_EAX40_Source, EAXSOURCE_ALLSENDPARAMETERS, source,
+                &share->default_srcsend, sizeof(share->default_srcsend));
+            EAXSet(&EAXPROPERTYID_EAX40_Source, EAXSOURCE_ACTIVEFXSLOTID, source, (void*)NullSlots,
+                sizeof(NullSlots));
         }
         checkALError();
     }
@@ -1274,28 +1203,8 @@ HRESULT WINAPI DSBuffer_Initialize(IDirectSoundBuffer8 *iface, IDirectSound *ds,
         /* Non-3D sources aren't distance attenuated. */
         This->current.ds3d.dwMode = DS3DMODE_DISABLE;
     }
-    else
-    {
-        if(HAS_EXTENSION(This->share, EXT_EFX))
-        {
-            ALsizei i;
-
-            alGenFilters(1+EAX_MAX_FXSLOTS, This->filter);
-            alFilteri(This->filter[0], AL_FILTER_TYPE, AL_FILTER_LOWPASS);
-            for(i = 0;i < EAX_MAX_FXSLOTS;++i)
-                alFilteri(This->filter[1+i], AL_FILTER_TYPE, AL_FILTER_LOWPASS);
-            if(UNLIKELY(alGetError() != AL_NO_ERROR))
-            {
-                alDeleteFilters(1+EAX_MAX_FXSLOTS, This->filter);
-                This->filter[0] = 0;
-                for(i = 0;i < EAX_MAX_FXSLOTS;++i)
-                    This->filter[1+i] = 0;
-            }
-        }
-    }
     if(!This->current.frequency)
         This->current.frequency = data->format.Format.nSamplesPerSec;
-    This->filter_mBLimit = prim->filter_mBLimit;
 
     hr = DS_OK;
     if(!(data->dsbflags&DSBCAPS_LOCDEFER))
@@ -1951,10 +1860,8 @@ static IDirectSoundBuffer8Vtbl DSBuffer_Vtbl = {
 
 void DSBuffer_SetParams(DSBuffer *This, const DS3DBUFFER *params, LONG flags)
 {
-    DSPrimary *prim = This->primary;
     const ALuint source = This->source;
     union BufferParamFlags dirty = { flags };
-    ALsizei i;
 
     /* Copy deferred parameters first. */
     if(dirty.bit.pos)
@@ -1976,15 +1883,6 @@ void DSBuffer_SetParams(DSBuffer *This, const DS3DBUFFER *params, LONG flags)
         This->current.ds3d.flMaxDistance = params->flMaxDistance;
     if(dirty.bit.mode)
         This->current.ds3d.dwMode = params->dwMode;
-    /* Always copy EAX params (they're always set deferred first, then applied
-     * when committing all params).
-     */
-    This->current.eax = This->deferred.eax;
-    for(i = 0;i < EAX_MAX_ACTIVE_FXSLOTS;++i)
-        This->current.fxslot_targets[i] = This->deferred.fxslot_targets[i];
-    for(i = 0;i < EAX_MAX_FXSLOTS;++i)
-        This->current.send[i] = This->deferred.send[i];
-    This->current.eax1_reverbmix = This->deferred.eax1_reverbmix;
 
     /* Now apply what's changed to OpenAL. */
     if(UNLIKELY(!source)) return;
@@ -2019,49 +1917,6 @@ void DSBuffer_SetParams(DSBuffer *This, const DS3DBUFFER *params, LONG flags)
         alSourcei(source, AL_SOURCE_RELATIVE,
             (params->dwMode!=DS3DMODE_NORMAL) ? AL_TRUE : AL_FALSE
         );
-    }
-
-    if(dirty.bit.dry_filter)
-        alSourcei(source, AL_DIRECT_FILTER, This->filter[0]);
-    if(dirty.bit.send_filters)
-    {
-        for(i = 0;i < EAX_MAX_ACTIVE_FXSLOTS;++i)
-        {
-            DWORD target = This->current.fxslot_targets[i];
-            ALuint filter=0, slot=0;
-            if(target < FXSLOT_TARGET_NULL)
-            {
-                ALint idx = (target == FXSLOT_TARGET_PRIMARY) ?
-                            prim->primary_idx : (ALint)target;
-                if(idx >= 0)
-                {
-                    slot = prim->auxslot[idx];
-                    filter = This->filter[1+idx];
-                }
-            }
-            alSource3i(source, AL_AUXILIARY_SEND_FILTER, slot, i, filter);
-        }
-    }
-    if(dirty.bit.doppler)
-        alSourcef(source, AL_DOPPLER_FACTOR, This->current.eax.flDopplerFactor);
-    if(dirty.bit.rolloff)
-        alSourcef(source, AL_ROLLOFF_FACTOR, This->current.eax.flRolloffFactor +
-                                             prim->current.ds3d.flRolloffFactor);
-    if(dirty.bit.room_rolloff)
-        alSourcef(source, AL_ROOM_ROLLOFF_FACTOR, This->current.eax.flRoomRolloffFactor);
-    if(dirty.bit.cone_outsidevolumehf)
-        alSourcef(source, AL_CONE_OUTER_GAINHF, mB_to_gain((float)This->current.eax.lOutsideVolumeHF));
-    if(dirty.bit.air_absorb)
-        alSourcef(source, AL_AIR_ABSORPTION_FACTOR, This->current.eax.flAirAbsorptionFactor *
-                  prim->current.ctx.flAirAbsorptionHF / -5.0f);
-    if(dirty.bit.flags)
-    {
-        alSourcei(source, AL_DIRECT_FILTER_GAINHF_AUTO,
-                  (This->current.eax.dwFlags&EAXSOURCEFLAGS_DIRECTHFAUTO) ? AL_TRUE : AL_FALSE);
-        alSourcei(source, AL_AUXILIARY_SEND_FILTER_GAIN_AUTO,
-                  (This->current.eax.dwFlags&EAXSOURCEFLAGS_ROOMAUTO) ? AL_TRUE : AL_FALSE);
-        alSourcei(source, AL_AUXILIARY_SEND_FILTER_GAINHF_AUTO,
-                  (This->current.eax.dwFlags&EAXSOURCEFLAGS_ROOMHFAUTO) ? AL_TRUE : AL_FALSE);
     }
 }
 
@@ -2799,6 +2654,7 @@ static HRESULT WINAPI DSBufferProp_Get(IKsPropertySet *iface,
 {
     DSBuffer *This = impl_from_IKsPropertySet(iface);
     HRESULT hr = E_PROP_ID_UNSUPPORTED;
+    ALenum err;
 
     TRACE("(%p)->(%s, 0x%lx, %p, %lu, %p, %lu, %p)\n", iface, debug_bufferprop(guidPropSet),
           dwPropID, pInstanceData, cbInstanceData, pPropData, cbPropData, pcbReturned);
@@ -2814,30 +2670,23 @@ static HRESULT WINAPI DSBufferProp_Get(IKsPropertySet *iface,
     }
 
     EnterCriticalSection(&This->share->crst);
-    if(IsEqualIID(guidPropSet, &EAXPROPERTYID_EAX40_Source))
-        hr = EAX4Source_Get(This, dwPropID, pPropData, cbPropData, pcbReturned);
-    else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX30_BufferProperties))
-        hr = EAX3Buffer_Get(This, dwPropID, pPropData, cbPropData, pcbReturned);
-    else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX20_BufferProperties))
-        hr = EAX2Buffer_Get(This, dwPropID, pPropData, cbPropData, pcbReturned);
-    else if(IsEqualIID(guidPropSet, &EAXPROPERTYID_EAX40_FXSlot0))
-        hr = EAX4Slot_Get(This->primary, 0, dwPropID, pPropData, cbPropData, pcbReturned);
-    else if(IsEqualIID(guidPropSet, &EAXPROPERTYID_EAX40_FXSlot1))
-        hr = EAX4Slot_Get(This->primary, 1, dwPropID, pPropData, cbPropData, pcbReturned);
-    else if(IsEqualIID(guidPropSet, &EAXPROPERTYID_EAX40_FXSlot2))
-        hr = EAX4Slot_Get(This->primary, 2, dwPropID, pPropData, cbPropData, pcbReturned);
-    else if(IsEqualIID(guidPropSet, &EAXPROPERTYID_EAX40_FXSlot3))
-        hr = EAX4Slot_Get(This->primary, 3, dwPropID, pPropData, cbPropData, pcbReturned);
-    else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX30_ListenerProperties))
-        hr = EAX3_Get(This->primary, dwPropID, pPropData, cbPropData, pcbReturned);
-    else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX20_ListenerProperties))
-        hr = EAX2_Get(This->primary, dwPropID, pPropData, cbPropData, pcbReturned);
-    else if(IsEqualIID(guidPropSet, &EAXPROPERTYID_EAX40_Context))
-        hr = EAX4Context_Get(This->primary, dwPropID, pPropData, cbPropData, pcbReturned);
-    else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX10_BufferProperties))
-        hr = EAX1Buffer_Get(This, dwPropID, pPropData, cbPropData, pcbReturned);
-    else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX10_ListenerProperties))
-        hr = EAX1_Get(This->primary, dwPropID, pPropData, cbPropData, pcbReturned);
+    if(IsEqualIID(guidPropSet, &EAXPROPERTYID_EAX40_Source)
+        || IsEqualIID(guidPropSet, &DSPROPSETID_EAX30_BufferProperties)
+        || IsEqualIID(guidPropSet, &DSPROPSETID_EAX20_BufferProperties)
+        || IsEqualIID(guidPropSet, &EAXPROPERTYID_EAX40_FXSlot0)
+        || IsEqualIID(guidPropSet, &EAXPROPERTYID_EAX40_FXSlot1)
+        || IsEqualIID(guidPropSet, &EAXPROPERTYID_EAX40_FXSlot2)
+        || IsEqualIID(guidPropSet, &EAXPROPERTYID_EAX40_FXSlot3)
+        || IsEqualIID(guidPropSet, &DSPROPSETID_EAX30_ListenerProperties)
+        || IsEqualIID(guidPropSet, &DSPROPSETID_EAX20_ListenerProperties)
+        || IsEqualIID(guidPropSet, &EAXPROPERTYID_EAX40_Context)
+        || IsEqualIID(guidPropSet, &DSPROPSETID_EAX10_BufferProperties)
+        || IsEqualIID(guidPropSet, &DSPROPSETID_EAX10_ListenerProperties))
+    {
+        err = EAXGet(guidPropSet, dwPropID, This->source, pPropData, cbPropData);
+        if(err != AL_NO_ERROR) hr = E_FAIL;
+        else hr = DS_OK;
+    }
     else if(IsEqualIID(guidPropSet, &DSPROPSETID_VoiceManager))
         hr = VoiceMan_Get(This, dwPropID, pPropData, cbPropData, pcbReturned);
     else
@@ -2854,7 +2703,6 @@ static HRESULT WINAPI DSBufferProp_Set(IKsPropertySet *iface,
 {
     DSBuffer *This = impl_from_IKsPropertySet(iface);
     HRESULT hr = E_PROP_ID_UNSUPPORTED;
-    LONG idx;
 
     TRACE("(%p)->(%s, 0x%lx, %p, %lu, %p, %lu)\n", iface, debug_bufferprop(guidPropSet),
           dwPropID, pInstanceData, cbInstanceData, pPropData, cbPropData);
@@ -2866,121 +2714,27 @@ static HRESULT WINAPI DSBufferProp_Set(IKsPropertySet *iface,
     }
 
     EnterCriticalSection(&This->share->crst);
-    if(IsEqualIID(guidPropSet, &EAXPROPERTYID_EAX40_Source))
-    {
-        DWORD propid = dwPropID & ~EAXSOURCE_PARAMETER_DEFERRED;
-        BOOL immediate = !(dwPropID&EAXSOURCE_PARAMETER_DEFERRED);
-
-        setALContext(This->ctx);
-        hr = EAX4Source_Set(This, propid, pPropData, cbPropData);
-        if(hr == DS_OK && immediate)
-        {
-            DSPrimary *prim = This->primary;
-            DSPrimary3D_CommitDeferredSettings(&prim->IDirectSound3DListener_iface);
-        }
-        popALContext();
-    }
-    else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX30_BufferProperties))
-    {
-        DWORD propid = dwPropID & ~DSPROPERTY_EAX30BUFFER_DEFERRED;
-        BOOL immediate = !(dwPropID&DSPROPERTY_EAX30BUFFER_DEFERRED);
-
-        setALContext(This->ctx);
-        hr = EAX3Buffer_Set(This, propid, pPropData, cbPropData);
-        if(hr == DS_OK && immediate)
-        {
-            DSPrimary *prim = This->primary;
-            DSPrimary3D_CommitDeferredSettings(&prim->IDirectSound3DListener_iface);
-        }
-        popALContext();
-    }
-    else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX20_BufferProperties))
-    {
-        DWORD propid = dwPropID & ~DSPROPERTY_EAX20BUFFER_DEFERRED;
-        BOOL immediate = !(dwPropID&DSPROPERTY_EAX20BUFFER_DEFERRED);
-
-        setALContext(This->ctx);
-        hr = EAX2Buffer_Set(This, propid, pPropData, cbPropData);
-        if(hr == DS_OK && immediate)
-        {
-            DSPrimary *prim = This->primary;
-            DSPrimary3D_CommitDeferredSettings(&prim->IDirectSound3DListener_iface);
-        }
-        popALContext();
-    }
-    else if(((idx=0),IsEqualIID(guidPropSet, &EAXPROPERTYID_EAX40_FXSlot0)) ||
-            ((idx=1),IsEqualIID(guidPropSet, &EAXPROPERTYID_EAX40_FXSlot1)) ||
-            ((idx=2),IsEqualIID(guidPropSet, &EAXPROPERTYID_EAX40_FXSlot2)) ||
-            ((idx=3),IsEqualIID(guidPropSet, &EAXPROPERTYID_EAX40_FXSlot3)))
+    if(IsEqualIID(guidPropSet, &EAXPROPERTYID_EAX40_Source)
+        || IsEqualIID(guidPropSet, &DSPROPSETID_EAX30_BufferProperties)
+        || IsEqualIID(guidPropSet, &DSPROPSETID_EAX20_BufferProperties)
+        || IsEqualIID(guidPropSet, &EAXPROPERTYID_EAX40_FXSlot0)
+        || IsEqualIID(guidPropSet, &EAXPROPERTYID_EAX40_FXSlot1)
+        || IsEqualIID(guidPropSet, &EAXPROPERTYID_EAX40_FXSlot2)
+        || IsEqualIID(guidPropSet, &EAXPROPERTYID_EAX40_FXSlot3)
+        || IsEqualIID(guidPropSet, &DSPROPSETID_EAX30_ListenerProperties)
+        || IsEqualIID(guidPropSet, &DSPROPSETID_EAX20_ListenerProperties)
+        || IsEqualIID(guidPropSet, &EAXPROPERTYID_EAX40_Context)
+        || IsEqualIID(guidPropSet, &DSPROPSETID_EAX10_BufferProperties)
+        || IsEqualIID(guidPropSet, &DSPROPSETID_EAX10_ListenerProperties))
     {
         DSPrimary *prim = This->primary;
-        DWORD propid = dwPropID & ~EAXFXSLOT_PARAMETER_DEFERRED;
-        BOOL immediate = !(dwPropID&EAXFXSLOT_PARAMETER_DEFERRED);
+        BOOL immediate = !(dwPropID&0x80000000ul);
+        ALenum err;
 
         setALContext(prim->ctx);
-        hr = EAX4Slot_Set(prim, idx, propid, pPropData, cbPropData);
-        if(hr == DS_OK && immediate)
-            DSPrimary3D_CommitDeferredSettings(&prim->IDirectSound3DListener_iface);
-        popALContext();
-    }
-    else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX30_ListenerProperties))
-    {
-        DSPrimary *prim = This->primary;
-        DWORD propid = dwPropID & ~DSPROPERTY_EAX30LISTENER_DEFERRED;
-        BOOL immediate = !(dwPropID&DSPROPERTY_EAX30LISTENER_DEFERRED);
-
-        setALContext(prim->ctx);
-        hr = EAX3_Set(prim, propid, pPropData, cbPropData);
-        if(hr == DS_OK && immediate)
-            DSPrimary3D_CommitDeferredSettings(&prim->IDirectSound3DListener_iface);
-        popALContext();
-    }
-    else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX20_ListenerProperties))
-    {
-        DSPrimary *prim = This->primary;
-        DWORD propid = dwPropID & ~DSPROPERTY_EAX20LISTENER_DEFERRED;
-        BOOL immediate = !(dwPropID&DSPROPERTY_EAX20LISTENER_DEFERRED);
-
-        setALContext(prim->ctx);
-        hr = EAX2_Set(prim, propid, pPropData, cbPropData);
-        if(hr == DS_OK && immediate)
-            DSPrimary3D_CommitDeferredSettings(&prim->IDirectSound3DListener_iface);
-        popALContext();
-    }
-    else if(IsEqualIID(guidPropSet, &EAXPROPERTYID_EAX40_Context))
-    {
-        DSPrimary *prim = This->primary;
-        DWORD propid = dwPropID & ~EAXCONTEXT_PARAMETER_DEFERRED;
-        BOOL immediate = !(dwPropID&EAXCONTEXT_PARAMETER_DEFERRED);
-
-        setALContext(prim->ctx);
-        hr = EAX4Context_Set(prim, propid, pPropData, cbPropData);
-        if(hr == DS_OK && immediate)
-            DSPrimary3D_CommitDeferredSettings(&prim->IDirectSound3DListener_iface);
-        popALContext();
-    }
-    else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX10_BufferProperties))
-    {
-        DWORD propid = dwPropID & ~DSPROPERTY_EAX20BUFFER_DEFERRED;
-        BOOL immediate = !(dwPropID&DSPROPERTY_EAX20BUFFER_DEFERRED);
-
-        setALContext(This->ctx);
-        hr = EAX1Buffer_Set(This, propid, pPropData, cbPropData);
-        if(hr == DS_OK && immediate)
-        {
-            DSPrimary *prim = This->primary;
-            DSPrimary3D_CommitDeferredSettings(&prim->IDirectSound3DListener_iface);
-        }
-        popALContext();
-    }
-    else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX10_ListenerProperties))
-    {
-        DSPrimary *prim = This->primary;
-        DWORD propid = dwPropID & ~DSPROPERTY_EAX20LISTENER_DEFERRED;
-        BOOL immediate = !(dwPropID&DSPROPERTY_EAX20LISTENER_DEFERRED);
-
-        setALContext(prim->ctx);
-        hr = EAX1_Set(prim, propid, pPropData, cbPropData);
+        err = EAXSet(guidPropSet, dwPropID|0x80000000ul, This->source, pPropData, cbPropData);
+        if(err != AL_NO_ERROR) hr = E_FAIL;
+        else hr = DS_OK;
         if(hr == DS_OK && immediate)
             DSPrimary3D_CommitDeferredSettings(&prim->IDirectSound3DListener_iface);
         popALContext();
@@ -3017,14 +2771,11 @@ static HRESULT WINAPI DSBufferProp_QuerySupport(IKsPropertySet *iface,
         hr = EAX3Buffer_Query(This, dwPropID, pTypeSupport);
     else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX20_BufferProperties))
         hr = EAX2Buffer_Query(This, dwPropID, pTypeSupport);
-    else if(IsEqualIID(guidPropSet, &EAXPROPERTYID_EAX40_FXSlot0))
-        hr = EAX4Slot_Query(This->primary, 0, dwPropID, pTypeSupport);
-    else if(IsEqualIID(guidPropSet, &EAXPROPERTYID_EAX40_FXSlot1))
-        hr = EAX4Slot_Query(This->primary, 1, dwPropID, pTypeSupport);
-    else if(IsEqualIID(guidPropSet, &EAXPROPERTYID_EAX40_FXSlot2))
-        hr = EAX4Slot_Query(This->primary, 2, dwPropID, pTypeSupport);
-    else if(IsEqualIID(guidPropSet, &EAXPROPERTYID_EAX40_FXSlot3))
-        hr = EAX4Slot_Query(This->primary, 3, dwPropID, pTypeSupport);
+    else if(IsEqualIID(guidPropSet, &EAXPROPERTYID_EAX40_FXSlot0)
+        || IsEqualIID(guidPropSet, &EAXPROPERTYID_EAX40_FXSlot1)
+        || IsEqualIID(guidPropSet, &EAXPROPERTYID_EAX40_FXSlot2)
+        || IsEqualIID(guidPropSet, &EAXPROPERTYID_EAX40_FXSlot3))
+        hr = EAX4Slot_Query(This->primary, dwPropID, pTypeSupport);
     else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX30_ListenerProperties))
         hr = EAX3_Query(This->primary, dwPropID, pTypeSupport);
     else if(IsEqualIID(guidPropSet, &DSPROPSETID_EAX20_ListenerProperties))

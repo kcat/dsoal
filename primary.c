@@ -295,8 +295,6 @@ HRESULT DSPrimary_PreInit(DSPrimary *This, DSDevice *parent)
     This->share = parent->share;
     This->ctx = parent->share->ctx;
     This->refresh = parent->share->refresh;
-    for(i = 0;i < EAX_MAX_FXSLOTS;++i)
-        This->auxslot[i] = parent->share->auxslot[i];
 
     wfx = &This->format.Format;
     wfx->wFormatTag = WAVE_FORMAT_PCM;
@@ -309,75 +307,11 @@ HRESULT DSPrimary_PreInit(DSPrimary *This, DSDevice *parent)
 
     This->stopped = TRUE;
 
-    /* EAX allows the buffer's direct and room volumes to be up to +1000mB
-     * (~3.162 linear gain), but standard EFX's source filters only allow a
-     * maximum gain of 1 (+0mB). The not-currently-final AL_SOFT_filter_gain_ex
-     * extension increases the maximum filter gain to 4 (about +1200mB), which
-     * is enough to handle the original +1000mB range.
-     */
-    This->filter_mBLimit = HAS_EXTENSION(This->share, SOFTX_FILTER_GAIN_EX) ? 1000.0f : 0.0f;
-
     /* Apparently primary buffer size is always 32k,
      * tested on windows with 192k 24 bits sound @ 6 channels
      * where it will run out in 60 ms and it isn't pointer aligned
      */
     This->buf_size = 32768;
-
-    This->eax_error = EAX_OK;
-    This->current.ctx.guidPrimaryFXSlotID = EAXPROPERTYID_EAX40_FXSlot0;
-    This->current.ctx.flDistanceFactor = 1.0f;
-    This->current.ctx.flAirAbsorptionHF = -5.0f;
-    This->current.ctx.flHFReference = 5000.0f;
-    This->current.fxslot[0].effect_type = FXSLOT_EFFECT_REVERB;
-    This->current.fxslot[0].fx.reverb = EnvironmentDefaults[EAX_ENVIRONMENT_GENERIC];
-    This->current.fxslot[0].props.guidLoadEffect = EAX_REVERB_EFFECT;
-    This->current.fxslot[0].props.lVolume = 0;
-    This->current.fxslot[0].props.lLock = EAXFXSLOT_UNLOCKED;
-    This->current.fxslot[0].props.dwFlags = EAXFXSLOTFLAGS_ENVIRONMENT;
-    /* FIXME: Should fxslot[1] be chorus? Or left as a NULL effect? */
-    for(i = 1;i < EAX_MAX_FXSLOTS;++i)
-    {
-        This->current.fxslot[i].effect_type = FXSLOT_EFFECT_NULL;
-        This->current.fxslot[i].props.guidLoadEffect = EAX_NULL_GUID;
-        This->current.fxslot[i].props.lVolume = 0;
-        This->current.fxslot[i].props.lLock = EAXFXSLOT_UNLOCKED;
-        This->current.fxslot[i].props.dwFlags = EAXFXSLOTFLAGS_ENVIRONMENT;
-    }
-    This->current.eax1_volume = 0.5f;
-    This->current.eax1_dampening = 0.5f;
-
-    This->deferred.ctx = This->current.ctx;
-    for(i = 0;i < EAX_MAX_FXSLOTS;++i)
-        This->deferred.fxslot[i] = This->current.fxslot[i];
-    This->deferred.eax1_volume = This->current.eax1_volume;
-    This->deferred.eax1_dampening = This->current.eax1_dampening;
-
-    setALContext(This->ctx);
-    if(This->auxslot[0] != 0)
-    {
-        ALenum err;
-
-        This->primary_idx = 0;
-
-        alGetError();
-        alGenEffects(EAX_MAX_FXSLOTS, This->effect);
-        if((err=alGetError()) == AL_NO_ERROR)
-        {
-            alEffecti(This->effect[0], AL_EFFECT_TYPE, AL_EFFECT_EAXREVERB);
-            if((err=alGetError()) != AL_NO_ERROR)
-            {
-                alDeleteEffects(EAX_MAX_FXSLOTS, This->effect);
-                checkALError();
-            }
-        }
-        if(err != AL_NO_ERROR)
-        {
-            ERR("Failed to setup effects: %s (0x%04x)\n", alGetString(err), err);
-            This->effect[0] = This->effect[1] =
-            This->effect[2] = This->effect[3] = 0;
-        }
-    }
-    popALContext();
 
     num_srcs = This->share->sources.maxhw_alloc + This->share->sources.maxsw_alloc;
 
@@ -421,12 +355,6 @@ void DSPrimary_Clear(DSPrimary *This)
 
     if(!This->parent)
         return;
-
-    setALContext(This->ctx);
-    if(This->effect[0])
-        alDeleteEffects(EAX_MAX_FXSLOTS, This->effect);
-    checkALError();
-    popALContext();
 
     bufgroup = This->BufferGroups;
     for(i = 0;i < This->NumBufferGroups;++i)
@@ -1131,14 +1059,6 @@ static void DSPrimary_SetParams(DSPrimary *This, const DS3DLISTENER *params, LON
         This->current.ds3d.flRolloffFactor = params->flRolloffFactor;
     if(dirty.bit.dopplerfactor)
         This->current.ds3d.flDopplerFactor = params->flDopplerFactor;
-    /* Always copy EAX params (they're always set deferred first, then applied
-     * when committing all params).
-     */
-    This->current.ctx = This->deferred.ctx;
-    for(i = 0;i < EAX_MAX_FXSLOTS;++i)
-        This->current.fxslot[i] = This->deferred.fxslot[i];
-    This->current.eax1_volume = This->deferred.eax1_volume;
-    This->current.eax1_dampening = This->deferred.eax1_dampening;
 
     if(dirty.bit.pos)
         alListener3f(AL_POSITION, params->vPosition.x, params->vPosition.y,
@@ -1171,98 +1091,12 @@ static void DSPrimary_SetParams(DSPrimary *This, const DS3DLISTENER *params, LON
                 usemask &= ~(U64(1) << idx);
 
                 if(buf->source)
-                    alSourcef(buf->source, AL_ROLLOFF_FACTOR,
-                              buf->current.eax.flRolloffFactor + rolloff);
+                    alSourcef(buf->source, AL_ROLLOFF_FACTOR, rolloff);
             }
         }
     }
     if(dirty.bit.dopplerfactor)
         alDopplerFactor(params->flDopplerFactor);
-
-    if(dirty.bit.prim_slotid)
-    {
-        struct DSBufferGroup *bufgroup = This->BufferGroups;
-        ALuint slot;
-
-        if(IsEqualGUID(&This->current.ctx.guidPrimaryFXSlotID, &EAXPROPERTYID_EAX40_FXSlot0))
-            This->primary_idx = 0;
-        else if(IsEqualGUID(&This->current.ctx.guidPrimaryFXSlotID, &EAXPROPERTYID_EAX40_FXSlot1))
-            This->primary_idx = 1;
-        else if(IsEqualGUID(&This->current.ctx.guidPrimaryFXSlotID, &EAXPROPERTYID_EAX40_FXSlot2))
-            This->primary_idx = 2;
-        else if(IsEqualGUID(&This->current.ctx.guidPrimaryFXSlotID, &EAXPROPERTYID_EAX40_FXSlot3))
-            This->primary_idx = 3;
-        else /*if(IsEqualGUID(&This->current.ctx.guidPrimaryFXSlotID, &EAX_NULL_GUID))*/
-            This->primary_idx = -1;
-        slot = (This->primary_idx < 0) ? 0 : This->auxslot[This->primary_idx];
-
-        for(i = 0;i < This->NumBufferGroups;++i)
-        {
-            DWORD64 usemask = ~bufgroup[i].FreeBuffers;
-            while(usemask)
-            {
-                int idx = CTZ64(usemask);
-                DSBuffer *buf = bufgroup[i].Buffers + idx;
-                DSData *data = buf->buffer;
-                usemask &= ~(U64(1) << idx);
-
-                if(buf->source && (data->dsbflags&DSBCAPS_CTRL3D))
-                {
-                    ALuint filter = (This->primary_idx < 0) ? 0 : buf->filter[1+This->primary_idx];
-                    if(buf->current.fxslot_targets[0] == FXSLOT_TARGET_PRIMARY)
-                        alSource3i(buf->source, AL_AUXILIARY_SEND_FILTER, slot, 0, filter);
-                    if(buf->current.fxslot_targets[1] == FXSLOT_TARGET_PRIMARY)
-                        alSource3i(buf->source, AL_AUXILIARY_SEND_FILTER, slot, 1, filter);
-                }
-            }
-        }
-    }
-    if(dirty.bit.distancefactor2)
-        alListenerf(AL_METERS_PER_UNIT, This->current.ctx.flDistanceFactor);
-    if(dirty.bit.air_absorbhf)
-    {
-        struct DSBufferGroup *bufgroup = This->BufferGroups;
-        ALfloat mult = This->current.ctx.flAirAbsorptionHF / -5.0f;
-
-        for(i = 0;i < This->NumBufferGroups;++i)
-        {
-            DWORD64 usemask = ~bufgroup[i].FreeBuffers;
-            while(usemask)
-            {
-                int idx = CTZ64(usemask);
-                DSBuffer *buf = bufgroup[i].Buffers + idx;
-                DSData *data = buf->buffer;
-                usemask &= ~(U64(1) << idx);
-
-                if(buf->source && (data->dsbflags&DSBCAPS_CTRL3D))
-                    alSourcef(buf->source, AL_AIR_ABSORPTION_FACTOR,
-                        clampF(buf->current.eax.flAirAbsorptionFactor*mult, 0.0f, 10.0f)
-                    );
-            }
-        }
-    }
-    if(dirty.bit.hfreference) {
-        /* NOTE: Not currently handlable in OpenAL. */
-    }
-
-    if(dirty.bit.fxslots)
-    {
-        for(i = 0;i < EAX_MAX_FXSLOTS;++i)
-        {
-            ALuint slot = This->auxslot[i];
-            if(FXSLOT_IS_DIRTY(dirty.bit, i, FXSLOT_EFFECT_BIT))
-                alAuxiliaryEffectSloti(slot, AL_EFFECTSLOT_EFFECT, This->effect[i]);
-            if(FXSLOT_IS_DIRTY(dirty.bit, i, FXSLOT_VOL_BIT))
-                alAuxiliaryEffectSlotf(slot, AL_EFFECTSLOT_GAIN,
-                    mB_to_gain((float)This->current.fxslot[i].props.lVolume)
-                );
-            if(FXSLOT_IS_DIRTY(dirty.bit, i, FXSLOT_FLAGS_BIT))
-                alAuxiliaryEffectSloti(slot, AL_EFFECTSLOT_AUXILIARY_SEND_AUTO,
-                    (This->current.fxslot[i].props.dwFlags&EAXFXSLOTFLAGS_ENVIRONMENT) ?
-                    AL_TRUE : AL_FALSE
-                );
-        }
-    }
 }
 
 static HRESULT WINAPI DSPrimary3D_QueryInterface(IDirectSound3DListener *iface, REFIID riid, void **ppv)
@@ -1593,8 +1427,7 @@ static HRESULT WINAPI DSPrimary3D_SetRolloffFactor(IDirectSound3DListener *iface
                 usemask &= ~(U64(1) << idx);
 
                 if(buf->source)
-                    alSourcef(buf->source, AL_ROLLOFF_FACTOR,
-                              buf->current.eax.flRolloffFactor + factor);
+                    alSourcef(buf->source, AL_ROLLOFF_FACTOR, factor);
             }
         }
         checkALError();

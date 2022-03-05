@@ -196,19 +196,8 @@ LPALDOPPLERVELOCITY palDopplerVelocity = NULL;
 LPALDISTANCEMODEL palDistanceModel = NULL;
 LPALSPEEDOFSOUND palSpeedOfSound = NULL;
 
-LPALGENFILTERS palGenFilters = NULL;
-LPALDELETEFILTERS palDeleteFilters = NULL;
-LPALFILTERI palFilteri = NULL;
-LPALFILTERF palFilterf = NULL;
-LPALGENEFFECTS palGenEffects = NULL;
-LPALDELETEEFFECTS palDeleteEffects = NULL;
-LPALEFFECTI palEffecti = NULL;
-LPALEFFECTF palEffectf = NULL;
-LPALEFFECTFV palEffectfv = NULL;
-LPALGENAUXILIARYEFFECTSLOTS palGenAuxiliaryEffectSlots = NULL;
-LPALDELETEAUXILIARYEFFECTSLOTS palDeleteAuxiliaryEffectSlots = NULL;
-LPALAUXILIARYEFFECTSLOTI palAuxiliaryEffectSloti = NULL;
-LPALAUXILIARYEFFECTSLOTF palAuxiliaryEffectSlotf = NULL;
+LPEAXSET pEAXSet = NULL;
+LPEAXGET pEAXGet = NULL;
 LPALDEFERUPDATESSOFT palDeferUpdatesSOFT = NULL;
 LPALPROCESSUPDATESSOFT palProcessUpdatesSOFT = NULL;
 LPALBUFFERSTORAGESOFT palBufferStorageSOFT = NULL;
@@ -368,19 +357,8 @@ static BOOL load_libopenal(void)
     TRACE("Loaded %ls\n", aldriver_name);
 
 #define LOAD_FUNCPTR(f) p##f = alcGetProcAddress(NULL, #f)
-    LOAD_FUNCPTR(alGenFilters);
-    LOAD_FUNCPTR(alDeleteFilters);
-    LOAD_FUNCPTR(alFilteri);
-    LOAD_FUNCPTR(alFilterf);
-    LOAD_FUNCPTR(alGenEffects);
-    LOAD_FUNCPTR(alDeleteEffects);
-    LOAD_FUNCPTR(alEffecti);
-    LOAD_FUNCPTR(alEffectf);
-    LOAD_FUNCPTR(alEffectfv);
-    LOAD_FUNCPTR(alGenAuxiliaryEffectSlots);
-    LOAD_FUNCPTR(alDeleteAuxiliaryEffectSlots);
-    LOAD_FUNCPTR(alAuxiliaryEffectSloti);
-    LOAD_FUNCPTR(alAuxiliaryEffectSlotf);
+    LOAD_FUNCPTR(EAXSet);
+    LOAD_FUNCPTR(EAXGet);
     LOAD_FUNCPTR(alDeferUpdatesSOFT);
     LOAD_FUNCPTR(alProcessUpdatesSOFT);
     LOAD_FUNCPTR(alBufferStorageSOFT);

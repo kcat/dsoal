@@ -153,17 +153,6 @@ static void DSShare_Destroy(DeviceShare *share)
                             share->sources.ids);
         share->sources.maxhw_alloc = share->sources.maxsw_alloc = 0;
 
-        if(share->auxslot[3])
-            alDeleteAuxiliaryEffectSlots(4, share->auxslot);
-        else if(share->auxslot[2])
-            alDeleteAuxiliaryEffectSlots(3, share->auxslot);
-        else if(share->auxslot[1])
-            alDeleteAuxiliaryEffectSlots(2, share->auxslot);
-        else if(share->auxslot[0])
-            alDeleteAuxiliaryEffectSlots(1, share->auxslot);
-        share->auxslot[0] = share->auxslot[1] =
-        share->auxslot[2] = share->auxslot[3] = 0;
-
         set_context(NULL);
         TlsSetValue(TlsThreadPtr, NULL);
         alcDestroyContext(share->ctx);
@@ -189,12 +178,11 @@ static HRESULT DSShare_Create(REFIID guid, DeviceShare **out)
         const char extname[64];
         int extenum;
     } extensions[MAX_EXTENSIONS] = {
-        { "ALC_EXT_EFX",      EXT_EFX },
+        { "EAX5.0", EXT_EAX },
         { "AL_EXT_FLOAT32",   EXT_FLOAT32 },
         { "AL_EXT_MCFORMATS", EXT_MCFORMATS },
         { "AL_SOFT_deferred_updates",  SOFT_DEFERRED_UPDATES },
         { "AL_SOFT_source_spatialize", SOFT_SOURCE_SPATIALIZE },
-        { "AL_SOFTX_filter_gain_ex",   SOFTX_FILTER_GAIN_EX },
         { "AL_SOFTX_map_buffer",       SOFTX_MAP_BUFFER },
     };
     OLECHAR *guid_str = NULL;
@@ -319,11 +307,6 @@ static HRESULT DSShare_Create(REFIID guid, DeviceShare **out)
     attrs[i++] = MAX_SOURCES;
     attrs[i++] = ALC_STEREO_SOURCES;
     attrs[i++] = 0;
-    if(alcIsExtensionPresent(share->device, "ALC_EXT_EFX"))
-    {
-        attrs[i++] = ALC_MAX_AUXILIARY_SENDS;
-        attrs[i++] = EAX_MAX_ACTIVE_FXSLOTS;
-    }
     attrs[i++] = 0;
     share->ctx = alcCreateContext(share->device, attrs);
     if(!share->ctx)
@@ -357,25 +340,14 @@ static HRESULT DSShare_Create(REFIID guid, DeviceShare **out)
         if(alGetError() != AL_NO_ERROR) break;
         share->sources.maxhw_alloc++;
     }
-
-    share->num_slots = 0;
-    if(HAS_EXTENSION(share, EXT_EFX))
+    if(share->sources.maxhw_alloc > 0 && HAS_EXTENSION(share, EXT_EAX))
     {
-        alcGetIntegerv(share->device, ALC_MAX_AUXILIARY_SENDS, 1, &share->num_sends);
-        checkALCError(share->device);
-        if(share->num_sends > EAX_MAX_ACTIVE_FXSLOTS)
-            share->num_sends = EAX_MAX_ACTIVE_FXSLOTS;
-        TRACE("Got %d auxiliary source send%s\n", share->num_sends, (share->num_sends==1)?"":"s");
-
-        for(i = 0;i < EAX_MAX_FXSLOTS;++i)
-        {
-            alGenAuxiliaryEffectSlots(1, &share->auxslot[i]);
-            if(alGetError() != AL_NO_ERROR) break;
-            share->num_slots++;
-        }
-        TRACE("Allocated %d auxiliary effect slot%s\n", i, (i==1)?"":"s");
-        while(i < EAX_MAX_FXSLOTS)
-            share->auxslot[i++] = 0;
+        EAXGet(&EAXPROPERTYID_EAX40_Source, EAXSOURCE_ALLPARAMETERS, share->sources.ids[0],
+            &share->default_srcprops, sizeof(share->default_srcprops));
+        EAXGet(&EAXPROPERTYID_EAX40_Source, EAXSOURCE_ALLSENDPARAMETERS, share->sources.ids[0],
+            &share->default_srcsend, sizeof(share->default_srcsend));
+        EAXGet(&EAXPROPERTYID_EAX40_Source, EAXSOURCE_ACTIVEFXSLOTID, share->sources.ids[0],
+            &share->default_srcslots, sizeof(share->default_srcslots));
     }
     popALContext();
 

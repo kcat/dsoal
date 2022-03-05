@@ -23,26 +23,25 @@ set(DSOAL_INC "")
 set(DSOAL_FLAGS "")
 set(DSOAL_LIBS "")
 
-set(DSOAL_TEXT LICENSE
-               README.md)
+set(DSOAL_TEXT
+    LICENSE
+    README.md)
 
-set(DSOAL_OBJS buffer.c
-               capture.c
-               chorus.c
-               dsound8.c
-               dsound_main.c
-               dsound_private.h
-               duplex.c
-               eax.c
-               eax4.c
-               eax.h
-               eax3.h
-               eax4.h
-               eax-presets.h
-               primary.c
-               propset.c
-               reverb.c
-               voiceman.c)
+set(DSOAL_OBJS
+    buffer.c
+    capture.c
+    dsound8.c
+    dsound_main.c
+    dsound_private.h
+    duplex.c
+    eax.c
+    eax.h
+    eax3.h
+    eax4.h
+    eax-presets.h
+    primary.c
+    propset.c
+    voiceman.c)
 
 set(DSOAL_INC ${DSOAL_INC} ${DSOAL_BINARY_DIR} ${DSOAL_SOURCE_DIR}/include/AL)
 
