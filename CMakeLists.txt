@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.0.2)
 
+project(DSOAL C)
+
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 
 include(CheckCCompilerFlag)
@@ -7,8 +9,6 @@ include(CheckCSourceCompiles)
 include(CheckTypeSize)
 include(CheckIncludeFile)
 include(GNUInstallDirs)
-
-project(DSOAL C)
 
 set(VERSION 0.9)
 
