@@ -10,7 +10,7 @@ include(CheckTypeSize)
 include(CheckIncludeFile)
 include(GNUInstallDirs)
 
-set(VERSION 0.9)
+set(VERSION 1.0)
 
 IF(NOT CMAKE_BUILD_TYPE)
     SET(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING
