@@ -13,60 +13,70 @@ jobs:
     runs-on: windows-latest
     steps:
 
-    - name: Checkout repo with submodules
+    - name: Checkout repository
       uses: actions/checkout@v2
-      with:
-        submodules: recursive
+    - name: Checkout submodules
+      run: git submodule update --init --recursive --merge
 
     - name: Get current date
       id: date
       run: echo "::set-output name=date::$(date +'%Y-%m-%d')"
-    
+
     - name: Get tag
       id: tag
       uses: dawidd6/action-get-tag@v1
       with:
         strip_v: true
 
-    - name: Get commit hash
+    - name: Get commit version
       id: vars
-      run: echo "::set-output name=sha_short::$(git rev-parse --short HEAD)"
-    
+      run: |
+        echo "::set-output name=DSOAL_sha_short::$(git rev-parse --short=8 HEAD)"
+        cd "openal-soft"
+        echo "::set-output name=ALSOFT_version::$(git describe --tags)"
+        cd "${{github.workspace}}"
+
     - name: Create Artifacts folder
       run: mkdir "Artifacts"
 
     #32-bit
-    - name: Win32 - Build DSOAL 
+    - name: Win32 - Build DSOAL
       run: |
         cmake -B "${{github.workspace}}/build" -A Win32
         cmake --build "${{github.workspace}}/build" --config ${{env.build_type}}
-    
+
     - name: Win32 - Build OpenAL Soft
       run: |
         cmake -B "${{github.workspace}}/openal-soft/build" -DCMAKE_BUILD_TYPE=${{env.build_type}} -A Win32 -DALSOFT_BUILD_ROUTER=ON -DALSOFT_REQUIRE_WINMM=ON -DALSOFT_REQUIRE_DSOUND=ON -DALSOFT_REQUIRE_WASAPI=ON "${{github.workspace}}/openal-soft"
         cmake --build "${{github.workspace}}/openal-soft/build" --config ${{env.build_type}}
-    
+
     - name: Win32 - Collect binaries
       run: |
-        mkdir "DSOAL_v${{steps.tag.outputs.tag}}-Win32"
-        move "${{github.workspace}}/build/${{env.build_type}}/dsound.dll" "DSOAL_v${{steps.tag.outputs.tag}}-Win32/dsound.dll"
-        move "${{github.workspace}}/openal-soft/build/${{env.build_type}}/soft_oal.dll" "DSOAL_v${{steps.tag.outputs.tag}}-Win32/dsoal-aldrv.dll"
-        copy "${{github.workspace}}/openal-soft/alsoftrc.sample" "DSOAL_v${{steps.tag.outputs.tag}}-Win32/alsoft.ini"
-        copy "${{github.workspace}}/LICENSE" "DSOAL_v${{steps.tag.outputs.tag}}-Win32/License.txt"
+        mkdir "DSOAL_v${{steps.tag.outputs.tag}}_OpenALSoft_v${{steps.vars.outputs.ALSOFT_version}}-Win32"
+        move "${{github.workspace}}/build/${{env.build_type}}/dsound.dll" "DSOAL_v${{steps.tag.outputs.tag}}_OpenALSoft_v${{steps.vars.outputs.ALSOFT_version}}-Win32/dsound.dll"
+        move "${{github.workspace}}/openal-soft/build/${{env.build_type}}/soft_oal.dll" "DSOAL_v${{steps.tag.outputs.tag}}_OpenALSoft_v${{steps.vars.outputs.ALSOFT_version}}-Win32/dsoal-aldrv.dll"
+        copy "${{github.workspace}}/openal-soft/alsoftrc.sample" "DSOAL_v${{steps.tag.outputs.tag}}_OpenALSoft_v${{steps.vars.outputs.ALSOFT_version}}-Win32/alsoft.ini"
+        mkdir "DSOAL_v${{steps.tag.outputs.tag}}_OpenALSoft_v${{steps.vars.outputs.ALSOFT_version}}-Win32/Documentation"
+        copy "${{github.workspace}}/README.md" "DSOAL_v${{steps.tag.outputs.tag}}_OpenALSoft_v${{steps.vars.outputs.ALSOFT_version}}-Win32/Documentation/DSOAL-ReadMe.txt"
+        copy "${{github.workspace}}/LICENSE" "DSOAL_v${{steps.tag.outputs.tag}}_OpenALSoft_v${{steps.vars.outputs.ALSOFT_version}}-Win32/Documentation/DSOAL-License.txt"
+        copy "${{github.workspace}}/openal-soft/README.md" "DSOAL_v${{steps.tag.outputs.tag}}_OpenALSoft_v${{steps.vars.outputs.ALSOFT_version}}-Win32/Documentation/OpenALSoft-ReadMe.txt"
+        copy "${{github.workspace}}/openal-soft/COPYING" "DSOAL_v${{steps.tag.outputs.tag}}_OpenALSoft_v${{steps.vars.outputs.ALSOFT_version}}-Win32/Documentation/OpenALSoft-License.txt"
+        copy "${{github.workspace}}/openal-soft/BSD-3Clause" "DSOAL_v${{steps.tag.outputs.tag}}_OpenALSoft_v${{steps.vars.outputs.ALSOFT_version}}-Win32/Documentation/OpenALSoft-BSD-3Clause.txt"
+        copy "${{github.workspace}}/openal-soft/ChangeLog" "DSOAL_v${{steps.tag.outputs.tag}}_OpenALSoft_v${{steps.vars.outputs.ALSOFT_version}}-Win32/Documentation/OpenALSoft-ChangeLog.txt"
 
     - name: Win32 - Compress artifact
       uses: papeloto/action-zip@v1
       with:
-        files: DSOAL_v${{steps.tag.outputs.tag}}-Win32/
-        dest: "Artifacts/DSOAL_v${{steps.tag.outputs.tag}}-Win32.zip"
+        files: DSOAL_v${{steps.tag.outputs.tag}}_OpenALSoft_v${{steps.vars.outputs.ALSOFT_version}}-Win32/
+        dest: "Artifacts/DSOAL_v${{steps.tag.outputs.tag}}_OpenALSoft_v${{steps.vars.outputs.ALSOFT_version}}-Win32.zip"
 
     - name: Win32 - Upload artifact to GitHub actions
       uses: actions/upload-artifact@v3
       with:
-        name: DSOAL_v${{steps.tag.outputs.tag}}-Win32
-        path: DSOAL_v${{steps.tag.outputs.tag}}-Win32/
+        name: DSOAL_v${{steps.tag.outputs.tag}}_OpenALSoft_v${{steps.vars.outputs.ALSOFT_version}}-Win32
+        path: DSOAL_v${{steps.tag.outputs.tag}}_OpenALSoft_v${{steps.vars.outputs.ALSOFT_version}}-Win32/
 
-    - name: Win32 - Cleanup build folder
+    - name: Cleanup build folder
       run: |
         Remove-Item ${{github.workspace}}\build\* -Recurse -Force
         Remove-Item ${{github.workspace}}\openal-soft\build\* -Recurse -Force
@@ -76,56 +86,68 @@ jobs:
       run: |
         cmake -B "${{github.workspace}}/build" -A x64
         cmake --build "${{github.workspace}}/build" --config ${{env.build_type}}
-    
+
     - name: Win64 - Build OpenAL Soft
       run: |
         cmake -B "${{github.workspace}}/openal-soft/build" -DCMAKE_BUILD_TYPE=${{env.build_type}} -A x64 -DALSOFT_BUILD_ROUTER=ON -DALSOFT_REQUIRE_WINMM=ON -DALSOFT_REQUIRE_DSOUND=ON -DALSOFT_REQUIRE_WASAPI=ON "${{github.workspace}}/openal-soft"
         cmake --build "${{github.workspace}}/openal-soft/build" --config ${{env.build_type}}
-    
+
     - name: Win64 - Collect binaries
       run: |
-        mkdir "DSOAL_v${{steps.tag.outputs.tag}}-x64"
-        move "${{github.workspace}}/build/${{env.build_type}}/dsound.dll" "DSOAL_v${{steps.tag.outputs.tag}}-x64/dsound.dll"
-        move "${{github.workspace}}/openal-soft/build/${{env.build_type}}/soft_oal.dll" "DSOAL_v${{steps.tag.outputs.tag}}-x64/dsoal-aldrv.dll"
-        copy "${{github.workspace}}/openal-soft/alsoftrc.sample" "DSOAL_v${{steps.tag.outputs.tag}}-x64/alsoft.ini"
-        copy "${{github.workspace}}/LICENSE" "DSOAL_v${{steps.tag.outputs.tag}}-x64/License.txt"
+        mkdir "DSOAL_v${{steps.tag.outputs.tag}}_OpenALSoft_v${{steps.vars.outputs.ALSOFT_version}}-Win64"
+        move "${{github.workspace}}/build/${{env.build_type}}/dsound.dll" "DSOAL_v${{steps.tag.outputs.tag}}_OpenALSoft_v${{steps.vars.outputs.ALSOFT_version}}-Win64/dsound.dll"
+        move "${{github.workspace}}/openal-soft/build/${{env.build_type}}/soft_oal.dll" "DSOAL_v${{steps.tag.outputs.tag}}_OpenALSoft_v${{steps.vars.outputs.ALSOFT_version}}-Win64/dsoal-aldrv.dll"
+        copy "${{github.workspace}}/openal-soft/alsoftrc.sample" "DSOAL_v${{steps.tag.outputs.tag}}_OpenALSoft_v${{steps.vars.outputs.ALSOFT_version}}-Win64/alsoft.ini"
+        mkdir "DSOAL_v${{steps.tag.outputs.tag}}_OpenALSoft_v${{steps.vars.outputs.ALSOFT_version}}-Win64/Documentation"
+        copy "${{github.workspace}}/README.md" "DSOAL_v${{steps.tag.outputs.tag}}_OpenALSoft_v${{steps.vars.outputs.ALSOFT_version}}-Win64/Documentation/DSOAL-ReadMe.txt"
+        copy "${{github.workspace}}/LICENSE" "DSOAL_v${{steps.tag.outputs.tag}}_OpenALSoft_v${{steps.vars.outputs.ALSOFT_version}}-Win64/Documentation/DSOAL-License.txt"
+        copy "${{github.workspace}}/openal-soft/README.md" "DSOAL_v${{steps.tag.outputs.tag}}_OpenALSoft_v${{steps.vars.outputs.ALSOFT_version}}-Win64/Documentation/OpenALSoft-ReadMe.txt"
+        copy "${{github.workspace}}/openal-soft/COPYING" "DSOAL_v${{steps.tag.outputs.tag}}_OpenALSoft_v${{steps.vars.outputs.ALSOFT_version}}-Win64/Documentation/OpenALSoft-License.txt"
+        copy "${{github.workspace}}/openal-soft/BSD-3Clause" "DSOAL_v${{steps.tag.outputs.tag}}_OpenALSoft_v${{steps.vars.outputs.ALSOFT_version}}-Win64/Documentation/OpenALSoft-BSD-3Clause.txt"
+        copy "${{github.workspace}}/openal-soft/ChangeLog" "DSOAL_v${{steps.tag.outputs.tag}}_OpenALSoft_v${{steps.vars.outputs.ALSOFT_version}}-Win64/Documentation/OpenALSoft-ChangeLog.txt"
 
     - name: Win64 - Compress artifact
       uses: papeloto/action-zip@v1
       with:
-        files: DSOAL_v${{steps.tag.outputs.tag}}-x64/
-        dest: "Artifacts/DSOAL_v${{steps.tag.outputs.tag}}-Win64.zip"
+        files: DSOAL_v${{steps.tag.outputs.tag}}_OpenALSoft_v${{steps.vars.outputs.ALSOFT_version}}-Win64/
+        dest: "Artifacts/DSOAL_v${{steps.tag.outputs.tag}}_OpenALSoft_v${{steps.vars.outputs.ALSOFT_version}}-Win64.zip"
 
     - name: Win64 - Upload artifact to GitHub actions
       uses: actions/upload-artifact@v3
       with:
-        name: DSOAL_v${{steps.tag.outputs.tag}}-Win64
-        path: DSOAL_v${{steps.tag.outputs.tag}}-x64/
+        name: DSOAL_v${{steps.tag.outputs.tag}}_OpenALSoft_v${{steps.vars.outputs.ALSOFT_version}}-Win64
+        path: DSOAL_v${{steps.tag.outputs.tag}}_OpenALSoft_v${{steps.vars.outputs.ALSOFT_version}}-Win64/
 
     #Release
     - name: Separate binaries by architecture
       run: |
-        mkdir "DSOAL_v${{steps.tag.outputs.tag}}/Win32"
-        move "DSOAL_v${{steps.tag.outputs.tag}}-Win32/dsound.dll" "DSOAL_v${{steps.tag.outputs.tag}}/Win32/dsound.dll"
-        move "DSOAL_v${{steps.tag.outputs.tag}}-Win32/dsoal-aldrv.dll" "DSOAL_v${{steps.tag.outputs.tag}}/Win32/dsoal-aldrv.dll"
-        move "DSOAL_v${{steps.tag.outputs.tag}}-Win32/alsoft.ini" "DSOAL_v${{steps.tag.outputs.tag}}/Win32/alsoft.ini"
-        move "DSOAL_v${{steps.tag.outputs.tag}}-Win32/License.txt" "DSOAL_v${{steps.tag.outputs.tag}}/Win32/License.txt"
-        mkdir "DSOAL_v${{steps.tag.outputs.tag}}/Win64"
-        move "DSOAL_v${{steps.tag.outputs.tag}}-x64/dsound.dll" "DSOAL_v${{steps.tag.outputs.tag}}/Win64/dsound.dll"
-        move "DSOAL_v${{steps.tag.outputs.tag}}-x64/dsoal-aldrv.dll" "DSOAL_v${{steps.tag.outputs.tag}}/Win64/dsoal-aldrv.dll"
-        move "DSOAL_v${{steps.tag.outputs.tag}}-x64/alsoft.ini" "DSOAL_v${{steps.tag.outputs.tag}}/Win64/alsoft.ini"
-        move "DSOAL_v${{steps.tag.outputs.tag}}-x64/License.txt" "DSOAL_v${{steps.tag.outputs.tag}}/Win64/License.txt"
+        mkdir "DSOAL_v${{steps.tag.outputs.tag}}_OpenALSoft_v${{steps.vars.outputs.ALSOFT_version}}/Win32"
+        move "DSOAL_v${{steps.tag.outputs.tag}}_OpenALSoft_v${{steps.vars.outputs.ALSOFT_version}}-Win32/dsound.dll" "DSOAL_v${{steps.tag.outputs.tag}}_OpenALSoft_v${{steps.vars.outputs.ALSOFT_version}}/Win32/dsound.dll"
+        move "DSOAL_v${{steps.tag.outputs.tag}}_OpenALSoft_v${{steps.vars.outputs.ALSOFT_version}}-Win32/dsoal-aldrv.dll" "DSOAL_v${{steps.tag.outputs.tag}}_OpenALSoft_v${{steps.vars.outputs.ALSOFT_version}}/Win32/dsoal-aldrv.dll"
+        move "DSOAL_v${{steps.tag.outputs.tag}}_OpenALSoft_v${{steps.vars.outputs.ALSOFT_version}}-Win32/alsoft.ini" "DSOAL_v${{steps.tag.outputs.tag}}_OpenALSoft_v${{steps.vars.outputs.ALSOFT_version}}/Win32/alsoft.ini"
+        mkdir "DSOAL_v${{steps.tag.outputs.tag}}_OpenALSoft_v${{steps.vars.outputs.ALSOFT_version}}/Win64"
+        move "DSOAL_v${{steps.tag.outputs.tag}}_OpenALSoft_v${{steps.vars.outputs.ALSOFT_version}}-Win64/dsound.dll" "DSOAL_v${{steps.tag.outputs.tag}}_OpenALSoft_v${{steps.vars.outputs.ALSOFT_version}}/Win64/dsound.dll"
+        move "DSOAL_v${{steps.tag.outputs.tag}}_OpenALSoft_v${{steps.vars.outputs.ALSOFT_version}}-Win64/dsoal-aldrv.dll" "DSOAL_v${{steps.tag.outputs.tag}}_OpenALSoft_v${{steps.vars.outputs.ALSOFT_version}}/Win64/dsoal-aldrv.dll"
+        move "DSOAL_v${{steps.tag.outputs.tag}}_OpenALSoft_v${{steps.vars.outputs.ALSOFT_version}}-Win64/alsoft.ini" "DSOAL_v${{steps.tag.outputs.tag}}_OpenALSoft_v${{steps.vars.outputs.ALSOFT_version}}/Win64/alsoft.ini"
+        mkdir "DSOAL_v${{steps.tag.outputs.tag}}_OpenALSoft_v${{steps.vars.outputs.ALSOFT_version}}/Documentation"
+        copy "${{github.workspace}}/README.md" "DSOAL_v${{steps.tag.outputs.tag}}_OpenALSoft_v${{steps.vars.outputs.ALSOFT_version}}/Documentation/DSOAL-ReadMe.txt"
+        copy "${{github.workspace}}/LICENSE" "DSOAL_v${{steps.tag.outputs.tag}}_OpenALSoft_v${{steps.vars.outputs.ALSOFT_version}}/Documentation/DSOAL-License.txt"
+        copy "${{github.workspace}}/openal-soft/README.md" "DSOAL_v${{steps.tag.outputs.tag}}_OpenALSoft_v${{steps.vars.outputs.ALSOFT_version}}/Documentation/OpenALSoft-ReadMe.txt"
+        copy "${{github.workspace}}/openal-soft/COPYING" "DSOAL_v${{steps.tag.outputs.tag}}_OpenALSoft_v${{steps.vars.outputs.ALSOFT_version}}/Documentation/OpenALSoft-License.txt"
+        copy "${{github.workspace}}/openal-soft/BSD-3Clause" "DSOAL_v${{steps.tag.outputs.tag}}_OpenALSoft_v${{steps.vars.outputs.ALSOFT_version}}/Documentation/OpenALSoft-BSD-3Clause.txt"
+        copy "${{github.workspace}}/openal-soft/ChangeLog" "DSOAL_v${{steps.tag.outputs.tag}}_OpenALSoft_v${{steps.vars.outputs.ALSOFT_version}}/Documentation/OpenALSoft-ChangeLog.txt"
+
 
     - name: Compress artifacts
       uses: papeloto/action-zip@v1
       with:
-        files: DSOAL_v${{steps.tag.outputs.tag}}/
-        dest: "Artifacts/DSOAL-latest.zip"
-        
+        files: DSOAL_v${{steps.tag.outputs.tag}}_OpenALSoft_v${{steps.vars.outputs.ALSOFT_version}}/
+        dest: "Artifacts/DSOAL.zip"
+
     - name: GitHub release
       uses: "marvinpinto/action-automatic-releases@latest"
       with:
         repo_token: "${{secrets.GITHUB_TOKEN}}"
         prerelease: false
-        title: "DSOAL v${{steps.tag.outputs.tag}}"
+        title: "DSOAL v${{steps.tag.outputs.tag}} + OpenAL Soft v${{steps.vars.outputs.ALSOFT_version}}"
         files: "Artifacts/*"
