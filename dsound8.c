@@ -342,12 +342,14 @@ static HRESULT DSShare_Create(REFIID guid, DeviceShare **out)
     }
     if(share->sources.maxhw_alloc > 0 && HAS_EXTENSION(share, EXT_EAX))
     {
+        EAXSet(&DSPROPSETID_EAX20_BufferProperties, DSPROPERTY_EAX20BUFFER_COMMITDEFERREDSETTINGS,
+            share->sources.ids[0], NULL, 0);
         EAXGet(&EAXPROPERTYID_EAX40_Source, EAXSOURCE_ALLPARAMETERS, share->sources.ids[0],
             &share->default_srcprops, sizeof(share->default_srcprops));
         EAXGet(&EAXPROPERTYID_EAX40_Source, EAXSOURCE_ALLSENDPARAMETERS, share->sources.ids[0],
             &share->default_srcsend, sizeof(share->default_srcsend));
-        EAXGet(&EAXPROPERTYID_EAX40_Source, EAXSOURCE_ACTIVEFXSLOTID, share->sources.ids[0],
-            &share->default_srcslots, sizeof(share->default_srcslots));
+        share->default_srcslots[0] = GUID_NULL;
+        share->default_srcslots[1] = EAXPROPERTYID_EAX40_FXSlot0;
     }
     popALContext();
 
