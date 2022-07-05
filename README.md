@@ -38,3 +38,12 @@ goes to work the next time the application is run.
 Source releases and Windows binaries for OpenAL Soft are
 available at its [homepage](https://openal-soft.org/).
 Instructions are also provided there.
+
+### Environment Variables
+The following environment variables can be set:
+- `DSOAL_LOGLEVEL`:
+  - Values: Integer, range `0-3`
+  - Description: Set the verbosity of DSOAL logging. Level 3 enables logging of API traces.
+- `DSOAL_LOGFILE`:
+  - Values: String
+  - Description: Path to a file that is be created/overwritten by DSOAL on each execution. All logging will be redirected to that file.
