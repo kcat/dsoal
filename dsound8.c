@@ -191,7 +191,7 @@ static HRESULT DSShare_Create(REFIID guid, DeviceShare **out)
     IMMDevice *mmdev;
     ALCint attrs[7];
     void *temp;
-    HRESULT hr;
+    HRESULT hr, cohr;
     ALsizei i;
 
     share = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(*share));
@@ -203,8 +203,10 @@ static HRESULT DSShare_Create(REFIID guid, DeviceShare **out)
 
     TRACE("Creating shared device %p\n", share);
 
-    hr = get_mmdevice(eRender, guid, &mmdev);
-    if(SUCCEEDED(hr))
+    cohr = get_mmdevice(eRender, guid, &mmdev);
+    if(!mmdev)
+        hr = DSERR_INVALIDPARAM;
+    else
     {
         IPropertyStore *store;
 
@@ -272,7 +274,7 @@ static HRESULT DSShare_Create(REFIID guid, DeviceShare **out)
             IPropertyStore_Release(store);
         }
 
-        IMMDevice_Release(mmdev);
+        release_mmdevice(mmdev, cohr);
         mmdev = NULL;
     }
 
