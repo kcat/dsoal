@@ -205,7 +205,7 @@ static HRESULT DSPROPERTY_DescriptionW(
     IMMDevice *mmdevice;
     IPropertyStore *ps;
     PROPVARIANT pv;
-    HRESULT hr;
+    HRESULT hr, cohr;
 
     TRACE("pPropData=%p,cbPropData=%ld,pcbReturned=%p)\n",
           pPropData,cbPropData,pcbReturned);
@@ -227,17 +227,17 @@ static HRESULT DSPROPERTY_DescriptionW(
 
     DSOAL_GetDeviceID(&ppd->DeviceId, &dev_guid);
 
-    hr = get_mmdevice(eRender, &dev_guid, &mmdevice);
-    if(FAILED(hr)){
-        hr = get_mmdevice(eCapture, &dev_guid, &mmdevice);
-        if(FAILED(hr))
-            return hr;
+    cohr = get_mmdevice(eRender, &dev_guid, &mmdevice);
+    if(!mmdevice){
+        cohr = get_mmdevice(eCapture, &dev_guid, &mmdevice);
+        if(!mmdevice)
+            return DSERR_INVALIDPARAM;
     }
 
     hr = IMMDevice_OpenPropertyStore(mmdevice, STGM_READ, &ps);
     if(FAILED(hr))
     {
-        IMMDevice_Release(mmdevice);
+        release_mmdevice(mmdevice, cohr);
         WARN("OpenPropertyStore failed: %08lx\n", hr);
         return hr;
     }
@@ -246,7 +246,7 @@ static HRESULT DSPROPERTY_DescriptionW(
     if(FAILED(hr))
     {
         IPropertyStore_Release(ps);
-        IMMDevice_Release(mmdevice);
+        release_mmdevice(mmdevice, cohr);
         WARN("GetValue(FriendlyName) failed: %08lx\n", hr);
         return hr;
     }
@@ -258,7 +258,7 @@ static HRESULT DSPROPERTY_DescriptionW(
 
     PropVariantClear(&pv);
     IPropertyStore_Release(ps);
-    IMMDevice_Release(mmdevice);
+    release_mmdevice(mmdevice, cohr);
 
     if (pcbReturned)
     {

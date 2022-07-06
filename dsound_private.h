@@ -819,6 +819,7 @@ HRESULT DSOUND_CaptureCreate8(REFIID riid, void **ppDSC);
 typedef BOOL (CALLBACK *PRVTENUMCALLBACK)(EDataFlow flow, LPGUID guid, LPCWSTR descW, LPCWSTR modW, LPVOID data);
 HRESULT enumerate_mmdevices(EDataFlow flow, PRVTENUMCALLBACK cb, void *user);
 HRESULT get_mmdevice(EDataFlow flow, const GUID *tgt, IMMDevice **device);
+void release_mmdevice(IMMDevice *device, HRESULT init_hr);
 
 extern const WCHAR aldriver_name[];
 

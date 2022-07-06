@@ -579,6 +579,8 @@ HRESULT get_mmdevice(EDataFlow flow, const GUID *tgt, IMMDevice **device)
     UINT count, i;
     HRESULT hr, init_hr;
 
+    *device = NULL;
+
     init_hr = get_mmdevenum(&devenum);
     if(!devenum) return init_hr;
 
@@ -607,20 +609,15 @@ HRESULT get_mmdevice(EDataFlow flow, const GUID *tgt, IMMDevice **device)
         if(FAILED(hr)) continue;
 
         hr = get_mmdevice_guid(*device, NULL, &guid);
-        if(FAILED(hr))
-        {
-            IMMDevice_Release(*device);
-            continue;
-        }
-
-        if(IsEqualGUID(&guid, tgt))
+        if(SUCCEEDED(hr) && IsEqualGUID(&guid, tgt))
         {
             IMMDeviceCollection_Release(coll);
-            release_mmdevenum(devenum, init_hr);
-            return DS_OK;
+            IMMDeviceEnumerator_Release(devenum);
+            return init_hr;
         }
 
         IMMDevice_Release(*device);
+        *device = NULL;
     }
 
     WARN("No device with GUID %s found!\n", debugstr_guid(tgt));
@@ -629,6 +626,13 @@ HRESULT get_mmdevice(EDataFlow flow, const GUID *tgt, IMMDevice **device)
     release_mmdevenum(devenum, init_hr);
 
     return DSERR_INVALIDPARAM;
+}
+
+void release_mmdevice(IMMDevice *device, HRESULT init_hr)
+{
+    IMMDevice_Release(device);
+    if(SUCCEEDED(init_hr))
+        CoUninitialize();
 }
 
 /* S_FALSE means the callback returned FALSE at some point
