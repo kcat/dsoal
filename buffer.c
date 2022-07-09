@@ -658,6 +658,85 @@ HRESULT DSBuffer_GetInterface(DSBuffer *buf, REFIID riid, void **ppv)
     return E_NOINTERFACE;
 }
 
+static void DSBuffer_UpdateSourceProps(DSBuffer *buf)
+{
+    DeviceShare *share = buf->share;
+    DSData *data = buf->buffer;
+
+    if(buf->current.ds3d.dwMode != DS3DMODE_DISABLE)
+    {
+        const DSPrimary *prim = buf->primary;
+        const ALuint source = buf->source;
+        const DS3DBUFFER *params = &buf->current.ds3d;
+
+        alSource3f(source, AL_POSITION, params->vPosition.x, params->vPosition.y,
+                                       -params->vPosition.z);
+        alSource3f(source, AL_VELOCITY, params->vVelocity.x, params->vVelocity.y,
+                                       -params->vVelocity.z);
+        alSourcei(source, AL_CONE_INNER_ANGLE, params->dwInsideConeAngle);
+        alSourcei(source, AL_CONE_OUTER_ANGLE, params->dwOutsideConeAngle);
+        alSource3f(source, AL_DIRECTION, params->vConeOrientation.x,
+                                         params->vConeOrientation.y,
+                                        -params->vConeOrientation.z);
+        alSourcef(source, AL_CONE_OUTER_GAIN, mB_to_gain((float)params->lConeOutsideVolume));
+        alSourcef(source, AL_REFERENCE_DISTANCE, params->flMinDistance);
+        alSourcef(source, AL_MAX_DISTANCE, params->flMaxDistance);
+        if(HAS_EXTENSION(share, SOFT_SOURCE_SPATIALIZE))
+            alSourcei(source, AL_SOURCE_SPATIALIZE_SOFT, AL_TRUE);
+        alSourcei(source, AL_SOURCE_RELATIVE,
+            (params->dwMode==DS3DMODE_HEADRELATIVE) ? AL_TRUE : AL_FALSE
+        );
+
+        alSourcef(source, AL_ROLLOFF_FACTOR, prim->current.ds3d.flRolloffFactor);
+        if(HAS_EXTENSION(share, EXT_EAX))
+        {
+            EAXSet(&EAXPROPERTYID_EAX40_Source, EAXSOURCE_ALLPARAMETERS, source,
+                &share->default_srcprops, sizeof(share->default_srcprops));
+            EAXSet(&EAXPROPERTYID_EAX40_Source, EAXSOURCE_ALLSENDPARAMETERS, source,
+                &share->default_srcsend, sizeof(share->default_srcsend));
+            EAXSet(&EAXPROPERTYID_EAX40_Source, EAXSOURCE_ACTIVEFXSLOTID, source,
+                &share->default_srcslots, sizeof(share->default_srcslots));
+        }
+        checkALError();
+    }
+    else
+    {
+        const ALuint source = buf->source;
+        const ALfloat x = (ALfloat)(buf->current.pan-DSBPAN_LEFT)/(DSBPAN_RIGHT-DSBPAN_LEFT) -
+                          0.5f;
+
+        alSource3f(source, AL_POSITION, x, 0.0f, -sqrtf(1.0f - x*x));
+        alSource3f(source, AL_VELOCITY, 0.0f, 0.0f, 0.0f);
+        alSource3f(source, AL_DIRECTION, 0.0f, 0.0f, 0.0f);
+        alSourcef(source, AL_CONE_OUTER_GAIN, 1.0f);
+        alSourcef(source, AL_REFERENCE_DISTANCE, 1.0f);
+        alSourcef(source, AL_MAX_DISTANCE, 1000.0f);
+        alSourcef(source, AL_ROLLOFF_FACTOR, 0.0f);
+        alSourcef(source, AL_DOPPLER_FACTOR, 0.0f);
+        alSourcei(source, AL_CONE_INNER_ANGLE, 360);
+        alSourcei(source, AL_CONE_OUTER_ANGLE, 360);
+        alSourcei(source, AL_SOURCE_RELATIVE, AL_TRUE);
+        if(HAS_EXTENSION(share, SOFT_SOURCE_SPATIALIZE))
+        {
+            /* Set to auto so panning works for mono, and multi-channel works
+             * as expected.
+             */
+            alSourcei(source, AL_SOURCE_SPATIALIZE_SOFT, AL_AUTO_SOFT);
+        }
+        if(HAS_EXTENSION(share, EXT_EAX))
+        {
+            static const GUID NullSlots[EAX_MAX_ACTIVE_FXSLOTS] = { { 0 } };
+            EAXSet(&EAXPROPERTYID_EAX40_Source, EAXSOURCE_ALLPARAMETERS, source,
+                &share->default_srcprops, sizeof(share->default_srcprops));
+            EAXSet(&EAXPROPERTYID_EAX40_Source, EAXSOURCE_ALLSENDPARAMETERS, source,
+                &share->default_srcsend, sizeof(share->default_srcsend));
+            EAXSet(&EAXPROPERTYID_EAX40_Source, EAXSOURCE_ACTIVEFXSLOTID, source, (void*)NullSlots,
+                sizeof(NullSlots));
+        }
+        checkALError();
+    }
+}
+
 static HRESULT DSBuffer_SetLoc(DSBuffer *buf, DWORD loc_status)
 {
     DeviceShare *share = buf->share;
@@ -726,80 +805,7 @@ static HRESULT DSBuffer_SetLoc(DSBuffer *buf, DWORD loc_status)
      * EAX too. Depends if apps may get upset over that.
      */
 
-    if((data->dsbflags&DSBCAPS_CTRL3D))
-    {
-        const DSPrimary *prim = buf->primary;
-        const ALuint source = buf->source;
-        const DS3DBUFFER *params = &buf->current.ds3d;
-
-        alSource3f(source, AL_POSITION, params->vPosition.x, params->vPosition.y,
-                                       -params->vPosition.z);
-        alSource3f(source, AL_VELOCITY, params->vVelocity.x, params->vVelocity.y,
-                                       -params->vVelocity.z);
-        alSourcei(source, AL_CONE_INNER_ANGLE, params->dwInsideConeAngle);
-        alSourcei(source, AL_CONE_OUTER_ANGLE, params->dwOutsideConeAngle);
-        alSource3f(source, AL_DIRECTION, params->vConeOrientation.x,
-                                         params->vConeOrientation.y,
-                                        -params->vConeOrientation.z);
-        alSourcef(source, AL_CONE_OUTER_GAIN, mB_to_gain((float)params->lConeOutsideVolume));
-        alSourcef(source, AL_REFERENCE_DISTANCE, params->flMinDistance);
-        alSourcef(source, AL_MAX_DISTANCE, params->flMaxDistance);
-        if(HAS_EXTENSION(share, SOFT_SOURCE_SPATIALIZE))
-            alSourcei(source, AL_SOURCE_SPATIALIZE_SOFT,
-                (params->dwMode==DS3DMODE_DISABLE) ? AL_FALSE : AL_TRUE
-            );
-        alSourcei(source, AL_SOURCE_RELATIVE,
-            (params->dwMode!=DS3DMODE_NORMAL) ? AL_TRUE : AL_FALSE
-        );
-
-        alSourcef(source, AL_ROLLOFF_FACTOR, prim->current.ds3d.flRolloffFactor);
-        if(HAS_EXTENSION(share, EXT_EAX))
-        {
-            EAXSet(&EAXPROPERTYID_EAX40_Source, EAXSOURCE_ALLPARAMETERS, source,
-                &share->default_srcprops, sizeof(share->default_srcprops));
-            EAXSet(&EAXPROPERTYID_EAX40_Source, EAXSOURCE_ALLSENDPARAMETERS, source,
-                &share->default_srcsend, sizeof(share->default_srcsend));
-            EAXSet(&EAXPROPERTYID_EAX40_Source, EAXSOURCE_ACTIVEFXSLOTID, source,
-                &share->default_srcslots, sizeof(share->default_srcslots));
-        }
-        checkALError();
-    }
-    else
-    {
-        const ALuint source = buf->source;
-        const ALfloat x = (ALfloat)(buf->current.pan-DSBPAN_LEFT)/(DSBPAN_RIGHT-DSBPAN_LEFT) -
-                          0.5f;
-
-        alSource3f(source, AL_POSITION, x, 0.0f, -sqrtf(1.0f - x*x));
-        alSource3f(source, AL_VELOCITY, 0.0f, 0.0f, 0.0f);
-        alSource3f(source, AL_DIRECTION, 0.0f, 0.0f, 0.0f);
-        alSourcef(source, AL_CONE_OUTER_GAIN, 1.0f);
-        alSourcef(source, AL_REFERENCE_DISTANCE, 1.0f);
-        alSourcef(source, AL_MAX_DISTANCE, 1000.0f);
-        alSourcef(source, AL_ROLLOFF_FACTOR, 0.0f);
-        alSourcef(source, AL_DOPPLER_FACTOR, 0.0f);
-        alSourcei(source, AL_CONE_INNER_ANGLE, 360);
-        alSourcei(source, AL_CONE_OUTER_ANGLE, 360);
-        alSourcei(source, AL_SOURCE_RELATIVE, AL_TRUE);
-        if(HAS_EXTENSION(share, SOFT_SOURCE_SPATIALIZE))
-        {
-            /* Set to auto so panning works for mono, and multi-channel works
-             * as expected.
-             */
-            alSourcei(source, AL_SOURCE_SPATIALIZE_SOFT, AL_AUTO_SOFT);
-        }
-        if(HAS_EXTENSION(share, EXT_EAX))
-        {
-            static const GUID NullSlots[EAX_MAX_ACTIVE_FXSLOTS] = { { 0 } };
-            EAXSet(&EAXPROPERTYID_EAX40_Source, EAXSOURCE_ALLPARAMETERS, source,
-                &share->default_srcprops, sizeof(share->default_srcprops));
-            EAXSet(&EAXPROPERTYID_EAX40_Source, EAXSOURCE_ALLSENDPARAMETERS, source,
-                &share->default_srcsend, sizeof(share->default_srcsend));
-            EAXSet(&EAXPROPERTYID_EAX40_Source, EAXSOURCE_ACTIVEFXSLOTID, source, (void*)NullSlots,
-                sizeof(NullSlots));
-        }
-        checkALError();
-    }
+    DSBuffer_UpdateSourceProps(buf);
 
     buf->loc_status = loc_status;
     return DS_OK;
@@ -1495,7 +1501,7 @@ static HRESULT WINAPI DSBuffer_SetPan(IDirectSoundBuffer8 *iface, LONG pan)
     else
     {
         This->current.pan = pan;
-        if(LIKELY(This->source && !(This->buffer->dsbflags&DSBCAPS_CTRL3D)))
+        if(LIKELY(This->source && This->current.ds3d.dwMode == DS3DMODE_DISABLE))
         {
             ALfloat pos[3];
             pos[0] = (ALfloat)(pan-DSBPAN_LEFT)/(ALfloat)(DSBPAN_RIGHT-DSBPAN_LEFT) - 0.5f;
@@ -2303,12 +2309,7 @@ static HRESULT WINAPI DSBuffer3D_SetMode(IDirectSound3DBuffer *iface, DWORD mode
         This->current.ds3d.dwMode = mode;
         if(LIKELY(This->source))
         {
-            if(HAS_EXTENSION(This->share, SOFT_SOURCE_SPATIALIZE))
-                alSourcei(This->source, AL_SOURCE_SPATIALIZE_SOFT,
-                          (mode==DS3DMODE_DISABLE) ? AL_FALSE : AL_TRUE);
-            alSourcei(This->source, AL_SOURCE_RELATIVE,
-                      (mode != DS3DMODE_NORMAL) ? AL_TRUE : AL_FALSE);
-            checkALError();
+            DSBuffer_UpdateSourceProps(This);
         }
         popALContext();
     }
