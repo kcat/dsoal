@@ -8,7 +8,7 @@ on:
       - '*.*.*'
 
 env:
-  build_type: Debug
+  build_type: Release
 
 jobs:
   Windows:
