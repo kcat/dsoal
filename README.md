@@ -39,6 +39,8 @@ Source releases and Windows binaries for OpenAL Soft are
 available at its [homepage](https://openal-soft.org/).
 Instructions are also provided there.
 
+Users on Windows 8 and above may need to add certain DirectSound registry keys for the DLL to work: [dsound.zip](https://github.com/kcat/dsoal/files/10252285/dsound.zip)
+
 ### Environment Variables
 The following environment variables can be set:
 - `DSOAL_LOGLEVEL`:
