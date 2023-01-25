@@ -6,149 +6,129 @@ on:
       - 'master'
     tags-ignore:
       - '*.*.*'
+    paths-ignore:
+      - '.github/workflows/Tagged.yaml'
 
 env:
-  build_type: Release
+  Configuration: Release
+
+permissions:
+  id-token: "write"
+  contents: "write"
+  packages: "write"
 
 jobs:
-  Windows:
+  Build:
+    name: ${{matrix.config.name}}
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        config:
+        - {
+            name: "Win32",
+            platform: "Win32"
+          }
+        - {
+            name: "Win64",
+            platform: "x64"
+          }
+    steps:
+    
+    - name: Checkout repository
+      uses: actions/checkout@v3.0.0
+      with:
+        fetch-depth: '0'
+
+    - name: Clone OpenAL Soft
+      run: git clone https://github.com/kcat/openal-soft.git
+
+    - name: Get current date
+      run: echo "CurrentDate=$(date +'%Y-%m-%d')" >> $env:GITHUB_ENV
+
+    - name: Get commit hash and count
+      run: |
+        echo "DSOALCommitHashShort=$(git rev-parse --short=7 HEAD)"       >> $env:GITHUB_ENV
+        echo "DSOALCommitCount=$(git rev-list --count master)"            >> $env:GITHUB_ENV
+        cd "openal-soft"
+        echo "OpenALSoftCommitHashShort=$(git rev-parse --short=7 HEAD)"  >> $env:GITHUB_ENV
+        echo "OpenALSoftCommitCount=$(git rev-list --count master)"       >> $env:GITHUB_ENV
+        cd "${{github.workspace}}"
+
+    - name: ${{matrix.config.name}} - Build DSOAL
+      run: |
+        cmake -B "${{github.workspace}}/build" -A ${{matrix.config.platform}}
+        cmake --build "${{github.workspace}}/build" --config ${{env.Configuration}}
+
+    - name: ${{matrix.config.name}} - Build OpenAL Soft
+      run: |
+        cmake -B "${{github.workspace}}/openal-soft/build" -DCMAKE_Configuration=${{env.Configuration}} -A ${{matrix.config.platform}} -DALSOFT_BUILD_ROUTER=ON -DALSOFT_REQUIRE_WINMM=ON -DALSOFT_REQUIRE_DSOUND=ON -DALSOFT_REQUIRE_WASAPI=ON "${{github.workspace}}/openal-soft"
+        cmake --build "${{github.workspace}}/openal-soft/build" --config ${{env.Configuration}}
+
+    - name: ${{matrix.config.name}} - Collect binaries
+      run: |
+        mkdir "DSOAL"
+        mkdir "DSOAL/Documentation"
+        move "${{github.workspace}}/build/${{env.Configuration}}/dsound.dll"                "DSOAL/dsound.dll"
+        move "${{github.workspace}}/openal-soft/build/${{env.Configuration}}/soft_oal.dll"  "DSOAL/dsoal-aldrv.dll"
+        copy "${{github.workspace}}/openal-soft/alsoftrc.sample"                            "DSOAL/alsoft.ini"
+        copy "${{github.workspace}}/README.md"                                              "DSOAL/Documentation/DSOAL-ReadMe.txt"
+        copy "${{github.workspace}}/LICENSE"                                                "DSOAL/Documentation/DSOAL-License.txt"
+        copy "${{github.workspace}}/openal-soft/README.md"                                  "DSOAL/Documentation/OpenALSoft-ReadMe.txt"
+        copy "${{github.workspace}}/openal-soft/COPYING"                                    "DSOAL/Documentation/OpenALSoft-License.txt"
+        copy "${{github.workspace}}/openal-soft/BSD-3Clause"                                "DSOAL/Documentation/OpenALSoft-BSD-3Clause.txt"
+        copy "${{github.workspace}}/openal-soft/ChangeLog"                                  "DSOAL/Documentation/OpenALSoft-ChangeLog.txt"
+
+    - name: ${{matrix.config.name}} - Upload artifact to GitHub actions
+      uses: actions/upload-artifact@v3
+      with:
+        name: ${{env.CurrentDate}}_DSOAL_r${{env.DSOALCommitCount}}@${{env.DSOALCommitHashShort}}+OpenALSoft_r${{env.OpenALSoftCommitCount}}@${{env.OpenALSoftCommitHashShort}}-${{matrix.config.name}}
+        path: DSOAL/
+
+    outputs:
+      CurrentDate: ${{env.CurrentDate}}
+      DSOALCommitHashShort: ${{env.DSOALCommitHashShort}}
+      DSOALCommitCount: ${{env.DSOALCommitCount}}
+      OpenALSoftCommitHashShort: ${{env.OpenALSoftCommitHashShort}}
+      OpenALSoftCommitCount: ${{env.OpenALSoftCommitCount}}
+
+  Release:
+    needs: Build
     runs-on: windows-latest
     steps:
 
-    - name: Checkout repository
-      uses: actions/checkout@v3.0.0
-
-    - name: Clone OpenAL Soft
-      run: git clone https://github.com/kcat/openal-soft.git openal-soft
-
-    - name: Get current date
-      run: |
-        echo "date=$(date +'%Y-%m-%d')" >> $env:GITHUB_ENV
-
-
-
-
-
-
-
-
-
-
-
-
-    - name: Get commit hash
-      run: |
-        "DSOAL_sha_short=$(git rev-parse --short=7 HEAD)" >> $env:GITHUB_ENV
-        cd "openal-soft"
-        "ALSOFT_sha_short=$(git rev-parse --short=7 HEAD)" >> $env:GITHUB_ENV
-        cd "${{github.workspace}}"
-
-    - name: Create Artifacts folder
-      run: mkdir "Artifacts"
-
-    #32-bit
-    - name: Win32 - Build DSOAL
-      run: |
-        cmake -B "${{github.workspace}}/build" -A Win32
-        cmake --build "${{github.workspace}}/build" --config ${{env.build_type}}
-
-    - name: Win32 - Build OpenAL Soft
-      run: |
-        cmake -B "${{github.workspace}}/openal-soft/build" -DCMAKE_BUILD_TYPE=${{env.build_type}} -A Win32 -DALSOFT_BUILD_ROUTER=ON -DALSOFT_REQUIRE_WINMM=ON -DALSOFT_REQUIRE_DSOUND=ON -DALSOFT_REQUIRE_WASAPI=ON "${{github.workspace}}/openal-soft"
-        cmake --build "${{github.workspace}}/openal-soft/build" --config ${{env.build_type}}
-
-    - name: Win32 - Collect binaries
-      run: |
-        mkdir "${{env.date}}_DSOAL-${{env.DSOAL_sha_short}}_OpenALSoft-${{env.ALSOFT_sha_short}}-Win32"
-        move "${{github.workspace}}/build/${{env.build_type}}/dsound.dll" "${{env.date}}_DSOAL-${{env.DSOAL_sha_short}}_OpenALSoft-${{env.ALSOFT_sha_short}}-Win32/dsound.dll"
-        move "${{github.workspace}}/openal-soft/build/${{env.build_type}}/soft_oal.dll" "${{env.date}}_DSOAL-${{env.DSOAL_sha_short}}_OpenALSoft-${{env.ALSOFT_sha_short}}-Win32/dsoal-aldrv.dll"
-        copy "${{github.workspace}}/openal-soft/alsoftrc.sample" "${{env.date}}_DSOAL-${{env.DSOAL_sha_short}}_OpenALSoft-${{env.ALSOFT_sha_short}}-Win32/alsoft.ini"
-        mkdir "${{env.date}}_DSOAL-${{env.DSOAL_sha_short}}_OpenALSoft-${{env.ALSOFT_sha_short}}-Win32/Documentation"
-        copy "${{github.workspace}}/README.md" "${{env.date}}_DSOAL-${{env.DSOAL_sha_short}}_OpenALSoft-${{env.ALSOFT_sha_short}}-Win32/Documentation/DSOAL-ReadMe.txt"
-        copy "${{github.workspace}}/LICENSE" "${{env.date}}_DSOAL-${{env.DSOAL_sha_short}}_OpenALSoft-${{env.ALSOFT_sha_short}}-Win32/Documentation/DSOAL-License.txt"
-        copy "${{github.workspace}}/openal-soft/README.md" "${{env.date}}_DSOAL-${{env.DSOAL_sha_short}}_OpenALSoft-${{env.ALSOFT_sha_short}}-Win32/Documentation/OpenALSoft-ReadMe.txt"
-        copy "${{github.workspace}}/openal-soft/COPYING" "${{env.date}}_DSOAL-${{env.DSOAL_sha_short}}_OpenALSoft-${{env.ALSOFT_sha_short}}-Win32/Documentation/OpenALSoft-License.txt"
-        copy "${{github.workspace}}/openal-soft/BSD-3Clause" "${{env.date}}_DSOAL-${{env.DSOAL_sha_short}}_OpenALSoft-${{env.ALSOFT_sha_short}}-Win32/Documentation/OpenALSoft-BSD-3Clause.txt"
-        copy "${{github.workspace}}/openal-soft/ChangeLog" "${{env.date}}_DSOAL-${{env.DSOAL_sha_short}}_OpenALSoft-${{env.ALSOFT_sha_short}}-Win32/Documentation/OpenALSoft-ChangeLog.txt"
-
-    - name: Win32 - Compress artifact
-      uses: papeloto/action-zip@v1
+    - name: Download a Build Artifact
+      uses: actions/download-artifact@v3.0.2
       with:
-        files: '${{env.date}}_DSOAL-${{env.DSOAL_sha_short}}_OpenALSoft-${{env.ALSOFT_sha_short}}-Win32/'
-        dest: "Artifacts/${{env.date}}_DSOAL-${{env.DSOAL_sha_short}}_OpenALSoft-${{env.ALSOFT_sha_short}}-Win32.zip"
+        path: Release
 
-    - name: Win32 - Upload artifact to GitHub actions
-      uses: actions/upload-artifact@v3
-      with:
-        name: ${{env.date}}_DSOAL-${{env.DSOAL_sha_short}}_OpenALSoft-${{env.ALSOFT_sha_short}}-Win32
-        path: ${{env.date}}_DSOAL-${{env.DSOAL_sha_short}}_OpenALSoft-${{env.ALSOFT_sha_short}}-Win32/
-
-    - name: Cleanup build folder
-      run: |
-        Remove-Item ${{github.workspace}}/build/* -Recurse -Force
-        Remove-Item ${{github.workspace}}/openal-soft/build/* -Recurse -Force
-
-    #64-bit
-    - name: Win64 - Build DSOAL
-      run: |
-        cmake -B "${{github.workspace}}/build" -A x64
-        cmake --build "${{github.workspace}}/build" --config ${{env.build_type}}
-
-    - name: Win64 - Build OpenAL Soft
-      run: |
-        cmake -B "${{github.workspace}}/openal-soft/build" -DCMAKE_BUILD_TYPE=${{env.build_type}} -A x64 -DALSOFT_BUILD_ROUTER=ON -DALSOFT_REQUIRE_WINMM=ON -DALSOFT_REQUIRE_DSOUND=ON -DALSOFT_REQUIRE_WASAPI=ON "${{github.workspace}}/openal-soft"
-        cmake --build "${{github.workspace}}/openal-soft/build" --config ${{env.build_type}}
-
-    - name: Win64 - Collect binaries
-      run: |
-        mkdir "${{env.date}}_DSOAL-${{env.DSOAL_sha_short}}_OpenALSoft-${{env.ALSOFT_sha_short}}-Win64"
-        move "${{github.workspace}}/build/${{env.build_type}}/dsound.dll" "${{env.date}}_DSOAL-${{env.DSOAL_sha_short}}_OpenALSoft-${{env.ALSOFT_sha_short}}-Win64/dsound.dll"
-        move "${{github.workspace}}/openal-soft/build/${{env.build_type}}/soft_oal.dll" "${{env.date}}_DSOAL-${{env.DSOAL_sha_short}}_OpenALSoft-${{env.ALSOFT_sha_short}}-Win64/dsoal-aldrv.dll"
-        copy "${{github.workspace}}/openal-soft/alsoftrc.sample" "${{env.date}}_DSOAL-${{env.DSOAL_sha_short}}_OpenALSoft-${{env.ALSOFT_sha_short}}-Win64/alsoft.ini"
-        mkdir "${{env.date}}_DSOAL-${{env.DSOAL_sha_short}}_OpenALSoft-${{env.ALSOFT_sha_short}}-Win64/Documentation"
-        copy "${{github.workspace}}/README.md" "${{env.date}}_DSOAL-${{env.DSOAL_sha_short}}_OpenALSoft-${{env.ALSOFT_sha_short}}-Win64/Documentation/DSOAL-ReadMe.txt"
-        copy "${{github.workspace}}/LICENSE" "${{env.date}}_DSOAL-${{env.DSOAL_sha_short}}_OpenALSoft-${{env.ALSOFT_sha_short}}-Win64/Documentation/DSOAL-License.txt"
-        copy "${{github.workspace}}/openal-soft/README.md" "${{env.date}}_DSOAL-${{env.DSOAL_sha_short}}_OpenALSoft-${{env.ALSOFT_sha_short}}-Win64/Documentation/OpenALSoft-ReadMe.txt"
-        copy "${{github.workspace}}/openal-soft/COPYING" "${{env.date}}_DSOAL-${{env.DSOAL_sha_short}}_OpenALSoft-${{env.ALSOFT_sha_short}}-Win64/Documentation/OpenALSoft-License.txt"
-        copy "${{github.workspace}}/openal-soft/BSD-3Clause" "${{env.date}}_DSOAL-${{env.DSOAL_sha_short}}_OpenALSoft-${{env.ALSOFT_sha_short}}-Win64/Documentation/OpenALSoft-BSD-3Clause.txt"
-        copy "${{github.workspace}}/openal-soft/ChangeLog" "${{env.date}}_DSOAL-${{env.DSOAL_sha_short}}_OpenALSoft-${{env.ALSOFT_sha_short}}-Win64/Documentation/OpenALSoft-ChangeLog.txt"
-
-    - name: Win64 - Compress artifact
-      uses: papeloto/action-zip@v1
-      with:
-        files: '${{env.date}}_DSOAL-${{env.DSOAL_sha_short}}_OpenALSoft-${{env.ALSOFT_sha_short}}-Win64/'
-        dest: "Artifacts/${{env.date}}_DSOAL-${{env.DSOAL_sha_short}}_OpenALSoft-${{env.ALSOFT_sha_short}}-Win64.zip"
-
-    - name: Win64 - Upload artifact to GitHub actions
-      uses: actions/upload-artifact@v3
-      with:
-        name: ${{env.date}}_DSOAL-${{env.DSOAL_sha_short}}_OpenALSoft-${{env.ALSOFT_sha_short}}-Win64
-        path: ${{env.date}}_DSOAL-${{env.DSOAL_sha_short}}_OpenALSoft-${{env.ALSOFT_sha_short}}-Win64/
-
-    #Release
     - name: Separate binaries by architecture
       run: |
-        mkdir "${{env.date}}_DSOAL-${{env.DSOAL_sha_short}}_OpenALSoft-${{env.ALSOFT_sha_short}}/Win32"
-        move "${{env.date}}_DSOAL-${{env.DSOAL_sha_short}}_OpenALSoft-${{env.ALSOFT_sha_short}}-Win32/dsound.dll" "${{env.date}}_DSOAL-${{env.DSOAL_sha_short}}_OpenALSoft-${{env.ALSOFT_sha_short}}/Win32/dsound.dll"
-        move "${{env.date}}_DSOAL-${{env.DSOAL_sha_short}}_OpenALSoft-${{env.ALSOFT_sha_short}}-Win32/dsoal-aldrv.dll" "${{env.date}}_DSOAL-${{env.DSOAL_sha_short}}_OpenALSoft-${{env.ALSOFT_sha_short}}/Win32/dsoal-aldrv.dll"
-        move "${{env.date}}_DSOAL-${{env.DSOAL_sha_short}}_OpenALSoft-${{env.ALSOFT_sha_short}}-Win32/alsoft.ini" "${{env.date}}_DSOAL-${{env.DSOAL_sha_short}}_OpenALSoft-${{env.ALSOFT_sha_short}}/Win32/alsoft.ini"
-        mkdir "${{env.date}}_DSOAL-${{env.DSOAL_sha_short}}_OpenALSoft-${{env.ALSOFT_sha_short}}/Win64"
-        move "${{env.date}}_DSOAL-${{env.DSOAL_sha_short}}_OpenALSoft-${{env.ALSOFT_sha_short}}-Win64/dsound.dll" "${{env.date}}_DSOAL-${{env.DSOAL_sha_short}}_OpenALSoft-${{env.ALSOFT_sha_short}}/Win64/dsound.dll"
-        move "${{env.date}}_DSOAL-${{env.DSOAL_sha_short}}_OpenALSoft-${{env.ALSOFT_sha_short}}-Win64/dsoal-aldrv.dll" "${{env.date}}_DSOAL-${{env.DSOAL_sha_short}}_OpenALSoft-${{env.ALSOFT_sha_short}}/Win64/dsoal-aldrv.dll"
-        move "${{env.date}}_DSOAL-${{env.DSOAL_sha_short}}_OpenALSoft-${{env.ALSOFT_sha_short}}-Win64/alsoft.ini" "${{env.date}}_DSOAL-${{env.DSOAL_sha_short}}_OpenALSoft-${{env.ALSOFT_sha_short}}/Win64/alsoft.ini"
-        mkdir "${{env.date}}_DSOAL-${{env.DSOAL_sha_short}}_OpenALSoft-${{env.ALSOFT_sha_short}}/Documentation"
-        copy "${{github.workspace}}/README.md" "${{env.date}}_DSOAL-${{env.DSOAL_sha_short}}_OpenALSoft-${{env.ALSOFT_sha_short}}/Documentation/DSOAL-ReadMe.txt"
-        copy "${{github.workspace}}/LICENSE" "${{env.date}}_DSOAL-${{env.DSOAL_sha_short}}_OpenALSoft-${{env.ALSOFT_sha_short}}/Documentation/DSOAL-License.txt"
-        copy "${{github.workspace}}/openal-soft/README.md" "${{env.date}}_DSOAL-${{env.DSOAL_sha_short}}_OpenALSoft-${{env.ALSOFT_sha_short}}/Documentation/OpenALSoft-ReadMe.txt"
-        copy "${{github.workspace}}/openal-soft/COPYING" "${{env.date}}_DSOAL-${{env.DSOAL_sha_short}}_OpenALSoft-${{env.ALSOFT_sha_short}}/Documentation/OpenALSoft-License.txt"
-        copy "${{github.workspace}}/openal-soft/BSD-3Clause" "${{env.date}}_DSOAL-${{env.DSOAL_sha_short}}_OpenALSoft-${{env.ALSOFT_sha_short}}/Documentation/OpenALSoft-BSD-3Clause.txt"
-        copy "${{github.workspace}}/openal-soft/ChangeLog" "${{env.date}}_DSOAL-${{env.DSOAL_sha_short}}_OpenALSoft-${{env.ALSOFT_sha_short}}/Documentation/OpenALSoft-ChangeLog.txt"
+        MkDir "Release/DSOAL/Win32"
+        Copy-Item -Path "Release/${{needs.Build.outputs.CurrentDate}}_DSOAL_r${{needs.Build.outputs.DSOALCommitCount}}@${{needs.Build.outputs.DSOALCommitHashShort}}+OpenALSoft_r${{needs.Build.outputs.OpenALSoftCommitCount}}@${{needs.Build.outputs.OpenALSoftCommitHashShort}}-Win32/*" -Destination "Release/DSOAL/Win32" -Recurse
+        Move-Item "Release/DSOAL/Win32/Documentation" "Release/DSOAL"
+        MkDir "Release/DSOAL/Win64"
+        Copy-Item -Path "Release/${{needs.Build.outputs.CurrentDate}}_DSOAL_r${{needs.Build.outputs.DSOALCommitCount}}@${{needs.Build.outputs.DSOALCommitHashShort}}+OpenALSoft_r${{needs.Build.outputs.OpenALSoftCommitCount}}@${{needs.Build.outputs.OpenALSoftCommitHashShort}}-Win64/*" -Destination "Release/DSOAL/Win64" -Recurse
+        Remove-Item -LiteralPath "Release/DSOAL/Win64/Documentation" -Force -Recurse
+        Rename-Item "Release/${{needs.Build.outputs.CurrentDate}}_DSOAL_r${{needs.Build.outputs.DSOALCommitCount}}@${{needs.Build.outputs.DSOALCommitHashShort}}+OpenALSoft_r${{needs.Build.outputs.OpenALSoftCommitCount}}@${{needs.Build.outputs.OpenALSoftCommitHashShort}}-Win32" -NewName "Win32"
+        Rename-Item "Release/${{needs.Build.outputs.CurrentDate}}_DSOAL_r${{needs.Build.outputs.DSOALCommitCount}}@${{needs.Build.outputs.DSOALCommitHashShort}}+OpenALSoft_r${{needs.Build.outputs.OpenALSoftCommitCount}}@${{needs.Build.outputs.OpenALSoftCommitHashShort}}-Win64" -NewName "Win64"
+
+    - name: Compress artifacts - Win32
+      uses: vimtor/action-zip@v1.1
+      with:
+        files: 'Release/Win32/'
+        dest: "Release/${{needs.Build.outputs.CurrentDate}}_DSOAL_r${{needs.Build.outputs.DSOALCommitCount}}@${{needs.Build.outputs.DSOALCommitHashShort}}+OpenALSoft_r${{needs.Build.outputs.OpenALSoftCommitCount}}@${{needs.Build.outputs.OpenALSoftCommitHashShort}}-Win32.zip"
+
+    - name: Compress artifacts - Win64
+      uses: vimtor/action-zip@v1.1
+      with:
+        files: 'Release/Win64/'
+        dest: "Release/${{needs.Build.outputs.CurrentDate}}_DSOAL_r${{needs.Build.outputs.DSOALCommitCount}}@${{needs.Build.outputs.DSOALCommitHashShort}}+OpenALSoft_r${{needs.Build.outputs.OpenALSoftCommitCount}}@${{needs.Build.outputs.OpenALSoftCommitHashShort}}-Win64.zip"
 
     - name: Compress artifacts
-      uses: papeloto/action-zip@v1
+      uses: vimtor/action-zip@v1.1
       with:
-        files: '${{env.date}}_DSOAL-${{env.DSOAL_sha_short}}_OpenALSoft-${{env.ALSOFT_sha_short}}/'
-        dest: "Artifacts/DSOAL.zip"
+        files: 'Release/DSOAL/'
+        dest: "Release/DSOAL.zip"
 
     - name: GitHub pre-release
       uses: "marvinpinto/action-automatic-releases@latest"
@@ -156,5 +136,5 @@ jobs:
         repo_token: "${{secrets.GITHUB_TOKEN}}"
         automatic_release_tag: "latest"
         prerelease: true
-        title: "[${{env.date}}] DSOAL-${{env.DSOAL_sha_short}} OpenALSoft-${{env.ALSOFT_sha_short}}"
-        files: "Artifacts/*"
+        title: "[${{needs.Build.outputs.CurrentDate}}] DSOAL r${{needs.Build.outputs.DSOALCommitCount}}@${{needs.Build.outputs.DSOALCommitHashShort}} + OpenAL Soft r${{needs.Build.outputs.OpenALSoftCommitCount}}@${{needs.Build.outputs.OpenALSoftCommitHashShort}}"
+        files: "Release/*"
