@@ -1097,6 +1097,8 @@ static void DSPrimary_SetParams(DSPrimary *This, const DS3DLISTENER *params, LON
     }
     if(dirty.bit.dopplerfactor)
         alDopplerFactor(params->flDopplerFactor);
+    if(dirty.bit.eax)
+        EAXSet(EAXPROPERTYID_EAX40_Context, 0, 0, NULL, 0);
 }
 
 static HRESULT WINAPI DSPrimary3D_QueryInterface(IDirectSound3DListener *iface, REFIID riid, void **ppv)
