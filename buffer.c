@@ -2732,11 +2732,21 @@ static HRESULT WINAPI DSBufferProp_Set(IKsPropertySet *iface,
         ALenum err;
 
         setALContext(prim->ctx);
-        err = EAXSet(guidPropSet, dwPropID|0x80000000ul, This->source, pPropData, cbPropData);
+
+        /* If deferred settings are being committed, defer OpenAL updates so
+         * both the EAX and standard properties get batched together.
+         * CommitDeferredSettings will apply and process updates.
+         */
+        if(immediate) alDeferUpdatesSOFT();
+        err = EAXSet(guidPropSet, dwPropID, This->source, pPropData, cbPropData);
         if(err != AL_NO_ERROR) hr = E_FAIL;
         else hr = DS_OK;
+
         if(hr == DS_OK && immediate)
             DSPrimary3D_CommitDeferredSettings(&prim->IDirectSound3DListener_iface);
+        else if(immediate)
+            alProcessUpdatesSOFT();
+
         popALContext();
     }
     else if(IsEqualIID(guidPropSet, &DSPROPSETID_VoiceManager))
