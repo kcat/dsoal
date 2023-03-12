@@ -586,18 +586,14 @@ void DSBuffer_Destroy(DSBuffer *This)
     {
         DeviceShare *share = This->share;
 
-        alSourceRewind(This->source);
-        alSourcei(This->source, AL_BUFFER, 0);
+        alDeleteSources(1, &This->source);
+        This->source = 0;
         checkALError();
 
         if(This->loc_status == DSBSTATUS_LOCHARDWARE)
-            share->sources.ids[share->sources.availhw_num++] = This->source;
+            share->sources.availhw_num += 1;
         else
-        {
-            DWORD base = share->sources.maxhw_alloc;
-            share->sources.ids[base + share->sources.availsw_num++] = This->source;
-        }
-        This->source = 0;
+            share->sources.availsw_num += 1;
     }
     if(This->stream_bids[0])
         alDeleteBuffers(QBUFFERS, This->stream_bids);
@@ -671,18 +667,14 @@ static HRESULT DSBuffer_SetLoc(DSBuffer *buf, DWORD loc_status)
      */
     if(buf->source)
     {
-        alSourceRewind(buf->source);
-        alSourcei(buf->source, AL_BUFFER, 0);
+        alDeleteSources(1, &buf->source);
+        buf->source = 0;
         checkALError();
 
         if(buf->loc_status == DSBSTATUS_LOCHARDWARE)
-            share->sources.ids[share->sources.availhw_num++] = buf->source;
+            share->sources.availhw_num += 1;
         else
-        {
-            DWORD base = share->sources.maxhw_alloc;
-            share->sources.ids[base + share->sources.availsw_num++] = buf->source;
-        }
-        buf->source = 0;
+            share->sources.availsw_num += 1;
     }
     buf->loc_status = 0;
 
@@ -706,12 +698,10 @@ static HRESULT DSBuffer_SetLoc(DSBuffer *buf, DWORD loc_status)
     }
 
     if(loc_status == DSBSTATUS_LOCHARDWARE)
-        buf->source = share->sources.ids[--(share->sources.availhw_num)];
+        share->sources.availhw_num -= 1;
     else
-    {
-        DWORD base = share->sources.maxhw_alloc;
-        buf->source = share->sources.ids[base + --(share->sources.availsw_num)];
-    }
+        share->sources.availsw_num -= 1;
+    alGenSources(1, &buf->source);
     alSourcef(buf->source, AL_GAIN, mB_to_gain((float)buf->current.vol));
     alSourcef(buf->source, AL_PITCH,
         buf->current.frequency ? (float)buf->current.frequency/data->format.Format.nSamplesPerSec
@@ -754,14 +744,8 @@ static HRESULT DSBuffer_SetLoc(DSBuffer *buf, DWORD loc_status)
 
         alSourcef(source, AL_ROLLOFF_FACTOR, prim->current.ds3d.flRolloffFactor);
         if(HAS_EXTENSION(share, EXT_EAX))
-        {
-            EAXSet(&EAXPROPERTYID_EAX40_Source, EAXSOURCE_ALLPARAMETERS, source,
-                &share->default_srcprops, sizeof(share->default_srcprops));
-            EAXSet(&EAXPROPERTYID_EAX40_Source, EAXSOURCE_ALLSENDPARAMETERS, source,
-                &share->default_srcsend, sizeof(share->default_srcsend));
             EAXSet(&EAXPROPERTYID_EAX40_Source, EAXSOURCE_ACTIVEFXSLOTID, source,
                 &share->default_srcslots, sizeof(share->default_srcslots));
-        }
         checkALError();
     }
     else
@@ -791,10 +775,6 @@ static HRESULT DSBuffer_SetLoc(DSBuffer *buf, DWORD loc_status)
         if(HAS_EXTENSION(share, EXT_EAX))
         {
             static const GUID NullSlots[EAX_MAX_ACTIVE_FXSLOTS] = { { 0 } };
-            EAXSet(&EAXPROPERTYID_EAX40_Source, EAXSOURCE_ALLPARAMETERS, source,
-                &share->default_srcprops, sizeof(share->default_srcprops));
-            EAXSet(&EAXPROPERTYID_EAX40_Source, EAXSOURCE_ALLSENDPARAMETERS, source,
-                &share->default_srcsend, sizeof(share->default_srcsend));
             EAXSet(&EAXPROPERTYID_EAX40_Source, EAXSOURCE_ACTIVEFXSLOTID, source, (void*)NullSlots,
                 sizeof(NullSlots));
         }
@@ -2732,11 +2712,30 @@ static HRESULT WINAPI DSBufferProp_Set(IKsPropertySet *iface,
         ALenum err;
 
         setALContext(prim->ctx);
-        err = EAXSet(guidPropSet, dwPropID|0x80000000ul, This->source, pPropData, cbPropData);
+
+        /* If deferred settings are being committed, defer OpenAL updates so
+         * both the EAX and standard properties get batched together.
+         * CommitDeferredSettings will apply and process updates.
+         */
+        if(immediate) alDeferUpdatesSOFT();
+        err = EAXSet(guidPropSet, dwPropID, This->source, pPropData, cbPropData);
         if(err != AL_NO_ERROR) hr = E_FAIL;
         else hr = DS_OK;
-        if(hr == DS_OK && immediate)
-            DSPrimary3D_CommitDeferredSettings(&prim->IDirectSound3DListener_iface);
+
+        if(immediate)
+        {
+            if(hr == DS_OK)
+            {
+                /* Clear the eax bit since EAXSet just committed it for us. */
+                prim->dirty.bit.eax = 0;
+                DSPrimary3D_CommitDeferredSettings(&prim->IDirectSound3DListener_iface);
+            }
+            else
+                alProcessUpdatesSOFT();
+        }
+        else if(hr == DS_OK)
+            prim->dirty.bit.eax = 1;
+
         popALContext();
     }
     else if(IsEqualIID(guidPropSet, &DSPROPSETID_VoiceManager))

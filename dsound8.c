@@ -148,9 +148,6 @@ static void DSShare_Destroy(DeviceShare *share)
         EnterCriticalSection(&openal_crst);
         set_context(share->ctx);
 
-        if(share->sources.maxhw_alloc + share->sources.maxsw_alloc)
-            alDeleteSources(share->sources.maxhw_alloc+share->sources.maxsw_alloc,
-                            share->sources.ids);
         share->sources.maxhw_alloc = share->sources.maxsw_alloc = 0;
 
         set_context(NULL);
@@ -335,24 +332,10 @@ static HRESULT DSShare_Create(REFIID guid, DeviceShare **out)
         }
     }
 
-    share->sources.maxhw_alloc = 0;
-    while(share->sources.maxhw_alloc < MAX_SOURCES)
-    {
-        alGenSources(1, &share->sources.ids[share->sources.maxhw_alloc]);
-        if(alGetError() != AL_NO_ERROR) break;
-        share->sources.maxhw_alloc++;
-    }
-    if(share->sources.maxhw_alloc > 0 && HAS_EXTENSION(share, EXT_EAX))
-    {
-        EAXSet(&DSPROPSETID_EAX20_BufferProperties, DSPROPERTY_EAX20BUFFER_COMMITDEFERREDSETTINGS,
-            share->sources.ids[0], NULL, 0);
-        EAXGet(&EAXPROPERTYID_EAX40_Source, EAXSOURCE_ALLPARAMETERS, share->sources.ids[0],
-            &share->default_srcprops, sizeof(share->default_srcprops));
-        EAXGet(&EAXPROPERTYID_EAX40_Source, EAXSOURCE_ALLSENDPARAMETERS, share->sources.ids[0],
-            &share->default_srcsend, sizeof(share->default_srcsend));
-        share->default_srcslots[0] = GUID_NULL;
-        share->default_srcslots[1] = EAXPROPERTYID_EAX40_FXSlot0;
-    }
+    alcGetIntegerv(share->device, ALC_MONO_SOURCES, 1, &attrs[0]);
+    alcGetIntegerv(share->device, ALC_STEREO_SOURCES, 1, &attrs[1]);
+    checkALCError(share->device);
+    share->sources.maxhw_alloc = (DWORD)attrs[0] + (DWORD)attrs[1];
     popALContext();
 
     hr = E_OUTOFMEMORY;
@@ -382,6 +365,9 @@ static HRESULT DSShare_Create(REFIID guid, DeviceShare **out)
     share->sources.availsw_num = share->sources.maxsw_alloc;
     TRACE("Allocated %lu hardware sources and %lu software sources\n",
           share->sources.maxhw_alloc, share->sources.maxsw_alloc);
+
+    share->default_srcslots[0] = GUID_NULL;
+    share->default_srcslots[1] = EAXPROPERTYID_EAX40_FXSlot0;
 
     if(sharelist)
         temp = HeapReAlloc(GetProcessHeap(), 0, sharelist, sizeof(*sharelist)*(sharelistsize+1));
