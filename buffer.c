@@ -743,9 +743,6 @@ static HRESULT DSBuffer_SetLoc(DSBuffer *buf, DWORD loc_status)
         );
 
         alSourcef(source, AL_ROLLOFF_FACTOR, prim->current.ds3d.flRolloffFactor);
-        if(HAS_EXTENSION(share, EXT_EAX))
-            EAXSet(&EAXPROPERTYID_EAX40_Source, EAXSOURCE_ACTIVEFXSLOTID, source,
-                &share->default_srcslots, sizeof(share->default_srcslots));
         checkALError();
     }
     else

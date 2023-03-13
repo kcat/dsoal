@@ -368,9 +368,6 @@ static HRESULT DSShare_Create(REFIID guid, DeviceShare **out)
     TRACE("Allocated %lu hardware sources and %lu software sources\n",
           share->sources.maxhw_alloc, share->sources.maxsw_alloc);
 
-    share->default_srcslots[0] = GUID_NULL;
-    share->default_srcslots[1] = EAXPROPERTYID_EAX40_FXSlot0;
-
     if(sharelist)
         temp = HeapReAlloc(GetProcessHeap(), 0, sharelist, sizeof(*sharelist)*(sharelistsize+1));
     else

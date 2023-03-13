@@ -508,8 +508,6 @@ typedef struct DeviceShare {
 
     SourceCollection sources;
 
-    GUID default_srcslots[EAX_MAX_ACTIVE_FXSLOTS];
-
     HANDLE thread_hdl;
     DWORD thread_id;
 
