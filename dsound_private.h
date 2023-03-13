@@ -489,7 +489,7 @@ enum {
  */
 #define MAX_HWBUFFERS 128
 
-#define MAX_SOURCES 512
+#define MAX_SOURCES 1024
 typedef struct SourceCollection {
     DWORD maxhw_alloc, availhw_num;
     DWORD maxsw_alloc, availsw_num;
