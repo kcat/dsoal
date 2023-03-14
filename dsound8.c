@@ -339,7 +339,9 @@ static HRESULT DSShare_Create(REFIID guid, DeviceShare **out)
     popALContext();
 
     hr = E_OUTOFMEMORY;
-    if(share->sources.maxhw_alloc < 128)
+    if(share->sources.maxhw_alloc > MAX_SOURCES)
+        share->sources.maxhw_alloc = MAX_SOURCES;
+    else if(share->sources.maxhw_alloc < 128)
     {
         ERR("Could only allocate %lu sources (minimum 128 required)\n",
             share->sources.maxhw_alloc);
@@ -365,9 +367,6 @@ static HRESULT DSShare_Create(REFIID guid, DeviceShare **out)
     share->sources.availsw_num = share->sources.maxsw_alloc;
     TRACE("Allocated %lu hardware sources and %lu software sources\n",
           share->sources.maxhw_alloc, share->sources.maxsw_alloc);
-
-    share->default_srcslots[0] = GUID_NULL;
-    share->default_srcslots[1] = EAXPROPERTYID_EAX40_FXSlot0;
 
     if(sharelist)
         temp = HeapReAlloc(GetProcessHeap(), 0, sharelist, sizeof(*sharelist)*(sharelistsize+1));
