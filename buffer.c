@@ -2723,15 +2723,12 @@ static HRESULT WINAPI DSBufferProp_Set(IKsPropertySet *iface,
         {
             if(hr == DS_OK)
             {
-                /* Clear the eax bit since EAXSet just committed it for us. */
-                prim->dirty.bit.eax = 0;
+                /* CommitDeferredSettings will call alProcessUpdatesSOFT. */
                 DSPrimary3D_CommitDeferredSettings(&prim->IDirectSound3DListener_iface);
             }
             else
                 alProcessUpdatesSOFT();
         }
-        else if(hr == DS_OK)
-            prim->dirty.bit.eax = 1;
 
         popALContext();
     }

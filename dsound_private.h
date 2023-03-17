@@ -635,7 +635,6 @@ union PrimaryParamFlags {
         LONG distancefactor : 1;
         LONG rollofffactor : 1;
         LONG dopplerfactor : 1;
-        LONG eax : 1;
     } bit;
 };
 
