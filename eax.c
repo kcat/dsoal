@@ -56,11 +56,6 @@ HRESULT EAX4Slot_Query(DSPrimary *prim, DWORD propid, ULONG *pTypeSupport)
     if(!HAS_EXTENSION(prim->share, EXT_EAX))
         return E_PROP_ID_UNSUPPORTED;
 
-    if((propid&~EAXFXSLOT_PARAMETER_DEFERRED) < EAXFXSLOT_NONE)
-    {
-        FIXME("Unhandled effect propid: 0x%08lx\n", propid);
-        return DSERR_INVALIDPARAM;
-    }
     switch((propid&~EAXFXSLOT_PARAMETER_DEFERRED))
     {
     case EAXFXSLOT_NONE:
