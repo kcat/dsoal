@@ -72,6 +72,14 @@ HRESULT EAX4Slot_Query(DSPrimary *prim, DWORD propid, ULONG *pTypeSupport)
         *pTypeSupport = KSPROPERTY_SUPPORT_GET | KSPROPERTY_SUPPORT_SET;
         return DS_OK;
     }
+    /* FIXME: This should probably only succeed for the available parameters of
+     * the current effect type.
+     */
+    if((propid&~EAXFXSLOT_PARAMETER_DEFERRED) <= EAXREVERB_FLAGS)
+    {
+        *pTypeSupport = KSPROPERTY_SUPPORT_GET | KSPROPERTY_SUPPORT_SET;
+        return DS_OK;
+    }
     FIXME("Unhandled propid: 0x%08lx\n", propid);
     return E_PROP_ID_UNSUPPORTED;
 }
