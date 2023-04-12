@@ -87,6 +87,7 @@ HRESULT WINAPI DSOAL_DirectSoundFullDuplexCreate(const GUID *captureDevice,
     return E_NOTIMPL;
 }
 
+
 HRESULT WINAPI DSOAL_DirectSoundEnumerateA(LPDSENUMCALLBACKA callback, void *userPtr)
 {
     TRACE("DirectSoundEnumerateA (%p, %p)\n", callback, userPtr);
@@ -108,6 +109,7 @@ HRESULT WINAPI DSOAL_DirectSoundCaptureEnumerateW(LPDSENUMCALLBACKW callback, vo
     TRACE("DirectSoundCaptureEnumerateW (%p, %p)\n", callback, userPtr);
     return E_NOTIMPL;
 }
+
 
 HRESULT WINAPI DSOAL_DllCanUnloadNow()
 {

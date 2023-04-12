@@ -31,6 +31,7 @@ endif(MINGW)
 enable_language(RC)
 
 add_library(dsound SHARED
+  src/comptr.h
   src/dsoal_global.h
   src/dsoal.cpp
   src/dsoal.h
