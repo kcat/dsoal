@@ -38,7 +38,7 @@ void dsoal_print(LogLevel level, FILE *logfile, const char *fmt, ...)
     char *str{stcmsg.data()};
 
     const auto threadId = GetCurrentThreadId();
-    int prefixlen{std::snprintf(str, stcmsg.size(), "%04lx:%s:", threadId, prefix)};
+    int prefixlen{std::snprintf(str, stcmsg.size(), "%04lx:%s:dsound:", threadId, prefix)};
     if(prefixlen < 0) prefixlen = 0;
 
     std::va_list args, args2;
@@ -50,7 +50,7 @@ void dsoal_print(LogLevel level, FILE *logfile, const char *fmt, ...)
         dynmsg.resize(static_cast<size_t>(msglen+prefixlen) + 1u);
         str = dynmsg.data();
 
-        prefixlen = std::snprintf(str, dynmsg.size(), "%04lx:%s:", threadId, prefix);
+        prefixlen = std::snprintf(str, dynmsg.size(), "%04lx:%s:dsound:", threadId, prefix);
         if(prefixlen < 0) prefixlen = 0;
 
         std::vsnprintf(str+prefixlen, dynmsg.size()-prefixlen, fmt, args2);

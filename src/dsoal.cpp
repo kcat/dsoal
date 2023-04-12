@@ -1,7 +1,12 @@
+#define INITGUID
+
 #include "dsoal.h"
 
 #include <cstdlib>
+#include <dsound.h>
+#include <mmdeviceapi.h>
 
+#include "comptr.h"
 #include "logging.h"
 
 
@@ -87,27 +92,135 @@ HRESULT WINAPI DSOAL_DirectSoundFullDuplexCreate(const GUID *captureDevice,
     return E_NOTIMPL;
 }
 
+} // extern "C"
+
+namespace {
+
+struct ComWrapper {
+    HRESULT mStatus{};
+
+    ComWrapper() { mStatus = CoInitialize(nullptr); }
+    ComWrapper(ComWrapper&& rhs) { mStatus = std::exchange(rhs.mStatus, E_FAIL); }
+    ComWrapper(const ComWrapper&) = delete;
+    ComWrapper& operator=(ComWrapper&& rhs)
+    {
+        if(SUCCEEDED(mStatus))
+            CoUninitialize();
+        mStatus = std::exchange(rhs.mStatus, E_FAIL);
+        return *this;
+    }
+    ComWrapper& operator=(const ComWrapper&) = delete;
+
+    ~ComWrapper() { if(SUCCEEDED(mStatus)) CoUninitialize(); }
+};
+
+template<typename T>
+HRESULT enumerate_mmdev(EDataFlow flow, T cb)
+{
+    static constexpr WCHAR primary_desc[] = L"Primary Sound Driver";
+
+    ComWrapper com;
+
+    ComPtr<IMMDeviceEnumerator> devenum;
+    HRESULT hr{CoCreateInstance(CLSID_MMDeviceEnumerator, nullptr, CLSCTX_INPROC_SERVER,
+        IID_IMMDeviceEnumerator, ds::out_ptr(devenum))};
+    if(FAILED(hr))
+    {
+        ERR("CoCreateInstance failed: %08lx\n", hr);
+        return hr;
+    }
+
+    ComPtr<IMMDeviceCollection> coll;
+    hr = devenum->EnumAudioEndpoints(flow, DEVICE_STATE_ACTIVE, ds::out_ptr(coll));
+    if(FAILED(hr))
+    {
+        WARN("EnumAudioEndpoints failed: %08lx\n", hr);
+        return DS_OK;
+    }
+
+    UINT count{};
+    hr = coll->GetCount(&count);
+    if(FAILED(hr))
+    {
+        WARN("GetCount failed: %08lx\n", hr);
+        return DS_OK;
+    }
+
+    if(count == 0)
+        return DS_OK;
+
+    TRACE("enumerate_mmdev Calling back with NULL (%ls)\n", primary_desc);
+    bool keep_going{cb(nullptr, primary_desc, L"")};
+
+    return keep_going ? S_OK : S_FALSE;
+}
+
+} // namespace
+
+extern "C" {
 
 HRESULT WINAPI DSOAL_DirectSoundEnumerateA(LPDSENUMCALLBACKA callback, void *userPtr)
 {
     TRACE("DirectSoundEnumerateA (%p, %p)\n", callback, userPtr);
-    return E_NOTIMPL;
+
+    auto do_enum = [callback,userPtr](GUID *guid, const WCHAR *drvname, const WCHAR *devname)
+    {
+        const auto dlen = WideCharToMultiByte(CP_ACP, 0, drvname, -1, nullptr, 0, nullptr, nullptr);
+        const auto mlen = WideCharToMultiByte(CP_ACP, 0, devname, -1, nullptr, 0, nullptr, nullptr);
+        if(dlen < 0 || mlen < 0) return false;
+
+        auto descA = std::make_unique<char[]>(dlen+mlen+2);
+        if(!descA) return false;
+        char *modA = descA.get() + dlen+1;
+
+        WideCharToMultiByte(CP_ACP, 0, drvname, -1, descA.get(), dlen, nullptr, nullptr);
+        WideCharToMultiByte(CP_ACP, 0, devname, -1, modA, mlen, nullptr, nullptr);
+
+        return callback(guid, descA.get(), modA, userPtr) != FALSE;
+    };
+
+    return enumerate_mmdev(eRender, do_enum);
 }
 HRESULT WINAPI DSOAL_DirectSoundEnumerateW(LPDSENUMCALLBACKW callback, void *userPtr)
 {
     TRACE("DirectSoundEnumerateW (%p, %p)\n", callback, userPtr);
-    return E_NOTIMPL;
+
+    auto do_enum = [callback,userPtr](GUID *guid, const WCHAR *drvname, const WCHAR *devname)
+    { return callback(guid, drvname, devname, userPtr) != FALSE; };
+
+    return enumerate_mmdev(eRender, do_enum);
 }
 
 HRESULT WINAPI DSOAL_DirectSoundCaptureEnumerateA(LPDSENUMCALLBACKA callback, void *userPtr)
 {
     TRACE("DirectSoundCaptureEnumerateA (%p, %p)\n", callback, userPtr);
-    return E_NOTIMPL;
+
+    auto do_enum = [callback,userPtr](GUID *guid, const WCHAR *drvname, const WCHAR *devname)
+    {
+        const auto dlen = WideCharToMultiByte(CP_ACP, 0, drvname, -1, nullptr, 0, nullptr, nullptr);
+        const auto mlen = WideCharToMultiByte(CP_ACP, 0, devname, -1, nullptr, 0, nullptr, nullptr);
+        if(dlen < 0 || mlen < 0) return false;
+
+        auto descA = std::make_unique<char[]>(dlen+mlen+2);
+        if(!descA) return false;
+        char *modA = descA.get() + dlen+1;
+
+        WideCharToMultiByte(CP_ACP, 0, drvname, -1, descA.get(), dlen, nullptr, nullptr);
+        WideCharToMultiByte(CP_ACP, 0, devname, -1, modA, mlen, nullptr, nullptr);
+
+        return callback(guid, descA.get(), modA, userPtr) != FALSE;
+    };
+
+    return enumerate_mmdev(eCapture, do_enum);
 }
 HRESULT WINAPI DSOAL_DirectSoundCaptureEnumerateW(LPDSENUMCALLBACKW callback, void *userPtr)
 {
     TRACE("DirectSoundCaptureEnumerateW (%p, %p)\n", callback, userPtr);
-    return E_NOTIMPL;
+
+    auto do_enum = [callback,userPtr](GUID *guid, const WCHAR *drvname, const WCHAR *devname)
+    { return callback(guid, drvname, devname, userPtr) != FALSE; };
+
+    return enumerate_mmdev(eCapture, do_enum);
 }
 
 
