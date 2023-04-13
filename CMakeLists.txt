@@ -64,6 +64,7 @@ add_library(dsound SHARED
     src/dsoal.h
     src/dsoundoal.cpp
     src/dsoundoal.h
+    src/expected.h
     src/guidprinter.h
     src/logging.cpp
     src/logging.h
