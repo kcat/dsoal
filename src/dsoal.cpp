@@ -296,9 +296,10 @@ HRESULT WINAPI DSOAL_DirectSoundCreate8(const GUID *deviceId, IDirectSound8 **ds
         return DSERR_INVALIDPARAM;
     }
 
+    HRESULT hr{};
     try {
         auto dsobj = DSound8OAL::Create();
-        HRESULT hr{dsobj->Initialize(deviceId)};
+        hr = dsobj->Initialize(deviceId);
         if(SUCCEEDED(hr))
         {
             *ds = dsobj.release()->as<IDirectSound8*>();
@@ -306,10 +307,10 @@ HRESULT WINAPI DSOAL_DirectSoundCreate8(const GUID *deviceId, IDirectSound8 **ds
         }
     }
     catch(std::bad_alloc&) {
-        return DSERR_OUTOFMEMORY;
+        hr = DSERR_OUTOFMEMORY;
     }
 
-    return E_NOTIMPL;
+    return hr;
 }
 
 HRESULT WINAPI DSOAL_DirectSoundCaptureCreate(const GUID *deviceId, IDirectSoundCapture **ds,
