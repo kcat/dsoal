@@ -341,7 +341,67 @@ HRESULT WINAPI DSOAL_DllGetClassObject(REFCLSID rclsid, REFIID riid, void **ppv)
 HRESULT WINAPI DSOAL_GetDeviceID(const GUID *guidSrc, GUID *guidDst)
 {
     TRACE("GetDeviceID (%p, %p)\n", guidSrc, guidDst);
-    return E_NOTIMPL;
+
+    if(!guidSrc || !guidDst)
+        return DSERR_INVALIDPARAM;
+
+    ERole role{};
+    EDataFlow flow{eRender};
+    if(DSDEVID_DefaultPlayback == *guidSrc)
+        role = eMultimedia;
+    else if(DSDEVID_DefaultVoicePlayback == *guidSrc)
+        role = eCommunications;
+    else
+    {
+        flow = eCapture;
+        if(DSDEVID_DefaultCapture == *guidSrc)
+            role = eMultimedia;
+        else if(DSDEVID_DefaultVoiceCapture == *guidSrc)
+            role = eCommunications;
+        else
+        {
+            *guidDst = *guidSrc;
+            return DS_OK;
+        }
+    }
+
+    ComWrapper com;
+    ComPtr<IMMDeviceEnumerator> devenum;
+    HRESULT hr{CoCreateInstance(CLSID_MMDeviceEnumerator, nullptr, CLSCTX_INPROC_SERVER,
+        IID_IMMDeviceEnumerator, ds::out_ptr(devenum))};
+    if(FAILED(hr))
+    {
+        ERR("GetDeviceID CoCreateInstance failed: %08lx\n", hr);
+        return hr;
+    }
+
+    ComPtr<IMMDevice> device;
+    hr = devenum->GetDefaultAudioEndpoint(flow, role, ds::out_ptr(device));
+    if(FAILED(hr))
+    {
+        WARN("GetDeviceID IMMDeviceEnumerator::GetDefaultAudioEndpoint failed: %08lx\n", hr);
+        return DSERR_NODRIVER;
+    }
+
+    ComPtr<IPropertyStore> ps;
+    hr = device->OpenPropertyStore(STGM_READ, ds::out_ptr(ps));
+    if(FAILED(hr))
+    {
+        WARN("GetDeviceID IMMDevice::OpenPropertyStore failed: %08lx\n", hr);
+        return hr;
+    }
+
+    PropVariant pv;
+    hr = ps->GetValue(PKEY_AudioEndpoint_GUID, pv.get());
+    if(FAILED(hr) || pv->vt != VT_LPWSTR)
+    {
+        WARN("GetDeviceID IPropertyStore::GetValue(GUID) failed: %08lx\n", hr);
+        return hr;
+    }
+
+    CLSIDFromString(pv->pwszVal, guidDst);
+
+    return DS_OK;
 }
 
 } // extern "C"
