@@ -3,6 +3,7 @@
 
 #include <cstddef>
 #include <memory>
+#include <type_traits>
 #include <utility>
 #include <variant>
 
@@ -10,31 +11,35 @@ template<typename T>
 struct ComPtr {
     using element_type = T;
 
+    static constexpr bool RefIsNoexcept{noexcept(std::declval<T&>().AddRef())
+        && noexcept(std::declval<T&>().Release())};
+
     ComPtr() noexcept = default;
-    ComPtr(const ComPtr &rhs) noexcept(noexcept(std::declval<T&>().AddRef())) : mPtr{rhs.mPtr}
+    ComPtr(const ComPtr &rhs) noexcept(RefIsNoexcept) : mPtr{rhs.mPtr}
     { if(mPtr) mPtr->AddRef(); }
     ComPtr(ComPtr&& rhs) noexcept : mPtr{rhs.mPtr} { rhs.mPtr = nullptr; }
     ComPtr(std::nullptr_t) noexcept { }
     explicit ComPtr(T *ptr) noexcept : mPtr{ptr} { }
     ~ComPtr() { if(mPtr) mPtr->Release(); }
 
-    template<typename U=T, std::enable_if_t<noexcept(std::declval<U&>().Release()),bool> = true>
-    ComPtr& operator=(const ComPtr &rhs) noexcept(noexcept(std::declval<T&>().AddRef()))
+    ComPtr& operator=(const ComPtr &rhs) noexcept(RefIsNoexcept)
     {
-        if(rhs.mPtr) rhs.mPtr->AddRef();
-        if(mPtr) mPtr->Release();
-        mPtr = rhs.mPtr;
-        return *this;
+        if constexpr(RefIsNoexcept)
+        {
+            if(rhs.mPtr) rhs.mPtr->AddRef();
+            if(mPtr) mPtr->Release();
+            mPtr = rhs.mPtr;
+            return *this;
+        }
+        else
+        {
+            ComPtr tmp{rhs};
+            if(mPtr) mPtr->Release();
+            mPtr = tmp.release();
+            return *this;
+        }
     }
-    template<typename U=T, std::enable_if_t<!noexcept(std::declval<U&>().Release()),bool> = true>
-    ComPtr& operator=(const ComPtr &rhs)
-    {
-        ComPtr tmp{rhs};
-        if(mPtr) mPtr->Release();
-        mPtr = tmp.release();
-        return *this;
-    }
-    ComPtr& operator=(ComPtr&& rhs) noexcept(noexcept(std::declval<T&>().Release()))
+    ComPtr& operator=(ComPtr&& rhs) noexcept(RefIsNoexcept)
     {
         if(&rhs != this)
         {
@@ -44,7 +49,7 @@ struct ComPtr {
         return *this;
     }
 
-    void reset(T *ptr=nullptr) noexcept(noexcept(std::declval<T&>().Release()))
+    void reset(T *ptr=nullptr) noexcept(RefIsNoexcept)
     {
         if(mPtr) mPtr->Release();
         mPtr = ptr;
