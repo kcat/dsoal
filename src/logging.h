@@ -30,7 +30,7 @@ extern LogLevel gLogLevel;
 extern FILE *gLogFile;
 
 #if HAS_ATTRIBUTE(gnu::format)
-#ifdef __USE_MINGW_ANSI_STDIO
+#if defined(__USE_MINGW_ANSI_STDIO) && !defined(__clang__)
 [[gnu::format(gnu_printf,3,4)]]
 #else
 [[gnu::format(printf,3,4)]]

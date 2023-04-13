@@ -14,6 +14,13 @@
 #include "logging.h"
 
 
+namespace {
+
+using voidp = void*;
+using cvoidp = const void*;
+
+} // namespace
+
 extern "C" {
 
 #ifdef _MSC_VER
@@ -32,7 +39,7 @@ const IID IID_IMMDeviceEnumerator = {
 
 DSOAL_EXPORT BOOL WINAPI DllMain(HINSTANCE hInstDLL, DWORD reason, void *reserved)
 {
-    DEBUG("DllMain (%p, %lu, %p)\n", hInstDLL, reason, reserved);
+    DEBUG("DllMain (%p, %lu, %p)\n", voidp{hInstDLL}, reason, reserved);
 
     switch(reason)
     {
@@ -62,7 +69,8 @@ DSOAL_EXPORT BOOL WINAPI DllMain(HINSTANCE hInstDLL, DWORD reason, void *reserve
         }
 
         /* Increase refcount on dsound by 1 */
-        GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, (LPCWSTR)hInstDLL, &hInstDLL);
+        GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS,
+            reinterpret_cast<LPCWSTR>(hInstDLL), &hInstDLL);
         break;
 
     case DLL_PROCESS_DETACH:
@@ -76,27 +84,27 @@ DSOAL_EXPORT BOOL WINAPI DllMain(HINSTANCE hInstDLL, DWORD reason, void *reserve
 
 HRESULT WINAPI DSOAL_DirectSoundCreate(const GUID *deviceId, IDirectSound **ds, IUnknown *outer)
 {
-    TRACE("DirectSoundCreate (%p, %p, %p)\n", deviceId, ds, outer);
+    TRACE("DirectSoundCreate (%p, %p, %p)\n", cvoidp{deviceId}, voidp{ds}, voidp{outer});
     return E_NOTIMPL;
 }
 
 HRESULT WINAPI DSOAL_DirectSoundCreate8(const GUID *deviceId, IDirectSound8 **ds, IUnknown *outer)
 {
-    TRACE("DirectSoundCreate8 (%p, %p, %p)\n", deviceId, ds, outer);
+    TRACE("DirectSoundCreate8 (%p, %p, %p)\n", cvoidp{deviceId}, voidp{ds}, voidp{outer});
     return E_NOTIMPL;
 }
 
 HRESULT WINAPI DSOAL_DirectSoundCaptureCreate(const GUID *deviceId, IDirectSoundCapture **ds,
     IUnknown *outer)
 {
-    TRACE("DirectSoundCaptureCreate (%p, %p, %p)\n", deviceId, ds, outer);
+    TRACE("DirectSoundCaptureCreate (%p, %p, %p)\n", cvoidp{deviceId}, voidp{ds}, voidp{outer});
     return E_NOTIMPL;
 }
 
 HRESULT WINAPI DSOAL_DirectSoundCaptureCreate8(const GUID *deviceId, IDirectSoundCapture8 **ds,
     IUnknown *outer)
 {
-    TRACE("DirectSoundCaptureCreate8 (%p, %p, %p)\n", deviceId, ds, outer);
+    TRACE("DirectSoundCaptureCreate8 (%p, %p, %p)\n", cvoidp{deviceId}, voidp{ds}, voidp{outer});
     return E_NOTIMPL;
 }
 
@@ -106,7 +114,10 @@ HRESULT WINAPI DSOAL_DirectSoundFullDuplexCreate(const GUID *captureDevice,
     IDirectSoundFullDuplex **fullDuplex, IDirectSoundCaptureBuffer8 **captureBuffer8,
     IDirectSoundBuffer8 **renderBuffer8, IUnknown *outer)
 {
-    TRACE("DirectSoundFullDuplexCreate\n");
+    TRACE("DirectSoundFullDuplexCreate (%p, %p, %p, %p, %p, %lu, %p, %p, %p, %p)\n",
+          cvoidp{captureDevice}, cvoidp{renderDevice}, cvoidp{captureBufferDesc},
+          cvoidp{renderBufferDesc}, voidp{hWnd}, coopLevel, voidp{fullDuplex},
+          voidp{captureBuffer8}, voidp{renderBuffer8}, voidp{outer});
     return E_NOTIMPL;
 }
 
@@ -132,7 +143,10 @@ class PropVariant {
 
 public:
     PropVariant() { PropVariantInit(&mProp); }
+    PropVariant(const PropVariant&) = delete;
     ~PropVariant() { clear(); }
+
+    PropVariant& operator=(const PropVariant&) = delete;
 
     void clear() { PropVariantClear(&mProp); }
 
@@ -207,21 +221,21 @@ HRESULT enumerate_mmdev(const EDataFlow flow, std::deque<GUID> &devlist, T cb)
     TRACE("enumerate_mmdev Calling back with NULL (%ls)\n", primary_desc);
     bool keep_going{cb(nullptr, primary_desc, L"")};
 
-    auto send_device = [flow,&devlist,&cb,&keep_going](IMMDevice *device)
+    auto send_device = [&devlist,&cb,&keep_going](IMMDevice *device)
     {
         ComPtr<IPropertyStore> ps;
-        HRESULT hr{device->OpenPropertyStore(STGM_READ, ds::out_ptr(ps))};
-        if(FAILED(hr))
+        HRESULT hr2{device->OpenPropertyStore(STGM_READ, ds::out_ptr(ps))};
+        if(FAILED(hr2))
         {
-            WARN("send_device IMMDevice::OpenPropertyStore failed: %08lx\n", hr);
+            WARN("send_device IMMDevice::OpenPropertyStore failed: %08lx\n", hr2);
             return;
         }
 
         PropVariant pv;
-        hr = ps->GetValue(PKEY_AudioEndpoint_GUID, pv.get());
-        if(FAILED(hr) || pv->vt != VT_LPWSTR)
+        hr2 = ps->GetValue(PKEY_AudioEndpoint_GUID, pv.get());
+        if(FAILED(hr2) || pv->vt != VT_LPWSTR)
         {
-            WARN("send_device IPropertyStore::GetValue(GUID) failed: %08lx\n", hr);
+            WARN("send_device IPropertyStore::GetValue(GUID) failed: %08lx\n", hr2);
             return;
         }
 
@@ -234,11 +248,11 @@ HRESULT enumerate_mmdev(const EDataFlow flow, std::deque<GUID> &devlist, T cb)
         if(!keep_going) return;
 
         pv.clear();
-        hr = ps->GetValue(reinterpret_cast<const PROPERTYKEY&>(DEVPKEY_Device_FriendlyName),
+        hr2 = ps->GetValue(reinterpret_cast<const PROPERTYKEY&>(DEVPKEY_Device_FriendlyName),
             pv.get());
-        if(FAILED(hr))
+        if(FAILED(hr2))
         {
-            WARN("send_device IPropertyStore::GetValue(FriendlyName) failed: %08lx\n", hr);
+            WARN("send_device IPropertyStore::GetValue(FriendlyName) failed: %08lx\n", hr2);
             return;
         }
 
@@ -273,7 +287,7 @@ extern "C" {
 
 HRESULT WINAPI DSOAL_DirectSoundEnumerateA(LPDSENUMCALLBACKA callback, void *userPtr)
 {
-    TRACE("DirectSoundEnumerateA (%p, %p)\n", callback, userPtr);
+    TRACE("DirectSoundEnumerateA (%p, %p)\n", reinterpret_cast<void*>(callback), userPtr);
 
     auto do_enum = [callback,userPtr](GUID *guid, const WCHAR *drvname, const WCHAR *devname)
     {
@@ -281,7 +295,7 @@ HRESULT WINAPI DSOAL_DirectSoundEnumerateA(LPDSENUMCALLBACKA callback, void *use
         const auto mlen = WideCharToMultiByte(CP_ACP, 0, devname, -1, nullptr, 0, nullptr, nullptr);
         if(dlen < 0 || mlen < 0) return false;
 
-        auto descA = std::make_unique<char[]>(dlen+mlen+2);
+        auto descA = std::make_unique<char[]>(static_cast<size_t>(dlen+mlen)+2);
         if(!descA) return false;
         char *modA = descA.get() + dlen+1;
 
@@ -296,7 +310,7 @@ HRESULT WINAPI DSOAL_DirectSoundEnumerateA(LPDSENUMCALLBACKA callback, void *use
 }
 HRESULT WINAPI DSOAL_DirectSoundEnumerateW(LPDSENUMCALLBACKW callback, void *userPtr)
 {
-    TRACE("DirectSoundEnumerateW (%p, %p)\n", callback, userPtr);
+    TRACE("DirectSoundEnumerateW (%p, %p)\n", reinterpret_cast<void*>(callback), userPtr);
 
     auto do_enum = [callback,userPtr](GUID *guid, const WCHAR *drvname, const WCHAR *devname)
     { return callback(guid, drvname, devname, userPtr) != FALSE; };
@@ -307,7 +321,7 @@ HRESULT WINAPI DSOAL_DirectSoundEnumerateW(LPDSENUMCALLBACKW callback, void *use
 
 HRESULT WINAPI DSOAL_DirectSoundCaptureEnumerateA(LPDSENUMCALLBACKA callback, void *userPtr)
 {
-    TRACE("DirectSoundCaptureEnumerateA (%p, %p)\n", callback, userPtr);
+    TRACE("DirectSoundCaptureEnumerateA (%p, %p)\n", reinterpret_cast<void*>(callback), userPtr);
 
     auto do_enum = [callback,userPtr](GUID *guid, const WCHAR *drvname, const WCHAR *devname)
     {
@@ -315,7 +329,7 @@ HRESULT WINAPI DSOAL_DirectSoundCaptureEnumerateA(LPDSENUMCALLBACKA callback, vo
         const auto mlen = WideCharToMultiByte(CP_ACP, 0, devname, -1, nullptr, 0, nullptr, nullptr);
         if(dlen < 0 || mlen < 0) return false;
 
-        auto descA = std::make_unique<char[]>(dlen+mlen+2);
+        auto descA = std::make_unique<char[]>(static_cast<size_t>(dlen+mlen)+2);
         if(!descA) return false;
         char *modA = descA.get() + dlen+1;
 
@@ -330,7 +344,7 @@ HRESULT WINAPI DSOAL_DirectSoundCaptureEnumerateA(LPDSENUMCALLBACKA callback, vo
 }
 HRESULT WINAPI DSOAL_DirectSoundCaptureEnumerateW(LPDSENUMCALLBACKW callback, void *userPtr)
 {
-    TRACE("DirectSoundCaptureEnumerateW (%p, %p)\n", callback, userPtr);
+    TRACE("DirectSoundCaptureEnumerateW (%p, %p)\n", reinterpret_cast<void*>(callback), userPtr);
 
     auto do_enum = [callback,userPtr](GUID *guid, const WCHAR *drvname, const WCHAR *devname)
     { return callback(guid, drvname, devname, userPtr) != FALSE; };
@@ -348,13 +362,13 @@ HRESULT WINAPI DSOAL_DllCanUnloadNow()
 
 HRESULT WINAPI DSOAL_DllGetClassObject(REFCLSID rclsid, REFIID riid, void **ppv)
 {
-    TRACE("DllGetClassObject (%p, %p, %p)\n", &rclsid, &riid, ppv);
+    TRACE("DllGetClassObject (%p, %p, %p)\n", cvoidp{&rclsid}, cvoidp{&riid}, voidp{ppv});
     return E_NOTIMPL;
 }
 
 HRESULT WINAPI DSOAL_GetDeviceID(const GUID *guidSrc, GUID *guidDst)
 {
-    TRACE("GetDeviceID (%p, %p)\n", guidSrc, guidDst);
+    TRACE("GetDeviceID (%p, %p)\n", cvoidp{guidSrc}, voidp{guidDst});
 
     if(!guidSrc || !guidDst)
         return DSERR_INVALIDPARAM;

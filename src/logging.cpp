@@ -1,5 +1,6 @@
 #include "logging.h"
 
+#include <algorithm>
 #include <array>
 #include <cstdarg>
 #include <cstdio>
@@ -40,20 +41,20 @@ void dsoal_print(LogLevel level, FILE *logfile, const char *fmt, ...)
     const auto threadId = GetCurrentThreadId();
     int prefixlen{std::snprintf(str, stcmsg.size(), "%04lx:%s:dsound:", threadId, prefix)};
     if(prefixlen < 0) prefixlen = 0;
+    const auto uprefixlen = static_cast<unsigned int>(prefixlen);
 
     std::va_list args, args2;
     va_start(args, fmt);
     va_copy(args2, args);
-    const int msglen{std::vsnprintf(str+prefixlen, stcmsg.size()-prefixlen, fmt, args)};
-    if(msglen >= 0 && static_cast<size_t>(msglen+prefixlen) >= stcmsg.size()) UNLIKELY
+    const int msglen{std::vsnprintf(str+uprefixlen, stcmsg.size()-uprefixlen, fmt, args)};
+    if(msglen >= 0 && static_cast<size_t>(msglen)+uprefixlen >= stcmsg.size()) UNLIKELY
     {
-        dynmsg.resize(static_cast<size_t>(msglen+prefixlen) + 1u);
+        dynmsg.resize(static_cast<size_t>(msglen)+uprefixlen + 1u);
         str = dynmsg.data();
 
-        prefixlen = std::snprintf(str, dynmsg.size(), "%04lx:%s:dsound:", threadId, prefix);
-        if(prefixlen < 0) prefixlen = 0;
+        std::copy_n(stcmsg.data(), uprefixlen, str);
 
-        std::vsnprintf(str+prefixlen, dynmsg.size()-prefixlen, fmt, args2);
+        std::vsnprintf(str+uprefixlen, dynmsg.size()-uprefixlen, fmt, args2);
     }
     va_end(args2);
     va_end(args);
