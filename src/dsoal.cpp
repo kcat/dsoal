@@ -16,6 +16,8 @@
 #include "AL/alc.h"
 #include "AL/alext.h"
 #include "comptr.h"
+#include "dsoundoal.h"
+#include "guidprinter.h"
 #include "logging.h"
 
 
@@ -231,7 +233,7 @@ DSOAL_EXPORT BOOL WINAPI DllMain(HINSTANCE hInstDLL, DWORD reason, void *reserve
         if(const char *str{std::getenv("DSOAL_LOGLEVEL")}; str && str[0] != 0)
         {
             char *endptr{};
-            const auto level = std::strtol(str, &endptr, 0);
+            const auto level = std::strtol(str, &endptr, 0) + 1;
             if(!endptr || *endptr != 0)
                 ERR("Invalid log level specified: \"%s\"\n", str);
             else
@@ -268,29 +270,59 @@ DSOAL_EXPORT BOOL WINAPI DllMain(HINSTANCE hInstDLL, DWORD reason, void *reserve
     return TRUE;
 }
 
+
 HRESULT WINAPI DSOAL_DirectSoundCreate(const GUID *deviceId, IDirectSound **ds, IUnknown *outer)
 {
-    TRACE("DirectSoundCreate (%p, %p, %p)\n", cvoidp{deviceId}, voidp{ds}, voidp{outer});
+    TRACE("DirectSoundCreate (%s, %p, %p)\n", GuidPrinter{deviceId}.c_str(), voidp{ds},
+        voidp{outer});
     return E_NOTIMPL;
 }
 
 HRESULT WINAPI DSOAL_DirectSoundCreate8(const GUID *deviceId, IDirectSound8 **ds, IUnknown *outer)
 {
-    TRACE("DirectSoundCreate8 (%p, %p, %p)\n", cvoidp{deviceId}, voidp{ds}, voidp{outer});
+    TRACE("DirectSoundCreate8 (%s, %p, %p)\n", GuidPrinter{deviceId}.c_str(), voidp{ds},
+        voidp{outer});
+
+    if(!ds)
+    {
+        WARN("DirectSoundCreate invalid parameter: ppDS == NULL\n");
+        return DSERR_INVALIDPARAM;
+    }
+    *ds = NULL;
+
+    if(outer)
+    {
+        WARN("DirectSoundCreate invalid parameter: pUnkOuter != NULL\n");
+        return DSERR_INVALIDPARAM;
+    }
+
+    auto dsobj = DSound8OAL::Create();
+    if(dsobj)
+    {
+        HRESULT hr{dsobj->Initialize(deviceId)};
+        if(SUCCEEDED(hr))
+        {
+            *ds = dsobj.release()->as<IDirectSound8*>();
+            return DS_OK;
+        }
+    }
+
     return E_NOTIMPL;
 }
 
 HRESULT WINAPI DSOAL_DirectSoundCaptureCreate(const GUID *deviceId, IDirectSoundCapture **ds,
     IUnknown *outer)
 {
-    TRACE("DirectSoundCaptureCreate (%p, %p, %p)\n", cvoidp{deviceId}, voidp{ds}, voidp{outer});
+    TRACE("DirectSoundCaptureCreate (%s, %p, %p)\n", GuidPrinter{deviceId}.c_str(), voidp{ds},
+        voidp{outer});
     return E_NOTIMPL;
 }
 
 HRESULT WINAPI DSOAL_DirectSoundCaptureCreate8(const GUID *deviceId, IDirectSoundCapture8 **ds,
     IUnknown *outer)
 {
-    TRACE("DirectSoundCaptureCreate8 (%p, %p, %p)\n", cvoidp{deviceId}, voidp{ds}, voidp{outer});
+    TRACE("DirectSoundCaptureCreate8 (%s, %p, %p)\n", GuidPrinter{deviceId}.c_str(), voidp{ds},
+        voidp{outer});
     return E_NOTIMPL;
 }
 
@@ -300,29 +332,16 @@ HRESULT WINAPI DSOAL_DirectSoundFullDuplexCreate(const GUID *captureDevice,
     IDirectSoundFullDuplex **fullDuplex, IDirectSoundCaptureBuffer8 **captureBuffer8,
     IDirectSoundBuffer8 **renderBuffer8, IUnknown *outer)
 {
-    TRACE("DirectSoundFullDuplexCreate (%p, %p, %p, %p, %p, %lu, %p, %p, %p, %p)\n",
-          cvoidp{captureDevice}, cvoidp{renderDevice}, cvoidp{captureBufferDesc},
-          cvoidp{renderBufferDesc}, voidp{hWnd}, coopLevel, voidp{fullDuplex},
-          voidp{captureBuffer8}, voidp{renderBuffer8}, voidp{outer});
+    TRACE("DirectSoundFullDuplexCreate (%s, %s, %p, %p, %p, %lu, %p, %p, %p, %p)\n",
+        GuidPrinter{captureDevice}.c_str(), GuidPrinter{renderDevice}.c_str(),
+        cvoidp{captureBufferDesc}, cvoidp{renderBufferDesc}, voidp{hWnd}, coopLevel,
+        voidp{fullDuplex}, voidp{captureBuffer8}, voidp{renderBuffer8}, voidp{outer});
     return E_NOTIMPL;
 }
 
 } // extern "C"
 
 namespace {
-
-class GuidPrinter {
-    char mMsg[64];
-
-public:
-    GuidPrinter(const GUID &guid)
-    {
-        std::snprintf(mMsg, std::size(mMsg), "{%08lx-%04x-%04x-%02x%02x-%02x%02x%02x%02x%02x%02x}",
-            DWORD{guid.Data1}, guid.Data2, guid.Data3, guid.Data4[0], guid.Data4[1], guid.Data4[2],
-            guid.Data4[3], guid.Data4[4], guid.Data4[5], guid.Data4[6], guid.Data4[7]);
-    }
-    const char *c_str() const { return mMsg; }
-};
 
 class PropVariant {
     PROPVARIANT mProp;
@@ -548,13 +567,14 @@ HRESULT WINAPI DSOAL_DllCanUnloadNow()
 
 HRESULT WINAPI DSOAL_DllGetClassObject(REFCLSID rclsid, REFIID riid, void **ppv)
 {
-    TRACE("DllGetClassObject (%p, %p, %p)\n", cvoidp{&rclsid}, cvoidp{&riid}, voidp{ppv});
+    TRACE("DllGetClassObject (%s, %s, %p)\n", GuidPrinter{rclsid}.c_str(),
+        GuidPrinter{riid}.c_str(), voidp{ppv});
     return E_NOTIMPL;
 }
 
 HRESULT WINAPI DSOAL_GetDeviceID(const GUID *guidSrc, GUID *guidDst)
 {
-    TRACE("GetDeviceID (%p, %p)\n", cvoidp{guidSrc}, voidp{guidDst});
+    TRACE("GetDeviceID (%s, %p)\n", GuidPrinter{guidSrc}.c_str(), voidp{guidDst});
 
     if(!guidSrc || !guidDst)
         return DSERR_INVALIDPARAM;

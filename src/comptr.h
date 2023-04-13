@@ -11,36 +11,30 @@ struct ComPtr {
     using element_type = T;
 
     ComPtr() noexcept = default;
-    ComPtr(const ComPtr &rhs) : mPtr{rhs.mPtr} { if(mPtr) mPtr->AddRef(); }
+    ComPtr(const ComPtr &rhs) noexcept(noexcept(std::declval<T&>().AddRef())) : mPtr{rhs.mPtr}
+    { if(mPtr) mPtr->AddRef(); }
     ComPtr(ComPtr&& rhs) noexcept : mPtr{rhs.mPtr} { rhs.mPtr = nullptr; }
     ComPtr(std::nullptr_t) noexcept { }
     explicit ComPtr(T *ptr) noexcept : mPtr{ptr} { }
     ~ComPtr() { if(mPtr) mPtr->Release(); }
 
-    ComPtr& operator=(const ComPtr &rhs)
+    template<typename U=T, std::enable_if_t<noexcept(std::declval<U&>().Release()),bool> = true>
+    ComPtr& operator=(const ComPtr &rhs) noexcept(noexcept(std::declval<T&>().AddRef()))
     {
-        if(!rhs.mPtr)
-        {
-            if(mPtr)
-                mPtr->Release();
-            mPtr = nullptr;
-        }
-        else
-        {
-            rhs.mPtr->AddRef();
-            try {
-                if(mPtr)
-                    mPtr->Release();
-                mPtr = rhs.mPtr;
-            }
-            catch(...) {
-                rhs.mPtr->Release();
-                throw;
-            }
-        }
+        if(rhs.mPtr) rhs.mPtr->AddRef();
+        if(mPtr) mPtr->Release();
+        mPtr = rhs.mPtr;
         return *this;
     }
-    ComPtr& operator=(ComPtr&& rhs)
+    template<typename U=T, std::enable_if_t<!noexcept(std::declval<U&>().Release()),bool> = true>
+    ComPtr& operator=(const ComPtr &rhs)
+    {
+        ComPtr tmp{rhs};
+        if(mPtr) mPtr->Release();
+        mPtr = tmp.release();
+        return *this;
+    }
+    ComPtr& operator=(ComPtr&& rhs) noexcept(noexcept(std::declval<T&>().Release()))
     {
         if(&rhs != this)
         {
@@ -50,7 +44,7 @@ struct ComPtr {
         return *this;
     }
 
-    void reset(T *ptr=nullptr)
+    void reset(T *ptr=nullptr) noexcept(noexcept(std::declval<T&>().Release()))
     {
         if(mPtr) mPtr->Release();
         mPtr = ptr;

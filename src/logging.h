@@ -21,6 +21,7 @@
 enum class LogLevel {
     Disable,
     Error,
+    Fixme,
     Warning,
     Trace,
     Debug
@@ -40,7 +41,7 @@ void dsoal_print(LogLevel level, FILE *logfile, const char *fmt, ...);
 
 #define DEBUG(...) do {                                                       \
     if(gLogLevel >= LogLevel::Debug) UNLIKELY                                 \
-        dsoal_print(LogLevel::Trace, gLogFile, __VA_ARGS__);                  \
+        dsoal_print(LogLevel::Debug, gLogFile, __VA_ARGS__);                  \
 } while(0)
 
 #define TRACE(...) do {                                                       \
@@ -51,6 +52,11 @@ void dsoal_print(LogLevel level, FILE *logfile, const char *fmt, ...);
 #define WARN(...) do {                                                        \
     if(gLogLevel >= LogLevel::Warning) UNLIKELY                               \
         dsoal_print(LogLevel::Warning, gLogFile, __VA_ARGS__);                \
+} while(0)
+
+#define FIXME(...) do {                                                       \
+    if(gLogLevel >= LogLevel::Fixme) UNLIKELY                                 \
+        dsoal_print(LogLevel::Fixme, gLogFile, __VA_ARGS__);                  \
 } while(0)
 
 #define ERR(...) do {                                                         \

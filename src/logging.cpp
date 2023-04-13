@@ -30,6 +30,7 @@ void dsoal_print(LogLevel level, FILE *logfile, const char *fmt, ...)
     case LogLevel::Disable: break;
     case LogLevel::Debug: break;
     case LogLevel::Error: prefix = "err"; break;
+    case LogLevel::Fixme: prefix = "fixme"; break;
     case LogLevel::Warning: prefix = "warn"; break;
     case LogLevel::Trace: prefix = "trace"; break;
     }
