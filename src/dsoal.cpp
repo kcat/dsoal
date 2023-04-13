@@ -1,15 +1,20 @@
 #define INITGUID
 
 #include "dsoal.h"
+#include "dsoal_global.h"
 
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <deque>
 #include <devpkey.h>
 #include <dsound.h>
 #include <mmdeviceapi.h>
 #include <mutex>
 
+#include "AL/al.h"
+#include "AL/alc.h"
+#include "AL/alext.h"
 #include "comptr.h"
 #include "logging.h"
 
@@ -19,7 +24,179 @@ namespace {
 using voidp = void*;
 using cvoidp = const void*;
 
+HMODULE gOpenalHandle{};
+
+constexpr WCHAR aldriver_name[] = L"dsoal-aldrv.dll";
+
+template<typename T>
+bool load_function(T &func, const char *name)
+{
+    const auto ptr = GetProcAddress(gOpenalHandle, name);
+    static_assert(sizeof(T) == sizeof(decltype(ptr)));
+
+    std::memcpy(&func, &ptr, sizeof(func));
+    if(!func) UNLIKELY
+    {
+        ERR("load_function Couldn't lookup %s in %ls\n", name, aldriver_name);
+        return false;
+    }
+    return true;
+}
+
+template<typename T>
+void load_alcfunction(T &func, const char *name)
+{
+    const auto ptr = alcGetProcAddress(nullptr, name);
+    static_assert(sizeof(T) == sizeof(decltype(ptr)));
+
+    std::memcpy(&func, &ptr, sizeof(func));
+}
+
+bool load_openal()
+{
+    gOpenalHandle = LoadLibraryW(aldriver_name);
+    if(!gOpenalHandle)
+    {
+        ERR("load_openal Couldn't load %ls: %lu\n", aldriver_name, GetLastError());
+        return false;
+    }
+
+    bool ok{true};
+#define LOAD_FUNCPTR(f) ok &= load_function(p##f, #f)
+
+    LOAD_FUNCPTR(alcCreateContext);
+    LOAD_FUNCPTR(alcMakeContextCurrent);
+    LOAD_FUNCPTR(alcProcessContext);
+    LOAD_FUNCPTR(alcSuspendContext);
+    LOAD_FUNCPTR(alcDestroyContext);
+    LOAD_FUNCPTR(alcGetCurrentContext);
+    LOAD_FUNCPTR(alcGetContextsDevice);
+    LOAD_FUNCPTR(alcOpenDevice);
+    LOAD_FUNCPTR(alcCloseDevice);
+    LOAD_FUNCPTR(alcGetError);
+    LOAD_FUNCPTR(alcIsExtensionPresent);
+    LOAD_FUNCPTR(alcGetProcAddress);
+    LOAD_FUNCPTR(alcGetEnumValue);
+    LOAD_FUNCPTR(alcGetString);
+    LOAD_FUNCPTR(alcGetIntegerv);
+    LOAD_FUNCPTR(alcCaptureOpenDevice);
+    LOAD_FUNCPTR(alcCaptureCloseDevice);
+    LOAD_FUNCPTR(alcCaptureStart);
+    LOAD_FUNCPTR(alcCaptureStop);
+    LOAD_FUNCPTR(alcCaptureSamples);
+    LOAD_FUNCPTR(alEnable);
+    LOAD_FUNCPTR(alDisable);
+    LOAD_FUNCPTR(alIsEnabled);
+    LOAD_FUNCPTR(alGetString);
+    LOAD_FUNCPTR(alGetBooleanv);
+    LOAD_FUNCPTR(alGetIntegerv);
+    LOAD_FUNCPTR(alGetFloatv);
+    LOAD_FUNCPTR(alGetDoublev);
+    LOAD_FUNCPTR(alGetBoolean);
+    LOAD_FUNCPTR(alGetInteger);
+    LOAD_FUNCPTR(alGetFloat);
+    LOAD_FUNCPTR(alGetDouble);
+    LOAD_FUNCPTR(alGetError);
+    LOAD_FUNCPTR(alIsExtensionPresent);
+    LOAD_FUNCPTR(alGetProcAddress);
+    LOAD_FUNCPTR(alGetEnumValue);
+    LOAD_FUNCPTR(alListenerf);
+    LOAD_FUNCPTR(alListener3f);
+    LOAD_FUNCPTR(alListenerfv);
+    LOAD_FUNCPTR(alListeneri);
+    LOAD_FUNCPTR(alListener3i);
+    LOAD_FUNCPTR(alListeneriv);
+    LOAD_FUNCPTR(alGetListenerf);
+    LOAD_FUNCPTR(alGetListener3f);
+    LOAD_FUNCPTR(alGetListenerfv);
+    LOAD_FUNCPTR(alGetListeneri);
+    LOAD_FUNCPTR(alGetListener3i);
+    LOAD_FUNCPTR(alGetListeneriv);
+    LOAD_FUNCPTR(alGenSources);
+    LOAD_FUNCPTR(alDeleteSources);
+    LOAD_FUNCPTR(alIsSource);
+    LOAD_FUNCPTR(alSourcef);
+    LOAD_FUNCPTR(alSource3f);
+    LOAD_FUNCPTR(alSourcefv);
+    LOAD_FUNCPTR(alSourcei);
+    LOAD_FUNCPTR(alSource3i);
+    LOAD_FUNCPTR(alSourceiv);
+    LOAD_FUNCPTR(alGetSourcef);
+    LOAD_FUNCPTR(alGetSource3f);
+    LOAD_FUNCPTR(alGetSourcefv);
+    LOAD_FUNCPTR(alGetSourcei);
+    LOAD_FUNCPTR(alGetSource3i);
+    LOAD_FUNCPTR(alGetSourceiv);
+    LOAD_FUNCPTR(alSourcePlayv);
+    LOAD_FUNCPTR(alSourceStopv);
+    LOAD_FUNCPTR(alSourceRewindv);
+    LOAD_FUNCPTR(alSourcePausev);
+    LOAD_FUNCPTR(alSourcePlay);
+    LOAD_FUNCPTR(alSourceStop);
+    LOAD_FUNCPTR(alSourceRewind);
+    LOAD_FUNCPTR(alSourcePause);
+    LOAD_FUNCPTR(alSourceQueueBuffers);
+    LOAD_FUNCPTR(alSourceUnqueueBuffers);
+    LOAD_FUNCPTR(alGenBuffers);
+    LOAD_FUNCPTR(alDeleteBuffers);
+    LOAD_FUNCPTR(alIsBuffer);
+    LOAD_FUNCPTR(alBufferf);
+    LOAD_FUNCPTR(alBuffer3f);
+    LOAD_FUNCPTR(alBufferfv);
+    LOAD_FUNCPTR(alBufferi);
+    LOAD_FUNCPTR(alBuffer3i);
+    LOAD_FUNCPTR(alBufferiv);
+    LOAD_FUNCPTR(alGetBufferf);
+    LOAD_FUNCPTR(alGetBuffer3f);
+    LOAD_FUNCPTR(alGetBufferfv);
+    LOAD_FUNCPTR(alGetBufferi);
+    LOAD_FUNCPTR(alGetBuffer3i);
+    LOAD_FUNCPTR(alGetBufferiv);
+    LOAD_FUNCPTR(alBufferData);
+    LOAD_FUNCPTR(alDopplerFactor);
+    LOAD_FUNCPTR(alDopplerVelocity);
+    LOAD_FUNCPTR(alDistanceModel);
+    LOAD_FUNCPTR(alSpeedOfSound);
+#undef LOAD_FUNCPTR
+
+    if(!ok)
+    {
+        WARN("load_openal Unloading %ls\n", aldriver_name);
+        if(gOpenalHandle)
+            FreeLibrary(gOpenalHandle);
+        gOpenalHandle = nullptr;
+        return false;
+    }
+
+    TRACE("load_openal Loaded %ls\n", aldriver_name);
+
+    if(!alcIsExtensionPresent(nullptr, "ALC_EXT_thread_local_context"))
+    {
+        ERR("load_openal Required ALC_EXT_thread_local_context not supported in %ls\n", aldriver_name);
+        if(gOpenalHandle)
+            FreeLibrary(gOpenalHandle);
+        gOpenalHandle = nullptr;
+        return false;
+    }
+
+#define LOAD_FUNCPTR(f) load_alcfunction(p##f, #f)
+    LOAD_FUNCPTR(alcSetThreadContext);
+    LOAD_FUNCPTR(alcGetThreadContext);
+    LOAD_FUNCPTR(EAXSet);
+    LOAD_FUNCPTR(EAXGet);
+    LOAD_FUNCPTR(alDeferUpdatesSOFT);
+    LOAD_FUNCPTR(alProcessUpdatesSOFT);
+    LOAD_FUNCPTR(alBufferStorageSOFT);
+    LOAD_FUNCPTR(alMapBufferSOFT);
+    LOAD_FUNCPTR(alUnmapBufferSOFT);
+    LOAD_FUNCPTR(alFlushMappedBufferSOFT);
+#undef LOAD_FUNCPTR
+
+    return true;
+}
+
 } // namespace
+
 
 extern "C" {
 
@@ -68,6 +245,14 @@ DSOAL_EXPORT BOOL WINAPI DllMain(HINSTANCE hInstDLL, DWORD reason, void *reserve
             }
         }
 
+        if(!load_openal())
+        {
+            if(gLogFile != stderr)
+                fclose(gLogFile);
+            gLogFile = stderr;
+            return FALSE;
+        }
+
         /* Increase refcount on dsound by 1 */
         GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS,
             reinterpret_cast<LPCWSTR>(hInstDLL), &hInstDLL);
@@ -77,6 +262,7 @@ DSOAL_EXPORT BOOL WINAPI DllMain(HINSTANCE hInstDLL, DWORD reason, void *reserve
         if(gLogFile != stderr)
             fclose(gLogFile);
         gLogFile = stderr;
+        break;
     }
 
     return TRUE;
@@ -258,7 +444,7 @@ HRESULT enumerate_mmdev(const EDataFlow flow, std::deque<GUID> &devlist, T cb)
 
         TRACE("send_device Calling back with %s - %ls\n", GuidPrinter{devlist.back()}.c_str(),
             pv->pwszVal);
-        keep_going = cb(&devlist.back(), pv->pwszVal, L"dsoal-aldrv.dll");
+        keep_going = cb(&devlist.back(), pv->pwszVal, aldriver_name);
     };
 
     ComPtr<IMMDevice> device;

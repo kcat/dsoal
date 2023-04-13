@@ -54,14 +54,18 @@ endif(MINGW)
 enable_language(RC)
 
 add_library(dsound SHARED
-  src/comptr.h
-  src/dsoal_global.h
-  src/dsoal.cpp
-  src/dsoal.h
-  src/logging.cpp
-  src/logging.h
-  version.rc
-  ${DEF_FILE}
+    src/AL/al.h
+    src/AL/alc.h
+    src/AL/alext.h
+    src/AL/efx.h
+    src/comptr.h
+    src/dsoal_global.h
+    src/dsoal.cpp
+    src/dsoal.h
+    src/logging.cpp
+    src/logging.h
+    version.rc
+    ${DEF_FILE}
 )
 set_target_properties(dsound PROPERTIES PREFIX "")
 target_link_libraries(dsound PRIVATE ${DSOAL_LINK_FLAGS})
