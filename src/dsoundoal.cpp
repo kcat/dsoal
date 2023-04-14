@@ -202,11 +202,30 @@ ds::expected<std::unique_ptr<SharedDevice>,HRESULT> CreateDeviceShare(GUID &guid
         return hr;
     }
 
+    ALCint numMono{}, numStereo{};
+    alcGetIntegerv(aldev.get(), ALC_MONO_SOURCES, 1, &numMono);
+    alcGetIntegerv(aldev.get(), ALC_STEREO_SOURCES, 1, &numStereo);
+    alcGetError(aldev.get());
+
+    if(numMono < 0) numMono = 0;
+    if(numStereo < 0) numStereo = 0;
+    const DWORD totalSources{static_cast<DWORD>(numMono) + static_cast<DWORD>(numStereo)};
+    if(totalSources < 128)
+    {
+        ERR("CreateDeviceShare Could only allocate %lu sources (minimum 128 required)\n",
+            totalSources);
+        return DSERR_OUTOFMEMORY;
+    }
+
+    const DWORD maxHw{totalSources > MaxHwSources*2 ? MaxHwSources : (MaxHwSources/2)};
+
     auto shared = std::make_unique<SharedDevice>();
     shared->mId = guid;
     shared->mSpeakerConfig = speakerconf;
-    shared->mDevice = aldev.release();
-    shared->mContext = alctx.release();
+    shared->mMaxHwSources = maxHw;
+    shared->mMaxSwSources = totalSources - maxHw;
+    shared->mDevice.reset(aldev.release());
+    shared->mContext.reset(alctx.release());
 
     return shared;
 }
@@ -214,20 +233,20 @@ ds::expected<std::unique_ptr<SharedDevice>,HRESULT> CreateDeviceShare(GUID &guid
 } // namespace
 
 
+std::mutex DSound8OAL::sDeviceListMutex;
+std::vector<std::unique_ptr<SharedDevice>> DSound8OAL::sDeviceList;
+
 SharedDevice::~SharedDevice()
 {
     if(mContext)
     {
-        if(mContext == alcGetThreadContext())
+        if(mContext.get() == alcGetThreadContext())
             alcSetThreadContext(nullptr);
-        alcDestroyContext(mContext);
+        alcDestroyContext(mContext.release());
     }
     if(mDevice)
-        alcCloseDevice(mDevice);
+        alcCloseDevice(mDevice.release());
 }
-
-std::mutex DSound8OAL::sDeviceListMutex;
-std::vector<std::unique_ptr<SharedDevice>> DSound8OAL::sDeviceList;
 
 
 ComPtr<DSound8OAL> DSound8OAL::Create(bool is8)
@@ -322,7 +341,45 @@ HRESULT STDMETHODCALLTYPE DSound8OAL::CreateSoundBuffer(const DSBUFFERDESC *buff
 HRESULT STDMETHODCALLTYPE DSound8OAL::GetCaps(DSCAPS *dsCaps) noexcept
 {
     DEBUG("DSound8OAL::GetCaps (%p)->(%p)\n", voidp{this}, voidp{dsCaps});
-    return E_NOTIMPL;
+
+    if(!mShared)
+    {
+        WARN("DSound8OAL::GetCaps Device not initialized\n");
+        return DSERR_UNINITIALIZED;
+    }
+
+    if(!dsCaps || dsCaps->dwSize < sizeof(*dsCaps))
+    {
+        WARN("DSound8OAL::GetCaps Invalid DSCAPS (%p, %lu)\n", voidp{dsCaps},
+            dsCaps ? dsCaps->dwSize : 0lu);
+        return DSERR_INVALIDPARAM;
+    }
+
+    dsCaps->dwFlags = DSCAPS_CONTINUOUSRATE | DSCAPS_CERTIFIED | DSCAPS_PRIMARY16BIT
+        | DSCAPS_PRIMARYSTEREO | DSCAPS_PRIMARY8BIT | DSCAPS_PRIMARYMONO | DSCAPS_SECONDARY16BIT
+        | DSCAPS_SECONDARY8BIT | DSCAPS_SECONDARYMONO | DSCAPS_SECONDARYSTEREO;
+    dsCaps->dwPrimaryBuffers = 1;
+    dsCaps->dwMinSecondarySampleRate = DSBFREQUENCY_MIN;
+    dsCaps->dwMaxSecondarySampleRate = DSBFREQUENCY_MAX;
+    dsCaps->dwMaxHwMixingAllBuffers =
+        dsCaps->dwMaxHwMixingStaticBuffers =
+        dsCaps->dwMaxHwMixingStreamingBuffers =
+        dsCaps->dwMaxHw3DAllBuffers =
+        dsCaps->dwMaxHw3DStaticBuffers =
+        dsCaps->dwMaxHw3DStreamingBuffers = mShared->mMaxHwSources;
+    dsCaps->dwFreeHwMixingAllBuffers =
+        dsCaps->dwFreeHwMixingStaticBuffers =
+        dsCaps->dwFreeHwMixingStreamingBuffers =
+        dsCaps->dwFreeHw3DAllBuffers =
+        dsCaps->dwFreeHw3DStaticBuffers =
+        dsCaps->dwFreeHw3DStreamingBuffers = mShared->mMaxHwSources;
+    dsCaps->dwTotalHwMemBytes =
+        dsCaps->dwFreeHwMemBytes = 64 * 1024 * 1024;
+    dsCaps->dwMaxContigFreeHwMemBytes = dsCaps->dwFreeHwMemBytes;
+    dsCaps->dwUnlockTransferRateHwBuffers = 4096;
+    dsCaps->dwPlayCpuOverheadSwBuffers = 0;
+
+    return DS_OK;
 }
 
 HRESULT STDMETHODCALLTYPE DSound8OAL::DuplicateSoundBuffer(IDirectSoundBuffer *origBuffer,
@@ -336,7 +393,28 @@ HRESULT STDMETHODCALLTYPE DSound8OAL::DuplicateSoundBuffer(IDirectSoundBuffer *o
 HRESULT STDMETHODCALLTYPE DSound8OAL::SetCooperativeLevel(HWND hwnd, DWORD level) noexcept
 {
     DEBUG("DSound8OAL::SetCooperativeLevel (%p)->(%p, %lu)\n", voidp{this}, voidp{hwnd}, level);
-    return E_NOTIMPL;
+
+    if(!mShared)
+    {
+        WARN("DSound8OAL::SetCooperativeLevel Device not initialized\n");
+        return DSERR_UNINITIALIZED;
+    }
+
+    if(level > DSSCL_WRITEPRIMARY || level < DSSCL_NORMAL)
+    {
+        WARN("DSound8OAL::SetCooperativeLevel Invalid coop level: %lu\n", level);
+        return DSERR_INVALIDPARAM;
+    }
+
+    if(level == DSSCL_WRITEPRIMARY)
+    {
+        FIXME("DSound8OAL::SetCooperativeLevel DSSCL_WRITEPRIMARY not currently supported\n");
+        return DSERR_INVALIDPARAM;
+    }
+
+    mPrioLevel = level;
+
+    return DS_OK;
 }
 
 HRESULT STDMETHODCALLTYPE DSound8OAL::Compact() noexcept

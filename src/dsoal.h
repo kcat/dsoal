@@ -12,6 +12,7 @@
 HRESULT WINAPI GetDeviceID(const GUID &guidSrc, GUID &guidDst) noexcept;
 
 inline constexpr size_t MaxSources{1024};
+inline constexpr size_t MaxHwSources{128};
 
 
 #ifndef AL_SOFT_map_buffer
