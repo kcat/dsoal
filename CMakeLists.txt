@@ -58,6 +58,7 @@ add_library(dsound SHARED
     src/AL/alc.h
     src/AL/alext.h
     src/AL/efx.h
+    src/comhelpers.h
     src/comptr.h
     src/dsoal_global.h
     src/dsoal.cpp

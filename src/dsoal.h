@@ -8,6 +8,12 @@
 #include "AL/alc.h"
 #include "AL/alext.h"
 
+
+HRESULT WINAPI GetDeviceID(const GUID &guidSrc, GUID &guidDst) noexcept;
+
+inline constexpr size_t MaxSources{1024};
+
+
 #ifndef AL_SOFT_map_buffer
 #define AL_SOFT_map_buffer 1
 typedef unsigned int ALbitfieldSOFT;
