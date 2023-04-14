@@ -617,7 +617,7 @@ HRESULT WINAPI DSOAL_DirectSoundCaptureEnumerateW(LPDSENUMCALLBACKW callback, vo
 HRESULT WINAPI DSOAL_DllCanUnloadNow() noexcept
 {
     TRACE("DllCanUnloadNow\n");
-    return S_OK;
+    return S_FALSE;
 }
 
 HRESULT WINAPI DSOAL_DllGetClassObject(REFCLSID rclsid, REFIID riid, void **ppv) noexcept
