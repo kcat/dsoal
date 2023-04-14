@@ -275,13 +275,6 @@ HRESULT WINAPI DSOAL_DirectSoundCreate(const GUID *deviceId, IDirectSound **ds, 
 {
     TRACE("DirectSoundCreate (%s, %p, %p)\n", GuidPrinter{deviceId}.c_str(), voidp{ds},
         voidp{outer});
-    return E_NOTIMPL;
-}
-
-HRESULT WINAPI DSOAL_DirectSoundCreate8(const GUID *deviceId, IDirectSound8 **ds, IUnknown *outer) noexcept
-{
-    TRACE("DirectSoundCreate8 (%s, %p, %p)\n", GuidPrinter{deviceId}.c_str(), voidp{ds},
-        voidp{outer});
 
     if(!ds)
     {
@@ -298,7 +291,42 @@ HRESULT WINAPI DSOAL_DirectSoundCreate8(const GUID *deviceId, IDirectSound8 **ds
 
     HRESULT hr{};
     try {
-        auto dsobj = DSound8OAL::Create();
+        auto dsobj = DSound8OAL::Create(false);
+        hr = dsobj->Initialize(deviceId);
+        if(SUCCEEDED(hr))
+        {
+            *ds = dsobj.release()->as<IDirectSound*>();
+            return DS_OK;
+        }
+    }
+    catch(std::bad_alloc&) {
+        hr = DSERR_OUTOFMEMORY;
+    }
+
+    return hr;
+}
+
+HRESULT WINAPI DSOAL_DirectSoundCreate8(const GUID *deviceId, IDirectSound8 **ds, IUnknown *outer) noexcept
+{
+    TRACE("DirectSoundCreate8 (%s, %p, %p)\n", GuidPrinter{deviceId}.c_str(), voidp{ds},
+        voidp{outer});
+
+    if(!ds)
+    {
+        WARN("DirectSoundCreate8 invalid parameter: ppDS == NULL\n");
+        return DSERR_INVALIDPARAM;
+    }
+    *ds = NULL;
+
+    if(outer)
+    {
+        WARN("DirectSoundCreate8 invalid parameter: pUnkOuter != NULL\n");
+        return DSERR_INVALIDPARAM;
+    }
+
+    HRESULT hr{};
+    try {
+        auto dsobj = DSound8OAL::Create(true);
         hr = dsobj->Initialize(deviceId);
         if(SUCCEEDED(hr))
         {

@@ -11,12 +11,12 @@ using cvoidp = const void*;
 
 } // namespace
 
-ComPtr<DSound8OAL> DSound8OAL::Create()
+ComPtr<DSound8OAL> DSound8OAL::Create(bool is8)
 {
-    return ComPtr<DSound8OAL>{new DSound8OAL{}};
+    return ComPtr<DSound8OAL>{new DSound8OAL{is8}};
 }
 
-DSound8OAL::DSound8OAL() = default;
+DSound8OAL::DSound8OAL(bool is8) : mIs8{is8} { };
 
 DSound8OAL::~DSound8OAL() = default;
 
@@ -30,17 +30,25 @@ HRESULT STDMETHODCALLTYPE DSound8OAL::QueryInterface(REFIID riid, void** ppvObje
     if(riid == IID_IUnknown)
     {
         AddRef();
-        *ppvObject = as<IUnknown*>();
+        *ppvObject = static_cast<IUnknown*>(as<IDirectSound8*>());
         return S_OK;
     }
     if(riid == IID_IDirectSound8)
     {
+        if(!mIs8) UNLIKELY
+        {
+            WARN("DSound8OAL::QueryInterface Requesting IDirectSound8 iface for non-DS8 object\n");
+            return E_NOINTERFACE;
+        }
         AddRef();
         *ppvObject = as<IDirectSound8*>();
         return S_OK;
     }
     if(riid == IID_IDirectSound)
     {
+        AddRef();
+        *ppvObject = as<IDirectSound*>();
+        return S_OK;
     }
 
     FIXME("Unhandled GUID: %s\n", GuidPrinter{riid}.c_str());
@@ -58,7 +66,8 @@ ULONG STDMETHODCALLTYPE DSound8OAL::Release() noexcept
 {
     const auto ret = mRef.fetch_sub(std::memory_order_relaxed) - 1;
     DEBUG("DSound8OAL::Release (%p) ref %lu\n", voidp{this}, ret);
-    if(ret == 0) delete this;
+    if(ret == 0) UNLIKELY
+        delete this;
     return ret;
 }
 
