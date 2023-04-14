@@ -348,13 +348,48 @@ HRESULT STDMETHODCALLTYPE DSound8OAL::Compact() noexcept
 HRESULT STDMETHODCALLTYPE DSound8OAL::GetSpeakerConfig(DWORD *speakerConfig) noexcept
 {
     DEBUG("DSound8OAL::GetSpeakerConfig (%p)->(%p)\n", voidp{this}, voidp{speakerConfig});
-    return E_NOTIMPL;
+
+    if(!speakerConfig)
+        return DSERR_INVALIDPARAM;
+    *speakerConfig = 0;
+
+    if(!mShared)
+    {
+        WARN("Device not initialized\n");
+        return DSERR_UNINITIALIZED;
+    }
+
+    *speakerConfig = mShared->mSpeakerConfig;
+
+    return DS_OK;
 }
 
 HRESULT STDMETHODCALLTYPE DSound8OAL::SetSpeakerConfig(DWORD speakerConfig) noexcept
 {
     DEBUG("DSound8OAL::SetSpeakerConfig (%p)->(%lx)\n", voidp{this}, speakerConfig);
-    return E_NOTIMPL;
+
+    if(!mShared)
+    {
+        WARN("DSound8OAL::SetSpeakerConfig Device not initialized\n");
+        return DSERR_UNINITIALIZED;
+    }
+
+    const DWORD geo{DSSPEAKER_GEOMETRY(speakerConfig)};
+    const DWORD speaker{DSSPEAKER_CONFIG(speakerConfig)};
+
+    if(geo && (geo < DSSPEAKER_GEOMETRY_MIN || geo > DSSPEAKER_GEOMETRY_MAX))
+    {
+        WARN("DSound8OAL::SetSpeakerConfig Invalid speaker angle %lu\n", geo);
+        return DSERR_INVALIDPARAM;
+    }
+    if(speaker < DSSPEAKER_HEADPHONE || speaker > DSSPEAKER_5POINT1_SURROUND)
+    {
+        WARN("DSound8OAL::SetSpeakerConfig Invalid speaker config %lu\n", speaker);
+        return DSERR_INVALIDPARAM;
+    }
+
+    /* No-op on Vista+. */
+    return DS_OK;
 }
 
 HRESULT STDMETHODCALLTYPE DSound8OAL::Initialize(const GUID *deviceId) noexcept
@@ -403,5 +438,18 @@ HRESULT STDMETHODCALLTYPE DSound8OAL::Initialize(const GUID *deviceId) noexcept
 HRESULT STDMETHODCALLTYPE DSound8OAL::VerifyCertification(DWORD *certified) noexcept
 {
     DEBUG("DSound8OAL::VerifyCertification (%p)->(%p)\n", voidp{this}, voidp{certified});
-    return E_NOTIMPL;
+
+    if(!certified)
+        return DSERR_INVALIDPARAM;
+    *certified = 0;
+
+    if(!mShared)
+    {
+        WARN("DSound8OAL::VerifyCertification Device not initialized\n");
+        return DSERR_UNINITIALIZED;
+    }
+
+    *certified = DS_CERTIFIED;
+
+    return DS_OK;
 }
