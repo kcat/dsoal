@@ -362,7 +362,8 @@ HRESULT WINAPI DSOAL_DirectSoundCreate(const GUID *deviceId, IDirectSound **ds, 
             return DS_OK;
         }
     }
-    catch(std::bad_alloc&) {
+    catch(std::bad_alloc &e) {
+        ERR("DirectSoundCreate Caught exception: %s\n", e.what());
         hr = DSERR_OUTOFMEMORY;
     }
 
@@ -397,7 +398,8 @@ HRESULT WINAPI DSOAL_DirectSoundCreate8(const GUID *deviceId, IDirectSound8 **ds
             return DS_OK;
         }
     }
-    catch(std::bad_alloc&) {
+    catch(std::bad_alloc &e) {
+        ERR("DirectSoundCreate8 Caught exception: %s\n", e.what());
         hr = DSERR_OUTOFMEMORY;
     }
 
