@@ -301,7 +301,8 @@ const IID IID_IMMDeviceEnumerator{
     0x9614, 0x4F35,
     { 0xA7, 0x46, 0xDE, 0x8D, 0xB6, 0x36, 0x17, 0xE6 }
 };
-#endif
+
+#else
 
 const GUID KSDATAFORMAT_SUBTYPE_PCM{
     0x00000001,
@@ -313,6 +314,7 @@ const GUID KSDATAFORMAT_SUBTYPE_IEEE_FLOAT{
     0x0000, 0x0010,
     { 0x80, 0x00, 0x00, 0xAA, 0x00, 0x38, 0x9b, 0x71 }
 };
+#endif
 
 DSOAL_EXPORT BOOL WINAPI DllMain(HINSTANCE hInstDLL, DWORD reason, void *reserved)
 {
