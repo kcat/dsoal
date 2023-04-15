@@ -47,7 +47,7 @@ std::optional<DWORD> GetSpeakerConfig(IMMDevice *device, const GUID &devid)
     }
 
     PropVariant pv;
-    hr = ps->GetValue(ds::PKEY_AudioEndpoint_GUID, pv.get());
+    hr = ps->GetValue(PKEY_AudioEndpoint_GUID, pv.get());
     if(FAILED(hr) || pv->vt != VT_LPWSTR)
     {
         WARN("GetSpeakerConfig IPropertyStore::GetValue(GUID) failed: %08lx\n", hr);
@@ -64,7 +64,7 @@ std::optional<DWORD> GetSpeakerConfig(IMMDevice *device, const GUID &devid)
 
     DWORD speakerconf{DSSPEAKER_7POINT1_SURROUND};
 
-    hr = ps->GetValue(ds::PKEY_AudioEndpoint_PhysicalSpeakers, pv.get());
+    hr = ps->GetValue(PKEY_AudioEndpoint_PhysicalSpeakers, pv.get());
     if(FAILED(hr))
     {
         WARN("GetSpeakerConfig IPropertyStore::GetValue(PhysicalSpeakers) failed: %08lx\n", hr);
@@ -103,7 +103,7 @@ std::optional<DWORD> GetSpeakerConfig(IMMDevice *device, const GUID &devid)
 
     if(DSSPEAKER_CONFIG(speakerconf) == DSSPEAKER_STEREO)
     {
-        hr = ps->GetValue(ds::PKEY_AudioEndpoint_FormFactor, pv.get());
+        hr = ps->GetValue(PKEY_AudioEndpoint_FormFactor, pv.get());
         if(FAILED(hr))
             WARN("GetSpeakerConfig IPropertyStore::GetValue(FormFactor) failed: %08lx\n", hr);
         else if(pv->vt != VT_UI4)
@@ -126,8 +126,8 @@ ds::expected<std::unique_ptr<SharedDevice>,HRESULT> CreateDeviceShare(GUID &guid
 
     ComWrapper com;
     ComPtr<IMMDeviceEnumerator> devenum;
-    HRESULT hr{CoCreateInstance(ds::CLSID_MMDeviceEnumerator, nullptr, CLSCTX_INPROC_SERVER,
-        ds::IID_IMMDeviceEnumerator, ds::out_ptr(devenum))};
+    HRESULT hr{CoCreateInstance(CLSID_MMDeviceEnumerator, nullptr, CLSCTX_INPROC_SERVER,
+        IID_IMMDeviceEnumerator, ds::out_ptr(devenum))};
     if(FAILED(hr))
     {
         ERR("CreateDeviceShare CoCreateInstance failed: %08lx\n", hr);
@@ -287,13 +287,13 @@ HRESULT STDMETHODCALLTYPE DSound8OAL::QueryInterface(REFIID riid, void** ppvObje
         voidp{ppvObject});
 
     *ppvObject = NULL;
-    if(riid == ds::IID_IUnknown)
+    if(riid == IID_IUnknown)
     {
         mUnknownIface.AddRef();
         *ppvObject = mUnknownIface.as<IUnknown*>();
         return S_OK;
     }
-    if(riid == ds::IID_IDirectSound8)
+    if(riid == IID_IDirectSound8)
     {
         if(!mIs8) UNLIKELY
         {
@@ -304,7 +304,7 @@ HRESULT STDMETHODCALLTYPE DSound8OAL::QueryInterface(REFIID riid, void** ppvObje
         *ppvObject = as<IDirectSound8*>();
         return S_OK;
     }
-    if(riid == ds::IID_IDirectSound)
+    if(riid == IID_IDirectSound)
     {
         AddRef();
         *ppvObject = as<IDirectSound*>();
@@ -417,7 +417,7 @@ HRESULT STDMETHODCALLTYPE DSound8OAL::CreateSoundBuffer(const DSBUFFERDESC *buff
         hr = DS_OK;
         if(mPrimaryBuffer.AddRef() == 1)
         {
-            hr = mPrimaryBuffer.Initialize(this, &bufdesc);
+            hr = mPrimaryBuffer.Initialize(as<IDirectSound*>(), &bufdesc);
             if(FAILED(hr))
                 mPrimaryBuffer.Release();
         }
@@ -588,8 +588,8 @@ HRESULT STDMETHODCALLTYPE DSound8OAL::Initialize(const GUID *deviceId) noexcept
     }
 
     if(!deviceId || *deviceId == GUID_NULL)
-        deviceId = &ds::DEVID_DefaultPlayback;
-    else if(*deviceId == ds::DEVID_DefaultCapture || *deviceId == ds::DEVID_DefaultVoiceCapture)
+        deviceId = &DSDEVID_DefaultPlayback;
+    else if(*deviceId == DSDEVID_DefaultCapture || *deviceId == DSDEVID_DefaultVoiceCapture)
         return DSERR_NODRIVER;
 
     GUID devid{};

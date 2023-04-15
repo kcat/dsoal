@@ -1,7 +1,5 @@
 #include "primarybuffer.h"
 
-#include <mmreg.h>
-
 #include "dsoal.h"
 #include "dsoundoal.h"
 #include "guidprinter.h"
@@ -29,13 +27,13 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::QueryInterface(REFIID riid, void** ppvO
         voidp{ppvObject});
 
     *ppvObject = NULL;
-    if(riid == ds::IID_IUnknown)
+    if(riid == IID_IUnknown)
     {
         AddRef();
         *ppvObject = as<IUnknown*>();
         return S_OK;
     }
-    if(riid == ds::IID_IDirectSoundBuffer)
+    if(riid == IID_IDirectSoundBuffer)
     {
         AddRef();
         *ppvObject = as<IDirectSoundBuffer*>();
@@ -362,12 +360,12 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::SetFormat(const WAVEFORMATEX *wfx) noex
             if(fromx->Samples.wValidBitsPerSample > fromx->Format.wBitsPerSample)
                 return DSERR_INVALIDPARAM;
 
-            if(fromx->SubFormat == ds::KSDATAFORMAT_SUBTYPE_PCM)
+            if(fromx->SubFormat == KSDATAFORMAT_SUBTYPE_PCM)
             {
                 if(wfx->wBitsPerSample > 32)
                     return DSERR_INVALIDPARAM;
             }
-            else if(fromx->SubFormat == ds::KSDATAFORMAT_SUBTYPE_IEEE_FLOAT)
+            else if(fromx->SubFormat == KSDATAFORMAT_SUBTYPE_IEEE_FLOAT)
             {
                 if(wfx->wBitsPerSample != 32)
                     return DSERR_INVALIDPARAM;

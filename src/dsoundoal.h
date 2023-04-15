@@ -8,8 +8,8 @@
 #include <vector>
 
 #include "AL/alc.h"
-
 #include "comptr.h"
+#include "dsoal.h"
 #include "primarybuffer.h"
 
 
@@ -40,7 +40,7 @@ struct SharedDevice {
 };
 
 
-class DSound8OAL final : IDirectSound8, IDirectSound {
+class DSound8OAL final : IDirectSound8 {
     DSound8OAL(bool is8);
     ~DSound8OAL();
 
@@ -103,5 +103,15 @@ public:
 
     static ComPtr<DSound8OAL> Create(bool is8);
 };
+
+#ifdef __MINGW32__
+/* MinGW headers do not have IDirectSound8 inherit from IDirectSound, which
+ * MSVC apparently does. IDirectSound is a subset of IDirectSoundBuffer, so it
+ * should be ABI-compatible.
+ */
+template<>
+inline IDirectSound *DSound8OAL::as() noexcept
+{ return ds::bit_cast<IDirectSound*>(static_cast<IDirectSound8*>(this)); }
+#endif
 
 #endif // DSOUNDOAL_H

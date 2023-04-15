@@ -21,19 +21,19 @@ HRESULT STDMETHODCALLTYPE Buffer::QueryInterface(REFIID riid, void** ppvObject) 
         voidp{ppvObject});
 
     *ppvObject = NULL;
-    if(riid == ds::IID_IUnknown)
+    if(riid == IID_IUnknown)
     {
         mUnknownIface.AddRef();
         *ppvObject = mUnknownIface.as<IUnknown*>();
         return S_OK;
     }
-    if(riid == ds::IID_IDirectSoundBuffer)
+    if(riid == IID_IDirectSoundBuffer)
     {
         AddRef();
         *ppvObject = as<IDirectSoundBuffer*>();
         return S_OK;
     }
-    if(riid == ds::IID_IDirectSoundBuffer8)
+    if(riid == IID_IDirectSoundBuffer8)
     {
         if(!mIs8)
         {

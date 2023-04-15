@@ -76,7 +76,7 @@ public:
  * subset of IDirectSoundBuffer8, so it should be ABI-compatible.
  */
 template<>
-IDirectSoundBuffer *Buffer::as() noexcept
+inline IDirectSoundBuffer *Buffer::as() noexcept
 { return ds::bit_cast<IDirectSoundBuffer*>(static_cast<IDirectSoundBuffer8*>(this)); }
 #endif
 
