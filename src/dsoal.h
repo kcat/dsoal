@@ -3,6 +3,7 @@
 
 #include <cmath>
 #include <cstring>
+#include <type_traits>
 
 #include <windows.h>
 #include <dsound.h>

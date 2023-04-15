@@ -2,7 +2,6 @@
 
 #include <cstdio>
 #include <cstdlib>
-#include <cstring>
 #include <deque>
 #include <mutex>
 #include <tuple>
