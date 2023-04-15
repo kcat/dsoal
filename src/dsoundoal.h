@@ -8,7 +8,9 @@
 #include <vector>
 
 #include "AL/alc.h"
+
 #include "comptr.h"
+#include "primarybuffer.h"
 
 
 struct SharedDevice {
@@ -45,12 +47,37 @@ class DSound8OAL final : IDirectSound8, IDirectSound {
     static std::mutex sDeviceListMutex;
     static std::vector<std::unique_ptr<SharedDevice>> sDeviceList;
 
-    std::atomic<ULONG> mRef{1u};
+    class UnknownImpl final : IUnknown {
+        DSound8OAL *impl_from_base() noexcept
+        {
+#ifdef __GNUC__
+    _Pragma("GCC diagnostic push")
+    _Pragma("GCC diagnostic ignored \"-Wcast-align\"")
+#endif
+            return CONTAINING_RECORD(this, DSound8OAL, mUnknownIface);
+#ifdef __GNUC__
+    _Pragma("GCC diagnostic pop")
+#endif
+        }
+
+    public:
+        HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void** ppvObject) noexcept override;
+        ULONG STDMETHODCALLTYPE AddRef() noexcept override;
+        ULONG STDMETHODCALLTYPE Release() noexcept override;
+
+        template<typename T>
+        T as() noexcept { return static_cast<T>(this); }
+    };
+    UnknownImpl mUnknownIface;
+
+    std::atomic<ULONG> mTotalRef{1u}, mDsRef{1u}, mUnkRef{0u};
 
     bool mIs8{};
     DWORD mPrioLevel{};
 
     SharedDevice *mShared{};
+
+    PrimaryBuffer mPrimaryBuffer;
 
 public:
     /*** IUnknown methods ***/
@@ -65,7 +92,7 @@ public:
     HRESULT STDMETHODCALLTYPE Compact() noexcept override;
     HRESULT STDMETHODCALLTYPE GetSpeakerConfig(DWORD *speakerConfig) noexcept override;
     HRESULT STDMETHODCALLTYPE SetSpeakerConfig(DWORD speakerConfig) noexcept override;
-    HRESULT STDMETHODCALLTYPE Initialize(const GUID *lpcGuid) noexcept override;
+    HRESULT STDMETHODCALLTYPE Initialize(const GUID *deviceId) noexcept override;
     HRESULT STDMETHODCALLTYPE VerifyCertification(DWORD *certified) noexcept override;
 
     template<typename T>

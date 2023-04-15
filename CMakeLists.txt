@@ -69,6 +69,8 @@ add_library(dsound SHARED
     src/guidprinter.h
     src/logging.cpp
     src/logging.h
+    src/primarybuffer.cpp
+    src/primarybuffer.h
     version.rc
     ${DEF_FILE}
 )

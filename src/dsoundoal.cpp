@@ -289,8 +289,8 @@ HRESULT STDMETHODCALLTYPE DSound8OAL::QueryInterface(REFIID riid, void** ppvObje
     *ppvObject = NULL;
     if(riid == IID_IUnknown)
     {
-        AddRef();
-        *ppvObject = static_cast<IUnknown*>(as<IDirectSound8*>());
+        mUnknownIface.AddRef();
+        *ppvObject = mUnknownIface.as<IUnknown*>();
         return S_OK;
     }
     if(riid == IID_IDirectSound8)
@@ -317,16 +317,17 @@ HRESULT STDMETHODCALLTYPE DSound8OAL::QueryInterface(REFIID riid, void** ppvObje
 
 ULONG STDMETHODCALLTYPE DSound8OAL::AddRef() noexcept
 {
-    const auto ret = mRef.fetch_add(std::memory_order_relaxed) + 1;
+    mTotalRef.fetch_add(1u, std::memory_order_relaxed);
+    const auto ret = mDsRef.fetch_add(1u, std::memory_order_relaxed) + 1;
     DEBUG("DSound8OAL::AddRef (%p) ref %lu\n", voidp{this}, ret);
     return ret;
 }
 
 ULONG STDMETHODCALLTYPE DSound8OAL::Release() noexcept
 {
-    const auto ret = mRef.fetch_sub(std::memory_order_relaxed) - 1;
+    const auto ret = mDsRef.fetch_sub(1u, std::memory_order_relaxed) - 1;
     DEBUG("DSound8OAL::Release (%p) ref %lu\n", voidp{this}, ret);
-    if(ret == 0) UNLIKELY
+    if(mTotalRef.fetch_sub(1u, std::memory_order_relaxed) == 1u) UNLIKELY
         delete this;
     return ret;
 }
@@ -337,7 +338,98 @@ HRESULT STDMETHODCALLTYPE DSound8OAL::CreateSoundBuffer(const DSBUFFERDESC *buff
 {
     DEBUG("DSound8OAL::CreateSoundBuffer (%p)->(%p, %p, %p)\n", voidp{this}, cvoidp{bufferDesc},
         voidp{dsBuffer}, voidp{outer});
-    return E_NOTIMPL;
+
+    if(!dsBuffer)
+    {
+        WARN("DSound8OAL::CreateSoundBuffer dsBuffer is null\n");
+        return DSERR_INVALIDPARAM;
+    }
+    *dsBuffer = nullptr;
+
+    if(outer)
+    {
+        WARN("DSound8OAL::CreateSoundBuffer Aggregation isn't supported\n");
+        return DSERR_NOAGGREGATION;
+    }
+    if(!bufferDesc || bufferDesc->dwSize < sizeof(DSBUFFERDESC1))
+    {
+        WARN("DSound8OAL::CreateSoundBuffer Invalid DSBUFFERDESC (%p, %lu)\n", cvoidp{bufferDesc},
+            bufferDesc ? bufferDesc->dwSize : 0);
+        return DSERR_INVALIDPARAM;
+    }
+
+    if(!mShared)
+    {
+        WARN("DSound8OAL::CreateSoundBuffer Device not initialized\n");
+        return DSERR_UNINITIALIZED;
+    }
+
+    DSBUFFERDESC bufdesc{};
+    std::memcpy(&bufdesc, bufferDesc, std::min<DWORD>(sizeof(bufdesc), bufferDesc->dwSize));
+    bufdesc.dwSize = std::min<DWORD>(sizeof(bufdesc), bufferDesc->dwSize);
+
+    TRACE("DSound8OAL::CreateSoundBuffer Requested buffer:\n"
+          "    Size        = %lu\n"
+          "    Flags       = 0x%08lx\n"
+          "    BufferBytes = %lu\n",
+        bufdesc.dwSize, bufdesc.dwFlags, bufdesc.dwBufferBytes);
+
+    if(bufdesc.dwSize >= sizeof(DSBUFFERDESC))
+    {
+        if(!(bufdesc.dwFlags&DSBCAPS_CTRL3D))
+        {
+            if(bufdesc.guid3DAlgorithm != GUID_NULL)
+            {
+                /* Not fatal. Some apps pass unknown values here. */
+                WARN("DSound8OAL::CreateSoundBuffer Unknown 3D algorithm GUID specified for non-3D buffer: %s\n",
+                    GuidPrinter{bufdesc.guid3DAlgorithm}.c_str());
+            }
+        }
+        else
+        {
+            TRACE("DSound8OAL::CreateSoundBuffer Requested 3D algorithm GUID: %s\n",
+                GuidPrinter{bufdesc.guid3DAlgorithm}.c_str());
+        }
+    }
+
+    /* OpenAL doesn't support playing with 3d and panning at same time. */
+    if((bufdesc.dwFlags&(DSBCAPS_CTRL3D|DSBCAPS_CTRLPAN)) == (DSBCAPS_CTRL3D|DSBCAPS_CTRLPAN))
+    {
+        if(!mIs8)
+        {
+            static int once{0};
+            if(!once)
+            {
+                ++once;
+                FIXME("DSound8OAL::CreateSoundBuffer Buffers with 3D and pan control ignore panning\n");
+            }
+        }
+        else
+        {
+            WARN("DSound8OAL::CreateSoundBuffer Cannot create buffers with 3D and pan control\n");
+            return DSERR_INVALIDPARAM;
+        }
+    }
+
+    HRESULT hr{E_FAIL};
+    if((bufdesc.dwFlags&DSBCAPS_PRIMARYBUFFER))
+    {
+        hr = DS_OK;
+        if(mPrimaryBuffer.AddRef() == 1)
+        {
+            hr = mPrimaryBuffer.Initialize(this, &bufdesc);
+            if(FAILED(hr))
+                mPrimaryBuffer.Release();
+        }
+        if(SUCCEEDED(hr))
+            *dsBuffer = mPrimaryBuffer.as<IDirectSoundBuffer*>();
+    }
+    else
+    {
+        FIXME("DSound8OAL::CreateSoundBuffer Secondary buffers TBI\n");
+    }
+
+    return hr;
 }
 
 HRESULT STDMETHODCALLTYPE DSound8OAL::GetCaps(DSCAPS *dsCaps) noexcept
@@ -387,7 +479,7 @@ HRESULT STDMETHODCALLTYPE DSound8OAL::GetCaps(DSCAPS *dsCaps) noexcept
 HRESULT STDMETHODCALLTYPE DSound8OAL::DuplicateSoundBuffer(IDirectSoundBuffer *origBuffer,
     IDirectSoundBuffer **dupBuffer) noexcept
 {
-    DEBUG("DSound8OAL::DuplicateSoundBuffer (%p)->(%p, %p)\n", voidp{this}, voidp{origBuffer},
+    FIXME("DSound8OAL::DuplicateSoundBuffer (%p)->(%p, %p)\n", voidp{this}, voidp{origBuffer},
         voidp{dupBuffer});
     return E_NOTIMPL;
 }
@@ -404,7 +496,7 @@ HRESULT STDMETHODCALLTYPE DSound8OAL::SetCooperativeLevel(HWND hwnd, DWORD level
 
     if(level > DSSCL_WRITEPRIMARY || level < DSSCL_NORMAL)
     {
-        WARN("DSound8OAL::SetCooperativeLevel Invalid coop level: %lu\n", level);
+        WARN("DSound8OAL::SetCooperativeLevel Invalid cooperative level: %lu\n", level);
         return DSERR_INVALIDPARAM;
     }
 
@@ -421,8 +513,21 @@ HRESULT STDMETHODCALLTYPE DSound8OAL::SetCooperativeLevel(HWND hwnd, DWORD level
 
 HRESULT STDMETHODCALLTYPE DSound8OAL::Compact() noexcept
 {
-    DEBUG("DSound8OAL::DuplicateSoundBuffer (%p)->()\n", voidp{this});
-    return E_NOTIMPL;
+    DEBUG("DSound8OAL::Compact (%p)->()\n", voidp{this});
+
+    if(!mShared)
+    {
+        WARN("DSound8OAL::Compact Device not initialized\n");
+        return DSERR_UNINITIALIZED;
+    }
+
+    if(mPrioLevel < DSSCL_PRIORITY)
+    {
+        WARN("DSound8OAL::Compact Cooperative level too low: %lu\n", mPrioLevel);
+        return DSERR_PRIOLEVELNEEDED;
+    }
+
+    return DS_OK;
 }
 
 HRESULT STDMETHODCALLTYPE DSound8OAL::GetSpeakerConfig(DWORD *speakerConfig) noexcept
@@ -532,4 +637,29 @@ HRESULT STDMETHODCALLTYPE DSound8OAL::VerifyCertification(DWORD *certified) noex
     *certified = DS_CERTIFIED;
 
     return DS_OK;
+}
+
+
+HRESULT STDMETHODCALLTYPE DSound8OAL::UnknownImpl::QueryInterface(REFIID riid, void **ppvObject) noexcept
+{
+    return impl_from_base()->QueryInterface(riid, ppvObject);
+}
+
+ULONG STDMETHODCALLTYPE DSound8OAL::UnknownImpl::AddRef() noexcept
+{
+    auto self = impl_from_base();
+    self->mTotalRef.fetch_add(1u, std::memory_order_relaxed);
+    const auto ret = self->mUnkRef.fetch_add(1u, std::memory_order_relaxed) + 1;
+    DEBUG("DSound8OAL::UnknownImpl::AddRef (%p) ref %lu\n", voidp{this}, ret);
+    return ret;
+}
+
+ULONG STDMETHODCALLTYPE DSound8OAL::UnknownImpl::Release() noexcept
+{
+    auto self = impl_from_base();
+    const auto ret = self->mUnkRef.fetch_sub(1u, std::memory_order_relaxed) - 1;
+    DEBUG("DSound8OAL::UnknownImpl::Release (%p) ref %lu\n", voidp{this}, ret);
+    if(self->mTotalRef.fetch_sub(1u, std::memory_order_relaxed) == 1u) UNLIKELY
+        delete self;
+    return ret;
 }
