@@ -131,7 +131,7 @@ ds::expected<std::unique_ptr<SharedDevice>,HRESULT> CreateDeviceShare(GUID &guid
     if(FAILED(hr))
     {
         ERR("CreateDeviceShare CoCreateInstance failed: %08lx\n", hr);
-        return hr;
+        return ds::unexpected(hr);
     }
 
     ComPtr<IMMDeviceCollection> coll;
@@ -139,7 +139,7 @@ ds::expected<std::unique_ptr<SharedDevice>,HRESULT> CreateDeviceShare(GUID &guid
     if(FAILED(hr))
     {
         WARN("CreateDeviceShare IMMDeviceEnumerator::EnumAudioEndpoints failed: %08lx\n", hr);
-        return hr;
+        return ds::unexpected(hr);
     }
 
     UINT count{};
@@ -147,7 +147,7 @@ ds::expected<std::unique_ptr<SharedDevice>,HRESULT> CreateDeviceShare(GUID &guid
     if(FAILED(hr))
     {
         WARN("CreateDeviceShare IMMDeviceCollection::GetCount failed: %08lx\n", hr);
-        return hr;
+        return ds::unexpected(hr);
     }
 
     for(UINT i{0};i < count;++i)
@@ -170,7 +170,7 @@ ds::expected<std::unique_ptr<SharedDevice>,HRESULT> CreateDeviceShare(GUID &guid
     if(FAILED(hr))
     {
         ERR("CreateDeviceShare Failed to convert GUID to string\n");
-        return hr;
+        return ds::unexpected(hr);
     }
     WideCharToMultiByte(CP_UTF8, 0, guid_str, -1, drv_name, sizeof(drv_name), NULL, NULL);
     drv_name[sizeof(drv_name)-1] = 0;
@@ -183,7 +183,7 @@ ds::expected<std::unique_ptr<SharedDevice>,HRESULT> CreateDeviceShare(GUID &guid
     {
         WARN("CreateDeviceShare Couldn't open device \"%s\", 0x%04x\n", drv_name,
             alcGetError(nullptr));
-        return hr;
+        return ds::unexpected(hr);
     }
     TRACE("CreateDeviceShare Opened AL device: %s\n",
         alcIsExtensionPresent(aldev.get(), "ALC_ENUMERATE_ALL_EXT") ?
@@ -199,7 +199,7 @@ ds::expected<std::unique_ptr<SharedDevice>,HRESULT> CreateDeviceShare(GUID &guid
     if(!alctx)
     {
         WARN("CreateDeviceShare Couldn't create context, 0x%04x\n", alcGetError(aldev.get()));
-        return hr;
+        return ds::unexpected(hr);
     }
 
     ALCint numMono{}, numStereo{};
@@ -214,7 +214,7 @@ ds::expected<std::unique_ptr<SharedDevice>,HRESULT> CreateDeviceShare(GUID &guid
     {
         ERR("CreateDeviceShare Could only allocate %lu sources (minimum 128 required)\n",
             totalSources);
-        return DSERR_OUTOFMEMORY;
+        return ds::unexpected(DSERR_OUTOFMEMORY);
     }
 
     const DWORD maxHw{totalSources > MaxHwSources*2 ? MaxHwSources : (MaxHwSources/2)};
