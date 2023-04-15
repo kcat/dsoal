@@ -1,22 +1,21 @@
-#define INITGUID
-
 #include "dsoal.h"
-#include "dsoal_global.h"
 
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <deque>
+#include <mutex>
+
 #include <devpkey.h>
 #include <dsound.h>
 #include <mmdeviceapi.h>
-#include <mutex>
 
 #include "AL/al.h"
 #include "AL/alc.h"
 #include "AL/alext.h"
 #include "comhelpers.h"
 #include "comptr.h"
+#include "dsoal_global.h"
 #include "dsoundoal.h"
 #include "guidprinter.h"
 #include "logging.h"
@@ -207,16 +206,16 @@ HRESULT WINAPI GetDeviceID(const GUID &guidSrc, GUID &guidDst) noexcept
 {
     ERole role{};
     EDataFlow flow{eRender};
-    if(DSDEVID_DefaultPlayback == guidSrc)
+    if(ds::DEVID_DefaultPlayback == guidSrc)
         role = eMultimedia;
-    else if(DSDEVID_DefaultVoicePlayback == guidSrc)
+    else if(ds::DEVID_DefaultVoicePlayback == guidSrc)
         role = eCommunications;
     else
     {
         flow = eCapture;
-        if(DSDEVID_DefaultCapture == guidSrc)
+        if(ds::DEVID_DefaultCapture == guidSrc)
             role = eMultimedia;
-        else if(DSDEVID_DefaultVoiceCapture == guidSrc)
+        else if(ds::DEVID_DefaultVoiceCapture == guidSrc)
             role = eCommunications;
         else
         {
@@ -227,8 +226,8 @@ HRESULT WINAPI GetDeviceID(const GUID &guidSrc, GUID &guidDst) noexcept
 
     ComWrapper com;
     ComPtr<IMMDeviceEnumerator> devenum;
-    HRESULT hr{CoCreateInstance(CLSID_MMDeviceEnumerator, nullptr, CLSCTX_INPROC_SERVER,
-        IID_IMMDeviceEnumerator, ds::out_ptr(devenum))};
+    HRESULT hr{CoCreateInstance(ds::CLSID_MMDeviceEnumerator, nullptr, CLSCTX_INPROC_SERVER,
+        ds::IID_IMMDeviceEnumerator, ds::out_ptr(devenum))};
     if(FAILED(hr))
     {
         ERR("GetDeviceID CoCreateInstance failed: %08lx\n", hr);
@@ -252,7 +251,7 @@ HRESULT WINAPI GetDeviceID(const GUID &guidSrc, GUID &guidDst) noexcept
     }
 
     PropVariant pv;
-    hr = ps->GetValue(PKEY_AudioEndpoint_GUID, pv.get());
+    hr = ps->GetValue(ds::PKEY_AudioEndpoint_GUID, pv.get());
     if(FAILED(hr) || pv->vt != VT_LPWSTR)
     {
         WARN("GetDeviceID IPropertyStore::GetValue(GUID) failed: %08lx\n", hr);
@@ -266,20 +265,6 @@ HRESULT WINAPI GetDeviceID(const GUID &guidSrc, GUID &guidDst) noexcept
 
 
 extern "C" {
-
-#ifdef _MSC_VER
-const CLSID CLSID_MMDeviceEnumerator = {
-    0xBCDE0395,
-    0xE52F, 0x467C,
-    { 0x8E, 0x3D, 0xC4, 0x57, 0x92, 0x91, 0x69, 0x2E }
-};
-
-const IID IID_IMMDeviceEnumerator = {
-    0xA95664D2,
-    0x9614, 0x4F35,
-    { 0xA7, 0x46, 0xDE, 0x8D, 0xB6, 0x36, 0x17, 0xE6 }
-};
-#endif
 
 DSOAL_EXPORT BOOL WINAPI DllMain(HINSTANCE hInstDLL, DWORD reason, void *reserved)
 {
@@ -453,8 +438,8 @@ HRESULT enumerate_mmdev(const EDataFlow flow, std::deque<GUID> &devlist, T cb)
     ComWrapper com;
 
     ComPtr<IMMDeviceEnumerator> devenum;
-    HRESULT hr{CoCreateInstance(CLSID_MMDeviceEnumerator, nullptr, CLSCTX_INPROC_SERVER,
-        IID_IMMDeviceEnumerator, ds::out_ptr(devenum))};
+    HRESULT hr{CoCreateInstance(ds::CLSID_MMDeviceEnumerator, nullptr, CLSCTX_INPROC_SERVER,
+        ds::IID_IMMDeviceEnumerator, ds::out_ptr(devenum))};
     if(FAILED(hr))
     {
         ERR("enumerate_mmdev CoCreateInstance failed: %08lx\n", hr);
@@ -496,7 +481,7 @@ HRESULT enumerate_mmdev(const EDataFlow flow, std::deque<GUID> &devlist, T cb)
         }
 
         PropVariant pv;
-        hr2 = ps->GetValue(PKEY_AudioEndpoint_GUID, pv.get());
+        hr2 = ps->GetValue(ds::PKEY_AudioEndpoint_GUID, pv.get());
         if(FAILED(hr2) || pv->vt != VT_LPWSTR)
         {
             WARN("send_device IPropertyStore::GetValue(GUID) failed: %08lx\n", hr2);
@@ -512,8 +497,7 @@ HRESULT enumerate_mmdev(const EDataFlow flow, std::deque<GUID> &devlist, T cb)
         if(!keep_going) return;
 
         pv.clear();
-        hr2 = ps->GetValue(reinterpret_cast<const PROPERTYKEY&>(DEVPKEY_Device_FriendlyName),
-            pv.get());
+        hr2 = ps->GetValue(ds::DEVPKEY_Device_FriendlyName, pv.get());
         if(FAILED(hr2))
         {
             WARN("send_device IPropertyStore::GetValue(FriendlyName) failed: %08lx\n", hr2);

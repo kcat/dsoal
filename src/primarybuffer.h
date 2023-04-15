@@ -2,16 +2,25 @@
 #define PRIMARYBUFFER_H
 
 #include <atomic>
-#include <dsound.h>
 
+#include <dsound.h>
+#include <ksmedia.h>
+
+
+class DSound8OAL;
 
 class PrimaryBuffer final : IDirectSoundBuffer {
     std::atomic<ULONG> mRef{0u};
 
     DWORD mFlags{0u};
 
+    DSound8OAL &mParent;
+
+    WAVEFORMATEXTENSIBLE mFormat;
+    bool mPlaying{false};
+
 public:
-    PrimaryBuffer();
+    PrimaryBuffer(DSound8OAL &parent);
     ~PrimaryBuffer();
 
     /*** IUnknown methods ***/
@@ -21,7 +30,7 @@ public:
     /*** IDirectSoundBuffer methods ***/
     HRESULT STDMETHODCALLTYPE GetCaps(DSBCAPS *bufferCaps) noexcept override;
     HRESULT STDMETHODCALLTYPE GetCurrentPosition(DWORD *playCursor, DWORD *writeCursor) noexcept override;
-    HRESULT STDMETHODCALLTYPE GetFormat(WAVEFORMATEX *wfxFormat, DWORD sizeAllocated, DWORD *sizeWritten) noexcept override;
+    HRESULT STDMETHODCALLTYPE GetFormat(WAVEFORMATEX *wfx, DWORD sizeAllocated, DWORD *sizeWritten) noexcept override;
     HRESULT STDMETHODCALLTYPE GetVolume(LONG *volume) noexcept override;
     HRESULT STDMETHODCALLTYPE GetPan(LONG *pan) noexcept override;
     HRESULT STDMETHODCALLTYPE GetFrequency(DWORD *frequency) noexcept override;
@@ -30,7 +39,7 @@ public:
     HRESULT STDMETHODCALLTYPE Lock(DWORD offset, DWORD bytes, void **audioPtr1, DWORD *audioBytes1, void **audioPtr2, DWORD *audioBytes2, DWORD flags) noexcept override;
     HRESULT STDMETHODCALLTYPE Play(DWORD reserved1, DWORD reserved2, DWORD flags) noexcept override;
     HRESULT STDMETHODCALLTYPE SetCurrentPosition(DWORD newPosition) noexcept override;
-    HRESULT STDMETHODCALLTYPE SetFormat(const WAVEFORMATEX *wfxFormat) noexcept override;
+    HRESULT STDMETHODCALLTYPE SetFormat(const WAVEFORMATEX *wfx) noexcept override;
     HRESULT STDMETHODCALLTYPE SetVolume(LONG volume) noexcept override;
     HRESULT STDMETHODCALLTYPE SetPan(LONG pan) noexcept override;
     HRESULT STDMETHODCALLTYPE SetFrequency(DWORD frequency) noexcept override;

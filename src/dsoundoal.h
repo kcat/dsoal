@@ -95,6 +95,9 @@ public:
     HRESULT STDMETHODCALLTYPE Initialize(const GUID *deviceId) noexcept override;
     HRESULT STDMETHODCALLTYPE VerifyCertification(DWORD *certified) noexcept override;
 
+    [[nodiscard]]
+    DWORD getPriorityLevel() const noexcept { return mPrioLevel; }
+
     template<typename T>
     T as() noexcept { return static_cast<T>(this); }
 
