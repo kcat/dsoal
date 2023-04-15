@@ -135,14 +135,30 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::GetFormat(WAVEFORMATEX *wfx, DWORD size
 
 HRESULT STDMETHODCALLTYPE PrimaryBuffer::GetVolume(LONG *volume) noexcept
 {
-    FIXME("PrimaryBuffer::GetVolume (%p)->(%p)\n", voidp{this}, voidp{volume});
-    return E_NOTIMPL;
+    DEBUG("PrimaryBuffer::GetVolume (%p)->(%p)\n", voidp{this}, voidp{volume});
+
+    if(!volume)
+        return DSERR_INVALIDPARAM;
+
+    if(!(mFlags&DSBCAPS_CTRLVOLUME))
+        return DSERR_CONTROLUNAVAIL;
+
+    *volume = mVolume;
+    return DS_OK;
 }
 
 HRESULT STDMETHODCALLTYPE PrimaryBuffer::GetPan(LONG *pan) noexcept
 {
-    FIXME("PrimaryBuffer::GetPan (%p)->(%p)\n", voidp{this}, voidp{pan});
-    return E_NOTIMPL;
+    DEBUG("PrimaryBuffer::GetPan (%p)->(%p)\n", voidp{this}, voidp{pan});
+
+    if(!pan)
+        return DSERR_INVALIDPARAM;
+
+    if(!(mFlags&DSBCAPS_CTRLPAN))
+        return DSERR_CONTROLUNAVAIL;
+
+    *pan = mPan;
+    return DS_OK;
 }
 
 HRESULT STDMETHODCALLTYPE PrimaryBuffer::GetFrequency(DWORD *frequency) noexcept
@@ -393,13 +409,40 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::SetFormat(const WAVEFORMATEX *wfx) noex
 HRESULT STDMETHODCALLTYPE PrimaryBuffer::SetVolume(LONG volume) noexcept
 {
     FIXME("PrimaryBuffer::SetVolume (%p)->(%ld)\n", voidp{this}, volume);
-    return E_NOTIMPL;
+
+    if(volume > DSBVOLUME_MAX || volume < DSBVOLUME_MIN)
+    {
+        WARN("Invalid volume (%ld)\n", volume);
+        return DSERR_INVALIDPARAM;
+    }
+
+    if(!(mFlags&DSBCAPS_CTRLVOLUME))
+        return DSERR_CONTROLUNAVAIL;
+
+    SetALContext(mContext);
+    mVolume = volume;
+    alListenerf(AL_GAIN, mB_to_gain(static_cast<float>(volume)));
+    UnsetALContext();
+
+    return DS_OK;
 }
 
 HRESULT STDMETHODCALLTYPE PrimaryBuffer::SetPan(LONG pan) noexcept
 {
-    FIXME("PrimaryBuffer::SetPan (%p)->(%ld)\n", voidp{this}, pan);
-    return E_NOTIMPL;
+    FIXME("PrimaryBuffer::SetPan (%p)->(%ld): stub\n", voidp{this}, pan);
+
+    if(pan < DSBPAN_LEFT || pan > DSBPAN_RIGHT)
+    {
+        WARN("Invalid pan (%ld)\n", pan);
+        return DSERR_INVALIDPARAM;
+    }
+
+    if(!(mFlags&DSBCAPS_CTRLPAN))
+        return DSERR_CONTROLUNAVAIL;
+
+    mPan = pan;
+
+    return DS_OK;
 }
 
 HRESULT STDMETHODCALLTYPE PrimaryBuffer::SetFrequency(DWORD frequency) noexcept

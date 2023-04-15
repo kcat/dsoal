@@ -1,6 +1,8 @@
 #ifndef DSOAL_H
 #define DSOAL_H
 
+#include <cmath>
+
 #include <windows.h>
 #include <dsound.h>
 
@@ -42,6 +44,17 @@ inline constexpr PROPERTYKEY PKEY_AudioEndpoint_GUID{{0x1da5d803,0xd492,0x4edd,{
 } // namespace ds
 
 HRESULT WINAPI GetDeviceID(const GUID &guidSrc, GUID &guidDst) noexcept;
+
+void SetALContext(ALCcontext *context);
+inline void UnsetALContext() { }
+
+[[nodiscard]]
+inline float mB_to_gain(float millibels)
+{
+    if(millibels <= DSBVOLUME_MIN)
+        return 0.0f;
+    return std::pow(10.0f, static_cast<float>(millibels) / 2'000.0f);
+}
 
 
 #ifndef AL_SOFT_map_buffer

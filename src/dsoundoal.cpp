@@ -616,6 +616,7 @@ HRESULT STDMETHODCALLTYPE DSound8OAL::Initialize(const GUID *deviceId) noexcept
             mShared = sDeviceList.back().get();
         }
     }
+    mPrimaryBuffer.setContext(mShared->mContext.get());
 
     return DS_OK;
 }

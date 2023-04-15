@@ -6,6 +6,8 @@
 #include <dsound.h>
 #include <ksmedia.h>
 
+#include "AL/alc.h"
+
 
 class DSound8OAL;
 
@@ -15,6 +17,10 @@ class PrimaryBuffer final : IDirectSoundBuffer {
     DWORD mFlags{0u};
 
     DSound8OAL &mParent;
+    ALCcontext *mContext{};
+
+    LONG mVolume{};
+    LONG mPan{};
 
     WAVEFORMATEXTENSIBLE mFormat;
     bool mPlaying{false};
@@ -46,6 +52,9 @@ public:
     HRESULT STDMETHODCALLTYPE Stop() noexcept override;
     HRESULT STDMETHODCALLTYPE Unlock(void *audioPtr1, DWORD audioBytes1, void *audioPtr2, DWORD audioBytes2) noexcept override;
     HRESULT STDMETHODCALLTYPE Restore() noexcept override;
+
+    void setContext(ALCcontext *context) noexcept
+    { mContext = context; }
 
     template<typename T>
     T as() noexcept { return static_cast<T>(this); }
