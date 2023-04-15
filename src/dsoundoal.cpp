@@ -1,11 +1,11 @@
 #include "dsoundoal.h"
 
 #include <algorithm>
+#include <optional>
 
 #include <ks.h>
 #include <ksmedia.h>
 #include <mmdeviceapi.h>
-#include <optional>
 
 #include "comhelpers.h"
 #include "comptr.h"

@@ -5,8 +5,10 @@
 
 #include <dsound.h>
 
+#include "dsoal.h"
 
-class Buffer final : IDirectSoundBuffer8, IDirectSoundBuffer {
+
+class Buffer final : IDirectSoundBuffer8 {
     class UnknownImpl final : IUnknown {
         Buffer *impl_from_base() noexcept
         {
@@ -67,5 +69,15 @@ public:
     template<typename T>
     T as() noexcept { return static_cast<T>(this); }
 };
+
+#ifdef __MINGW32__
+/* MinGW headers do not have IDirectSoundBuffer8 inherit from
+ * IDirectSoundBuffer, which MSVC apparently does. IDirectSoundBuffer is a
+ * subset of IDirectSoundBuffer8, so it should be ABI-compatible.
+ */
+template<>
+IDirectSoundBuffer *Buffer::as() noexcept
+{ return ds::bit_cast<IDirectSoundBuffer*>(static_cast<IDirectSoundBuffer8*>(this)); }
+#endif
 
 #endif // BUFFER_H

@@ -2,6 +2,7 @@
 #define DSOAL_H
 
 #include <cmath>
+#include <cstring>
 
 #include <windows.h>
 #include <dsound.h>
@@ -40,6 +41,16 @@ inline constexpr PROPERTYKEY DEVPKEY_Device_FriendlyName{{0xa45c254e,0xdf1c,0x4e
 inline constexpr PROPERTYKEY PKEY_AudioEndpoint_FormFactor{{0x1da5d803,0xd492,0x4edd,{0x8c,0x23,0xe0,0xc0,0xff,0xee,0x7f,0x0e}},0};
 inline constexpr PROPERTYKEY PKEY_AudioEndpoint_PhysicalSpeakers{{0x1da5d803,0xd492,0x4edd,{0x8c,0x23,0xe0,0xc0,0xff,0xee,0x7f,0x0e}},3};
 inline constexpr PROPERTYKEY PKEY_AudioEndpoint_GUID{{0x1da5d803,0xd492,0x4edd,{0x8c,0x23,0xe0,0xc0,0xff,0xee,0x7f,0x0e}},4};
+
+template<typename To, typename From>
+std::enable_if_t<sizeof(To) == sizeof(From) && std::is_trivially_copyable_v<From>
+    && std::is_trivially_copyable_v<To>,
+To> bit_cast(const From &src) noexcept
+{
+    union { char c; To dst; } u;
+    std::memcpy(&u.dst, &src, sizeof(To));
+    return u.dst;
+}
 
 } // namespace ds
 

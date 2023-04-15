@@ -31,20 +31,10 @@ HMODULE gOpenalHandle{};
 
 constexpr WCHAR aldriver_name[] = L"dsoal-aldrv.dll";
 
-template<typename To, typename From>
-std::enable_if_t<sizeof(To) == sizeof(From) && std::is_trivially_copyable_v<From>
-    && std::is_trivially_copyable_v<To>,
-To> bit_cast(const From &src) noexcept
-{
-    union { char c; To dst; } u;
-    std::memcpy(&u.dst, &src, sizeof(To));
-    return u.dst;
-}
-
 template<typename T>
 bool load_function(T &func, const char *name)
 {
-    func = bit_cast<T>(GetProcAddress(gOpenalHandle, name));
+    func = ds::bit_cast<T>(GetProcAddress(gOpenalHandle, name));
     if(!func) UNLIKELY
     {
         ERR("load_function Couldn't lookup %s in %ls\n", name, aldriver_name);
@@ -55,7 +45,7 @@ bool load_function(T &func, const char *name)
 
 template<typename T>
 void load_alcfunction(T &func, const char *name)
-{ func = bit_cast<T>(alcGetProcAddress(nullptr, name)); }
+{ func = ds::bit_cast<T>(alcGetProcAddress(nullptr, name)); }
 
 bool load_openal()
 {

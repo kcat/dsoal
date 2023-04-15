@@ -4,7 +4,7 @@
 #include <atomic>
 
 #include <dsound.h>
-#include <ksmedia.h>
+#include <mmreg.h>
 
 #include "AL/alc.h"
 

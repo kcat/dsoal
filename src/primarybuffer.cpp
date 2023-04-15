@@ -1,6 +1,5 @@
 #include "primarybuffer.h"
 
-#include <ksmedia.h>
 #include <mmreg.h>
 
 #include "dsoal.h"
