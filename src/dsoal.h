@@ -286,8 +286,6 @@ inline PFNALCSETTHREADCONTEXTPROC palcSetThreadContext{};
 inline PFNALCGETTHREADCONTEXTPROC palcGetThreadContext{};
 inline LPEAXSET pEAXSet{};
 inline LPEAXGET pEAXGet{};
-inline LPALDEFERUPDATESSOFT palDeferUpdatesSOFT{};
-inline LPALPROCESSUPDATESSOFT palProcessUpdatesSOFT{};
 inline LPALBUFFERSTORAGESOFT palBufferStorageSOFT{};
 inline LPALMAPBUFFERSOFT palMapBufferSOFT{};
 inline LPALUNMAPBUFFERSOFT palUnmapBufferSOFT{};
@@ -393,8 +391,6 @@ inline LPALFLUSHMAPPEDBUFFERSOFT palFlushMappedBufferSOFT{};
 #define alcGetThreadContext palcGetThreadContext
 #define EAXSet pEAXSet
 #define EAXGet pEAXGet
-#define alDeferUpdatesSOFT palDeferUpdatesSOFT
-#define alProcessUpdatesSOFT palProcessUpdatesSOFT
 #define alBufferStorageSOFT palBufferStorageSOFT
 #define alMapBufferSOFT palMapBufferSOFT
 #define alUnmapBufferSOFT palUnmapBufferSOFT

@@ -251,9 +251,8 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::Initialize(IDirectSound *directSound, c
     mDeferred = mImmediate;
     mDirty.reset();
 
-    SetALContext(mContext);
+    ALSection alsection{mContext};
     setParams(mDeferred, ~0llu);
-    UnsetALContext();
 
     return DS_OK;
 }
@@ -453,10 +452,9 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::SetVolume(LONG volume) noexcept
     if(!(mFlags&DSBCAPS_CTRLVOLUME))
         return DSERR_CONTROLUNAVAIL;
 
-    SetALContext(mContext);
+    ALSection alsection{mContext};
     mVolume = volume;
     alListenerf(AL_GAIN, mB_to_gain(static_cast<float>(volume)));
-    UnsetALContext();
 
     return DS_OK;
 }
@@ -721,9 +719,10 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::Listener3D::SetAllParameters(const DS3D
     }
     else
     {
-        SetALContext(self->mContext);
+        ALSection alsection{self->mContext};
+        alcSuspendContext(self->mContext);
         self->setParams(*listener, ~0ull);
-        UnsetALContext();
+        alcProcessContext(self->mContext);
     }
 
     return E_NOTIMPL;
@@ -748,11 +747,10 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::Listener3D::SetDistanceFactor(D3DVALUE 
     }
     else
     {
-        SetALContext(self->mContext);
+        ALSection alsection{self->mContext};
         self->mImmediate.flDistanceFactor = distanceFactor;
         alSpeedOfSound(343.3f/distanceFactor);
         alGetError();
-        UnsetALContext();
     }
 
     return S_OK;
@@ -777,11 +775,10 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::Listener3D::SetDopplerFactor(D3DVALUE d
     }
     else
     {
-        SetALContext(self->mContext);
+        ALSection alsection{self->mContext};
         self->mImmediate.flDopplerFactor = dopplerFactor;
         alDopplerFactor(dopplerFactor);
         alGetError();
-        UnsetALContext();
     }
 
     return S_OK;
@@ -805,7 +802,7 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::Listener3D::SetOrientation(D3DVALUE xFr
     }
     else
     {
-        SetALContext(self->mContext);
+        ALSection alsection{self->mContext};
         self->mImmediate.vOrientFront.x = xFront;
         self->mImmediate.vOrientFront.y = yFront;
         self->mImmediate.vOrientFront.z = zFront;
@@ -816,7 +813,6 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::Listener3D::SetOrientation(D3DVALUE xFr
         const ALfloat ori[6]{xFront, yFront, -zFront, xTop, yTop, -zTop};
         alListenerfv(AL_ORIENTATION, ori);
         alGetError();
-        UnsetALContext();
     }
 
     return S_OK;
@@ -837,14 +833,13 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::Listener3D::SetPosition(D3DVALUE x, D3D
     }
     else
     {
-        SetALContext(self->mContext);
+        ALSection alsection{self->mContext};
         self->mImmediate.vPosition.x = x;
         self->mImmediate.vPosition.y = y;
         self->mImmediate.vPosition.z = z;
 
         alListener3f(AL_POSITION, x, y, -z);
         alGetError();
-        UnsetALContext();
     }
 
     return S_OK;
@@ -869,11 +864,12 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::Listener3D::SetRolloffFactor(D3DVALUE r
     }
     else
     {
-        SetALContext(self->mContext);
+        ALSection alsection{self->mContext};
+        alcSuspendContext(self->mContext);
         self->mImmediate.flRolloffFactor = rolloffFactor;
         // TODO: Set all 3D secondary buffers' rolloff factor
         alGetError();
-        UnsetALContext();
+        alcProcessContext(self->mContext);
     }
 
     return S_OK;
@@ -894,14 +890,13 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::Listener3D::SetVelocity(D3DVALUE x, D3D
     }
     else
     {
-        SetALContext(self->mContext);
+        ALSection alsection{self->mContext};
         self->mImmediate.vVelocity.x = x;
         self->mImmediate.vVelocity.y = y;
         self->mImmediate.vVelocity.z = z;
 
         alListener3f(AL_VELOCITY, x, y, -z);
         alGetError();
-        UnsetALContext();
     }
 
     return S_OK;
@@ -913,7 +908,8 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::Listener3D::CommitDeferredSettings() no
 
     auto self = impl_from_base();
     std::lock_guard lock{self->mMutex};
-    SetALContext(self->mContext);
+    ALSection alsection{self->mContext};
+    alcSuspendContext(self->mContext);
 
     if(auto flags = std::exchange(self->mDirty, 0); flags.any())
     {
@@ -924,7 +920,7 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::Listener3D::CommitDeferredSettings() no
     // TODO: Commit all 3D secondary buffers' properties
 
     alGetError();
-    UnsetALContext();
+    alcProcessContext(self->mContext);
     return DS_OK;
 }
 #undef PREFIX
