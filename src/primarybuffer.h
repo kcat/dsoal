@@ -2,6 +2,8 @@
 #define PRIMARYBUFFER_H
 
 #include <atomic>
+#include <bitset>
+#include <mutex>
 
 #include <dsound.h>
 #include <mmreg.h>
@@ -57,8 +59,23 @@ class PrimaryBuffer final : IDirectSoundBuffer {
     DSound8OAL &mParent;
     ALCcontext *mContext{};
 
+    std::mutex &mMutex;
     LONG mVolume{};
     LONG mPan{};
+
+    DS3DLISTENER mImmediate;
+    DS3DLISTENER mDeferred;
+    enum DirtyFlags {
+        Position,
+        Velocity,
+        Orientation,
+        DistanceFactor,
+        RolloffFactor,
+        DopplerFactor,
+
+        FlagCount
+    };
+    std::bitset<FlagCount> mDirty;
 
     WAVEFORMATEXTENSIBLE mFormat;
     bool mPlaying{false};
@@ -93,6 +110,8 @@ public:
 
     void setContext(ALCcontext *context) noexcept
     { mContext = context; }
+
+    void setParams(const DS3DLISTENER &params, const std::bitset<FlagCount> flags);
 
     template<typename T>
     T as() noexcept { return static_cast<T>(this); }

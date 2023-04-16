@@ -72,12 +72,14 @@ class DSound8OAL final : IDirectSound8 {
 
     std::atomic<ULONG> mTotalRef{1u}, mDsRef{1u}, mUnkRef{0u};
 
-    bool mIs8{};
+    std::mutex mDsMutex;
     DWORD mPrioLevel{};
 
     SharedDevice *mShared{};
 
     PrimaryBuffer mPrimaryBuffer;
+
+    bool mIs8{};
 
 public:
     /*** IUnknown methods ***/
@@ -94,6 +96,9 @@ public:
     HRESULT STDMETHODCALLTYPE SetSpeakerConfig(DWORD speakerConfig) noexcept override;
     HRESULT STDMETHODCALLTYPE Initialize(const GUID *deviceId) noexcept override;
     HRESULT STDMETHODCALLTYPE VerifyCertification(DWORD *certified) noexcept override;
+
+    [[nodiscard]]
+    std::mutex &getMutex() noexcept { return mDsMutex; }
 
     [[nodiscard]]
     DWORD getPriorityLevel() const noexcept { return mPrioLevel; }

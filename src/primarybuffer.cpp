@@ -16,7 +16,7 @@ constexpr size_t PrimaryBufSize{32768};
 
 } // namespace
 
-PrimaryBuffer::PrimaryBuffer(DSound8OAL &parent) : mParent{parent} { }
+PrimaryBuffer::PrimaryBuffer(DSound8OAL &parent) : mParent{parent}, mMutex{parent.getMutex()} { }
 
 PrimaryBuffer::~PrimaryBuffer() = default;
 
@@ -124,6 +124,7 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::GetFormat(WAVEFORMATEX *wfx, DWORD size
         return DSERR_INVALIDPARAM;
     }
 
+    std::lock_guard lock{mMutex};
     const DWORD size{sizeof(mFormat.Format) + mFormat.Format.cbSize};
     if(sizeWritten)
         *sizeWritten = size;
@@ -147,6 +148,7 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::GetVolume(LONG *volume) noexcept
     if(!(mFlags&DSBCAPS_CTRLVOLUME))
         return DSERR_CONTROLUNAVAIL;
 
+    std::lock_guard lock{mMutex};
     *volume = mVolume;
     return DS_OK;
 }
@@ -161,6 +163,7 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::GetPan(LONG *pan) noexcept
     if(!(mFlags&DSBCAPS_CTRLPAN))
         return DSERR_CONTROLUNAVAIL;
 
+    std::lock_guard lock{mMutex};
     *pan = mPan;
     return DS_OK;
 }
@@ -175,6 +178,7 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::GetFrequency(DWORD *frequency) noexcept
     if(!(mFlags&DSBCAPS_CTRLFREQUENCY))
         return DSERR_CONTROLUNAVAIL;
 
+    std::lock_guard lock{mMutex};
     *frequency = mFormat.Format.nSamplesPerSec;
     return DS_OK;
 }
@@ -222,10 +226,34 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::Initialize(IDirectSound *directSound, c
         return DSERR_INVALIDPARAM;
     }
 
+    std::lock_guard lock{mMutex};
     if(mFlags != 0)
         return DSERR_ALREADYINITIALIZED;
 
     mFlags = dsBufferDesc->dwFlags | DSBCAPS_LOCHARDWARE;
+
+    mImmediate.dwSize = sizeof(mImmediate);
+    mImmediate.vPosition.x = 0.0f;
+    mImmediate.vPosition.y = 0.0f;
+    mImmediate.vPosition.z = 0.0f;
+    mImmediate.vVelocity.x = 0.0f;
+    mImmediate.vVelocity.y = 0.0f;
+    mImmediate.vVelocity.z = 0.0f;
+    mImmediate.vOrientFront.x = 0.0f;
+    mImmediate.vOrientFront.y = 0.0f;
+    mImmediate.vOrientFront.z = 1.0f;
+    mImmediate.vOrientTop.x = 0.0f;
+    mImmediate.vOrientTop.y = 1.0f;
+    mImmediate.vOrientTop.z = 0.0f;
+    mImmediate.flDistanceFactor = DS3D_DEFAULTDISTANCEFACTOR;
+    mImmediate.flRolloffFactor = DS3D_DEFAULTROLLOFFFACTOR;
+    mImmediate.flDopplerFactor = DS3D_DEFAULTDOPPLERFACTOR;
+    mDeferred = mImmediate;
+    mDirty.reset();
+
+    SetALContext(mContext);
+    setParams(mDeferred, ~0llu);
+    UnsetALContext();
 
     return DS_OK;
 }
@@ -268,6 +296,7 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::SetFormat(const WAVEFORMATEX *wfx) noex
         return DSERR_INVALIDPARAM;
     }
 
+    std::lock_guard lock{mMutex};
     if(mParent.getPriorityLevel() < DSSCL_PRIORITY)
         return DSERR_PRIOLEVELNEEDED;
 
@@ -420,6 +449,7 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::SetVolume(LONG volume) noexcept
         return DSERR_INVALIDPARAM;
     }
 
+    std::lock_guard lock{mMutex};
     if(!(mFlags&DSBCAPS_CTRLVOLUME))
         return DSERR_CONTROLUNAVAIL;
 
@@ -441,6 +471,7 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::SetPan(LONG pan) noexcept
         return DSERR_INVALIDPARAM;
     }
 
+    std::lock_guard lock{mMutex};
     if(!(mFlags&DSBCAPS_CTRLPAN))
         return DSERR_CONTROLUNAVAIL;
 
@@ -459,6 +490,7 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::Stop() noexcept
 {
     DEBUG("PrimaryBuffer::Stop (%p)->()\n", voidp{this});
 
+    std::lock_guard lock{mMutex};
     mPlaying = false;
 
     return DS_OK;
@@ -475,6 +507,45 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::Restore() noexcept
 {
     FIXME(PREFIX "Restore (%p)->()\n", voidp{this});
     return DS_OK;
+}
+
+
+void PrimaryBuffer::setParams(const DS3DLISTENER &params, const std::bitset<FlagCount> flags)
+{
+    if(flags.test(Position))
+        mImmediate.vPosition = params.vPosition;
+    if(flags.test(Velocity))
+        mImmediate.vVelocity = params.vVelocity;
+    if(flags.test(Orientation))
+    {
+        mImmediate.vOrientFront = params.vOrientFront;
+        mImmediate.vOrientTop = params.vOrientTop;
+    }
+    if(flags.test(DistanceFactor))
+        mImmediate.flDistanceFactor = params.flDistanceFactor;
+    if(flags.test(RolloffFactor))
+        mImmediate.flRolloffFactor = params.flRolloffFactor;
+    if(flags.test(DopplerFactor))
+        mImmediate.flDopplerFactor = params.flDopplerFactor;
+
+    if(flags.test(Position))
+        alListener3f(AL_POSITION, params.vPosition.x, params.vPosition.y, -params.vPosition.z);
+    if(flags.test(Velocity))
+        alListener3f(AL_VELOCITY, params.vVelocity.x, params.vVelocity.y, -params.vVelocity.z);
+    if(flags.test(Orientation))
+    {
+        const ALfloat ori[6]{params.vOrientFront.x, params.vOrientFront.y, -params.vOrientFront.z,
+            params.vOrientTop.x, params.vOrientTop.y, -params.vOrientTop.z};
+        alListenerfv(AL_ORIENTATION, ori);
+    }
+    if(flags.test(DistanceFactor))
+        alSpeedOfSound(343.3f / params.flDistanceFactor);
+    if(flags.test(RolloffFactor))
+    {
+        // TODO: Set all 3D secondary buffers' rolloff factor
+    }
+    if(flags.test(DopplerFactor))
+        alDopplerFactor(params.flDopplerFactor);
 }
 #undef PREFIX
 
@@ -502,93 +573,358 @@ ULONG STDMETHODCALLTYPE PrimaryBuffer::Listener3D::Release() noexcept
 
 HRESULT STDMETHODCALLTYPE PrimaryBuffer::Listener3D::GetAllParameters(DS3DLISTENER *listener) noexcept
 {
-    FIXME(PREFIX "GetAllParameters (%p)->(%p)\n", voidp{this}, voidp{listener});
-    return E_NOTIMPL;
+    DEBUG(PREFIX "GetAllParameters (%p)->(%p)\n", voidp{this}, voidp{listener});
+
+    if(!listener || listener->dwSize < sizeof(*listener))
+    {
+        WARN(PREFIX "Invalid DS3DLISTENER (%p %lu)\n", voidp{listener},
+            listener ? listener->dwSize : 0);
+        return DSERR_INVALIDPARAM;
+    }
+
+    auto self = impl_from_base();
+    std::lock_guard lock{self->mMutex};
+    listener->vPosition = self->mImmediate.vPosition;
+    listener->vVelocity = self->mImmediate.vVelocity;
+    listener->vOrientFront = self->mImmediate.vOrientFront;
+    listener->vOrientTop = self->mImmediate.vOrientTop;
+    listener->flDistanceFactor = self->mImmediate.flDistanceFactor;
+    listener->flRolloffFactor = self->mImmediate.flRolloffFactor;
+    listener->flDopplerFactor = self->mImmediate.flDopplerFactor;
+
+    return DS_OK;
 }
 
 HRESULT STDMETHODCALLTYPE PrimaryBuffer::Listener3D::GetDistanceFactor(D3DVALUE *distanceFactor) noexcept
 {
-    FIXME(PREFIX "GetDistanceFactor (%p)->(%p)\n", voidp{this}, voidp{distanceFactor});
-    return E_NOTIMPL;
+    DEBUG(PREFIX "GetDistanceFactor (%p)->(%p)\n", voidp{this}, voidp{distanceFactor});
+
+    if(!distanceFactor)
+        return DSERR_INVALIDPARAM;
+
+    auto self = impl_from_base();
+    *distanceFactor = self->mImmediate.flDistanceFactor;
+
+    return DS_OK;
 }
 
 HRESULT STDMETHODCALLTYPE PrimaryBuffer::Listener3D::GetDopplerFactor(D3DVALUE *dopplerFactor) noexcept
 {
-    FIXME(PREFIX "GetDoppleFactor (%p)->(%p)\n", voidp{this}, voidp{dopplerFactor});
-    return E_NOTIMPL;
+    DEBUG(PREFIX "GetDoppleFactor (%p)->(%p)\n", voidp{this}, voidp{dopplerFactor});
+
+    if(!dopplerFactor)
+        return DSERR_INVALIDPARAM;
+
+    auto self = impl_from_base();
+    *dopplerFactor = self->mImmediate.flDopplerFactor;
+
+    return DS_OK;
 }
 
 HRESULT STDMETHODCALLTYPE PrimaryBuffer::Listener3D::GetOrientation(D3DVECTOR *orientFront, D3DVECTOR *orientTop) noexcept
 {
-    FIXME(PREFIX "GetOrientation (%p)->(%p, %p)\n", voidp{this}, voidp{orientFront},
+    DEBUG(PREFIX "GetOrientation (%p)->(%p, %p)\n", voidp{this}, voidp{orientFront},
         voidp{orientTop});
-    return E_NOTIMPL;
+
+    if(!orientFront || !orientTop)
+        return DSERR_INVALIDPARAM;
+
+    auto self = impl_from_base();
+    std::lock_guard lock{self->mMutex};
+    *orientFront = self->mImmediate.vOrientFront;
+    *orientTop = self->mImmediate.vOrientTop;
+
+    return DS_OK;
 }
 
 HRESULT STDMETHODCALLTYPE PrimaryBuffer::Listener3D::GetPosition(D3DVECTOR *position) noexcept
 {
-    FIXME(PREFIX "GetPosition (%p)->(%p)\n", voidp{this}, voidp{position});
-    return E_NOTIMPL;
+    DEBUG(PREFIX "GetPosition (%p)->(%p)\n", voidp{this}, voidp{position});
+
+    if(!position)
+        return DSERR_INVALIDPARAM;
+
+    auto self = impl_from_base();
+    std::lock_guard lock{self->mMutex};
+    *position = self->mImmediate.vPosition;
+
+    return DS_OK;
 }
 
 HRESULT STDMETHODCALLTYPE PrimaryBuffer::Listener3D::GetRolloffFactor(D3DVALUE *rolloffFactor) noexcept
 {
-    FIXME(PREFIX "GetRolloffFactor (%p)->(%p)\n", voidp{this}, voidp{rolloffFactor});
-    return E_NOTIMPL;
+    DEBUG(PREFIX "GetRolloffFactor (%p)->(%p)\n", voidp{this}, voidp{rolloffFactor});
+
+    if(!rolloffFactor)
+        return DSERR_INVALIDPARAM;
+
+    auto self = impl_from_base();
+    *rolloffFactor = self->mImmediate.flRolloffFactor;
+
+    return DS_OK;
 }
 
 HRESULT STDMETHODCALLTYPE PrimaryBuffer::Listener3D::GetVelocity(D3DVECTOR *velocity) noexcept
 {
-    FIXME(PREFIX "GetVelocity (%p)->(%p)\n", voidp{this}, voidp{velocity});
-    return E_NOTIMPL;
+    DEBUG(PREFIX "GetVelocity (%p)->(%p)\n", voidp{this}, voidp{velocity});
+
+    if(!velocity)
+        return DSERR_INVALIDPARAM;
+
+    auto self = impl_from_base();
+    std::lock_guard lock{self->mMutex};
+    *velocity = self->mImmediate.vVelocity;
+
+    return DS_OK;
 }
 
 
 HRESULT STDMETHODCALLTYPE PrimaryBuffer::Listener3D::SetAllParameters(const DS3DLISTENER *listener, DWORD apply) noexcept
 {
-    FIXME(PREFIX "SetAllParameters (%p)->(%p, %lu)\n", voidp{this}, cvoidp{listener}, apply);
+    DEBUG(PREFIX "SetAllParameters (%p)->(%p, %lu)\n", voidp{this}, cvoidp{listener}, apply);
+
+    if(!listener || listener->dwSize < sizeof(*listener))
+    {
+        WARN(PREFIX "Invalid parameter (%p %lu)\n", cvoidp{listener},
+            listener ? listener->dwSize : 0);
+        return DSERR_INVALIDPARAM;
+    }
+
+    if(listener->flDistanceFactor > DS3D_MAXDISTANCEFACTOR
+        || listener->flDistanceFactor < DS3D_MINDISTANCEFACTOR)
+    {
+        WARN(PREFIX "Invalid distance factor (%f)\n", listener->flDistanceFactor);
+        return DSERR_INVALIDPARAM;
+    }
+
+    if(listener->flDopplerFactor > DS3D_MAXDOPPLERFACTOR
+        || listener->flDopplerFactor < DS3D_MINDOPPLERFACTOR)
+    {
+        WARN(PREFIX "Invalid doppler factor (%f)\n", listener->flDopplerFactor);
+        return DSERR_INVALIDPARAM;
+    }
+
+    if(listener->flRolloffFactor < DS3D_MINROLLOFFFACTOR
+        || listener->flRolloffFactor > DS3D_MAXROLLOFFFACTOR)
+    {
+        WARN(PREFIX "Invalid rolloff factor (%f)\n", listener->flRolloffFactor);
+        return DSERR_INVALIDPARAM;
+    }
+
+    auto self = impl_from_base();
+    std::lock_guard lock{self->mMutex};
+    if(apply == DS3D_DEFERRED)
+    {
+        self->mDeferred = *listener;
+        self->mDeferred.dwSize = sizeof(self->mDeferred);
+        self->mDirty.set();
+    }
+    else
+    {
+        SetALContext(self->mContext);
+        self->setParams(*listener, ~0ull);
+        UnsetALContext();
+    }
+
     return E_NOTIMPL;
 }
 
 HRESULT STDMETHODCALLTYPE PrimaryBuffer::Listener3D::SetDistanceFactor(D3DVALUE distanceFactor, DWORD apply) noexcept
 {
-    FIXME(PREFIX "SetDistanceFactor (%p)->(%f, %lu)\n", voidp{this}, distanceFactor, apply);
-    return E_NOTIMPL;
+    DEBUG(PREFIX "SetDistanceFactor (%p)->(%f, %lu)\n", voidp{this}, distanceFactor, apply);
+
+    if(distanceFactor < DS3D_MINDISTANCEFACTOR || distanceFactor > DS3D_MAXDISTANCEFACTOR)
+    {
+        WARN(PREFIX "Invalid parameter %f\n", distanceFactor);
+        return DSERR_INVALIDPARAM;
+    }
+
+    auto self = impl_from_base();
+    std::lock_guard lock{self->mMutex};
+    if(apply == DS3D_DEFERRED)
+    {
+        self->mDeferred.flDistanceFactor = distanceFactor;
+        self->mDirty.set(DistanceFactor);
+    }
+    else
+    {
+        SetALContext(self->mContext);
+        self->mImmediate.flDistanceFactor = distanceFactor;
+        alSpeedOfSound(343.3f/distanceFactor);
+        alGetError();
+        UnsetALContext();
+    }
+
+    return S_OK;
 }
 
 HRESULT STDMETHODCALLTYPE PrimaryBuffer::Listener3D::SetDopplerFactor(D3DVALUE dopplerFactor, DWORD apply) noexcept
 {
-    FIXME(PREFIX "SetDopplerFactor (%p)->(%f, %lu)\n", voidp{this}, dopplerFactor, apply);
-    return E_NOTIMPL;
+    DEBUG(PREFIX "SetDopplerFactor (%p)->(%f, %lu)\n", voidp{this}, dopplerFactor, apply);
+
+    if(dopplerFactor < DS3D_MINDOPPLERFACTOR || dopplerFactor > DS3D_MAXDOPPLERFACTOR)
+    {
+        WARN(PREFIX "Invalid parameter %f\n", dopplerFactor);
+        return DSERR_INVALIDPARAM;
+    }
+
+    auto self = impl_from_base();
+    std::lock_guard lock{self->mMutex};
+    if(apply == DS3D_DEFERRED)
+    {
+        self->mDeferred.flDopplerFactor = dopplerFactor;
+        self->mDirty.set(DopplerFactor);
+    }
+    else
+    {
+        SetALContext(self->mContext);
+        self->mImmediate.flDopplerFactor = dopplerFactor;
+        alDopplerFactor(dopplerFactor);
+        alGetError();
+        UnsetALContext();
+    }
+
+    return S_OK;
 }
 
 HRESULT STDMETHODCALLTYPE PrimaryBuffer::Listener3D::SetOrientation(D3DVALUE xFront, D3DVALUE yFront, D3DVALUE zFront, D3DVALUE xTop, D3DVALUE yTop, D3DVALUE zTop, DWORD apply) noexcept
 {
-    FIXME(PREFIX "SetOrientation (%p)->(%f, %f, %f, %f, %f, %f, %lu)\n", voidp{this}, xFront, yFront, zFront, xTop, yTop, zTop, apply);
-    return E_NOTIMPL;
+    DEBUG(PREFIX "SetOrientation (%p)->(%f, %f, %f, %f, %f, %f, %lu)\n", voidp{this}, xFront, yFront, zFront, xTop, yTop, zTop, apply);
+
+    auto self = impl_from_base();
+    std::lock_guard lock{self->mMutex};
+    if(apply == DS3D_DEFERRED)
+    {
+        self->mDeferred.vOrientFront.x = xFront;
+        self->mDeferred.vOrientFront.y = yFront;
+        self->mDeferred.vOrientFront.z = zFront;
+        self->mDeferred.vOrientTop.x = xTop;
+        self->mDeferred.vOrientTop.y = yTop;
+        self->mDeferred.vOrientTop.z = zTop;
+        self->mDirty.set(Orientation);
+    }
+    else
+    {
+        SetALContext(self->mContext);
+        self->mImmediate.vOrientFront.x = xFront;
+        self->mImmediate.vOrientFront.y = yFront;
+        self->mImmediate.vOrientFront.z = zFront;
+        self->mImmediate.vOrientTop.x = xTop;
+        self->mImmediate.vOrientTop.y = yTop;
+        self->mImmediate.vOrientTop.z = zTop;
+
+        const ALfloat ori[6]{xFront, yFront, -zFront, xTop, yTop, -zTop};
+        alListenerfv(AL_ORIENTATION, ori);
+        alGetError();
+        UnsetALContext();
+    }
+
+    return S_OK;
 }
 
 HRESULT STDMETHODCALLTYPE PrimaryBuffer::Listener3D::SetPosition(D3DVALUE x, D3DVALUE y, D3DVALUE z, DWORD apply) noexcept
 {
-    FIXME(PREFIX "SetPosition (%p)->(%f, %f, %f, %lu)\n", voidp{this}, x, y, z, apply);
-    return E_NOTIMPL;
+    DEBUG(PREFIX "SetPosition (%p)->(%f, %f, %f, %lu)\n", voidp{this}, x, y, z, apply);
+
+    auto self = impl_from_base();
+    std::lock_guard lock{self->mMutex};
+    if(apply == DS3D_DEFERRED)
+    {
+        self->mDeferred.vPosition.x = x;
+        self->mDeferred.vPosition.y = y;
+        self->mDeferred.vPosition.z = z;
+        self->mDirty.set(Position);
+    }
+    else
+    {
+        SetALContext(self->mContext);
+        self->mImmediate.vPosition.x = x;
+        self->mImmediate.vPosition.y = y;
+        self->mImmediate.vPosition.z = z;
+
+        alListener3f(AL_POSITION, x, y, -z);
+        alGetError();
+        UnsetALContext();
+    }
+
+    return S_OK;
 }
 
 HRESULT STDMETHODCALLTYPE PrimaryBuffer::Listener3D::SetRolloffFactor(D3DVALUE rolloffFactor, DWORD apply) noexcept
 {
     FIXME(PREFIX "SetRolloffFactor (%p)->(%f, %lu)\n", voidp{this}, rolloffFactor, apply);
-    return E_NOTIMPL;
+
+    if(rolloffFactor < DS3D_MINROLLOFFFACTOR || rolloffFactor > DS3D_MAXROLLOFFFACTOR)
+    {
+        WARN(PREFIX "Invalid parameter %f\n", rolloffFactor);
+        return DSERR_INVALIDPARAM;
+    }
+
+    auto self = impl_from_base();
+    std::lock_guard lock{self->mMutex};
+    if(apply == DS3D_DEFERRED)
+    {
+        self->mDeferred.flRolloffFactor = rolloffFactor;
+        self->mDirty.set(RolloffFactor);
+    }
+    else
+    {
+        SetALContext(self->mContext);
+        self->mImmediate.flRolloffFactor = rolloffFactor;
+        // TODO: Set all 3D secondary buffers' rolloff factor
+        alGetError();
+        UnsetALContext();
+    }
+
+    return S_OK;
 }
 
 HRESULT STDMETHODCALLTYPE PrimaryBuffer::Listener3D::SetVelocity(D3DVALUE x, D3DVALUE y, D3DVALUE z, DWORD apply) noexcept
 {
-    FIXME(PREFIX "SetVelocity (%p)->(%f, %f, %f, %lu)\n", voidp{this}, x, y, z, apply);
-    return E_NOTIMPL;
+    DEBUG(PREFIX "SetVelocity (%p)->(%f, %f, %f, %lu)\n", voidp{this}, x, y, z, apply);
+
+    auto self = impl_from_base();
+    std::lock_guard lock{self->mMutex};
+    if(apply == DS3D_DEFERRED)
+    {
+        self->mDeferred.vVelocity.x = x;
+        self->mDeferred.vVelocity.y = y;
+        self->mDeferred.vVelocity.z = z;
+        self->mDirty.set(Velocity);
+    }
+    else
+    {
+        SetALContext(self->mContext);
+        self->mImmediate.vVelocity.x = x;
+        self->mImmediate.vVelocity.y = y;
+        self->mImmediate.vVelocity.z = z;
+
+        alListener3f(AL_VELOCITY, x, y, -z);
+        alGetError();
+        UnsetALContext();
+    }
+
+    return S_OK;
 }
 
 HRESULT STDMETHODCALLTYPE PrimaryBuffer::Listener3D::CommitDeferredSettings() noexcept
 {
-    FIXME(PREFIX "CommitDeferredSettings (%p)->()\n", voidp{this});
-    return E_NOTIMPL;
+    DEBUG(PREFIX "CommitDeferredSettings (%p)->()\n", voidp{this});
+
+    auto self = impl_from_base();
+    std::lock_guard lock{self->mMutex};
+    SetALContext(self->mContext);
+
+    if(auto flags = std::exchange(self->mDirty, 0); flags.any())
+    {
+        self->setParams(self->mDeferred, flags);
+        alGetError();
+    }
+
+    // TODO: Commit all 3D secondary buffers' properties
+
+    alGetError();
+    UnsetALContext();
+    return DS_OK;
 }
 #undef PREFIX

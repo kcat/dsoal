@@ -254,7 +254,7 @@ ComPtr<DSound8OAL> DSound8OAL::Create(bool is8)
     return ComPtr<DSound8OAL>{new DSound8OAL{is8}};
 }
 
-DSound8OAL::DSound8OAL(bool is8) : mIs8{is8}, mPrimaryBuffer{*this}
+DSound8OAL::DSound8OAL(bool is8) : mPrimaryBuffer{*this}, mIs8{is8}
 {
 }
 
