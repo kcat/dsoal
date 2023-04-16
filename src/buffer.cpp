@@ -161,21 +161,23 @@ Buffer::Buffer(DSound8OAL &parent, bool is8) noexcept
 
 Buffer::~Buffer()
 {
-    if(mContext)
+    ALSection alsection{mContext};
+
+    if(mSource != 0)
     {
-        ALSection alsection{mContext};
+        alDeleteSources(1, &mSource);
+        alGetError();
+        mSource = 0;
+        if(mLocStatus == LocStatus::Hardware)
+            mParent.getShared().decHwSources();
+        else if(mLocStatus == LocStatus::Software)
+            mParent.getShared().decSwSources();
+    }
 
-        if(mSource != 0)
-        {
-            alDeleteSources(1, &mSource);
-            alGetError();
-            mSource = 0;
-            if(mLocStatus == LocStatus::Hardware)
-                mParent.getShared().decHwSources();
-            else if(mLocStatus == LocStatus::Software)
-                mParent.getShared().decSwSources();
-        }
-
+    if(mBuffer)
+    {
+        if((mBuffer->mFlags&DSBCAPS_CTRL3D))
+            mParent.remove3dBuffer(this);
         mBuffer = nullptr;
     }
 }
@@ -553,6 +555,9 @@ HRESULT STDMETHODCALLTYPE Buffer::Initialize(IDirectSound *directSound, const DS
     mVolume = 0;
     mPan = 0;
     mFrequency = mBuffer->mWfxFormat.Format.nSamplesPerSec;
+
+    if((mBuffer->mFlags&DSBCAPS_CTRL3D))
+        mParent.add3dBuffer(this);
 
     HRESULT hr{DS_OK};
     if(!(mBuffer->mFlags&DSBCAPS_LOCDEFER))

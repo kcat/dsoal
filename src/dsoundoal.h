@@ -1,11 +1,13 @@
 #ifndef DSOUNDOAL_H
 #define DSOUNDOAL_H
 
+#include <algorithm>
 #include <atomic>
-#include <dsound.h>
 #include <memory>
 #include <mutex>
 #include <vector>
+
+#include <dsound.h>
 
 #include "AL/alc.h"
 #include "comptr.h"
@@ -149,6 +151,8 @@ class DSound8OAL final : IDirectSound8 {
     std::vector<BufferSubList> mSecondaryBuffers;
     PrimaryBuffer mPrimaryBuffer;
 
+    std::vector<Buffer*> m3dBuffers;
+
     bool mIs8{};
 
 public:
@@ -168,6 +172,15 @@ public:
     HRESULT STDMETHODCALLTYPE VerifyCertification(DWORD *certified) noexcept override;
 
     void dispose(Buffer *buffer) noexcept;
+
+    void add3dBuffer(Buffer *buffer)
+    { m3dBuffers.emplace_back(buffer); }
+
+    void remove3dBuffer(Buffer *buffer)
+    {
+        auto iter = std::remove(m3dBuffers.begin(), m3dBuffers.end(), buffer);
+        m3dBuffers.erase(iter, m3dBuffers.end());
+    }
 
     [[nodiscard]]
     std::mutex &getMutex() noexcept { return mDsMutex; }
