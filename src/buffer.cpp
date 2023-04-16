@@ -13,7 +13,7 @@ using cvoidp = const void*;
 
 ALenum ConvertFormat(WAVEFORMATEXTENSIBLE &dst, const WAVEFORMATEX &src) noexcept
 {
-    TRACE("Requested buffer format:\n"
+    TRACE("ConvertFormat Requested buffer format:\n"
           "    FormatTag      = 0x%04x\n"
           "    Channels       = %d\n"
           "    SamplesPerSec  = %lu\n"
@@ -153,9 +153,10 @@ ds::expected<ComPtr<SharedBuffer>,HRESULT> SharedBuffer::Create(const DSBUFFERDE
 #undef PREFIX
 
 #define PREFIX "Buffer::"
-Buffer::Buffer(DSound8OAL &parent, bool is8) : mParent{parent}, mIs8{is8}
+Buffer::Buffer(DSound8OAL &parent, bool is8) noexcept
+    : mParent{parent}, mMutex{parent.getMutex()}, mIs8{is8}
 {
-    mContext = mParent.getShared().mContext.get();
+    mContext = parent.getShared().mContext.get();
 }
 
 Buffer::~Buffer()
@@ -164,19 +165,87 @@ Buffer::~Buffer()
     {
         ALSection alsection{mContext};
 
-        if(mSource != 0u)
+        if(mSource != 0)
         {
             alDeleteSources(1, &mSource);
             alGetError();
             mSource = 0;
-            if(mIsHardware)
+            if(mLocStatus == LocStatus::Hardware)
                 mParent.getShared().decHwSources();
-            else
+            else if(mLocStatus == LocStatus::Software)
                 mParent.getShared().decSwSources();
         }
 
         mBuffer = nullptr;
     }
+}
+
+
+HRESULT Buffer::setLocation(LocStatus locStatus) noexcept
+{
+    if(locStatus != LocStatus::Any && mLocStatus == locStatus)
+        return DS_OK;
+    if(locStatus == LocStatus::Any && mLocStatus != LocStatus::None)
+        return DS_OK;
+
+    /* If we have a source, we're changing location, so return the source we
+     * have to get a new one.
+     */
+    if(mSource != 0)
+    {
+        alDeleteSources(1, &mSource);
+        mSource = 0;
+        alGetError();
+
+        if(mLocStatus == LocStatus::Hardware)
+            mParent.getShared().decHwSources();
+        else
+            mParent.getShared().decSwSources();
+    }
+    mLocStatus = LocStatus::None;
+
+    bool ok{false};
+    if(locStatus != LocStatus::Software)
+    {
+        ok = mParent.getShared().incHwSources();
+        if(ok) locStatus = LocStatus::Hardware;
+    }
+    if(locStatus != LocStatus::Hardware && !ok)
+    {
+        ok = mParent.getShared().incSwSources();
+        if(ok) locStatus = LocStatus::Software;
+    }
+    if(!ok)
+    {
+        ERR("Out of %s sources\n",
+            (locStatus == LocStatus::Hardware) ? "hardware" :
+            (locStatus == LocStatus::Software) ? "software" : "any"
+        );
+        return DSERR_ALLOCATED;
+    }
+
+    alGenSources(1, &mSource);
+    alSourcef(mSource, AL_GAIN, mB_to_gain(static_cast<float>(mVolume)));
+    alSourcef(mSource, AL_PITCH, (mFrequency == 0) ? 1.0f :
+        static_cast<float>(mFrequency)/static_cast<float>(mBuffer->mWfxFormat.Format.nSamplesPerSec));
+    alGetError();
+
+    if((mBuffer->mFlags&DSBCAPS_CTRL3D))
+    {
+        // FIXME: Set current 3D params
+    }
+    else
+    {
+        const ALfloat x{static_cast<ALfloat>(mPan-DSBPAN_LEFT)/(DSBPAN_RIGHT-DSBPAN_LEFT) - 0.5f};
+
+        alSource3f(mSource, AL_POSITION, x, 0.0f, -std::sqrt(1.0f - x*x));
+        alSourcef(mSource, AL_ROLLOFF_FACTOR, 0.0f);
+        alSourcei(mSource, AL_SOURCE_RELATIVE, AL_TRUE);
+        alGetError();
+    }
+
+    mLocStatus = locStatus;
+    return DS_OK;
 }
 
 
@@ -251,56 +320,189 @@ ULONG STDMETHODCALLTYPE Buffer::Release() noexcept
 
 HRESULT STDMETHODCALLTYPE Buffer::GetCaps(DSBCAPS *bufferCaps) noexcept
 {
-    FIXME(PREFIX "GetCaps (%p)->(%p)\n", voidp{this}, voidp{bufferCaps});
-    return E_NOTIMPL;
+    DEBUG(PREFIX "GetCaps (%p)->(%p)\n", voidp{this}, voidp{bufferCaps});
+
+    if(!bufferCaps || bufferCaps->dwSize < sizeof(*bufferCaps))
+    {
+        WARN(PREFIX "GetCaps Invalid DSBCAPS (%p, %lu)\n", voidp{bufferCaps},
+            (bufferCaps ? bufferCaps->dwSize : 0));
+        return DSERR_INVALIDPARAM;
+    }
+
+    bufferCaps->dwFlags = mBuffer->mFlags;
+    if(!(mBuffer->mFlags&DSBCAPS_LOCDEFER))
+    {
+        if(mLocStatus == LocStatus::Hardware)
+            bufferCaps->dwFlags |= DSBCAPS_LOCHARDWARE;
+        else if(mLocStatus == LocStatus::Software)
+            bufferCaps->dwFlags |= DSBCAPS_LOCSOFTWARE;
+    }
+    bufferCaps->dwBufferBytes = mBuffer->mDataSize;
+    bufferCaps->dwUnlockTransferRate = 4096;
+    bufferCaps->dwPlayCpuOverhead = 0;
+
+    return S_OK;
 }
 
 HRESULT STDMETHODCALLTYPE Buffer::GetCurrentPosition(DWORD *playCursor, DWORD *writeCursor) noexcept
 {
-    FIXME(PREFIX "GetCurrentPosition (%p)->(%p, %p)\n", voidp{this}, voidp{playCursor},
+    DEBUG(PREFIX "GetCurrentPosition (%p)->(%p, %p)\n", voidp{this}, voidp{playCursor},
         voidp{writeCursor});
-    return E_NOTIMPL;
+
+    ALint status{AL_INITIAL};
+    ALint ofs{0};
+
+    if(mSource != 0)
+    {
+        ALSection alsection{mContext};
+        alGetSourcei(mSource, AL_BYTE_OFFSET, &ofs);
+        alGetSourcei(mSource, AL_SOURCE_STATE, &status);
+        alGetError();
+    }
+
+    auto &format = mBuffer->mWfxFormat.Format;
+    DWORD pos, writecursor;
+    if(status == AL_PLAYING)
+    {
+        pos = static_cast<ALuint>(ofs);
+        writecursor = format.nSamplesPerSec / (1000 / 20);
+        writecursor *= format.nBlockAlign;
+    }
+    else
+    {
+        /* AL_STOPPED means the source naturally reached its end, where
+         * DirectSound's position should be at the end (OpenAL reports 0
+         * for stopped sources). The Stop method correlates to pausing,
+         * which would put the source into an AL_PAUSED state and correctly
+         * hold its current position. AL_INITIAL means the buffer hasn't
+         * been played since last changing location.
+         */
+        switch(status)
+        {
+            case AL_STOPPED: pos = mBuffer->mDataSize; break;
+            case AL_PAUSED: pos = static_cast<ALuint>(ofs); break;
+            default: pos = 0;
+        }
+        writecursor = 0;
+    }
+
+    if(pos > mBuffer->mDataSize)
+    {
+        ERR(PREFIX "GetCurrentPosition playpos > buf_size\n");
+        pos %= mBuffer->mDataSize;
+    }
+    writecursor = (writecursor+pos) % mBuffer->mDataSize;
+
+    DEBUG(PREFIX "GetCurrentPosition pos = %lu, write pos = %lu\n", pos, writecursor);
+
+    if(playCursor) *playCursor = pos;
+    if(writeCursor)  *writeCursor = writecursor;
+
+    return DS_OK;
 }
 
 HRESULT STDMETHODCALLTYPE Buffer::GetFormat(WAVEFORMATEX *wfx, DWORD sizeAllocated, DWORD *sizeWritten) noexcept
 {
     FIXME(PREFIX "GetFormat (%p)->(%p, %lu, %p)\n", voidp{this}, voidp{wfx},
         sizeAllocated, voidp{sizeWritten});
-    return E_NOTIMPL;
+
+    if(!wfx && !sizeWritten)
+    {
+        WARN(PREFIX "GetFormat Cannot report format or format size\n");
+        return DSERR_INVALIDPARAM;
+    }
+
+    const DWORD size{sizeof(mBuffer->mWfxFormat.Format) + mBuffer->mWfxFormat.Format.cbSize};
+    if(sizeWritten)
+        *sizeWritten = size;
+    if(wfx)
+    {
+        if(sizeAllocated < size)
+            return DSERR_INVALIDPARAM;
+        std::memcpy(wfx, &mBuffer->mWfxFormat.Format, size);
+    }
+
+    return DS_OK;
 }
 
 HRESULT STDMETHODCALLTYPE Buffer::GetVolume(LONG *volume) noexcept
 {
-    FIXME(PREFIX "GetVolume (%p)->(%p)\n", voidp{this}, voidp{volume});
-    return E_NOTIMPL;
+    DEBUG(PREFIX "GetVolume (%p)->(%p)\n", voidp{this}, voidp{volume});
+
+    if(!volume)
+        return DSERR_INVALIDPARAM;
+
+    if(!(mBuffer->mFlags&DSBCAPS_CTRLVOLUME))
+        return DSERR_CONTROLUNAVAIL;
+
+    *volume = mVolume;
+    return DS_OK;
 }
 
 HRESULT STDMETHODCALLTYPE Buffer::GetPan(LONG *pan) noexcept
 {
-    FIXME(PREFIX "GetPan (%p)->(%p)\n", voidp{this}, voidp{pan});
-    return E_NOTIMPL;
+    DEBUG(PREFIX "GetPan (%p)->(%p)\n", voidp{this}, voidp{pan});
+
+    if(!pan)
+        return DSERR_INVALIDPARAM;
+
+    if(!(mBuffer->mFlags&DSBCAPS_CTRLPAN))
+        return DSERR_CONTROLUNAVAIL;
+
+    *pan = mPan;
+    return DS_OK;
 }
 
 HRESULT STDMETHODCALLTYPE Buffer::GetFrequency(DWORD *frequency) noexcept
 {
     FIXME(PREFIX "GetFrequency (%p)->(%p)\n", voidp{this}, voidp{frequency});
-    return E_NOTIMPL;
+
+    if(!frequency)
+        return DSERR_INVALIDPARAM;
+
+    if(!(mBuffer->mFlags&DSBCAPS_CTRLFREQUENCY))
+        return DSERR_CONTROLUNAVAIL;
+
+    *frequency = mFrequency;
+    return DS_OK;
 }
 
 HRESULT STDMETHODCALLTYPE Buffer::GetStatus(DWORD *status) noexcept
 {
-    FIXME(PREFIX "GetStatus (%p)->(%p)\n", voidp{this}, voidp{status});
-    return E_NOTIMPL;
+    DEBUG(PREFIX "GetStatus (%p)->(%p)\n", voidp{this}, voidp{status});
+
+    if(!status)
+        return DSERR_INVALIDPARAM;
+    *status = 0;
+
+    ALint state{AL_INITIAL};
+    ALint looping{AL_FALSE};
+    if(mSource != 0)
+    {
+        ALSection alsection{mContext};
+        alGetSourcei(mSource, AL_SOURCE_STATE, &state);
+        alGetSourcei(mSource, AL_LOOPING, &looping);
+        alGetError();
+    }
+
+    if((mBuffer->mFlags&DSBCAPS_LOCDEFER))
+        *status |= static_cast<DWORD>(mLocStatus);
+    if(state == AL_PLAYING)
+        *status |= DSBSTATUS_PLAYING | (looping ? DSBSTATUS_LOOPING : 0);
+
+    DEBUG(PREFIX "GetStatus status = 0x%08lx\n", *status);
+    return S_OK;
 }
 
 HRESULT STDMETHODCALLTYPE Buffer::Initialize(IDirectSound *directSound, const DSBUFFERDESC *dsBufferDesc) noexcept
 {
-    FIXME("Buffer::Initialize (%p)->(%p, %p)\n", voidp{this}, voidp{directSound},
+    DEBUG("Buffer::Initialize (%p)->(%p, %p)\n", voidp{this}, voidp{directSound},
         cvoidp{dsBufferDesc});
 
-    std::unique_lock lock{mParent.getMutex()};
-    ALSection alsection{mContext};
+    std::unique_lock lock{mMutex};
+    if(mIsInitialized) return DSERR_ALREADYINITIALIZED;
 
+    ALSection alsection{mContext};
     if(!mBuffer)
     {
         if(!dsBufferDesc)
@@ -348,54 +550,27 @@ HRESULT STDMETHODCALLTYPE Buffer::Initialize(IDirectSound *directSound, const DS
         mBuffer = std::move(shared.value());
     }
 
-    if((mBuffer->mFlags&DSBCAPS_LOCDEFER))
-    {
-        FIXME(PREFIX "Initialize Deferred buffers not supported\n");
-        return DSERR_INVALIDPARAM;
-    }
-    else
-    {
-        bool ok{false};
-        if((mBuffer->mFlags&DSBCAPS_LOCHARDWARE))
-        {
-            ok = mParent.getShared().incHwSources();
-            if(ok) mIsHardware = true;
-        }
-        else if((mBuffer->mFlags&DSBCAPS_LOCSOFTWARE))
-        {
-            ok = mParent.getShared().incSwSources();
-            if(ok) mIsHardware = false;
-        }
-        else
-        {
-            ok = mParent.getShared().incHwSources();
-            if(ok)
-                mIsHardware = true;
-            else
-            {
-                ok = mParent.getShared().incSwSources();
-                if(ok) mIsHardware = false;
-            }
-        }
+    mVolume = 0;
+    mPan = 0;
+    mFrequency = mBuffer->mWfxFormat.Format.nSamplesPerSec;
 
-        alGetError();
-        alGenSources(1, &mSource);
-        if(alGetError() != AL_NO_ERROR)
-        {
-            if(mIsHardware)
-                mParent.getShared().decHwSources();
-            else
-                mParent.getShared().decSwSources();
-        }
+    HRESULT hr{DS_OK};
+    if(!(mBuffer->mFlags&DSBCAPS_LOCDEFER))
+    {
+        LocStatus locStatus{LocStatus::Any};
+        if((mBuffer->mFlags&DSBCAPS_LOCHARDWARE)) locStatus = LocStatus::Hardware;
+        else if((mBuffer->mFlags&DSBCAPS_LOCSOFTWARE)) locStatus = LocStatus::Software;
+        hr = setLocation(locStatus);
     }
+    mIsInitialized = SUCCEEDED(hr);
 
-    return DS_OK;
+    return hr;
 }
 
 HRESULT STDMETHODCALLTYPE Buffer::Lock(DWORD offset, DWORD bytes, void **audioPtr1, DWORD *audioBytes1, void **audioPtr2, DWORD *audioBytes2, DWORD flags) noexcept
 {
-    FIXME("Buffer::Lock (%p)->(%lu, %lu, %p, %p, %p, %p, %lu)\n", voidp{this}, offset,
-        bytes, voidp{audioPtr1}, voidp{audioBytes1}, voidp{audioPtr2}, voidp{audioBytes2}, flags);
+    FIXME(PREFIX "Lock (%p)->(%lu, %lu, %p, %p, %p, %p, %lu)\n", voidp{this}, offset, bytes,
+        voidp{audioPtr1}, voidp{audioBytes1}, voidp{audioPtr2}, voidp{audioBytes2}, flags);
     return E_NOTIMPL;
 }
 

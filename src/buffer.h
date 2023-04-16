@@ -3,6 +3,7 @@
 
 #include <atomic>
 #include <memory>
+#include <mutex>
 
 #include <dsound.h>
 #include <mmreg.h>
@@ -141,15 +142,28 @@ class Buffer final : IDirectSoundBuffer8 {
     DSound8OAL &mParent;
     ALCcontext *mContext{};
 
+    std::mutex &mMutex;
     ComPtr<SharedBuffer> mBuffer;
     ALuint mSource{};
 
-    bool mIsHardware{false};
+    LONG mVolume{};
+    LONG mPan{};
+    DWORD mFrequency{};
+
+    enum class LocStatus : uint8_t {
+        None, Any=None,
+        Hardware = DSBSTATUS_LOCHARDWARE,
+        Software = DSBSTATUS_LOCSOFTWARE,
+    };
+
+    LocStatus mLocStatus{};
     bool mIs8{};
     bool mIsInitialized{false};
 
+    HRESULT setLocation(LocStatus locStatus) noexcept;
+
 public:
-    Buffer(DSound8OAL &parent, bool is8);
+    Buffer(DSound8OAL &parent, bool is8) noexcept;
     ~Buffer();
 
     /*** IUnknown methods ***/
