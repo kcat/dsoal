@@ -29,16 +29,63 @@ struct SharedDevice {
     SharedDevice& operator=(const SharedDevice&) = delete;
     SharedDevice& operator=(SharedDevice&&) = delete;
 
-    GUID mId{};
-    DWORD mSpeakerConfig{};
-
     DWORD mMaxHwSources{};
     DWORD mMaxSwSources{};
+    DWORD mCurrentHwSources{};
+    DWORD mCurrentSwSources{};
+
+    GUID mId{};
+    DWORD mSpeakerConfig{};
 
     std::unique_ptr<ALCdevice,NoDeleter> mDevice;
     std::unique_ptr<ALCcontext,NoDeleter> mContext;
 
     size_t mUseCount{1u};
+
+    DWORD getCurrentHwCount() const noexcept
+    { return static_cast<const volatile DWORD&>(mCurrentHwSources); }
+
+    DWORD getCurrentSwCount() const noexcept
+    { return static_cast<const volatile DWORD&>(mCurrentSwSources); }
+
+    /* Increment mCurrentHwSources up to mMaxHwSources. Returns false is the
+     * current is already at max, or true if it was successfully incremented.
+     */
+    bool incHwSources() noexcept
+    {
+        /* Can't use standard atomics here since they break the move
+         * constructor.
+         */
+        DWORD current;
+        DWORD previous{static_cast<volatile DWORD&>(mCurrentHwSources)};
+        do {
+            if(previous == mMaxHwSources)
+                return false;
+            current = previous;
+            previous = InterlockedCompareExchange(&mCurrentHwSources, current+1, current);
+        } while(previous != current);
+        return true;
+    }
+
+    /* Increment mCurrentSwSources up to mMaxSwSources. */
+    bool incSwSources() noexcept
+    {
+        /* Can't use standard atomics here since they break the move
+         * constructor.
+         */
+        DWORD current;
+        DWORD previous{static_cast<volatile DWORD&>(mCurrentSwSources)};
+        do {
+            if(previous == mMaxSwSources)
+                return false;
+            current = previous;
+            previous = InterlockedCompareExchange(&mCurrentSwSources, current+1, current);
+        } while(previous != current);
+        return true;
+    }
+
+    void decHwSources() noexcept { InterlockedDecrement(&mCurrentHwSources); }
+    void decSwSources() noexcept { InterlockedDecrement(&mCurrentSwSources); }
 };
 
 
@@ -129,9 +176,13 @@ public:
     [[nodiscard]]
     DWORD getPriorityLevel() const noexcept { return mPrioLevel; }
 
-    template<typename T>
+    [[nodiscard]]
+    SharedDevice &getShared() noexcept { return *mShared; }
+
+    template<typename T> [[nodiscard]]
     T as() noexcept { return static_cast<T>(this); }
 
+    [[nodiscard]]
     static ComPtr<DSound8OAL> Create(bool is8);
 };
 

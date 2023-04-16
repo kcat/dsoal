@@ -2,13 +2,48 @@
 #define BUFFER_H
 
 #include <atomic>
+#include <memory>
 
 #include <dsound.h>
+#include <mmreg.h>
 
+#include "AL/al.h"
+#include "comptr.h"
 #include "dsoal.h"
+#include "expected.h"
 
 
 struct DSound8OAL;
+
+
+class SharedBuffer {
+    std::atomic<ULONG> mRef{1u};
+
+    auto dispose() noexcept -> void;
+
+public:
+    SharedBuffer() = default;
+    ~SharedBuffer();
+
+    auto AddRef() noexcept -> ULONG { return mRef.fetch_add(1u, std::memory_order_relaxed)+1; }
+    auto Release() noexcept -> ULONG
+    {
+        const auto ret = mRef.fetch_sub(1u, std::memory_order_relaxed)-1;
+        if(ret == 0) dispose();
+        return ret;
+    }
+
+    char *mData;
+    DWORD mDataSize{0};
+    DWORD mFlags{};
+
+    WAVEFORMATEXTENSIBLE mWfxFormat{};
+    ALenum mAlFormat{AL_NONE};
+    ALuint mAlBuffer{0};
+
+    static auto Create(const DSBUFFERDESC &bufferDesc) noexcept
+        -> ds::expected<ComPtr<SharedBuffer>,HRESULT>;
+};
 
 class Buffer final : IDirectSoundBuffer8 {
     class UnknownImpl final : IUnknown {
@@ -37,11 +72,18 @@ class Buffer final : IDirectSoundBuffer8 {
     std::atomic<ULONG> mTotalRef{1u}, mDsRef{1u}, mUnkRef{0u};
 
     DSound8OAL &mParent;
+    ALCcontext *mContext{};
 
+    ComPtr<SharedBuffer> mBuffer;
+    ALuint mSource{};
+
+    bool mIsHardware{false};
     bool mIs8{};
+    bool mIsInitialized{false};
 
 public:
     Buffer(DSound8OAL &parent, bool is8);
+    ~Buffer();
 
     /*** IUnknown methods ***/
     HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void** ppvObject) noexcept override;

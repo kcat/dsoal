@@ -517,7 +517,7 @@ HRESULT STDMETHODCALLTYPE DSound8OAL::GetCaps(DSCAPS *dsCaps) noexcept
         dsCaps->dwFreeHwMixingStreamingBuffers =
         dsCaps->dwFreeHw3DAllBuffers =
         dsCaps->dwFreeHw3DStaticBuffers =
-        dsCaps->dwFreeHw3DStreamingBuffers = mShared->mMaxHwSources;
+        dsCaps->dwFreeHw3DStreamingBuffers = mShared->mMaxHwSources - mShared->getCurrentHwCount();
     dsCaps->dwTotalHwMemBytes =
         dsCaps->dwFreeHwMemBytes = 64 * 1024 * 1024;
     dsCaps->dwMaxContigFreeHwMemBytes = dsCaps->dwFreeHwMemBytes;

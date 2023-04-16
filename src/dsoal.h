@@ -149,8 +149,15 @@ To> bit_cast(const From &src) noexcept
 
 HRESULT WINAPI GetDeviceID(const GUID &guidSrc, GUID &guidDst) noexcept;
 
+
 void SetALContext(ALCcontext *context);
 inline void UnsetALContext() { }
+
+struct ALSection {
+    ALSection(ALCcontext *context) { SetALContext(context); }
+    ~ALSection() { UnsetALContext(); }
+};
+
 
 [[nodiscard]]
 inline float mB_to_gain(float millibels)
