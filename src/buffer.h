@@ -8,6 +8,8 @@
 #include "dsoal.h"
 
 
+struct DSound8OAL;
+
 class Buffer final : IDirectSoundBuffer8 {
     class UnknownImpl final : IUnknown {
         Buffer *impl_from_base() noexcept
@@ -34,10 +36,12 @@ class Buffer final : IDirectSoundBuffer8 {
 
     std::atomic<ULONG> mTotalRef{1u}, mDsRef{1u}, mUnkRef{0u};
 
+    DSound8OAL &mParent;
+
     bool mIs8{};
 
 public:
-    Buffer(bool is8);
+    Buffer(DSound8OAL &parent, bool is8);
 
     /*** IUnknown methods ***/
     HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void** ppvObject) noexcept override;

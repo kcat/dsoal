@@ -13,6 +13,8 @@
 #include "primarybuffer.h"
 
 
+class Buffer;
+
 struct SharedDevice {
     struct NoDeleter {
         template<typename T>
@@ -37,6 +39,27 @@ struct SharedDevice {
     std::unique_ptr<ALCcontext,NoDeleter> mContext;
 
     size_t mUseCount{1u};
+};
+
+
+/* Secondary buffers are preallocated in groups of 64. This allows them to be
+ * constructed and destructed in place without having to continually allocate
+ * and deallocate them individually.
+ */
+class BufferSubList {
+public:
+    uint64_t mFreeMask{~0_u64};
+    Buffer *mBuffers{nullptr}; /* 64 */
+
+    BufferSubList() noexcept = default;
+    BufferSubList(const BufferSubList&) = delete;
+    BufferSubList(BufferSubList&& rhs) noexcept : mFreeMask{rhs.mFreeMask}, mBuffers{rhs.mBuffers}
+    { rhs.mFreeMask = ~0_u64; rhs.mBuffers = nullptr; }
+    ~BufferSubList();
+
+    BufferSubList& operator=(const BufferSubList&) = delete;
+    BufferSubList& operator=(BufferSubList&& rhs) noexcept
+    { std::swap(mFreeMask, rhs.mFreeMask); std::swap(mBuffers, rhs.mBuffers); return *this; }
 };
 
 
@@ -77,6 +100,7 @@ class DSound8OAL final : IDirectSound8 {
 
     SharedDevice *mShared{};
 
+    std::vector<BufferSubList> mSecondaryBuffers;
     PrimaryBuffer mPrimaryBuffer;
 
     bool mIs8{};
@@ -96,6 +120,8 @@ public:
     HRESULT STDMETHODCALLTYPE SetSpeakerConfig(DWORD speakerConfig) noexcept override;
     HRESULT STDMETHODCALLTYPE Initialize(const GUID *deviceId) noexcept override;
     HRESULT STDMETHODCALLTYPE VerifyCertification(DWORD *certified) noexcept override;
+
+    void dispose(Buffer *buffer) noexcept;
 
     [[nodiscard]]
     std::mutex &getMutex() noexcept { return mDsMutex; }

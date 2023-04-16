@@ -1,6 +1,7 @@
 #include "buffer.h"
 
 #include "dsoal.h"
+#include "dsoundoal.h"
 #include "guidprinter.h"
 #include "logging.h"
 
@@ -12,7 +13,7 @@ using cvoidp = const void*;
 
 } // namespace
 
-Buffer::Buffer(bool is8) : mIs8{is8} { }
+Buffer::Buffer(DSound8OAL &parent, bool is8) : mParent{parent}, mIs8{is8} { }
 
 
 HRESULT STDMETHODCALLTYPE Buffer::QueryInterface(REFIID riid, void** ppvObject) noexcept
@@ -62,7 +63,7 @@ ULONG STDMETHODCALLTYPE Buffer::Release() noexcept
     const auto ret = mDsRef.fetch_sub(1u, std::memory_order_relaxed) - 1;
     DEBUG("Buffer::Release (%p) ref %lu\n", voidp{this}, ret);
     if(mTotalRef.fetch_sub(1u, std::memory_order_relaxed) == 1)
-        delete this;
+        mParent.dispose(this);
     return ret;
 }
 
