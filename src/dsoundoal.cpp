@@ -403,46 +403,41 @@ HRESULT STDMETHODCALLTYPE DSound8OAL::CreateSoundBuffer(const DSBUFFERDESC *buff
     std::memcpy(&bufdesc, bufferDesc, std::min<DWORD>(sizeof(bufdesc), bufferDesc->dwSize));
     bufdesc.dwSize = std::min<DWORD>(sizeof(bufdesc), bufferDesc->dwSize);
 
-    TRACE(PREFIX "CreateSoundBuffer Requested buffer:\n"
-          "    Size        = %lu\n"
-          "    Flags       = 0x%08lx\n"
-          "    BufferBytes = %lu\n",
-        bufdesc.dwSize, bufdesc.dwFlags, bufdesc.dwBufferBytes);
-
     if(bufdesc.dwSize >= sizeof(DSBUFFERDESC))
     {
-        if(!(bufdesc.dwFlags&DSBCAPS_CTRL3D))
-        {
-            if(bufdesc.guid3DAlgorithm != GUID_NULL)
-            {
-                /* Not fatal. Some apps pass unknown values here. */
-                WARN(PREFIX "CreateSoundBuffer Unknown 3D algorithm GUID specified for non-3D buffer: %s\n",
-                    GuidPrinter{bufdesc.guid3DAlgorithm}.c_str());
-            }
-        }
-        else
-        {
-            TRACE("DSound8OAL::CreateSoundBuffer Requested 3D algorithm GUID: %s\n",
-                GuidPrinter{bufdesc.guid3DAlgorithm}.c_str());
-        }
+        TRACE(PREFIX "CreateSoundBuffer Requested buffer:\n"
+              "    Size        = %lu\n"
+              "    Flags       = 0x%08lx\n"
+              "    BufferBytes = %lu\n"
+              "    3DAlgorithm = %s\n",
+            bufdesc.dwSize, bufdesc.dwFlags, bufdesc.dwBufferBytes,
+            GuidPrinter{bufdesc.guid3DAlgorithm}.c_str());
+    }
+    else
+    {
+        TRACE(PREFIX "CreateSoundBuffer Requested buffer:\n"
+              "    Size        = %lu\n"
+              "    Flags       = 0x%08lx\n"
+              "    BufferBytes = %lu\n",
+            bufdesc.dwSize, bufdesc.dwFlags, bufdesc.dwBufferBytes);
     }
 
     /* OpenAL doesn't support playing with 3d and panning at same time. */
     if((bufdesc.dwFlags&(DSBCAPS_CTRL3D|DSBCAPS_CTRLPAN)) == (DSBCAPS_CTRL3D|DSBCAPS_CTRLPAN))
     {
-        if(!mIs8)
-        {
-            static int once{0};
-            if(!once)
-            {
-                ++once;
-                FIXME(PREFIX "CreateSoundBuffer Buffers with 3D and pan control ignore panning\n");
-            }
-        }
-        else
+        /* Neither does DirectSound 8. */
+        if(mIs8)
         {
             WARN(PREFIX "CreateSoundBuffer Cannot create buffers with 3D and pan control\n");
             return DSERR_INVALIDPARAM;
+        }
+
+        /* DS7 does, though. No idea what it expects to happen. */
+        static int once{0};
+        if(!once)
+        {
+            ++once;
+            FIXME(PREFIX "CreateSoundBuffer Buffers with 3D and pan control ignore panning\n");
         }
     }
 
