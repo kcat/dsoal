@@ -209,6 +209,17 @@ HRESULT STDMETHODCALLTYPE Buffer::QueryInterface(REFIID riid, void** ppvObject) 
         *ppvObject = as<IDirectSoundBuffer8*>();
         return S_OK;
     }
+    if(riid == IID_IDirectSound3DBuffer)
+    {
+        if(!(mBuffer->mFlags&DSBCAPS_CTRL3D))
+        {
+            WARN(PREFIX "QueryInterface Requesting IDirectSound3DBuffer iface for non-3D object\n");
+            return E_NOINTERFACE;
+        }
+        mBuffer3D.AddRef();
+        *ppvObject = mBuffer3D.as<IDirectSound3DBuffer*>();
+        return S_OK;
+    }
 
     FIXME(PREFIX "QueryInterface Unhandled GUID: %s\n", GuidPrinter{riid}.c_str());
     return E_NOINTERFACE;
@@ -456,12 +467,146 @@ HRESULT STDMETHODCALLTYPE Buffer::GetObjectInPath(REFGUID objectId, DWORD index,
         GuidPrinter{objectId}.c_str(), index, GuidPrinter{interfaceId}.c_str(), voidp{ppObject});
     return E_NOTIMPL;
 }
+#undef PREFIX
+
+/*** IDirectSoundBuffer3D interface. ***/
+#define PREFIX "Buffer3D::"
+HRESULT STDMETHODCALLTYPE Buffer::Buffer3D::QueryInterface(REFIID riid, void **ppvObject) noexcept
+{ return impl_from_base()->QueryInterface(riid, ppvObject); }
+
+ULONG STDMETHODCALLTYPE Buffer::Buffer3D::AddRef() noexcept
+{
+    auto self = impl_from_base();
+    self->mTotalRef.fetch_add(1u, std::memory_order_relaxed);
+    const auto ret = self->mDs3dRef.fetch_add(1u, std::memory_order_relaxed) + 1;
+    DEBUG(PREFIX "AddRef (%p) ref %lu\n", voidp{this}, ret);
+    return ret;
+}
+
+ULONG STDMETHODCALLTYPE Buffer::Buffer3D::Release() noexcept
+{
+    auto self = impl_from_base();
+    const auto ret = self->mDs3dRef.fetch_sub(1u, std::memory_order_relaxed) - 1;
+    DEBUG(PREFIX "Release (%p) ref %lu\n", voidp{this}, ret);
+    if(self->mTotalRef.fetch_sub(1u, std::memory_order_relaxed) == 1u) UNLIKELY
+        self->mParent.dispose(self);
+    return ret;
+}
+
+HRESULT STDMETHODCALLTYPE Buffer::Buffer3D::GetAllParameters(DS3DBUFFER *ds3dBuffer) noexcept
+{
+    FIXME(PREFIX "GetAllParameters (%p)->(%p)\n", voidp{this}, voidp{ds3dBuffer});
+    return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE Buffer::Buffer3D::GetConeAngles(DWORD *insideConeAngle, DWORD *outsideConeAngle) noexcept
+{
+    FIXME(PREFIX "GetConeAngles (%p)->(%p, %p)\n", voidp{this}, voidp{insideConeAngle},
+        voidp{outsideConeAngle});
+    return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE Buffer::Buffer3D::GetConeOrientation(D3DVECTOR *orientation) noexcept
+{
+    FIXME(PREFIX "GetConeOrientation (%p)->(%p)\n", voidp{this}, voidp{orientation});
+    return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE Buffer::Buffer3D::GetConeOutsideVolume(LONG *coneOutsideVolume) noexcept
+{
+    FIXME(PREFIX "GetConeOutsideVolume (%p)->(%p)\n", voidp{this}, voidp{coneOutsideVolume});
+    return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE Buffer::Buffer3D::GetMaxDistance(D3DVALUE *maxDistance) noexcept
+{
+    FIXME(PREFIX "GetMaxDistance (%p)->(%p)\n", voidp{this}, voidp{maxDistance});
+    return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE Buffer::Buffer3D::GetMinDistance(D3DVALUE *minDistance) noexcept
+{
+    FIXME(PREFIX "GetMinDistance (%p)->(%p)\n", voidp{this}, voidp{minDistance});
+    return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE Buffer::Buffer3D::GetMode(DWORD *mode) noexcept
+{
+    FIXME(PREFIX "GetMode (%p)->(%p)\n", voidp{this}, voidp{mode});
+    return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE Buffer::Buffer3D::GetPosition(D3DVECTOR *position) noexcept
+{
+    FIXME(PREFIX "GetPosition (%p)->(%p)\n", voidp{this}, voidp{position});
+    return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE Buffer::Buffer3D::GetVelocity(D3DVECTOR *velocity) noexcept
+{
+    FIXME(PREFIX "GetVelocity (%p)->(%p)\n", voidp{this}, voidp{velocity});
+    return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE Buffer::Buffer3D::SetAllParameters(const DS3DBUFFER *ds3dBuffer, DWORD apply) noexcept
+{
+    FIXME(PREFIX "SetAllParameters (%p)->(%p, %lu)\n", voidp{this}, cvoidp{ds3dBuffer}, apply);
+    return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE Buffer::Buffer3D::SetConeAngles(DWORD insideConeAngle, DWORD outsideConeAngle, DWORD apply) noexcept
+{
+    FIXME(PREFIX "SetConeAngles (%p)->(%lu, %lu, %lu)\n", voidp{this}, insideConeAngle,
+        outsideConeAngle, apply);
+    return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE Buffer::Buffer3D::SetConeOrientation(D3DVALUE x, D3DVALUE y, D3DVALUE z, DWORD apply) noexcept
+{
+    FIXME(PREFIX "SetConeOrientation (%p)->(%f, %f, %f, %lu)\n", voidp{this}, x, y, z, apply);
+    return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE Buffer::Buffer3D::SetConeOutsideVolume(LONG coneOutsideVolume, DWORD apply) noexcept
+{
+    FIXME(PREFIX "SetConeOutsideVolume (%p)->(%ld, %lu)\n", voidp{this}, coneOutsideVolume, apply);
+    return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE Buffer::Buffer3D::SetMaxDistance(D3DVALUE maxDistance, DWORD apply) noexcept
+{
+    FIXME(PREFIX "SetMaxDistance (%p)->(%f, %lu)\n", voidp{this}, maxDistance, apply);
+    return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE Buffer::Buffer3D::SetMinDistance(D3DVALUE minDistance, DWORD apply) noexcept
+{
+    FIXME(PREFIX "SetMinDistace (%p)->(%f, %lu)\n", voidp{this}, minDistance, apply);
+    return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE Buffer::Buffer3D::SetMode(DWORD mode, DWORD apply) noexcept
+{
+    FIXME(PREFIX "SetMode (%p)->(%lu, %lu)\n", voidp{this}, mode, apply);
+    return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE Buffer::Buffer3D::SetPosition(D3DVALUE x, D3DVALUE y, D3DVALUE z, DWORD apply) noexcept
+{
+    FIXME(PREFIX "SetPosition (%p)->(%f, %f, %f, %lu)\n", voidp{this}, x, y, z, apply);
+    return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE Buffer::Buffer3D::SetVelocity(D3DVALUE x, D3DVALUE y, D3DVALUE z, DWORD apply) noexcept
+{
+    FIXME(PREFIX "SetVelocity (%p)->(%f, %f, %f, %lu)\n", voidp{this}, x, y, z, apply);
+    return E_NOTIMPL;
+}
+#undef PREFIX
 
 /*** IUnknown interface wrapper. ***/
 HRESULT STDMETHODCALLTYPE Buffer::UnknownImpl::QueryInterface(REFIID riid, void **ppvObject) noexcept
-{
-    return impl_from_base()->QueryInterface(riid, ppvObject);
-}
+{ return impl_from_base()->QueryInterface(riid, ppvObject); }
 
 ULONG STDMETHODCALLTYPE Buffer::UnknownImpl::AddRef() noexcept
 {
@@ -478,6 +623,6 @@ ULONG STDMETHODCALLTYPE Buffer::UnknownImpl::Release() noexcept
     const auto ret = self->mUnkRef.fetch_sub(1u, std::memory_order_relaxed) - 1;
     DEBUG("Buffer::UnknownImpl::Release (%p) ref %lu\n", voidp{this}, ret);
     if(self->mTotalRef.fetch_sub(1u, std::memory_order_relaxed) == 1u) UNLIKELY
-        delete self;
+        self->mParent.dispose(self);
     return ret;
 }

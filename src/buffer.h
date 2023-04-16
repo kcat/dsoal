@@ -69,7 +69,48 @@ class Buffer final : IDirectSoundBuffer8 {
     };
     UnknownImpl mUnknownIface;
 
-    std::atomic<ULONG> mTotalRef{1u}, mDsRef{1u}, mUnkRef{0u};
+    class Buffer3D final : IDirectSound3DBuffer {
+        auto impl_from_base() noexcept
+        {
+#ifdef __GNUC__
+    _Pragma("GCC diagnostic push")
+    _Pragma("GCC diagnostic ignored \"-Wcast-align\"")
+#endif
+            return CONTAINING_RECORD(this, Buffer, mBuffer3D);
+#ifdef __GNUC__
+    _Pragma("GCC diagnostic pop")
+#endif
+        }
+
+    public:
+        HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void** ppvObject) noexcept override;
+        ULONG STDMETHODCALLTYPE AddRef() noexcept override;
+        ULONG STDMETHODCALLTYPE Release() noexcept override;
+        HRESULT STDMETHODCALLTYPE GetAllParameters(DS3DBUFFER *ds3dBuffer) noexcept override;
+        HRESULT STDMETHODCALLTYPE GetConeAngles(DWORD *insideConeAngle, DWORD *outsideConeAngle) noexcept override;
+        HRESULT STDMETHODCALLTYPE GetConeOrientation(D3DVECTOR *orientation) noexcept override;
+        HRESULT STDMETHODCALLTYPE GetConeOutsideVolume(LONG *coneOutsideVolume) noexcept override;
+        HRESULT STDMETHODCALLTYPE GetMaxDistance(D3DVALUE *maxDistance) noexcept override;
+        HRESULT STDMETHODCALLTYPE GetMinDistance(D3DVALUE *minDistance) noexcept override;
+        HRESULT STDMETHODCALLTYPE GetMode(DWORD *mode) noexcept override;
+        HRESULT STDMETHODCALLTYPE GetPosition(D3DVECTOR *position) noexcept override;
+        HRESULT STDMETHODCALLTYPE GetVelocity(D3DVECTOR *velocity) noexcept override;
+        HRESULT STDMETHODCALLTYPE SetAllParameters(const DS3DBUFFER *ds3dBuffer, DWORD apply) noexcept override;
+        HRESULT STDMETHODCALLTYPE SetConeAngles(DWORD insideConeAngle, DWORD outsideConeAngle, DWORD apply) noexcept override;
+        HRESULT STDMETHODCALLTYPE SetConeOrientation(D3DVALUE x, D3DVALUE y, D3DVALUE z, DWORD apply) noexcept override;
+        HRESULT STDMETHODCALLTYPE SetConeOutsideVolume(LONG coneOutsideVolume, DWORD apply) noexcept override;
+        HRESULT STDMETHODCALLTYPE SetMaxDistance(D3DVALUE maxDistance, DWORD apply) noexcept override;
+        HRESULT STDMETHODCALLTYPE SetMinDistance(D3DVALUE minDistance, DWORD apply) noexcept override;
+        HRESULT STDMETHODCALLTYPE SetMode(DWORD mode, DWORD apply) noexcept override;
+        HRESULT STDMETHODCALLTYPE SetPosition(D3DVALUE x, D3DVALUE y, D3DVALUE z, DWORD apply) noexcept override;
+        HRESULT STDMETHODCALLTYPE SetVelocity(D3DVALUE x, D3DVALUE y, D3DVALUE z, DWORD apply) noexcept override;
+
+        template<typename T>
+        T as() noexcept { return static_cast<T>(this); }
+    };
+    Buffer3D mBuffer3D;
+
+    std::atomic<ULONG> mTotalRef{1u}, mDsRef{1u}, mDs3dRef{0u}, mUnkRef{0u};
 
     DSound8OAL &mParent;
     ALCcontext *mContext{};
