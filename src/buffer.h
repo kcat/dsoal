@@ -14,7 +14,7 @@
 #include "expected.h"
 
 
-struct DSound8OAL;
+class DSound8OAL;
 
 
 class SharedBuffer {

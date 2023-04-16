@@ -2,8 +2,9 @@
 #define DSOAL_H
 
 #include <cmath>
+#include <cstdint>
 #include <cstring>
-#include <stdint.h>
+#include <numeric>
 #include <type_traits>
 
 #include <windows.h>
