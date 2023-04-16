@@ -4,7 +4,7 @@
 #include <cmath>
 #include <cstdint>
 #include <cstring>
-#include <numeric>
+#include <limits>
 #include <type_traits>
 
 #include <windows.h>
