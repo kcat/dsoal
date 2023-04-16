@@ -220,6 +220,12 @@ HRESULT STDMETHODCALLTYPE Buffer::QueryInterface(REFIID riid, void** ppvObject) 
         *ppvObject = mBuffer3D.as<IDirectSound3DBuffer*>();
         return S_OK;
     }
+    if(riid == IID_IKsPropertySet)
+    {
+        mProp.AddRef();
+        *ppvObject = mProp.as<IKsPropertySet*>();
+        return S_OK;
+    }
 
     FIXME(PREFIX "QueryInterface Unhandled GUID: %s\n", GuidPrinter{riid}.c_str());
     return E_NOINTERFACE;
@@ -603,6 +609,55 @@ HRESULT STDMETHODCALLTYPE Buffer::Buffer3D::SetVelocity(D3DVALUE x, D3DVALUE y, 
     return E_NOTIMPL;
 }
 #undef PREFIX
+
+/*** IDirectSoundBuffer3D interface. ***/
+#define PREFIX "BufferProp::"
+HRESULT STDMETHODCALLTYPE Buffer::Prop::QueryInterface(REFIID riid, void **ppvObject) noexcept
+{ return impl_from_base()->QueryInterface(riid, ppvObject); }
+
+ULONG STDMETHODCALLTYPE Buffer::Prop::AddRef() noexcept
+{
+    auto self = impl_from_base();
+    self->mTotalRef.fetch_add(1u, std::memory_order_relaxed);
+    const auto ret = self->mPropRef.fetch_add(1u, std::memory_order_relaxed) + 1;
+    DEBUG(PREFIX "AddRef (%p) ref %lu\n", voidp{this}, ret);
+    return ret;
+}
+
+ULONG STDMETHODCALLTYPE Buffer::Prop::Release() noexcept
+{
+    auto self = impl_from_base();
+    const auto ret = self->mPropRef.fetch_sub(1u, std::memory_order_relaxed) - 1;
+    DEBUG(PREFIX "Release (%p) ref %lu\n", voidp{this}, ret);
+    if(self->mTotalRef.fetch_sub(1u, std::memory_order_relaxed) == 1u) UNLIKELY
+        self->mParent.dispose(self);
+    return ret;
+}
+
+HRESULT STDMETHODCALLTYPE Buffer::Prop::Get(REFGUID guidPropSet, ULONG dwPropID, void *pInstanceData, ULONG cbInstanceData, void *pPropData, ULONG cbPropData, ULONG *pcbReturned) noexcept
+{
+    FIXME(PREFIX "Get (%p)->(%s, 0x%lx, %p, %lu, %p, %lu, %p)\n", voidp{this},
+        GuidPrinter{guidPropSet}.c_str(), dwPropID, pInstanceData, cbInstanceData, pPropData,
+        cbPropData, voidp{pcbReturned});
+    return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE Buffer::Prop::Set(REFGUID guidPropSet, ULONG dwPropID, void *pInstanceData, ULONG cbInstanceData, void *pPropData, ULONG cbPropData) noexcept
+{
+    FIXME(PREFIX "Set (%p)->(%s, 0x%lx, %p, %lu, %p, %lu)\n", voidp{this},
+        GuidPrinter{guidPropSet}.c_str(), dwPropID, pInstanceData, cbInstanceData, pPropData,
+        cbPropData);
+    return E_NOTIMPL;
+}
+
+HRESULT STDMETHODCALLTYPE Buffer::Prop::QuerySupport(REFGUID guidPropSet, ULONG dwPropID, ULONG *pTypeSupport) noexcept
+{
+    FIXME(PREFIX "QuerySupport (%p)->(%s, 0x%lx, %p)\n", voidp{this},
+        GuidPrinter{guidPropSet}.c_str(), dwPropID, voidp{pTypeSupport});
+    return E_NOTIMPL;
+}
+#undef PREFIX
+
 
 /*** IUnknown interface wrapper. ***/
 HRESULT STDMETHODCALLTYPE Buffer::UnknownImpl::QueryInterface(REFIID riid, void **ppvObject) noexcept
