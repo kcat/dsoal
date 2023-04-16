@@ -10,82 +10,84 @@
 #include "AL/alc.h"
 #include "comptr.h"
 #include "dsoal.h"
+#include "expected.h"
 #include "primarybuffer.h"
 
 
 class Buffer;
 
 struct SharedDevice {
+    static std::mutex sDeviceListMutex;
+    static std::vector<std::unique_ptr<SharedDevice>> sDeviceList;
+
     struct NoDeleter {
         template<typename T>
         void operator()(T*) noexcept { }
     };
 
-    SharedDevice() = default;
+    SharedDevice(const GUID &id) : mId{id} { }
     SharedDevice(const SharedDevice&) = delete;
-    SharedDevice(SharedDevice&& rhs) = default;
     ~SharedDevice();
 
     SharedDevice& operator=(const SharedDevice&) = delete;
-    SharedDevice& operator=(SharedDevice&&) = delete;
+
+    void dispose() noexcept;
+
+    ULONG AddRef() noexcept { return mRef.fetch_add(1u, std::memory_order_relaxed)+1; }
+    ULONG Release() noexcept
+    {
+        const auto ret = mRef.fetch_sub(1u, std::memory_order_relaxed)-1;
+        if(ret == 0) dispose();
+        return ret;
+    }
 
     DWORD mMaxHwSources{};
     DWORD mMaxSwSources{};
-    DWORD mCurrentHwSources{};
-    DWORD mCurrentSwSources{};
+    std::atomic<DWORD> mCurrentHwSources{};
+    std::atomic<DWORD> mCurrentSwSources{};
 
-    GUID mId{};
+    const GUID mId;
     DWORD mSpeakerConfig{};
 
     std::unique_ptr<ALCdevice,NoDeleter> mDevice;
     std::unique_ptr<ALCcontext,NoDeleter> mContext;
 
-    size_t mUseCount{1u};
+    std::atomic<ULONG> mRef{1u};
 
     DWORD getCurrentHwCount() const noexcept
-    { return static_cast<const volatile DWORD&>(mCurrentHwSources); }
+    { return mCurrentHwSources.load(std::memory_order_relaxed); }
 
     DWORD getCurrentSwCount() const noexcept
-    { return static_cast<const volatile DWORD&>(mCurrentSwSources); }
+    { return mCurrentSwSources.load(std::memory_order_relaxed); }
 
     /* Increment mCurrentHwSources up to mMaxHwSources. Returns false is the
      * current is already at max, or true if it was successfully incremented.
      */
     bool incHwSources() noexcept
     {
-        /* Can't use standard atomics here since they break the move
-         * constructor.
-         */
-        DWORD current;
-        DWORD previous{static_cast<volatile DWORD&>(mCurrentHwSources)};
+        DWORD cur{mCurrentHwSources.load(std::memory_order_relaxed)};
         do {
-            if(previous == mMaxHwSources)
+            if(cur == mMaxHwSources)
                 return false;
-            current = previous;
-            previous = InterlockedCompareExchange(&mCurrentHwSources, current+1, current);
-        } while(previous != current);
+        } while(!mCurrentHwSources.compare_exchange_weak(cur, cur+1, std::memory_order_relaxed));
         return true;
     }
 
     /* Increment mCurrentSwSources up to mMaxSwSources. */
     bool incSwSources() noexcept
     {
-        /* Can't use standard atomics here since they break the move
-         * constructor.
-         */
-        DWORD current;
-        DWORD previous{static_cast<volatile DWORD&>(mCurrentSwSources)};
+        DWORD cur{mCurrentSwSources.load(std::memory_order_relaxed)};
         do {
-            if(previous == mMaxSwSources)
+            if(cur == mMaxSwSources)
                 return false;
-            current = previous;
-            previous = InterlockedCompareExchange(&mCurrentSwSources, current+1, current);
-        } while(previous != current);
+        } while(!mCurrentSwSources.compare_exchange_weak(cur, cur+1, std::memory_order_relaxed));
         return true;
     }
 
-    void decHwSources() noexcept { InterlockedDecrement(&mCurrentHwSources); }
-    void decSwSources() noexcept { InterlockedDecrement(&mCurrentSwSources); }
+    void decHwSources() noexcept { mCurrentHwSources.fetch_sub(1u, std::memory_order_relaxed); }
+    void decSwSources() noexcept { mCurrentSwSources.fetch_sub(1u, std::memory_order_relaxed); }
+
+    static auto GetById(const GUID &deviceId) noexcept -> ds::expected<ComPtr<SharedDevice>,HRESULT>;
 };
 
 
@@ -113,9 +115,6 @@ public:
 class DSound8OAL final : IDirectSound8 {
     DSound8OAL(bool is8);
     ~DSound8OAL();
-
-    static std::mutex sDeviceListMutex;
-    static std::vector<std::unique_ptr<SharedDevice>> sDeviceList;
 
     class UnknownImpl final : IUnknown {
         DSound8OAL *impl_from_base() noexcept
@@ -145,7 +144,7 @@ class DSound8OAL final : IDirectSound8 {
     std::mutex mDsMutex;
     DWORD mPrioLevel{};
 
-    SharedDevice *mShared{};
+    ComPtr<SharedDevice> mShared;
 
     std::vector<BufferSubList> mSecondaryBuffers;
     PrimaryBuffer mPrimaryBuffer;

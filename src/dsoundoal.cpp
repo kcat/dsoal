@@ -119,7 +119,7 @@ std::optional<DWORD> GetSpeakerConfig(IMMDevice *device, const GUID &devid)
     return speakerconf;
 }
 
-ds::expected<std::unique_ptr<SharedDevice>,HRESULT> CreateDeviceShare(GUID &guid)
+ds::expected<std::unique_ptr<SharedDevice>,HRESULT> CreateDeviceShare(const GUID &guid)
 {
     TRACE("CreateDeviceShare Creating shared device %s\n", GuidPrinter{guid}.c_str());
 
@@ -220,8 +220,7 @@ ds::expected<std::unique_ptr<SharedDevice>,HRESULT> CreateDeviceShare(GUID &guid
 
     const DWORD maxHw{totalSources > MaxHwSources*2 ? MaxHwSources : (MaxHwSources/2)};
 
-    auto shared = std::make_unique<SharedDevice>();
-    shared->mId = guid;
+    auto shared = std::make_unique<SharedDevice>(guid);
     shared->mSpeakerConfig = speakerconf;
     shared->mMaxHwSources = maxHw;
     shared->mMaxSwSources = totalSources - maxHw;
@@ -233,9 +232,30 @@ ds::expected<std::unique_ptr<SharedDevice>,HRESULT> CreateDeviceShare(GUID &guid
 
 } // namespace
 
+#define PREFIX "SharedDevice::"
+std::mutex SharedDevice::sDeviceListMutex;
+std::vector<std::unique_ptr<SharedDevice>> SharedDevice::sDeviceList;
 
-std::mutex DSound8OAL::sDeviceListMutex;
-std::vector<std::unique_ptr<SharedDevice>> DSound8OAL::sDeviceList;
+auto SharedDevice::GetById(const GUID &deviceId) noexcept
+    -> ds::expected<ComPtr<SharedDevice>,HRESULT>
+{
+    auto find_id = [&deviceId](std::unique_ptr<SharedDevice> &device)
+    { return deviceId == device->mId; };
+
+    std::unique_lock listlock{sDeviceListMutex};
+    auto sharediter = std::find_if(sDeviceList.begin(), sDeviceList.end(), find_id);
+    if(sharediter != sDeviceList.end())
+    {
+        (*sharediter)->AddRef();
+        return ComPtr<SharedDevice>{(*sharediter).get()};
+    }
+
+    auto shared = CreateDeviceShare(deviceId);
+    if(!shared) return ds::unexpected(shared.error());
+
+    sDeviceList.emplace_back(std::move(shared).value());
+    return ComPtr<SharedDevice>{sDeviceList.back().get()};
+}
 
 SharedDevice::~SharedDevice()
 {
@@ -249,6 +269,22 @@ SharedDevice::~SharedDevice()
         alcCloseDevice(mDevice.release());
 }
 
+void SharedDevice::dispose() noexcept
+{
+    std::lock_guard listlock{sDeviceListMutex};
+
+    auto find_shared = [this](std::unique_ptr<SharedDevice> &shared)
+    { return this == shared.get(); };
+
+    auto shared_iter = std::find_if(sDeviceList.begin(), sDeviceList.end(), find_shared);
+    if(shared_iter != sDeviceList.end())
+    {
+        TRACE(PREFIX "dispose Freeing shared device %s\n",
+            GuidPrinter{(*shared_iter)->mId}.c_str());
+        sDeviceList.erase(shared_iter);
+    }
+}
+#undef PREFIX
 
 BufferSubList::~BufferSubList()
 {
@@ -277,27 +313,7 @@ DSound8OAL::DSound8OAL(bool is8) : mPrimaryBuffer{*this}, mIs8{is8}
 {
 }
 
-DSound8OAL::~DSound8OAL()
-{
-    if(!mShared)
-        return;
-
-    std::lock_guard listlock{sDeviceListMutex};
-
-    auto find_shared = [this](std::unique_ptr<SharedDevice> &shared)
-    { return mShared == shared.get(); };
-
-    auto shared_iter = std::find_if(sDeviceList.begin(), sDeviceList.end(), find_shared);
-    if(shared_iter == sDeviceList.end()) return;
-
-    (*shared_iter)->mUseCount -= 1;
-    if((*shared_iter)->mUseCount == 0)
-    {
-        TRACE(PREFIX "~DSound8OAL Freeing shared device %s\n",
-            GuidPrinter{(*shared_iter)->mId}.c_str());
-        sDeviceList.erase(shared_iter);
-    }
-}
+DSound8OAL::~DSound8OAL() = default;
 
 
 HRESULT STDMETHODCALLTYPE DSound8OAL::QueryInterface(REFIID riid, void** ppvObject) noexcept
@@ -647,26 +663,9 @@ HRESULT STDMETHODCALLTYPE DSound8OAL::Initialize(const GUID *deviceId) noexcept
     HRESULT hr{GetDeviceID(*deviceId, devid)};
     if(FAILED(hr)) return hr;
 
-    {
-        auto find_id = [devid](std::unique_ptr<SharedDevice> &device)
-        { return devid == device->mId; };
-
-        std::unique_lock listlock{sDeviceListMutex};
-        auto sharediter = std::find_if(sDeviceList.begin(), sDeviceList.end(), find_id);
-        if(sharediter != sDeviceList.end())
-        {
-            (*sharediter)->mUseCount += 1;
-            mShared = sharediter->get();
-        }
-        else
-        {
-            auto shared = CreateDeviceShare(devid);
-            if(!shared) return shared.error();
-
-            sDeviceList.emplace_back(std::move(shared).value());
-            mShared = sDeviceList.back().get();
-        }
-    }
+    auto shared = SharedDevice::GetById(devid);
+    if(!shared) return shared.error();
+    mShared = std::move(shared).value();
 
     mPrimaryBuffer.setContext(mShared->mContext.get());
 
