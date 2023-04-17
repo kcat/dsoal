@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <bitset>
 #include <memory>
 #include <mutex>
 #include <vector>
@@ -17,6 +18,13 @@
 
 
 class Buffer;
+
+enum Extensions : uint8_t {
+    EXT_EAX,
+    EXT_STATIC_BUFFER,
+
+    ExtensionCount
+};
 
 struct SharedDevice {
     static std::mutex sDeviceListMutex;
@@ -47,6 +55,8 @@ struct SharedDevice {
     DWORD mMaxSwSources{};
     std::atomic<DWORD> mCurrentHwSources{};
     std::atomic<DWORD> mCurrentSwSources{};
+
+    std::bitset<ExtensionCount> mExtensions;
 
     const GUID mId;
     DWORD mSpeakerConfig{};
@@ -148,6 +158,8 @@ class DSound8OAL final : IDirectSound8 {
 
     ComPtr<SharedDevice> mShared;
 
+    std::bitset<ExtensionCount> mExtensions;
+
     std::vector<BufferSubList> mSecondaryBuffers;
     PrimaryBuffer mPrimaryBuffer;
 
@@ -186,6 +198,9 @@ public:
 
     [[nodiscard]]
     std::mutex &getMutex() noexcept { return mDsMutex; }
+
+    [[nodiscard]]
+    bool haveExtension(Extensions flag) const noexcept { return mExtensions.test(flag); }
 
     [[nodiscard]]
     DWORD getPriorityLevel() const noexcept { return mPrioLevel; }

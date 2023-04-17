@@ -1,7 +1,12 @@
 #include "buffer.h"
 
+#include <optional>
+
+#include <vfwmsgs.h>
+
 #include "dsoal.h"
 #include "dsoundoal.h"
+#include "eax.h"
 #include "guidprinter.h"
 #include "logging.h"
 #include "primarybuffer.h"
@@ -1576,27 +1581,166 @@ ULONG STDMETHODCALLTYPE Buffer::Prop::Release() noexcept
     return ret;
 }
 
-HRESULT STDMETHODCALLTYPE Buffer::Prop::Get(REFGUID guidPropSet, ULONG dwPropID, void *pInstanceData, ULONG cbInstanceData, void *pPropData, ULONG cbPropData, ULONG *pcbReturned) noexcept
+HRESULT STDMETHODCALLTYPE Buffer::Prop::Get(REFGUID guidPropSet, ULONG dwPropID,
+    void *pInstanceData, ULONG cbInstanceData, void *pPropData, ULONG cbPropData,
+    ULONG *pcbReturned) noexcept
 {
-    FIXME(PREFIX "Get (%p)->(%s, 0x%lx, %p, %lu, %p, %lu, %p)\n", voidp{this},
+    DEBUG(PREFIX "Get (%p)->(%s, 0x%lx, %p, %lu, %p, %lu, %p)\n", voidp{this},
         GuidPrinter{guidPropSet}.c_str(), dwPropID, pInstanceData, cbInstanceData, pPropData,
         cbPropData, voidp{pcbReturned});
-    return E_NOTIMPL;
+
+    if(!pcbReturned)
+        return E_POINTER;
+    *pcbReturned = 0;
+
+    if(cbPropData > 0 && !pPropData)
+    {
+        WARN(PREFIX "Get pPropData is NULL with cbPropData > 0\n");
+        return E_POINTER;
+    }
+
+    auto self = impl_from_base();
+    std::lock_guard lock{self->mMutex};
+    if(guidPropSet == EAXPROPERTYID_EAX40_Source
+        || guidPropSet == DSPROPSETID_EAX30_BufferProperties
+        || guidPropSet == DSPROPSETID_EAX20_BufferProperties
+        || guidPropSet == EAXPROPERTYID_EAX40_FXSlot0
+        || guidPropSet == EAXPROPERTYID_EAX40_FXSlot1
+        || guidPropSet == EAXPROPERTYID_EAX40_FXSlot2
+        || guidPropSet == EAXPROPERTYID_EAX40_FXSlot3
+        || guidPropSet == DSPROPSETID_EAX30_ListenerProperties
+        || guidPropSet == DSPROPSETID_EAX20_ListenerProperties
+        || guidPropSet == EAXPROPERTYID_EAX40_Context
+        || guidPropSet == DSPROPSETID_EAX10_ListenerProperties
+        || guidPropSet == DSPROPSETID_EAX10_BufferProperties)
+    {
+        if(self->mParent.haveExtension(EXT_EAX))
+        {
+            ALSection alsection{self->mContext};
+            const ALenum err{EAXGet(&guidPropSet, dwPropID, self->mSource, pPropData, cbPropData)};
+            if(err != AL_NO_ERROR)
+                return E_FAIL;
+            /* Not sure what to do here. OpenAL EAX doesn't return the amount
+             * of data written, and determining how much should have been
+             * written (at least for EAX4) will require tracking the FXSlot
+             * state since different effects will write different amounts for
+             * the same PropID.
+             */
+            *pcbReturned = cbPropData;
+            return DS_OK;
+        }
+    }
+
+    return E_PROP_ID_UNSUPPORTED;
 }
 
-HRESULT STDMETHODCALLTYPE Buffer::Prop::Set(REFGUID guidPropSet, ULONG dwPropID, void *pInstanceData, ULONG cbInstanceData, void *pPropData, ULONG cbPropData) noexcept
+HRESULT STDMETHODCALLTYPE Buffer::Prop::Set(REFGUID guidPropSet, ULONG dwPropID,
+    void *pInstanceData, ULONG cbInstanceData, void *pPropData, ULONG cbPropData) noexcept
 {
-    FIXME(PREFIX "Set (%p)->(%s, 0x%lx, %p, %lu, %p, %lu)\n", voidp{this},
+    DEBUG(PREFIX "Set (%p)->(%s, 0x%lx, %p, %lu, %p, %lu)\n", voidp{this},
         GuidPrinter{guidPropSet}.c_str(), dwPropID, pInstanceData, cbInstanceData, pPropData,
         cbPropData);
-    return E_NOTIMPL;
+
+    if(cbPropData > 0 && !pPropData)
+    {
+        WARN(PREFIX "Set pPropData is NULL with cbPropData > 0\n");
+        return E_POINTER;
+    }
+
+    auto self = impl_from_base();
+    std::lock_guard lock{self->mMutex};
+    if(guidPropSet == EAXPROPERTYID_EAX40_Source
+        || guidPropSet == DSPROPSETID_EAX30_BufferProperties
+        || guidPropSet == DSPROPSETID_EAX20_BufferProperties
+        || guidPropSet == EAXPROPERTYID_EAX40_FXSlot0
+        || guidPropSet == EAXPROPERTYID_EAX40_FXSlot1
+        || guidPropSet == EAXPROPERTYID_EAX40_FXSlot2
+        || guidPropSet == EAXPROPERTYID_EAX40_FXSlot3
+        || guidPropSet == DSPROPSETID_EAX30_ListenerProperties
+        || guidPropSet == DSPROPSETID_EAX20_ListenerProperties
+        || guidPropSet == EAXPROPERTYID_EAX40_Context
+        || guidPropSet == DSPROPSETID_EAX10_ListenerProperties
+        || guidPropSet == DSPROPSETID_EAX10_BufferProperties)
+    {
+        if(self->mParent.haveExtension(EXT_EAX))
+        {
+            ALSection alsection{self->mContext};
+            const bool immediate{!(dwPropID&0x80000000u)};
+
+            if(immediate)
+                alcSuspendContext(self->mContext);
+
+            const ALenum err{EAXSet(&guidPropSet, dwPropID, self->mSource, pPropData, cbPropData)};
+            if(immediate)
+            {
+                /* FIXME: Commit DSound settings regardless? alcProcessContext
+                 * will commit deferred EAX settings, which we can't avoid.
+                 */
+                if(err == AL_NO_ERROR)
+                    self->mParent.getPrimary().commit();
+                alcProcessContext(self->mContext);
+            }
+            if(err != AL_NO_ERROR)
+                return E_FAIL;
+            return DS_OK;
+        }
+    }
+
+    return E_PROP_ID_UNSUPPORTED;
 }
 
-HRESULT STDMETHODCALLTYPE Buffer::Prop::QuerySupport(REFGUID guidPropSet, ULONG dwPropID, ULONG *pTypeSupport) noexcept
+HRESULT STDMETHODCALLTYPE Buffer::Prop::QuerySupport(REFGUID guidPropSet, ULONG dwPropID,
+    ULONG *pTypeSupport) noexcept
 {
-    FIXME(PREFIX "QuerySupport (%p)->(%s, 0x%lx, %p)\n", voidp{this},
+    DEBUG(PREFIX "QuerySupport (%p)->(%s, 0x%lx, %p)\n", voidp{this},
         GuidPrinter{guidPropSet}.c_str(), dwPropID, voidp{pTypeSupport});
-    return E_NOTIMPL;
+
+    if(!pTypeSupport)
+        return E_POINTER;
+    *pTypeSupport = 0;
+
+    auto self = impl_from_base();
+    if(self->mParent.haveExtension(EXT_EAX))
+    {
+        auto query = [&guidPropSet,dwPropID]() -> std::optional<DWORD>
+        {
+            if(guidPropSet == EAXPROPERTYID_EAX40_Source)
+                return EAX4Source_Query(dwPropID);
+            if(guidPropSet == DSPROPSETID_EAX30_BufferProperties)
+                return EAX3Buffer_Query(dwPropID);
+            if(guidPropSet == DSPROPSETID_EAX20_BufferProperties)
+                return EAX2Buffer_Query(dwPropID);
+            if(guidPropSet == EAXPROPERTYID_EAX40_FXSlot0
+                || guidPropSet == EAXPROPERTYID_EAX40_FXSlot1
+                || guidPropSet == EAXPROPERTYID_EAX40_FXSlot2
+                || guidPropSet == EAXPROPERTYID_EAX40_FXSlot3)
+                return EAX4Slot_Query(dwPropID);
+            if(guidPropSet == DSPROPSETID_EAX30_ListenerProperties)
+                return EAX3_Query(dwPropID);
+            if(guidPropSet == DSPROPSETID_EAX20_ListenerProperties)
+                return EAX2_Query(dwPropID);
+            if(guidPropSet == EAXPROPERTYID_EAX40_Context)
+                return EAX4Context_Query(dwPropID);
+            if(guidPropSet == DSPROPSETID_EAX10_ListenerProperties)
+                return EAX1_Query(dwPropID);
+            if(guidPropSet == DSPROPSETID_EAX10_BufferProperties)
+                return EAX1Buffer_Query(dwPropID);
+            return std::nullopt;
+        };
+        auto res = query();
+        if(res)
+        {
+            if(!*res)
+                return E_PROP_ID_UNSUPPORTED;
+
+            *pTypeSupport = *res;
+            return DS_OK;
+        }
+    }
+
+    FIXME(PREFIX "QuerySupport Unhandled propset: %s (propid: %lu)\n",
+        GuidPrinter{guidPropSet}.c_str(), dwPropID);
+    return E_PROP_ID_UNSUPPORTED;
 }
 #undef PREFIX
 

@@ -553,6 +553,19 @@ void PrimaryBuffer::setParams(const DS3DLISTENER &params, const std::bitset<Flag
     if(flags.test(DopplerFactor))
         alDopplerFactor(params.flDopplerFactor);
 }
+
+void PrimaryBuffer::commit() noexcept
+{
+    if(auto flags = std::exchange(mDirty, 0); flags.any())
+    {
+        setParams(mDeferred, flags);
+        alGetError();
+    }
+
+    for(Buffer *buffer : mParent.get3dBuffers())
+        buffer->commit();
+    alGetError();
+}
 #undef PREFIX
 
 #define PREFIX "Primary::Listener3D::"
@@ -927,15 +940,7 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::Listener3D::CommitDeferredSettings() no
     ALSection alsection{self->mContext};
     alcSuspendContext(self->mContext);
 
-    if(auto flags = std::exchange(self->mDirty, 0); flags.any())
-    {
-        self->setParams(self->mDeferred, flags);
-        alGetError();
-    }
-
-    for(Buffer *buffer : self->mParent.get3dBuffers())
-        buffer->commit();
-    alGetError();
+    self->commit();
 
     alcProcessContext(self->mContext);
     return DS_OK;

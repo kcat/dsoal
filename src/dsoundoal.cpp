@@ -204,10 +204,28 @@ ds::expected<std::unique_ptr<SharedDevice>,HRESULT> CreateDeviceShare(const GUID
     }
     ALSection alsection{alctx.get()};
 
+    const struct {
+        const char *name;
+        Extensions flag;
+    } sExtensionList[]{
+        { "EAX5.0", EXT_EAX },
+        { "AL_EXT_STATIC_BUFFER", EXT_STATIC_BUFFER }
+    };
+
+    std::bitset<ExtensionCount> extensions{};
+    for(auto &ext : sExtensionList)
+    {
+        if(alIsExtensionPresent(ext.name))
+        {
+            extensions.set(ext.flag);
+            TRACE("CreateDeviceShare Found extension %s\n", ext.name);
+        }
+    }
+
     /* TODO: Could also support AL_SOFTX_map_buffer, for older OpenAL Soft
      * versions, or AL_SOFT_callback_buffer.
      */
-    if(!alIsExtensionPresent("AL_EXT_STATIC_BUFFER"))
+    if(!extensions.test(EXT_STATIC_BUFFER))
     {
         WARN("CreateDeviceShare Missing the required AL_EXT_STATIC_BUFFER extension\n");
         return ds::unexpected(hr);
@@ -234,6 +252,7 @@ ds::expected<std::unique_ptr<SharedDevice>,HRESULT> CreateDeviceShare(const GUID
     shared->mSpeakerConfig = speakerconf;
     shared->mMaxHwSources = maxHw;
     shared->mMaxSwSources = totalSources - maxHw;
+    shared->mExtensions = extensions;
     shared->mDevice.reset(aldev.release());
     shared->mContext.reset(alctx.release());
 
@@ -722,6 +741,7 @@ HRESULT STDMETHODCALLTYPE DSound8OAL::Initialize(const GUID *deviceId) noexcept
     mShared = std::move(shared).value();
 
     mPrimaryBuffer.setContext(mShared->mContext.get());
+    mExtensions = mShared->mExtensions;
 
     /* Preallocate some groups for the number of "hardware" buffers we can do.
      * This will grow as needed.
