@@ -181,6 +181,7 @@ bool load_openal()
     LOAD_FUNCPTR(alcGetThreadContext);
     LOAD_FUNCPTR(EAXSet);
     LOAD_FUNCPTR(EAXGet);
+    LOAD_FUNCPTR(alBufferDataStatic);
     LOAD_FUNCPTR(alBufferStorageSOFT);
     LOAD_FUNCPTR(alMapBufferSOFT);
     LOAD_FUNCPTR(alUnmapBufferSOFT);

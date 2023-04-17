@@ -145,6 +145,9 @@ class Buffer final : IDirectSoundBuffer8 {
     std::mutex &mMutex;
     ComPtr<SharedBuffer> mBuffer;
     ALuint mSource{};
+    DWORD mLastPos{0};
+    std::atomic<bool> mLocked{false};
+    bool mBufferLost{false};
 
     LONG mVolume{};
     LONG mPan{};

@@ -143,7 +143,7 @@ ds::expected<ComPtr<SharedBuffer>,HRESULT> SharedBuffer::Create(const DSBUFFERDE
     if(!shared->mAlFormat) return ds::unexpected(DSERR_INVALIDPARAM);
 
     alGenBuffers(1, &shared->mAlBuffer);
-    alBufferData(shared->mAlBuffer, shared->mAlFormat, shared->mData,
+    alBufferDataStatic(shared->mAlBuffer, shared->mAlFormat, shared->mData,
         static_cast<ALsizei>(shared->mDataSize),
         static_cast<ALsizei>(shared->mWfxFormat.Format.nSamplesPerSec));
     alGetError();
@@ -381,9 +381,10 @@ HRESULT STDMETHODCALLTYPE Buffer::GetCurrentPosition(DWORD *playCursor, DWORD *w
          */
         switch(status)
         {
-            case AL_STOPPED: pos = mBuffer->mDataSize; break;
-            case AL_PAUSED: pos = static_cast<ALuint>(ofs); break;
-            default: pos = 0;
+        case AL_STOPPED: pos = mBuffer->mDataSize; break;
+        case AL_PAUSED: pos = static_cast<ALuint>(ofs); break;
+        case AL_INITIAL: pos = mLastPos; break;
+        default: pos = 0;
         }
         writecursor = 0;
     }
@@ -405,7 +406,7 @@ HRESULT STDMETHODCALLTYPE Buffer::GetCurrentPosition(DWORD *playCursor, DWORD *w
 
 HRESULT STDMETHODCALLTYPE Buffer::GetFormat(WAVEFORMATEX *wfx, DWORD sizeAllocated, DWORD *sizeWritten) noexcept
 {
-    FIXME(PREFIX "GetFormat (%p)->(%p, %lu, %p)\n", voidp{this}, voidp{wfx},
+    DEBUG(PREFIX "GetFormat (%p)->(%p, %lu, %p)\n", voidp{this}, voidp{wfx},
         sizeAllocated, voidp{sizeWritten});
 
     if(!wfx && !sizeWritten)
@@ -498,7 +499,7 @@ HRESULT STDMETHODCALLTYPE Buffer::GetStatus(DWORD *status) noexcept
 
 HRESULT STDMETHODCALLTYPE Buffer::Initialize(IDirectSound *directSound, const DSBUFFERDESC *dsBufferDesc) noexcept
 {
-    DEBUG("Buffer::Initialize (%p)->(%p, %p)\n", voidp{this}, voidp{directSound},
+    DEBUG(PREFIX "Initialize (%p)->(%p, %p)\n", voidp{this}, voidp{directSound},
         cvoidp{dsBufferDesc});
 
     std::unique_lock lock{mMutex};
@@ -574,21 +575,152 @@ HRESULT STDMETHODCALLTYPE Buffer::Initialize(IDirectSound *directSound, const DS
 
 HRESULT STDMETHODCALLTYPE Buffer::Lock(DWORD offset, DWORD bytes, void **audioPtr1, DWORD *audioBytes1, void **audioPtr2, DWORD *audioBytes2, DWORD flags) noexcept
 {
-    FIXME(PREFIX "Lock (%p)->(%lu, %lu, %p, %p, %p, %p, %lu)\n", voidp{this}, offset, bytes,
+    DEBUG(PREFIX "Lock (%p)->(%lu, %lu, %p, %p, %p, %p, %lu)\n", voidp{this}, offset, bytes,
         voidp{audioPtr1}, voidp{audioBytes1}, voidp{audioPtr2}, voidp{audioBytes2}, flags);
-    return E_NOTIMPL;
+
+    if(!audioPtr1 || !audioBytes1)
+    {
+        WARN(PREFIX "Lock Invalid pointer/len %p %p\n", voidp{audioPtr1}, voidp{audioBytes1});
+        return DSERR_INVALIDPARAM;
+    }
+
+    *audioPtr1 = NULL;
+    *audioBytes1 = 0;
+    if(audioPtr2) *audioPtr2 = NULL;
+    if(audioBytes2) *audioBytes2 = 0;
+
+    if((flags&DSBLOCK_FROMWRITECURSOR))
+        GetCurrentPosition(nullptr, &offset);
+    else if(offset >= mBuffer->mDataSize)
+    {
+        WARN(PREFIX "Lock Invalid offset %lu\n", offset);
+        return DSERR_INVALIDPARAM;
+    }
+    if((flags&DSBLOCK_ENTIREBUFFER))
+        bytes = mBuffer->mDataSize;
+    else if(bytes > mBuffer->mDataSize)
+    {
+        WARN(PREFIX "Lock Invalid size %lu\n", bytes);
+        return DSERR_INVALIDPARAM;
+    }
+
+    if(mLocked.exchange(true, std::memory_order_relaxed))
+    {
+        WARN(PREFIX "Lock Already locked\n");
+        return DSERR_INVALIDPARAM;
+    }
+
+    DWORD remain{};
+    *audioPtr1 = mBuffer->mData + offset;
+    if(bytes >= mBuffer->mDataSize-offset)
+    {
+        *audioBytes1 = mBuffer->mDataSize - offset;
+        remain = bytes - *audioBytes1;
+    }
+    else
+    {
+        *audioBytes1 = bytes;
+        remain = 0;
+    }
+
+    if(audioPtr2 && audioBytes2 && remain)
+    {
+        *audioPtr2 = mBuffer->mData;
+        *audioBytes2 = remain;
+    }
+
+    return DS_OK;
 }
 
-HRESULT STDMETHODCALLTYPE Buffer::Play(DWORD reserved1, DWORD reserved2, DWORD flags) noexcept
+HRESULT STDMETHODCALLTYPE Buffer::Play(DWORD reserved1, DWORD priority, DWORD flags) noexcept
 {
-    FIXME("Buffer::Play (%p)->(%lu, %lu, %lu)\n", voidp{this}, reserved1, reserved2, flags);
-    return E_NOTIMPL;
+    DEBUG(PREFIX "Play (%p)->(%lu, %lu, %lu)\n", voidp{this}, reserved1, priority, flags);
+
+    std::unique_lock lock{mMutex};
+    if(mBufferLost) UNLIKELY
+    {
+        WARN(PREFIX "Play Buffer lost\n");
+        return DSERR_BUFFERLOST;
+    }
+
+    ALSection alsection{mContext};
+    if((mBuffer->mFlags&DSBCAPS_LOCDEFER))
+    {
+        LocStatus loc{LocStatus::Any};
+
+        static constexpr DWORD LocFlags{DSBPLAY_LOCSOFTWARE | DSBPLAY_LOCHARDWARE};
+        if((flags&LocFlags) == LocFlags)
+        {
+            WARN(PREFIX "Play Both hardware and software specified\n");
+            return DSERR_INVALIDPARAM;
+        }
+
+        if((flags&DSBPLAY_LOCHARDWARE)) loc = LocStatus::Hardware;
+        else if((flags&DSBPLAY_LOCSOFTWARE)) loc = LocStatus::Software;
+
+        if(loc != LocStatus::Any && mLocStatus != LocStatus::None && loc != mLocStatus)
+        {
+            ALint state{};
+            alGetSourcei(mSource, AL_SOURCE_STATE, &state);
+            alGetError();
+
+            if(state == AL_PLAYING)
+            {
+                FIXME(PREFIX "Play Attemping to change location on playing buffer\n");
+                return DSERR_INVALIDPARAM;
+            }
+        }
+
+        HRESULT hr{setLocation(loc)};
+        if(FAILED(hr)) return hr;
+    }
+    else if(priority != 0)
+    {
+        ERR(PREFIX "Play Invalid priority for non-deferred buffer, %lu.\n", priority);
+        return DSERR_INVALIDPARAM;
+    }
+
+    ALint state{};
+    alSourcei(mSource, AL_LOOPING, (flags&DSBPLAY_LOOPING) ? AL_TRUE : AL_FALSE);
+    alGetSourcei(mSource, AL_SOURCE_STATE, &state);
+    alGetError();
+
+    if(state == AL_PLAYING)
+        return DS_OK;
+
+    if(state == AL_INITIAL)
+    {
+        alSourcei(mSource, AL_BUFFER, static_cast<ALint>(mBuffer->mAlBuffer));
+        alSourcei(mSource, AL_BYTE_OFFSET, static_cast<ALint>(mLastPos % mBuffer->mDataSize));
+    }
+    alSourcePlay(mSource);
+    if(alGetError() != AL_NO_ERROR)
+    {
+        ERR(PREFIX "Play Couldn't start source\n");
+        return DSERR_GENERIC;
+    }
+
+    return DS_OK;
 }
 
 HRESULT STDMETHODCALLTYPE Buffer::SetCurrentPosition(DWORD newPosition) noexcept
 {
     FIXME("Buffer::SetCurrentPosition (%p)->(%lu)\n", voidp{this}, newPosition);
-    return E_NOTIMPL;
+
+    if(newPosition >= mBuffer->mDataSize)
+        return DSERR_INVALIDPARAM;
+    newPosition -= newPosition % mBuffer->mWfxFormat.Format.nBlockAlign;
+
+    std::unique_lock lock{mMutex};
+    if(mSource != 0)
+    {
+        ALSection alsection{mContext};
+        alSourcei(mSource, AL_BYTE_OFFSET, static_cast<ALint>(newPosition));
+        alGetError();
+    }
+    mLastPos = newPosition;
+
+    return DS_OK;
 }
 
 HRESULT STDMETHODCALLTYPE Buffer::SetFormat(const WAVEFORMATEX *wfx) noexcept
@@ -599,37 +731,145 @@ HRESULT STDMETHODCALLTYPE Buffer::SetFormat(const WAVEFORMATEX *wfx) noexcept
 
 HRESULT STDMETHODCALLTYPE Buffer::SetVolume(LONG volume) noexcept
 {
-    FIXME("Buffer::SetVolume (%p)->(%ld)\n", voidp{this}, volume);
-    return E_NOTIMPL;
+    DEBUG(PREFIX "SetVolume (%p)->(%ld)\n", voidp{this}, volume);
+
+    if(volume > DSBVOLUME_MAX || volume < DSBVOLUME_MIN)
+    {
+        WARN(PREFIX "SetVolume Invalid volume (%ld)\n", volume);
+        return DSERR_INVALIDPARAM;
+    }
+
+    if(!(mBuffer->mFlags&DSBCAPS_CTRLVOLUME))
+        return DSERR_CONTROLUNAVAIL;
+
+    std::unique_lock lock{mMutex};
+    mVolume = volume;
+    if(mSource != 0) LIKELY
+    {
+        ALSection alsection{mContext};
+        alSourcef(mSource, AL_GAIN, mB_to_gain(static_cast<float>(volume)));
+    }
+
+    return DS_OK;
 }
 
 HRESULT STDMETHODCALLTYPE Buffer::SetPan(LONG pan) noexcept
 {
-    FIXME("Buffer::SetPan (%p)->(%ld): stub\n", voidp{this}, pan);
-    return E_NOTIMPL;
+    DEBUG(PREFIX "SetPan (%p)->(%ld)\n", voidp{this}, pan);
+
+    if(pan > DSBPAN_RIGHT || pan < DSBPAN_LEFT)
+    {
+        WARN(PREFIX "SetPan Invalid parameter: %ld\n", pan);
+        return DSERR_INVALIDPARAM;
+    }
+
+    if(!(mBuffer->mFlags&DSBCAPS_CTRLPAN))
+        return DSERR_CONTROLUNAVAIL;
+
+    std::unique_lock lock{mMutex};
+    mPan = pan;
+    if(mSource != 0 && !(mBuffer->mFlags&DSBCAPS_CTRL3D)) LIKELY
+    {
+        ALSection alsection{mContext};
+        /* NOTE: Strict movement along the X plane can cause the sound to jump
+         * between left and right sharply. Using a curved path helps smooth it
+         * out.
+         */
+        const float x{static_cast<float>(pan-DSBPAN_LEFT)/(DSBPAN_RIGHT-DSBPAN_LEFT) - 0.5f};
+        alSource3f(mSource, AL_POSITION, x, 0.0f, -std::sqrt(1.0f - x*x));
+    }
+
+    return DS_OK;
 }
 
 HRESULT STDMETHODCALLTYPE Buffer::SetFrequency(DWORD frequency) noexcept
 {
-    FIXME("Buffer::SetFrequency (%p)->(%lu)\n", voidp{this}, frequency);
-    return E_NOTIMPL;
+    DEBUG(PREFIX "SetFrequency (%p)->(%lu)\n", voidp{this}, frequency);
+
+    if(frequency != 0 && (frequency < DSBFREQUENCY_MIN || frequency > DSBFREQUENCY_MAX))
+    {
+        WARN(PREFIX "SetFrequency Invalid parameter: %lu\n", frequency);
+        return DSERR_INVALIDPARAM;
+    }
+
+    if(!(mBuffer->mFlags&DSBCAPS_CTRLFREQUENCY))
+        return DSERR_CONTROLUNAVAIL;
+
+    std::unique_lock lock{mMutex};
+    mFrequency = frequency ? frequency : mBuffer->mWfxFormat.Format.nSamplesPerSec;
+    if(mSource != 0)
+    {
+        ALSection alsection{mContext};
+        const float pitch{static_cast<float>(mFrequency) /
+            static_cast<float>(mBuffer->mWfxFormat.Format.nSamplesPerSec)};
+        alSourcef(mSource, AL_PITCH, pitch);
+    }
+
+    return DS_OK;
 }
 
 HRESULT STDMETHODCALLTYPE Buffer::Stop() noexcept
 {
-    FIXME("Buffer::Stop (%p)->()\n", voidp{this});
-    return E_NOTIMPL;
+    DEBUG(PREFIX "Stop (%p)->()\n", voidp{this});
+
+    std::unique_lock lock{mMutex};
+    if(mSource == 0) UNLIKELY
+        return DS_OK;
+
+    ALSection alsection{mContext};
+    ALint ofs, state;
+    alSourcePause(mSource);
+    alGetSourcei(mSource, AL_BYTE_OFFSET, &ofs);
+    alGetSourcei(mSource, AL_SOURCE_STATE, &state);
+    alGetError();
+
+    /* Ensure the notification's last tracked position is updated, as well
+     * as the queue offsets for streaming sources.
+     */
+    mLastPos = (state == AL_STOPPED) ? mBuffer->mDataSize : static_cast<DWORD>(ofs);
+
+    return DS_OK;
 }
 
 HRESULT STDMETHODCALLTYPE Buffer::Unlock(void *audioPtr1, DWORD audioBytes1, void *audioPtr2, DWORD audioBytes2) noexcept
 {
-    FIXME("Buffer::Unlock (%p)->(%p, %lu, %p, %lu)\n", voidp{this}, audioPtr1, audioBytes1, audioPtr2, audioBytes2);
-    return E_NOTIMPL;
+    DEBUG(PREFIX "Unlock (%p)->(%p, %lu, %p, %lu)\n", voidp{this}, audioPtr1, audioBytes1,
+        audioPtr2, audioBytes2);
+
+    if(!mLocked.exchange(false, std::memory_order_relaxed))
+    {
+        WARN(PREFIX "Unlock Not locked\n");
+        return DSERR_INVALIDPARAM;
+    }
+
+    /* Make sure offset is between boundary and boundary + bufsize */
+    auto ofs1 = static_cast<uintptr_t>(static_cast<char*>(audioPtr1) - mBuffer->mData);
+    auto ofs2 = static_cast<uintptr_t>(audioPtr2 ?
+        static_cast<char*>(audioPtr2) - mBuffer->mData : 0);
+    if(ofs1 >= mBuffer->mDataSize || mBuffer->mDataSize-ofs1 < audioBytes1 || ofs2 != 0
+        || audioBytes2 > ofs1)
+    {
+        WARN(PREFIX "Unlock Invalid parameters (%p,%lu) (%p,%lu,%p,%lu)\n", voidp{mBuffer->mData},
+            mBuffer->mDataSize, audioPtr1, audioBytes1, audioPtr2, audioBytes2);
+        return DSERR_INVALIDPARAM;
+    }
+
+    /* NOTE: The data was written directly to the buffer, so there's nothing to
+     * transfer.
+     */
+
+    return DS_OK;
 }
 
 HRESULT STDMETHODCALLTYPE Buffer::Restore() noexcept
 {
-    FIXME("Buffer::Restore (%p)->()\n", voidp{this});
+    DEBUG("Buffer::Restore (%p)->()\n", voidp{this});
+
+    std::unique_lock lock{mMutex};
+    if(mParent.getPriorityLevel() == DSSCL_WRITEPRIMARY)
+        return DSERR_BUFFERLOST;
+
+    mBufferLost = false;
     return DS_OK;
 }
 

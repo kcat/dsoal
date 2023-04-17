@@ -202,6 +202,16 @@ ds::expected<std::unique_ptr<SharedDevice>,HRESULT> CreateDeviceShare(const GUID
         WARN("CreateDeviceShare Couldn't create context, 0x%04x\n", alcGetError(aldev.get()));
         return ds::unexpected(hr);
     }
+    ALSection alsection{alctx.get()};
+
+    /* TODO: Could also support AL_SOFTX_map_buffer, for older OpenAL Soft
+     * versions, or AL_SOFT_callback_buffer.
+     */
+    if(!alIsExtensionPresent("AL_EXT_STATIC_BUFFER"))
+    {
+        WARN("CreateDeviceShare Missing the required AL_EXT_STATIC_BUFFER extension\n");
+        return ds::unexpected(hr);
+    }
 
     ALCint numMono{}, numStereo{};
     alcGetIntegerv(aldev.get(), ALC_MONO_SOURCES, 1, &numMono);
