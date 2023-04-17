@@ -933,7 +933,8 @@ HRESULT STDMETHODCALLTYPE Buffer::GetObjectInPath(REFGUID objectId, DWORD index,
 }
 #undef PREFIX
 
-/*** IDirectSoundBuffer3D interface. ***/
+
+/*** IDirectSound3DBuffer interface. ***/
 #define PREFIX "Buffer3D::"
 HRESULT STDMETHODCALLTYPE Buffer::Buffer3D::QueryInterface(REFIID riid, void **ppvObject) noexcept
 { return impl_from_base()->QueryInterface(riid, ppvObject); }
@@ -959,57 +960,159 @@ ULONG STDMETHODCALLTYPE Buffer::Buffer3D::Release() noexcept
 
 HRESULT STDMETHODCALLTYPE Buffer::Buffer3D::GetAllParameters(DS3DBUFFER *ds3dBuffer) noexcept
 {
-    FIXME(PREFIX "GetAllParameters (%p)->(%p)\n", voidp{this}, voidp{ds3dBuffer});
-    return E_NOTIMPL;
+    DEBUG(PREFIX "GetAllParameters (%p)->(%p)\n", voidp{this}, voidp{ds3dBuffer});
+
+    if(!ds3dBuffer || ds3dBuffer->dwSize < sizeof(*ds3dBuffer))
+    {
+        WARN(PREFIX "GetAllParameters Invalid parameters %p %lu\n", voidp{ds3dBuffer},
+            ds3dBuffer ? ds3dBuffer->dwSize : 0);
+        return DSERR_INVALIDPARAM;
+    }
+
+    auto self = impl_from_base();
+    std::lock_guard lock{self->mMutex};
+    ds3dBuffer->vPosition = self->mImmediate.vPosition;
+    ds3dBuffer->vVelocity = self->mImmediate.vVelocity;
+    ds3dBuffer->dwInsideConeAngle = self->mImmediate.dwInsideConeAngle;
+    ds3dBuffer->dwOutsideConeAngle = self->mImmediate.dwOutsideConeAngle;
+    ds3dBuffer->vConeOrientation = self->mImmediate.vConeOrientation;
+    ds3dBuffer->lConeOutsideVolume = self->mImmediate.lConeOutsideVolume;
+    ds3dBuffer->flMinDistance = self->mImmediate.flMinDistance;
+    ds3dBuffer->flMaxDistance = self->mImmediate.flMaxDistance;
+    ds3dBuffer->dwMode = self->mImmediate.dwMode;
+
+    return DS_OK;
 }
 
 HRESULT STDMETHODCALLTYPE Buffer::Buffer3D::GetConeAngles(DWORD *insideConeAngle, DWORD *outsideConeAngle) noexcept
 {
-    FIXME(PREFIX "GetConeAngles (%p)->(%p, %p)\n", voidp{this}, voidp{insideConeAngle},
+    DEBUG(PREFIX "GetConeAngles (%p)->(%p, %p)\n", voidp{this}, voidp{insideConeAngle},
         voidp{outsideConeAngle});
-    return E_NOTIMPL;
+
+    if(!insideConeAngle || !outsideConeAngle)
+    {
+        WARN(PREFIX "GetConeAngles Invalid pointers (%p, %p)\n", voidp{insideConeAngle},
+            voidp{outsideConeAngle});
+        return DSERR_INVALIDPARAM;
+    }
+
+    auto self = impl_from_base();
+    std::lock_guard lock{self->mMutex};
+    *insideConeAngle = self->mImmediate.dwInsideConeAngle;
+    *outsideConeAngle = self->mImmediate.dwOutsideConeAngle;
+    return DS_OK;
 }
 
 HRESULT STDMETHODCALLTYPE Buffer::Buffer3D::GetConeOrientation(D3DVECTOR *orientation) noexcept
 {
-    FIXME(PREFIX "GetConeOrientation (%p)->(%p)\n", voidp{this}, voidp{orientation});
-    return E_NOTIMPL;
+    DEBUG(PREFIX "GetConeOrientation (%p)->(%p)\n", voidp{this}, voidp{orientation});
+
+    if(!orientation)
+    {
+        WARN(PREFIX "GetConeOrientation Invalid pointer\n");
+        return DSERR_INVALIDPARAM;
+    }
+
+    auto self = impl_from_base();
+    std::lock_guard lock{self->mMutex};
+    *orientation = self->mImmediate.vConeOrientation;
+    return DS_OK;
 }
 
 HRESULT STDMETHODCALLTYPE Buffer::Buffer3D::GetConeOutsideVolume(LONG *coneOutsideVolume) noexcept
 {
-    FIXME(PREFIX "GetConeOutsideVolume (%p)->(%p)\n", voidp{this}, voidp{coneOutsideVolume});
-    return E_NOTIMPL;
+    DEBUG(PREFIX "GetConeOutsideVolume (%p)->(%p)\n", voidp{this}, voidp{coneOutsideVolume});
+
+    if(!coneOutsideVolume)
+    {
+        WARN(PREFIX "GetConeOutsideVolume Invalid pointer\n");
+        return DSERR_INVALIDPARAM;
+    }
+
+    auto self = impl_from_base();
+    std::lock_guard lock{self->mMutex};
+    *coneOutsideVolume = self->mImmediate.lConeOutsideVolume;
+    return DS_OK;
 }
 
 HRESULT STDMETHODCALLTYPE Buffer::Buffer3D::GetMaxDistance(D3DVALUE *maxDistance) noexcept
 {
-    FIXME(PREFIX "GetMaxDistance (%p)->(%p)\n", voidp{this}, voidp{maxDistance});
-    return E_NOTIMPL;
+    DEBUG(PREFIX "GetMaxDistance (%p)->(%p)\n", voidp{this}, voidp{maxDistance});
+
+    if(!maxDistance)
+    {
+        WARN(PREFIX "GetMaxDistance Invalid pointer\n");
+        return DSERR_INVALIDPARAM;
+    }
+
+    auto self = impl_from_base();
+    std::lock_guard lock{self->mMutex};
+    *maxDistance = self->mImmediate.flMaxDistance;
+    return DS_OK;
 }
 
 HRESULT STDMETHODCALLTYPE Buffer::Buffer3D::GetMinDistance(D3DVALUE *minDistance) noexcept
 {
-    FIXME(PREFIX "GetMinDistance (%p)->(%p)\n", voidp{this}, voidp{minDistance});
-    return E_NOTIMPL;
+    DEBUG(PREFIX "GetMinDistance (%p)->(%p)\n", voidp{this}, voidp{minDistance});
+
+    if(!minDistance)
+    {
+        WARN(PREFIX "GetMinDistance Invalid pointer\n");
+        return DSERR_INVALIDPARAM;
+    }
+
+    auto self = impl_from_base();
+    std::lock_guard lock{self->mMutex};
+    *minDistance = self->mImmediate.flMinDistance;
+    return DS_OK;
 }
 
 HRESULT STDMETHODCALLTYPE Buffer::Buffer3D::GetMode(DWORD *mode) noexcept
 {
-    FIXME(PREFIX "GetMode (%p)->(%p)\n", voidp{this}, voidp{mode});
-    return E_NOTIMPL;
+    DEBUG(PREFIX "GetMode (%p)->(%p)\n", voidp{this}, voidp{mode});
+
+    if(!mode)
+    {
+        WARN(PREFIX "GetMode Invalid pointer\n");
+        return DSERR_INVALIDPARAM;
+    }
+
+    auto self = impl_from_base();
+    std::lock_guard lock{self->mMutex};
+    *mode = self->mImmediate.dwMode;
+    return DS_OK;
 }
 
 HRESULT STDMETHODCALLTYPE Buffer::Buffer3D::GetPosition(D3DVECTOR *position) noexcept
 {
-    FIXME(PREFIX "GetPosition (%p)->(%p)\n", voidp{this}, voidp{position});
-    return E_NOTIMPL;
+    DEBUG(PREFIX "GetPosition (%p)->(%p)\n", voidp{this}, voidp{position});
+
+    if(!position)
+    {
+        WARN(PREFIX "GetPosition Invalid pointer\n");
+        return DSERR_INVALIDPARAM;
+    }
+
+    auto self = impl_from_base();
+    std::lock_guard lock{self->mMutex};
+    *position = self->mImmediate.vPosition;
+    return DS_OK;
 }
 
 HRESULT STDMETHODCALLTYPE Buffer::Buffer3D::GetVelocity(D3DVECTOR *velocity) noexcept
 {
-    FIXME(PREFIX "GetVelocity (%p)->(%p)\n", voidp{this}, voidp{velocity});
-    return E_NOTIMPL;
+    DEBUG(PREFIX "GetVelocity (%p)->(%p)\n", voidp{this}, voidp{velocity});
+
+    if(!velocity)
+    {
+        WARN(PREFIX "GetVelocity Invalid pointer)\n");
+        return DSERR_INVALIDPARAM;
+    }
+
+    auto self = impl_from_base();
+    std::lock_guard lock{self->mMutex};
+    *velocity = self->mImmediate.vVelocity;
+    return DS_OK;
 }
 
 HRESULT STDMETHODCALLTYPE Buffer::Buffer3D::SetAllParameters(const DS3DBUFFER *ds3dBuffer, DWORD apply) noexcept
@@ -1068,7 +1171,8 @@ HRESULT STDMETHODCALLTYPE Buffer::Buffer3D::SetVelocity(D3DVALUE x, D3DVALUE y, 
 }
 #undef PREFIX
 
-/*** IDirectSoundBuffer3D interface. ***/
+
+/*** IKsPropertySet interface. ***/
 #define PREFIX "BufferProp::"
 HRESULT STDMETHODCALLTYPE Buffer::Prop::QueryInterface(REFIID riid, void **ppvObject) noexcept
 { return impl_from_base()->QueryInterface(riid, ppvObject); }
