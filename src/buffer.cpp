@@ -4,6 +4,7 @@
 #include "dsoundoal.h"
 #include "guidprinter.h"
 #include "logging.h"
+#include "primarybuffer.h"
 
 
 namespace {
@@ -273,7 +274,32 @@ HRESULT Buffer::setLocation(LocStatus locStatus) noexcept
 
     if((mBuffer->mFlags&DSBCAPS_CTRL3D))
     {
-        // FIXME: Set current 3D params
+        if(mImmediate.dwMode == DS3DMODE_DISABLE)
+        {
+            const float x{static_cast<float>(mPan-DSBPAN_LEFT)/(DSBPAN_RIGHT-DSBPAN_LEFT) - 0.5f};
+            alSource3f(mSource, AL_POSITION, x, 0.0f, -std::sqrt(1.0f - x*x));
+        }
+        else
+        {
+            alSource3f(mSource, AL_POSITION, mImmediate.vPosition.x, mImmediate.vPosition.y,
+                -mImmediate.vPosition.z);
+        }
+        alSource3f(mSource, AL_VELOCITY, mImmediate.vVelocity.x, mImmediate.vVelocity.y,
+            -mImmediate.vVelocity.z);
+        alSourcei(mSource, AL_CONE_INNER_ANGLE, static_cast<ALint>(mImmediate.dwInsideConeAngle));
+        alSourcei(mSource, AL_CONE_OUTER_ANGLE, static_cast<ALint>(mImmediate.dwOutsideConeAngle));
+        alSource3f(mSource, AL_DIRECTION, mImmediate.vConeOrientation.x,
+            mImmediate.vConeOrientation.y, -mImmediate.vConeOrientation.z);
+        alSourcef(mSource, AL_CONE_OUTER_GAIN,
+            mB_to_gain(static_cast<float>(mImmediate.lConeOutsideVolume)));
+        alSourcef(mSource, AL_REFERENCE_DISTANCE, mImmediate.flMinDistance);
+        alSourcef(mSource, AL_MAX_DISTANCE, mImmediate.flMaxDistance);
+        alSourcei(mSource, AL_SOURCE_RELATIVE,
+            (mImmediate.dwMode!=DS3DMODE_NORMAL) ? AL_TRUE : AL_FALSE);
+
+        alSourcef(mSource, AL_ROLLOFF_FACTOR, (mImmediate.dwMode==DS3DMODE_DISABLE) ? 0.0f
+            : mParent.getPrimary().getCurrentRolloffFactor());
+        alGetError();
     }
     else
     {
@@ -806,7 +832,8 @@ HRESULT STDMETHODCALLTYPE Buffer::SetPan(LONG pan) noexcept
 
     std::unique_lock lock{mMutex};
     mPan = pan;
-    if(mSource != 0 && !(mBuffer->mFlags&DSBCAPS_CTRL3D)) LIKELY
+    if((!(mBuffer->mFlags&DSBCAPS_CTRL3D) || mImmediate.dwMode == DS3DMODE_DISABLE)
+        && mSource != 0) LIKELY
     {
         ALSection alsection{mContext};
         /* NOTE: Strict movement along the X plane can cause the sound to jump

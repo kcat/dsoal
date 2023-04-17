@@ -193,6 +193,12 @@ public:
     [[nodiscard]]
     SharedDevice &getShared() noexcept { return *mShared; }
 
+    [[nodiscard]]
+    PrimaryBuffer &getPrimary() noexcept { return mPrimaryBuffer; }
+
+    [[nodiscard]]
+    std::vector<Buffer*> &get3dBuffers() noexcept { return m3dBuffers; }
+
     template<typename T> [[nodiscard]]
     T as() noexcept { return static_cast<T>(this); }
 

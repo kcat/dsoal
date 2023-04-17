@@ -1,5 +1,6 @@
 #include "primarybuffer.h"
 
+#include "buffer.h"
 #include "dsoal.h"
 #include "dsoundoal.h"
 #include "guidprinter.h"
@@ -540,7 +541,14 @@ void PrimaryBuffer::setParams(const DS3DLISTENER &params, const std::bitset<Flag
         alSpeedOfSound(343.3f / params.flDistanceFactor);
     if(flags.test(RolloffFactor))
     {
-        // TODO: Set all 3D secondary buffers' rolloff factor
+        for(Buffer *buffer : mParent.get3dBuffers())
+        {
+            if(buffer->getCurrentMode() != DS3DMODE_DISABLE)
+            {
+                if(ALuint source{buffer->getSource()})
+                    alSourcef(source, AL_ROLLOFF_FACTOR, params.flRolloffFactor);
+            }
+        }
     }
     if(flags.test(DopplerFactor))
         alDopplerFactor(params.flDopplerFactor);

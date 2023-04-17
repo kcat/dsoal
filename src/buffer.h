@@ -199,6 +199,12 @@ public:
     HRESULT STDMETHODCALLTYPE AcquireResources(DWORD flags, DWORD effectsCount, DWORD *resultCodes) noexcept override;
     HRESULT STDMETHODCALLTYPE GetObjectInPath(REFGUID objectId, DWORD index, REFGUID interfaceId, void **ppObject) noexcept override;
 
+    [[nodiscard]]
+    ALuint getSource() const noexcept { return mSource; }
+
+    [[nodiscard]]
+    DWORD getCurrentMode() const noexcept { return mImmediate.dwMode; }
+
     template<typename T>
     T as() noexcept { return static_cast<T>(this); }
 };

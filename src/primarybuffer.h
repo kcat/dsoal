@@ -108,6 +108,9 @@ public:
     HRESULT STDMETHODCALLTYPE Unlock(void *audioPtr1, DWORD audioBytes1, void *audioPtr2, DWORD audioBytes2) noexcept override;
     HRESULT STDMETHODCALLTYPE Restore() noexcept override;
 
+    [[nodiscard]]
+    float getCurrentRolloffFactor() const noexcept { return mImmediate.flRolloffFactor; }
+
     void setContext(ALCcontext *context) noexcept
     { mContext = context; }
 
