@@ -155,6 +155,8 @@ class DSound8OAL final : IDirectSound8 {
 
     bool mIs8{};
 
+    ComPtr<Buffer> createSecondaryBuffer(IDirectSoundBuffer *original=nullptr);
+
 public:
     /*** IUnknown methods ***/
     HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void** ppvObject) noexcept override;

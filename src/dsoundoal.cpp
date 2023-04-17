@@ -326,6 +326,41 @@ DSound8OAL::DSound8OAL(bool is8) : mPrimaryBuffer{*this}, mIs8{is8}
 DSound8OAL::~DSound8OAL() = default;
 
 
+ComPtr<Buffer> DSound8OAL::createSecondaryBuffer(IDirectSoundBuffer *original)
+{
+    std::unique_lock lock{mDsMutex};
+    BufferSubList *sublist{nullptr};
+    /* Find a group with an available buffer. */
+    for(auto &group : mSecondaryBuffers)
+    {
+        if(group.mFreeMask)
+        {
+            sublist = &group;
+            break;
+        }
+    }
+    if(!sublist) UNLIKELY
+    {
+        /* If none are available, make another group. */
+        BufferSubList group;
+        group.mBuffers = reinterpret_cast<Buffer*>(std::malloc(sizeof(Buffer[64])));
+        if(group.mBuffers)
+        {
+            mSecondaryBuffers.emplace_back(std::move(group));
+            sublist = &mSecondaryBuffers.back();
+        }
+    }
+    if(!sublist)
+        return {};
+
+    int idx{ds::countr_zero(sublist->mFreeMask)};
+    ComPtr<Buffer> buffer{::new(sublist->mBuffers + idx) Buffer{*this, mIs8, original}};
+    sublist->mFreeMask &= ~(1_u64 << idx);
+
+    return buffer;
+}
+
+
 HRESULT STDMETHODCALLTYPE DSound8OAL::QueryInterface(REFIID riid, void** ppvObject) noexcept
 {
     DEBUG(PREFIX "QueryInterface (%p)->(%s, %p)\n", voidp{this}, GuidPrinter{riid}.c_str(),
@@ -466,35 +501,7 @@ HRESULT STDMETHODCALLTYPE DSound8OAL::CreateSoundBuffer(const DSBUFFERDESC *buff
     }
     else
     {
-        std::unique_lock lock{mDsMutex};
-        BufferSubList *sublist{nullptr};
-        /* Find a group with an available buffer. */
-        for(auto &group : mSecondaryBuffers)
-        {
-            if(group.mFreeMask)
-            {
-                sublist = &group;
-                break;
-            }
-        }
-        if(!sublist) UNLIKELY
-        {
-            /* If none are available, make another group. */
-            BufferSubList group;
-            group.mBuffers = reinterpret_cast<Buffer*>(std::malloc(sizeof(Buffer[64])));
-            if(group.mBuffers)
-            {
-                mSecondaryBuffers.emplace_back(std::move(group));
-                sublist = &mSecondaryBuffers.back();
-            }
-        }
-        if(!sublist)
-            return DSERR_OUTOFMEMORY;
-
-        int idx{ds::countr_zero(sublist->mFreeMask)};
-        ComPtr<Buffer> buffer{::new(sublist->mBuffers + idx) Buffer{*this, mIs8}};
-        sublist->mFreeMask &= ~(1_u64 << idx);
-        lock.unlock();
+        ComPtr<Buffer> buffer{createSecondaryBuffer()};
 
         hr = buffer->Initialize(as<IDirectSound*>(), &bufdesc);
         if(SUCCEEDED(hr))
@@ -551,9 +558,51 @@ HRESULT STDMETHODCALLTYPE DSound8OAL::GetCaps(DSCAPS *dsCaps) noexcept
 HRESULT STDMETHODCALLTYPE DSound8OAL::DuplicateSoundBuffer(IDirectSoundBuffer *origBuffer,
     IDirectSoundBuffer **dupBuffer) noexcept
 {
-    FIXME(PREFIX "DuplicateSoundBuffer (%p)->(%p, %p)\n", voidp{this}, voidp{origBuffer},
+    DEBUG(PREFIX "DuplicateSoundBuffer (%p)->(%p, %p)\n", voidp{this}, voidp{origBuffer},
         voidp{dupBuffer});
-    return E_NOTIMPL;
+
+    if(!mShared)
+    {
+        WARN(PREFIX "DuplicateSoundBuffer Device not initialized\n");
+        return DSERR_UNINITIALIZED;
+    }
+
+    if(!origBuffer || !dupBuffer)
+    {
+        WARN(PREFIX "DuplicateSoundBuffer Invalid pointer: in = %p, out = %p\n", voidp{origBuffer},
+            voidp{dupBuffer});
+        return DSERR_INVALIDPARAM;
+    }
+    *dupBuffer = nullptr;
+
+    DSBCAPS caps{};
+    caps.dwSize = sizeof(caps);
+    HRESULT hr{origBuffer->GetCaps(&caps)};
+    if(FAILED(hr))
+    {
+        WARN(PREFIX "DuplicateSoundBuffer Failed to get caps for buffer %p\n", voidp{origBuffer});
+        return DSERR_INVALIDPARAM;
+    }
+    if((caps.dwFlags&DSBCAPS_PRIMARYBUFFER))
+    {
+        WARN(PREFIX "DuplicateSoundBuffer Cannot duplicate primary buffer %p\n", voidp{origBuffer});
+        return DSERR_INVALIDPARAM;
+    }
+    if((caps.dwFlags&DSBCAPS_CTRLFX))
+    {
+        WARN(PREFIX "DuplicateSoundBuffer Cannot duplicate buffer %p, which has DSBCAPS_CTRLFX\n",
+            voidp{origBuffer});
+        return DSERR_INVALIDPARAM;
+    }
+
+    auto buffer = createSecondaryBuffer(origBuffer);
+    if(!buffer) return DSERR_OUTOFMEMORY;
+
+    hr = buffer->Initialize(as<IDirectSound*>(), nullptr);
+    if(FAILED(hr)) return hr;
+
+    *dupBuffer = buffer.release()->as<IDirectSoundBuffer*>();
+    return DS_OK;
 }
 
 HRESULT STDMETHODCALLTYPE DSound8OAL::SetCooperativeLevel(HWND hwnd, DWORD level) noexcept

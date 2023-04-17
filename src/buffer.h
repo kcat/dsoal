@@ -153,20 +153,23 @@ class Buffer final : IDirectSoundBuffer8 {
     LONG mPan{};
     DWORD mFrequency{};
 
+    DS3DBUFFER mImmediate{};
+    DS3DBUFFER mDeferred{};
+
     enum class LocStatus : uint8_t {
         None, Any=None,
         Hardware = DSBSTATUS_LOCHARDWARE,
         Software = DSBSTATUS_LOCSOFTWARE,
     };
-
     LocStatus mLocStatus{};
+
     bool mIs8{};
     bool mIsInitialized{false};
 
     HRESULT setLocation(LocStatus locStatus) noexcept;
 
 public:
-    Buffer(DSound8OAL &parent, bool is8) noexcept;
+    Buffer(DSound8OAL &parent, bool is8, IDirectSoundBuffer *original) noexcept;
     ~Buffer();
 
     /*** IUnknown methods ***/

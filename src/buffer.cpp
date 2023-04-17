@@ -153,10 +153,49 @@ ds::expected<ComPtr<SharedBuffer>,HRESULT> SharedBuffer::Create(const DSBUFFERDE
 #undef PREFIX
 
 #define PREFIX "Buffer::"
-Buffer::Buffer(DSound8OAL &parent, bool is8) noexcept
-    : mParent{parent}, mMutex{parent.getMutex()}, mIs8{is8}
+Buffer::Buffer(DSound8OAL &parent, bool is8, IDirectSoundBuffer *original) noexcept
+    : mParent{parent}, mContext{parent.getShared().mContext.get()}, mMutex{parent.getMutex()}
+    , mIs8{is8}
 {
-    mContext = parent.getShared().mContext.get();
+    mImmediate.dwSize = sizeof(mImmediate);
+    mImmediate.vPosition.x = 0.0f;
+    mImmediate.vPosition.y = 0.0f;
+    mImmediate.vPosition.z = 0.0f;
+    mImmediate.vVelocity.x = 0.0f;
+    mImmediate.vVelocity.y = 0.0f;
+    mImmediate.vVelocity.z = 0.0f;
+    mImmediate.dwInsideConeAngle = DS3D_DEFAULTCONEANGLE;
+    mImmediate.dwOutsideConeAngle = DS3D_DEFAULTCONEANGLE;
+    mImmediate.vConeOrientation.x = 0.0f;
+    mImmediate.vConeOrientation.y = 0.0f;
+    mImmediate.vConeOrientation.z = 1.0f;
+    mImmediate.lConeOutsideVolume = DS3D_DEFAULTCONEOUTSIDEVOLUME;
+    mImmediate.flMinDistance = DS3D_DEFAULTMINDISTANCE;
+    mImmediate.flMaxDistance = DS3D_DEFAULTMAXDISTANCE;
+    mImmediate.dwMode = DS3DMODE_NORMAL;
+
+    if(original)
+    {
+#ifdef __MINGW32__
+        /* MinGW headers do not have IDirectSoundBuffer8 inherit from
+         * IDirectSoundBuffer, which MSVC apparently does. Reverse the cast
+         * done for Buffer -> IDirectSoundBuffer.
+         */
+        Buffer *orig{static_cast<Buffer*>(ds::bit_cast<IDirectSoundBuffer8*>(original))};
+#else
+        Buffer *orig{static_cast<Buffer*>(original)};
+#endif
+        mBuffer = orig->mBuffer;
+
+        /* According to MSDN, volume isn't copied. */
+        if((mBuffer->mFlags&DSBCAPS_CTRLPAN))
+            mPan = orig->mPan;
+        if((mBuffer->mFlags&DSBCAPS_CTRLFREQUENCY))
+            mFrequency = orig->mFrequency;
+        if((mBuffer->mFlags&DSBCAPS_CTRL3D))
+            mImmediate = orig->mImmediate;
+    }
+    mDeferred = mImmediate;
 }
 
 Buffer::~Buffer()
@@ -553,9 +592,8 @@ HRESULT STDMETHODCALLTYPE Buffer::Initialize(IDirectSound *directSound, const DS
         mBuffer = std::move(shared.value());
     }
 
-    mVolume = 0;
-    mPan = 0;
-    mFrequency = mBuffer->mWfxFormat.Format.nSamplesPerSec;
+    if(!mFrequency)
+        mFrequency = mBuffer->mWfxFormat.Format.nSamplesPerSec;
 
     if((mBuffer->mFlags&DSBCAPS_CTRL3D))
         mParent.add3dBuffer(this);
