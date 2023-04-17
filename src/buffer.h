@@ -2,8 +2,10 @@
 #define BUFFER_H
 
 #include <atomic>
+#include <bitset>
 #include <memory>
 #include <mutex>
+#include <utility>
 
 #include <dsound.h>
 #include <mmreg.h>
@@ -155,6 +157,21 @@ class Buffer final : IDirectSoundBuffer8 {
 
     DS3DBUFFER mImmediate{};
     DS3DBUFFER mDeferred{};
+    enum DirtyFlags {
+        Position,
+        Velocity,
+        ConeAngles,
+        ConeOrientation,
+        ConeVolume,
+        MinDistance,
+        MaxDistance,
+        Mode,
+
+        FlagCount
+    };
+    std::bitset<FlagCount> mDirty;
+
+    void setParams(const DS3DBUFFER &params, const std::bitset<FlagCount> flags);
 
     enum class LocStatus : uint8_t {
         None, Any=None,
@@ -198,6 +215,12 @@ public:
     HRESULT STDMETHODCALLTYPE SetFX(DWORD dwEffectsCount, DSEFFECTDESC *dsFXDesc, DWORD *resultCodes) noexcept override;
     HRESULT STDMETHODCALLTYPE AcquireResources(DWORD flags, DWORD effectsCount, DWORD *resultCodes) noexcept override;
     HRESULT STDMETHODCALLTYPE GetObjectInPath(REFGUID objectId, DWORD index, REFGUID interfaceId, void **ppObject) noexcept override;
+
+    void commit()
+    {
+        if(auto flags{std::exchange(mDirty, 0ull)}; flags.any())
+            setParams(mDeferred, flags);
+    }
 
     [[nodiscard]]
     ALuint getSource() const noexcept { return mSource; }

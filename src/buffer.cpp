@@ -278,18 +278,20 @@ HRESULT Buffer::setLocation(LocStatus locStatus) noexcept
         {
             const float x{static_cast<float>(mPan-DSBPAN_LEFT)/(DSBPAN_RIGHT-DSBPAN_LEFT) - 0.5f};
             alSource3f(mSource, AL_POSITION, x, 0.0f, -std::sqrt(1.0f - x*x));
+            alSource3f(mSource, AL_VELOCITY, 0.0f, 0.0f, 0.0f);
+            alSource3f(mSource, AL_DIRECTION, 0.0f, 0.0f, 0.0f);
         }
         else
         {
             alSource3f(mSource, AL_POSITION, mImmediate.vPosition.x, mImmediate.vPosition.y,
                 -mImmediate.vPosition.z);
+            alSource3f(mSource, AL_VELOCITY, mImmediate.vVelocity.x, mImmediate.vVelocity.y,
+                -mImmediate.vVelocity.z);
+            alSource3f(mSource, AL_DIRECTION, mImmediate.vConeOrientation.x,
+                mImmediate.vConeOrientation.y, -mImmediate.vConeOrientation.z);
         }
-        alSource3f(mSource, AL_VELOCITY, mImmediate.vVelocity.x, mImmediate.vVelocity.y,
-            -mImmediate.vVelocity.z);
         alSourcei(mSource, AL_CONE_INNER_ANGLE, static_cast<ALint>(mImmediate.dwInsideConeAngle));
         alSourcei(mSource, AL_CONE_OUTER_ANGLE, static_cast<ALint>(mImmediate.dwOutsideConeAngle));
-        alSource3f(mSource, AL_DIRECTION, mImmediate.vConeOrientation.x,
-            mImmediate.vConeOrientation.y, -mImmediate.vConeOrientation.z);
         alSourcef(mSource, AL_CONE_OUTER_GAIN,
             mB_to_gain(static_cast<float>(mImmediate.lConeOutsideVolume)));
         alSourcef(mSource, AL_REFERENCE_DISTANCE, mImmediate.flMinDistance);
@@ -958,6 +960,82 @@ HRESULT STDMETHODCALLTYPE Buffer::GetObjectInPath(REFGUID objectId, DWORD index,
         GuidPrinter{objectId}.c_str(), index, GuidPrinter{interfaceId}.c_str(), voidp{ppObject});
     return E_NOTIMPL;
 }
+
+
+void Buffer::setParams(const DS3DBUFFER &params, const std::bitset<FlagCount> flags)
+{
+    /* Copy deferred parameters first. */
+    if(flags.test(Position))
+        mImmediate.vPosition = params.vPosition;
+    if(flags.test(Velocity))
+        mImmediate.vVelocity = params.vVelocity;
+    if(flags.test(ConeAngles))
+    {
+        mImmediate.dwInsideConeAngle = params.dwInsideConeAngle;
+        mImmediate.dwOutsideConeAngle = params.dwOutsideConeAngle;
+    }
+    if(flags.test(ConeOrientation))
+        mImmediate.vConeOrientation = params.vConeOrientation;
+    if(flags.test(ConeVolume))
+        mImmediate.lConeOutsideVolume = params.lConeOutsideVolume;
+    if(flags.test(MinDistance))
+        mImmediate.flMinDistance = params.flMinDistance;
+    if(flags.test(MaxDistance))
+        mImmediate.flMaxDistance = params.flMaxDistance;
+    if(flags.test(Mode))
+        mImmediate.dwMode = params.dwMode;
+
+    /* Now apply what's changed to OpenAL. */
+    if(!mSource) UNLIKELY return;
+
+    if(mImmediate.dwMode != DS3DMODE_DISABLE)
+    {
+        if(flags.test(Position))
+            alSource3f(mSource, AL_POSITION, params.vPosition.x, params.vPosition.y,
+                -params.vPosition.z);
+        if(flags.test(Velocity))
+            alSource3f(mSource, AL_VELOCITY, params.vVelocity.x, params.vVelocity.y,
+                -params.vVelocity.z);
+        if(flags.test(ConeOrientation))
+            alSource3f(mSource, AL_DIRECTION, params.vConeOrientation.x, params.vConeOrientation.y,
+                -params.vConeOrientation.z);
+    }
+    if(flags.test(ConeAngles))
+    {
+        alSourcei(mSource, AL_CONE_INNER_ANGLE, static_cast<ALint>(params.dwInsideConeAngle));
+        alSourcei(mSource, AL_CONE_OUTER_ANGLE, static_cast<ALint>(params.dwOutsideConeAngle));
+    }
+    if(flags.test(ConeVolume))
+        alSourcef(mSource, AL_CONE_OUTER_GAIN,
+            mB_to_gain(static_cast<float>(params.lConeOutsideVolume)));
+    if(flags.test(MinDistance))
+        alSourcef(mSource, AL_REFERENCE_DISTANCE, params.flMinDistance);
+    if(flags.test(MaxDistance))
+        alSourcef(mSource, AL_MAX_DISTANCE, params.flMaxDistance);
+    if(flags.test(Mode))
+    {
+        if(params.dwMode == DS3DMODE_DISABLE)
+        {
+            const float x{static_cast<float>(mPan-DSBPAN_LEFT)/(DSBPAN_RIGHT-DSBPAN_LEFT) - 0.5f};
+            alSource3f(mSource, AL_POSITION, x, 0.0f, -std::sqrt(1.0f - x*x));
+            alSource3f(mSource, AL_VELOCITY, 0.0f, 0.0f, 0.0f);
+            alSource3f(mSource, AL_DIRECTION, 0.0f, 0.0f, 0.0f);
+            alSourcef(mSource, AL_ROLLOFF_FACTOR, 0.0f);
+        }
+        else
+        {
+            alSource3f(mSource, AL_POSITION, mImmediate.vPosition.x, mImmediate.vPosition.y,
+                -mImmediate.vPosition.z);
+            alSource3f(mSource, AL_VELOCITY, mImmediate.vVelocity.x, mImmediate.vVelocity.y,
+                -mImmediate.vVelocity.z);
+            alSource3f(mSource, AL_DIRECTION, mImmediate.vConeOrientation.x,
+                mImmediate.vConeOrientation.y, -mImmediate.vConeOrientation.z);
+            alSourcef(mSource, AL_ROLLOFF_FACTOR, mParent.getPrimary().getCurrentRolloffFactor());
+        }
+        alSourcei(mSource, AL_SOURCE_RELATIVE,
+            (params.dwMode!=DS3DMODE_NORMAL) ? AL_TRUE : AL_FALSE);
+    }
+}
 #undef PREFIX
 
 
@@ -1144,57 +1222,332 @@ HRESULT STDMETHODCALLTYPE Buffer::Buffer3D::GetVelocity(D3DVECTOR *velocity) noe
 
 HRESULT STDMETHODCALLTYPE Buffer::Buffer3D::SetAllParameters(const DS3DBUFFER *ds3dBuffer, DWORD apply) noexcept
 {
-    FIXME(PREFIX "SetAllParameters (%p)->(%p, %lu)\n", voidp{this}, cvoidp{ds3dBuffer}, apply);
-    return E_NOTIMPL;
+    DEBUG(PREFIX "SetAllParameters (%p)->(%p, %lu)\n", voidp{this}, cvoidp{ds3dBuffer}, apply);
+
+    if(!ds3dBuffer || ds3dBuffer->dwSize < sizeof(*ds3dBuffer))
+    {
+        WARN(PREFIX "SetAllParameters Invalid DS3DBUFFER (%p, %lu)\n", cvoidp{ds3dBuffer},
+            ds3dBuffer ? ds3dBuffer->dwSize : 0);
+        return DSERR_INVALIDPARAM;
+    }
+
+    if(ds3dBuffer->dwInsideConeAngle > DS3D_MAXCONEANGLE
+        || ds3dBuffer->dwOutsideConeAngle > DS3D_MAXCONEANGLE)
+    {
+        WARN(PREFIX "SetAllParameters Invalid cone angles (%lu, %lu)\n",
+            ds3dBuffer->dwInsideConeAngle, ds3dBuffer->dwOutsideConeAngle);
+        return DSERR_INVALIDPARAM;
+    }
+
+    if(ds3dBuffer->lConeOutsideVolume > DSBVOLUME_MAX
+        || ds3dBuffer->lConeOutsideVolume < DSBVOLUME_MIN)
+    {
+        WARN(PREFIX "SetAllParameters Invalid cone outside volume (%ld)\n",
+            ds3dBuffer->lConeOutsideVolume);
+        return DSERR_INVALIDPARAM;
+    }
+
+    if(!(ds3dBuffer->flMinDistance >= 0.0f))
+    {
+        WARN(PREFIX "SetAllParameters Invalid min distance (%f)\n", ds3dBuffer->flMinDistance);
+        return DSERR_INVALIDPARAM;
+    }
+
+    if(!(ds3dBuffer->flMaxDistance >= 0.0f))
+    {
+        WARN(PREFIX "SetAllParameters Invalid max distance (%f)\n", ds3dBuffer->flMaxDistance);
+        return DSERR_INVALIDPARAM;
+    }
+
+    if(ds3dBuffer->dwMode != DS3DMODE_NORMAL && ds3dBuffer->dwMode != DS3DMODE_HEADRELATIVE
+        && ds3dBuffer->dwMode != DS3DMODE_DISABLE)
+    {
+        WARN(PREFIX "SetAllParameters Invalid mode (%lu)\n", ds3dBuffer->dwMode);
+        return DSERR_INVALIDPARAM;
+    }
+
+    auto self = impl_from_base();
+    std::lock_guard lock{self->mMutex};
+    if(apply == DS3D_DEFERRED)
+    {
+        self->mDeferred = *ds3dBuffer;
+        self->mDeferred.dwSize = sizeof(self->mDeferred);
+        self->mDirty.set();
+    }
+    else
+    {
+        ALSection alsection{self->mContext};
+        self->setParams(*ds3dBuffer, ~0ull);
+        alGetError();
+    }
+
+    return DS_OK;
 }
 
 HRESULT STDMETHODCALLTYPE Buffer::Buffer3D::SetConeAngles(DWORD insideConeAngle, DWORD outsideConeAngle, DWORD apply) noexcept
 {
-    FIXME(PREFIX "SetConeAngles (%p)->(%lu, %lu, %lu)\n", voidp{this}, insideConeAngle,
+    DEBUG(PREFIX "SetConeAngles (%p)->(%lu, %lu, %lu)\n", voidp{this}, insideConeAngle,
         outsideConeAngle, apply);
-    return E_NOTIMPL;
+
+    if(insideConeAngle > DS3D_MAXCONEANGLE || outsideConeAngle > DS3D_MAXCONEANGLE)
+    {
+        WARN(PREFIX "SetConeAngles Invalid cone angles (%lu, %lu)\n", insideConeAngle,
+            outsideConeAngle);
+        return DSERR_INVALIDPARAM;
+    }
+
+    auto self = impl_from_base();
+    std::lock_guard lock{self->mMutex};
+    if(apply == DS3D_DEFERRED)
+    {
+        self->mDeferred.dwInsideConeAngle = insideConeAngle;
+        self->mDeferred.dwOutsideConeAngle = outsideConeAngle;
+        self->mDirty.set(ConeAngles);
+    }
+    else
+    {
+        ALSection alsection{self->mContext};
+        self->mImmediate.dwInsideConeAngle = insideConeAngle;
+        self->mImmediate.dwOutsideConeAngle = outsideConeAngle;
+
+        if(self->mSource != 0)
+        {
+            alSourcei(self->mSource, AL_CONE_INNER_ANGLE, static_cast<ALint>(insideConeAngle));
+            alSourcei(self->mSource, AL_CONE_OUTER_ANGLE, static_cast<ALint>(outsideConeAngle));
+        }
+    }
+
+    return S_OK;
 }
 
 HRESULT STDMETHODCALLTYPE Buffer::Buffer3D::SetConeOrientation(D3DVALUE x, D3DVALUE y, D3DVALUE z, DWORD apply) noexcept
 {
-    FIXME(PREFIX "SetConeOrientation (%p)->(%f, %f, %f, %lu)\n", voidp{this}, x, y, z, apply);
-    return E_NOTIMPL;
+    DEBUG(PREFIX "SetConeOrientation (%p)->(%f, %f, %f, %lu)\n", voidp{this}, x, y, z, apply);
+
+    auto self = impl_from_base();
+    std::lock_guard lock{self->mMutex};
+    if(apply == DS3D_DEFERRED)
+    {
+        self->mDeferred.vConeOrientation.x = x;
+        self->mDeferred.vConeOrientation.y = y;
+        self->mDeferred.vConeOrientation.z = z;
+        self->mDirty.set(ConeOrientation);
+    }
+    else
+    {
+        ALSection alsection{self->mContext};
+        self->mImmediate.vConeOrientation.x = x;
+        self->mImmediate.vConeOrientation.y = y;
+        self->mImmediate.vConeOrientation.z = z;
+
+        if(self->mImmediate.dwMode != DS3DMODE_DISABLE && self->mSource != 0)
+        {
+            alSource3f(self->mSource, AL_DIRECTION, x, y, -z);
+            alGetError();
+        }
+    }
+
+    return DS_OK;
 }
 
 HRESULT STDMETHODCALLTYPE Buffer::Buffer3D::SetConeOutsideVolume(LONG coneOutsideVolume, DWORD apply) noexcept
 {
-    FIXME(PREFIX "SetConeOutsideVolume (%p)->(%ld, %lu)\n", voidp{this}, coneOutsideVolume, apply);
-    return E_NOTIMPL;
+    DEBUG(PREFIX "SetConeOutsideVolume (%p)->(%ld, %lu)\n", voidp{this}, coneOutsideVolume, apply);
+
+    if(coneOutsideVolume > DSBVOLUME_MAX || coneOutsideVolume < DSBVOLUME_MIN)
+    {
+        WARN(PREFIX "SetConeOutsideVolume Invalid cone outside volume (%ld)\n", coneOutsideVolume);
+        return DSERR_INVALIDPARAM;
+    }
+
+    auto self = impl_from_base();
+    std::lock_guard lock{self->mMutex};
+    if(apply == DS3D_DEFERRED)
+    {
+        self->mDeferred.lConeOutsideVolume = coneOutsideVolume;
+        self->mDirty.set(ConeVolume);
+    }
+    else
+    {
+        ALSection alsection{self->mContext};
+        self->mImmediate.lConeOutsideVolume = coneOutsideVolume;
+
+        if(self->mSource != 0)
+            alSourcef(self->mSource, AL_CONE_OUTER_GAIN,
+                mB_to_gain(static_cast<float>(coneOutsideVolume)));
+    }
+
+    return DS_OK;
 }
 
 HRESULT STDMETHODCALLTYPE Buffer::Buffer3D::SetMaxDistance(D3DVALUE maxDistance, DWORD apply) noexcept
 {
-    FIXME(PREFIX "SetMaxDistance (%p)->(%f, %lu)\n", voidp{this}, maxDistance, apply);
-    return E_NOTIMPL;
+    DEBUG(PREFIX "SetMaxDistance (%p)->(%f, %lu)\n", voidp{this}, maxDistance, apply);
+
+    if(!(maxDistance >= 0.0f))
+    {
+        WARN(PREFIX "SetMaxDistance Invalid max distance (%f)\n", maxDistance);
+        return DSERR_INVALIDPARAM;
+    }
+
+    auto self = impl_from_base();
+    std::lock_guard lock{self->mMutex};
+    if(apply == DS3D_DEFERRED)
+    {
+        self->mDeferred.flMaxDistance = maxDistance;
+        self->mDirty.set(MaxDistance);
+    }
+    else
+    {
+        ALSection alsection{self->mContext};
+        self->mImmediate.flMaxDistance = maxDistance;
+
+        if(self->mSource != 0)
+            alSourcef(self->mSource, AL_MAX_DISTANCE, maxDistance);
+    }
+
+    return DS_OK;
 }
 
 HRESULT STDMETHODCALLTYPE Buffer::Buffer3D::SetMinDistance(D3DVALUE minDistance, DWORD apply) noexcept
 {
-    FIXME(PREFIX "SetMinDistace (%p)->(%f, %lu)\n", voidp{this}, minDistance, apply);
-    return E_NOTIMPL;
+    DEBUG(PREFIX "SetMinDistace (%p)->(%f, %lu)\n", voidp{this}, minDistance, apply);
+
+    if(!(minDistance >= 0.0f))
+    {
+        WARN(PREFIX "SetMinDistance Invalid min distance (%f)\n", minDistance);
+        return DSERR_INVALIDPARAM;
+    }
+
+    auto self = impl_from_base();
+    std::lock_guard lock{self->mMutex};
+    if(apply == DS3D_DEFERRED)
+    {
+        self->mDeferred.flMinDistance = minDistance;
+        self->mDirty.set(MinDistance);
+    }
+    else
+    {
+        ALSection alsection{self->mContext};
+        self->mImmediate.flMinDistance = minDistance;
+
+        if(self->mSource != 0)
+            alSourcef(self->mSource, AL_REFERENCE_DISTANCE, minDistance);
+    }
+
+    return DS_OK;
 }
 
 HRESULT STDMETHODCALLTYPE Buffer::Buffer3D::SetMode(DWORD mode, DWORD apply) noexcept
 {
-    FIXME(PREFIX "SetMode (%p)->(%lu, %lu)\n", voidp{this}, mode, apply);
-    return E_NOTIMPL;
+    DEBUG(PREFIX "SetMode (%p)->(%lu, %lu)\n", voidp{this}, mode, apply);
+
+    if(mode != DS3DMODE_NORMAL && mode != DS3DMODE_HEADRELATIVE && mode != DS3DMODE_DISABLE)
+    {
+        WARN(PREFIX "SetMode Invalid mode (%lu)\n", mode);
+        return DSERR_INVALIDPARAM;
+    }
+
+    auto self = impl_from_base();
+    std::lock_guard lock{self->mMutex};
+    if(apply == DS3D_DEFERRED)
+    {
+        self->mDeferred.dwMode = mode;
+        self->mDirty.set(Mode);
+    }
+    else
+    {
+        ALSection alsection{self->mContext};
+        self->mImmediate.dwMode = mode;
+
+        if(self->mSource != 0)
+        {
+            if(mode == DS3DMODE_DISABLE)
+            {
+                const float x{static_cast<float>(self->mPan-DSBPAN_LEFT)/(DSBPAN_RIGHT-DSBPAN_LEFT) - 0.5f};
+                alSource3f(self->mSource, AL_POSITION, x, 0.0f, -std::sqrt(1.0f - x*x));
+                alSource3f(self->mSource, AL_VELOCITY, 0.0f, 0.0f, 0.0f);
+                alSource3f(self->mSource, AL_DIRECTION, 0.0f, 0.0f, 0.0f);
+            }
+            else
+            {
+                alSource3f(self->mSource, AL_POSITION, self->mImmediate.vPosition.x,
+                    self->mImmediate.vPosition.y, -self->mImmediate.vPosition.z);
+                alSource3f(self->mSource, AL_VELOCITY, self->mImmediate.vVelocity.x,
+                    self->mImmediate.vVelocity.y, -self->mImmediate.vVelocity.z);
+                alSource3f(self->mSource, AL_DIRECTION, self->mImmediate.vConeOrientation.x,
+                    self->mImmediate.vConeOrientation.y, -self->mImmediate.vConeOrientation.z);
+            }
+            alSourcei(self->mSource, AL_SOURCE_RELATIVE,
+                (mode!=DS3DMODE_NORMAL) ? AL_TRUE : AL_FALSE);
+
+            alSourcef(self->mSource, AL_ROLLOFF_FACTOR, (mode==DS3DMODE_DISABLE) ? 0.0f
+                : self->mParent.getPrimary().getCurrentRolloffFactor());
+            alGetError();
+        }
+    }
+
+    return DS_OK;
 }
 
 HRESULT STDMETHODCALLTYPE Buffer::Buffer3D::SetPosition(D3DVALUE x, D3DVALUE y, D3DVALUE z, DWORD apply) noexcept
 {
-    FIXME(PREFIX "SetPosition (%p)->(%f, %f, %f, %lu)\n", voidp{this}, x, y, z, apply);
-    return E_NOTIMPL;
+    DEBUG(PREFIX "SetPosition (%p)->(%f, %f, %f, %lu)\n", voidp{this}, x, y, z, apply);
+
+    auto self = impl_from_base();
+    std::lock_guard lock{self->mMutex};
+    if(apply == DS3D_DEFERRED)
+    {
+        self->mDeferred.vPosition.x = x;
+        self->mDeferred.vPosition.y = y;
+        self->mDeferred.vPosition.z = z;
+        self->mDirty.set(Position);
+    }
+    else
+    {
+        ALSection alsection{self->mContext};
+        self->mImmediate.vPosition.x = x;
+        self->mImmediate.vPosition.y = y;
+        self->mImmediate.vPosition.z = z;
+
+        if(self->mImmediate.dwMode != DS3DMODE_DISABLE && self->mSource != 0)
+        {
+            alSource3f(self->mSource, AL_POSITION, x, y, -z);
+            alGetError();
+        }
+    }
+
+    return DS_OK;
 }
 
 HRESULT STDMETHODCALLTYPE Buffer::Buffer3D::SetVelocity(D3DVALUE x, D3DVALUE y, D3DVALUE z, DWORD apply) noexcept
 {
-    FIXME(PREFIX "SetVelocity (%p)->(%f, %f, %f, %lu)\n", voidp{this}, x, y, z, apply);
-    return E_NOTIMPL;
+    DEBUG(PREFIX "SetVelocity (%p)->(%f, %f, %f, %lu)\n", voidp{this}, x, y, z, apply);
+
+    auto self = impl_from_base();
+    std::lock_guard lock{self->mMutex};
+    if(apply == DS3D_DEFERRED)
+    {
+        self->mDeferred.vVelocity.x = x;
+        self->mDeferred.vVelocity.y = y;
+        self->mDeferred.vVelocity.z = z;
+        self->mDirty.set(Velocity);
+    }
+    else
+    {
+        ALSection alsection{self->mContext};
+        self->mImmediate.vVelocity.x = x;
+        self->mImmediate.vVelocity.y = y;
+        self->mImmediate.vVelocity.z = z;
+
+        if(self->mImmediate.dwMode != DS3DMODE_DISABLE && self->mSource != 0)
+        {
+            alSource3f(self->mSource, AL_VELOCITY, x, y, -z);
+            alGetError();
+        }
+    }
+
+    return DS_OK;
 }
 #undef PREFIX
 

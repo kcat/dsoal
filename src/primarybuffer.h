@@ -80,6 +80,8 @@ class PrimaryBuffer final : IDirectSoundBuffer {
     WAVEFORMATEXTENSIBLE mFormat;
     bool mPlaying{false};
 
+    void setParams(const DS3DLISTENER &params, const std::bitset<FlagCount> flags);
+
 public:
     PrimaryBuffer(DSound8OAL &parent);
     ~PrimaryBuffer();
@@ -113,8 +115,6 @@ public:
 
     void setContext(ALCcontext *context) noexcept
     { mContext = context; }
-
-    void setParams(const DS3DLISTENER &params, const std::bitset<FlagCount> flags);
 
     template<typename T>
     T as() noexcept { return static_cast<T>(this); }

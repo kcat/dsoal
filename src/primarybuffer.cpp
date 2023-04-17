@@ -875,7 +875,15 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::Listener3D::SetRolloffFactor(D3DVALUE r
         ALSection alsection{self->mContext};
         alcSuspendContext(self->mContext);
         self->mImmediate.flRolloffFactor = rolloffFactor;
-        // TODO: Set all 3D secondary buffers' rolloff factor
+
+        for(Buffer *buffer : self->mParent.get3dBuffers())
+        {
+            if(buffer->getCurrentMode() != DS3DMODE_DISABLE)
+            {
+                if(ALuint source{buffer->getSource()})
+                    alSourcef(source, AL_ROLLOFF_FACTOR, rolloffFactor);
+            }
+        }
         alGetError();
         alcProcessContext(self->mContext);
     }
@@ -925,9 +933,10 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::Listener3D::CommitDeferredSettings() no
         alGetError();
     }
 
-    // TODO: Commit all 3D secondary buffers' properties
-
+    for(Buffer *buffer : self->mParent.get3dBuffers())
+        buffer->commit();
     alGetError();
+
     alcProcessContext(self->mContext);
     return DS_OK;
 }
