@@ -278,7 +278,6 @@ HRESULT Buffer::setLocation(LocStatus locStatus) noexcept
     alSourcef(mSource, AL_GAIN, mB_to_gain(static_cast<float>(mVolume)));
     alSourcef(mSource, AL_PITCH, (mFrequency == 0) ? 1.0f :
         static_cast<float>(mFrequency)/static_cast<float>(mBuffer->mWfxFormat.Format.nSamplesPerSec));
-    alGetError();
 
     if((mBuffer->mFlags&DSBCAPS_CTRL3D))
     {
@@ -288,6 +287,7 @@ HRESULT Buffer::setLocation(LocStatus locStatus) noexcept
             alSource3f(mSource, AL_POSITION, x, 0.0f, -std::sqrt(1.0f - x*x));
             alSource3f(mSource, AL_VELOCITY, 0.0f, 0.0f, 0.0f);
             alSource3f(mSource, AL_DIRECTION, 0.0f, 0.0f, 0.0f);
+            alSourcef(mSource, AL_ROLLOFF_FACTOR, 0.0f);
         }
         else
         {
@@ -297,19 +297,16 @@ HRESULT Buffer::setLocation(LocStatus locStatus) noexcept
                 -mImmediate.vVelocity.z);
             alSource3f(mSource, AL_DIRECTION, mImmediate.vConeOrientation.x,
                 mImmediate.vConeOrientation.y, -mImmediate.vConeOrientation.z);
+            alSourcef(mSource, AL_ROLLOFF_FACTOR, mParent.getPrimary().getCurrentRolloffFactor());
         }
-        alSourcei(mSource, AL_CONE_INNER_ANGLE, static_cast<ALint>(mImmediate.dwInsideConeAngle));
-        alSourcei(mSource, AL_CONE_OUTER_ANGLE, static_cast<ALint>(mImmediate.dwOutsideConeAngle));
+        alSourcei(mSource, AL_SOURCE_RELATIVE,
+            (mImmediate.dwMode!=DS3DMODE_NORMAL) ? AL_TRUE : AL_FALSE);
+        alSourcef(mSource, AL_CONE_INNER_ANGLE, static_cast<float>(mImmediate.dwInsideConeAngle));
+        alSourcef(mSource, AL_CONE_OUTER_ANGLE, static_cast<float>(mImmediate.dwOutsideConeAngle));
         alSourcef(mSource, AL_CONE_OUTER_GAIN,
             mB_to_gain(static_cast<float>(mImmediate.lConeOutsideVolume)));
         alSourcef(mSource, AL_REFERENCE_DISTANCE, mImmediate.flMinDistance);
         alSourcef(mSource, AL_MAX_DISTANCE, mImmediate.flMaxDistance);
-        alSourcei(mSource, AL_SOURCE_RELATIVE,
-            (mImmediate.dwMode!=DS3DMODE_NORMAL) ? AL_TRUE : AL_FALSE);
-
-        alSourcef(mSource, AL_ROLLOFF_FACTOR, (mImmediate.dwMode==DS3DMODE_DISABLE) ? 0.0f
-            : mParent.getPrimary().getCurrentRolloffFactor());
-        alGetError();
     }
     else
     {
@@ -318,8 +315,8 @@ HRESULT Buffer::setLocation(LocStatus locStatus) noexcept
         alSource3f(mSource, AL_POSITION, x, 0.0f, -std::sqrt(1.0f - x*x));
         alSourcef(mSource, AL_ROLLOFF_FACTOR, 0.0f);
         alSourcei(mSource, AL_SOURCE_RELATIVE, AL_TRUE);
-        alGetError();
     }
+    alGetError();
 
     mLocStatus = locStatus;
     return DS_OK;
