@@ -2,6 +2,7 @@
 
 #include <optional>
 
+#include <ksmedia.h>
 #include <vfwmsgs.h>
 
 #include "dsoal.h"
@@ -58,7 +59,82 @@ ALenum ConvertFormat(WAVEFORMATEXTENSIBLE &dst, const WAVEFORMATEX &src) noexcep
     }
 
     FIXME("ConvertFormat Could not get OpenAL format (%d-bit, %d channels)\n",
-          dst.Format.wBitsPerSample, dst.Format.nChannels);
+        dst.Format.wBitsPerSample, dst.Format.nChannels);
+    return AL_NONE;
+}
+
+ALenum ConvertFormat(WAVEFORMATEXTENSIBLE &dst, const WAVEFORMATEXTENSIBLE &src) noexcept
+{
+    TRACE("ConvertFormat Requested buffer format:\n"
+          "    FormatTag          = 0x%04x\n"
+          "    Channels           = %u\n"
+          "    SamplesPerSec      = %lu\n"
+          "    AvgBytesPerSec     = %lu\n"
+          "    BlockAlign         = %u\n"
+          "    BitsPerSample      = %u\n"
+          "    Size               = %u\n"
+          "    ValidBitsPerSample = %u\n"
+          "    ChannelMask        = 0x%08lx\n"
+          "    SubFormat          = %s\n",
+        src.Format.wFormatTag, src.Format.nChannels, src.Format.nSamplesPerSec,
+        src.Format.nAvgBytesPerSec, src.Format.nBlockAlign, src.Format.wBitsPerSample,
+        src.Format.cbSize, src.Samples.wValidBitsPerSample, src.dwChannelMask,
+        GuidPrinter{src.SubFormat}.c_str());
+
+    dst = src;
+    dst.Format.cbSize = sizeof(dst) - sizeof(dst.Format);
+
+    if(!dst.Samples.wValidBitsPerSample)
+        dst.Samples.wValidBitsPerSample = dst.Format.wBitsPerSample;
+    else if(dst.Samples.wValidBitsPerSample != dst.Format.wBitsPerSample)
+    {
+        WARN("ConvertFormat Padded sample formats not supported (%d-bit total, %d-bit valid)\n",
+            dst.Format.wBitsPerSample, dst.Samples.wValidBitsPerSample);
+        return AL_NONE;
+    }
+
+    if(dst.dwChannelMask)
+    {
+        if(!((dst.Format.nChannels == 1 && dst.dwChannelMask != KSAUDIO_SPEAKER_MONO)
+            || (dst.Format.nChannels == 2 && dst.dwChannelMask != KSAUDIO_SPEAKER_STEREO)))
+        {
+            FIXME("ConvertFormat Unsupported channel configuration (%u channels, 0x%08lx)\n",
+                dst.Format.nChannels, dst.dwChannelMask);
+            return AL_NONE;
+        }
+    }
+
+    if(dst.Format.wBitsPerSample == 8)
+    {
+        if(dst.SubFormat != KSDATAFORMAT_SUBTYPE_PCM)
+        {
+            WARN("ConvertFormat Unsupported 8-bit subformat %s\n",
+                GuidPrinter{dst.SubFormat}.c_str());
+            return AL_NONE;
+        }
+        switch(dst.Format.nChannels)
+        {
+        case 1: return AL_FORMAT_MONO8;
+        case 2: return AL_FORMAT_STEREO8;
+        }
+    }
+    else if(dst.Format.wBitsPerSample == 16)
+    {
+        if(dst.SubFormat != KSDATAFORMAT_SUBTYPE_PCM)
+        {
+            WARN("ConvertFormat Unsupported 16-bit subformat %s\n",
+                GuidPrinter{dst.SubFormat}.c_str());
+            return AL_NONE;
+        }
+        switch(dst.Format.nChannels)
+        {
+        case 1: return AL_FORMAT_MONO16;
+        case 2: return AL_FORMAT_STEREO16;
+        }
+    }
+
+    FIXME("ConvertFormat Could not get OpenAL format (%d-bit, %d channels)\n",
+        dst.Format.wBitsPerSample, dst.Format.nChannels);
     return AL_NONE;
 }
 
@@ -146,7 +222,20 @@ ds::expected<ComPtr<SharedBuffer>,HRESULT> SharedBuffer::Create(const DSBUFFERDE
     shared->mDataSize = bufSize;
     shared->mFlags = bufferDesc.dwFlags;
 
-    shared->mAlFormat = ConvertFormat(shared->mWfxFormat, *bufferDesc.lpwfxFormat);
+    if(format->wFormatTag == WAVE_FORMAT_EXTENSIBLE)
+    {
+        static constexpr WORD ExtExtraSize{sizeof(WAVEFORMATEXTENSIBLE) - sizeof(WAVEFORMATEX)};
+        if(format->cbSize < ExtExtraSize)
+        {
+            WARN(PREFIX "Create EXTENSIBLE size too small (%u, expected %u)\n", format->cbSize,
+                ExtExtraSize);
+            return ds::unexpected(DSERR_INVALIDPARAM);
+        }
+        auto wfe{CONTAINING_RECORD(format, const WAVEFORMATEXTENSIBLE, Format)};
+        shared->mAlFormat = ConvertFormat(shared->mWfxFormat, *wfe);
+    }
+    else
+        shared->mAlFormat = ConvertFormat(shared->mWfxFormat, *format);
     if(!shared->mAlFormat) return ds::unexpected(DSERR_INVALIDPARAM);
 
     alGenBuffers(1, &shared->mAlBuffer);
