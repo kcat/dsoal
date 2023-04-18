@@ -21,6 +21,7 @@
 #include "comptr.h"
 #include "dsoal_global.h"
 #include "dsoundoal.h"
+#include "factory.h"
 #include "guidprinter.h"
 #include "logging.h"
 
@@ -700,7 +701,15 @@ HRESULT WINAPI DSOAL_DllGetClassObject(REFCLSID rclsid, REFIID riid, void **ppv)
 {
     TRACE("DllGetClassObject (%s, %s, %p)\n", GuidPrinter{rclsid}.c_str(),
         GuidPrinter{riid}.c_str(), voidp{ppv});
-    return E_NOTIMPL;
+
+    if(!ppv)
+    {
+        WARN("DllGetClassObject NULL out pointer\n");
+        return E_INVALIDARG;
+    }
+    *ppv = nullptr;
+
+    return Factory::GetFactory(rclsid, riid, ppv);
 }
 
 HRESULT WINAPI DSOAL_GetDeviceID(const GUID *guidSrc, GUID *guidDst) noexcept

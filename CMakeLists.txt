@@ -72,6 +72,8 @@ add_library(dsound SHARED
     src/eax.cpp
     src/eax.h
     src/expected.h
+    src/factory.cpp
+    src/factory.h
     src/guidprinter.h
     src/logging.cpp
     src/logging.h
