@@ -15,6 +15,7 @@
 #include "comptr.h"
 #include "dsoal.h"
 #include "expected.h"
+#include "vmanager.h"
 
 
 class DSound8OAL;
@@ -44,6 +45,7 @@ public:
     WAVEFORMATEXTENSIBLE mWfxFormat{};
     ALenum mAlFormat{AL_NONE};
     ALuint mAlBuffer{0};
+    VmMode mVoiceMode{DSPROPERTY_VMANAGER_MODE_DEFAULT};
 
     static auto Create(const DSBUFFERDESC &bufferDesc) noexcept
         -> ds::expected<ComPtr<SharedBuffer>,HRESULT>;
@@ -149,6 +151,7 @@ class Buffer final : IDirectSoundBuffer8 {
     ComPtr<SharedBuffer> mBuffer;
     ALuint mSource{};
     DWORD mLastPos{0};
+    DWORD mVmPriority{0};
     std::atomic<bool> mLocked{false};
     bool mBufferLost{false};
 

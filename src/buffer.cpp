@@ -10,6 +10,7 @@
 #include "guidprinter.h"
 #include "logging.h"
 #include "primarybuffer.h"
+#include "vmanager.h"
 
 
 namespace {
@@ -1630,6 +1631,52 @@ HRESULT STDMETHODCALLTYPE Buffer::Prop::Get(REFGUID guidPropSet, ULONG dwPropID,
             return DS_OK;
         }
     }
+    else if(guidPropSet == DSPROPSETID_VoiceManager)
+    {
+        switch(dwPropID)
+        {
+        case DSPROPERTY_VMANAGER_MODE:
+            if(cbPropData >= sizeof(DWORD))
+            {
+                *static_cast<DWORD*>(pPropData) = self->mBuffer->mVoiceMode;
+                *pcbReturned = sizeof(DWORD);
+                return DS_OK;
+            }
+            return DSERR_INVALIDPARAM;
+
+        case DSPROPERTY_VMANAGER_PRIORITY:
+            if(cbPropData >= sizeof(DWORD))
+            {
+                *static_cast<DWORD*>(pPropData) = self->mVmPriority;
+                *pcbReturned = sizeof(DWORD);
+                return DS_OK;
+            }
+            return DSERR_INVALIDPARAM;
+
+        case DSPROPERTY_VMANAGER_STATE:
+            if(cbPropData >= sizeof(DWORD))
+            {
+                ALint state{};
+                if(self->mSource != 0)
+                {
+                    ALSection alsection{self->mContext};
+                    alGetSourcei(self->mSource, AL_SOURCE_STATE, &state);
+                }
+
+                /* FIXME: Probably not accurate. */
+                if(state == AL_PLAYING)
+                    *static_cast<DWORD*>(pPropData) = DSPROPERTY_VMANAGER_STATE_PLAYING3DHW;
+                else
+                    *static_cast<DWORD*>(pPropData) = DSPROPERTY_VMANAGER_STATE_SILENT;
+                *pcbReturned = sizeof(DWORD);
+                return DS_OK;
+            }
+            return DSERR_INVALIDPARAM;
+        }
+
+        FIXME(PREFIX "Get Unhandled VoiceManager propid: 0x%08lx\n", dwPropID);
+        return E_PROP_ID_UNSUPPORTED;
+    }
 
     return E_PROP_ID_UNSUPPORTED;
 }
@@ -1685,6 +1732,36 @@ HRESULT STDMETHODCALLTYPE Buffer::Prop::Set(REFGUID guidPropSet, ULONG dwPropID,
             return DS_OK;
         }
     }
+    else if(guidPropSet == DSPROPSETID_VoiceManager)
+    {
+        switch(dwPropID)
+        {
+        case DSPROPERTY_VMANAGER_MODE:
+            if(cbPropData >= sizeof(DWORD))
+            {
+                if(const DWORD mode{*static_cast<DWORD*>(pPropData)}; mode < VMANAGER_MODE_MAX)
+                {
+                    TRACE(PREFIX "Set DSPROPERTY_VMANAGER_MODE: %lu\n", mode);
+                    self->mBuffer->mVoiceMode = static_cast<VmMode>(mode);
+                    return DS_OK;
+                }
+            }
+            return DSERR_INVALIDPARAM;
+
+        case DSPROPERTY_VMANAGER_PRIORITY:
+            if(cbPropData >= sizeof(DWORD))
+            {
+                const DWORD prio{*static_cast<DWORD*>(pPropData)};
+                TRACE(PREFIX "Set DSPROPERTY_VMANAGER_PRIORITY: %lu\n", prio);
+                self->mVmPriority = prio;
+                return DS_OK;
+            }
+            return DSERR_INVALIDPARAM;
+        }
+
+        FIXME(PREFIX "Set Unhandled VoiceManager propid: 0x%08lx\n", dwPropID);
+        return E_PROP_ID_UNSUPPORTED;
+    }
 
     return E_PROP_ID_UNSUPPORTED;
 }
@@ -1736,6 +1813,26 @@ HRESULT STDMETHODCALLTYPE Buffer::Prop::QuerySupport(REFGUID guidPropSet, ULONG 
             *pTypeSupport = *res;
             return DS_OK;
         }
+    }
+    if(guidPropSet == DSPROPSETID_VoiceManager)
+    {
+        switch(dwPropID)
+        {
+        case DSPROPERTY_VMANAGER_MODE:
+            *pTypeSupport = KSPROPERTY_SUPPORT_GET | KSPROPERTY_SUPPORT_SET;
+            return DS_OK;
+
+        case DSPROPERTY_VMANAGER_PRIORITY:
+            *pTypeSupport = KSPROPERTY_SUPPORT_GET | KSPROPERTY_SUPPORT_SET;
+            return DS_OK;
+
+        case DSPROPERTY_VMANAGER_STATE:
+            *pTypeSupport = KSPROPERTY_SUPPORT_GET;
+            return DS_OK;
+        }
+
+        FIXME(PREFIX "QuerySupport Unhandled VoiceManager propid: 0x%08lx\n", dwPropID);
+        return E_PROP_ID_UNSUPPORTED;
     }
 
     FIXME(PREFIX "QuerySupport Unhandled propset: %s (propid: %lu)\n",
