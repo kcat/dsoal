@@ -16,6 +16,7 @@
 #include "AL/al.h"
 #include "AL/alc.h"
 #include "AL/alext.h"
+#include "capture.h"
 #include "comhelpers.h"
 #include "comptr.h"
 #include "dsoal_global.h"
@@ -425,7 +426,36 @@ HRESULT WINAPI DSOAL_DirectSoundCaptureCreate(const GUID *deviceId, IDirectSound
 {
     TRACE("DirectSoundCaptureCreate (%s, %p, %p)\n", GuidPrinter{deviceId}.c_str(), voidp{ds},
         voidp{outer});
-    return E_NOTIMPL;
+
+    if(!ds)
+    {
+        WARN("DirectSoundCaptureCreate invalid parameter: ppDS == NULL\n");
+        return DSERR_INVALIDPARAM;
+    }
+    *ds = NULL;
+
+    if(outer)
+    {
+        WARN("DirectSoundCaptureCreate invalid parameter: pUnkOuter != NULL\n");
+        return DSERR_INVALIDPARAM;
+    }
+
+    HRESULT hr{};
+    try {
+        auto dsobj = DSCapture::Create(false);
+        hr = dsobj->Initialize(deviceId);
+        if(SUCCEEDED(hr))
+        {
+            *ds = dsobj.release()->as<IDirectSoundCapture*>();
+            return DS_OK;
+        }
+    }
+    catch(std::bad_alloc &e) {
+        ERR("DirectSoundCaptureCreate Caught exception: %s\n", e.what());
+        hr = DSERR_OUTOFMEMORY;
+    }
+
+    return hr;
 }
 
 HRESULT WINAPI DSOAL_DirectSoundCaptureCreate8(const GUID *deviceId, IDirectSoundCapture8 **ds,
@@ -433,7 +463,36 @@ HRESULT WINAPI DSOAL_DirectSoundCaptureCreate8(const GUID *deviceId, IDirectSoun
 {
     TRACE("DirectSoundCaptureCreate8 (%s, %p, %p)\n", GuidPrinter{deviceId}.c_str(), voidp{ds},
         voidp{outer});
-    return E_NOTIMPL;
+
+    if(!ds)
+    {
+        WARN("DirectSoundCaptureCreate8 invalid parameter: ppDS == NULL\n");
+        return DSERR_INVALIDPARAM;
+    }
+    *ds = NULL;
+
+    if(outer)
+    {
+        WARN("DirectSoundCaptureCreate8 invalid parameter: pUnkOuter != NULL\n");
+        return DSERR_INVALIDPARAM;
+    }
+
+    HRESULT hr{};
+    try {
+        auto dsobj = DSCapture::Create(true);
+        hr = dsobj->Initialize(deviceId);
+        if(SUCCEEDED(hr))
+        {
+            *ds = dsobj.release()->as<IDirectSoundCapture8*>();
+            return DS_OK;
+        }
+    }
+    catch(std::bad_alloc &e) {
+        ERR("DirectSoundCaptureCreate8 Caught exception: %s\n", e.what());
+        hr = DSERR_OUTOFMEMORY;
+    }
+
+    return hr;
 }
 
 HRESULT WINAPI DSOAL_DirectSoundFullDuplexCreate(const GUID *captureDevice,
