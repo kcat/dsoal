@@ -14,6 +14,7 @@
 #include "AL/al.h"
 #include "comptr.h"
 #include "dsoal.h"
+#include "dsoundoal.h"
 #include "expected.h"
 #include "vmanager.h"
 
@@ -47,7 +48,7 @@ public:
     ALuint mAlBuffer{0};
     VmMode mVoiceMode{DSPROPERTY_VMANAGER_MODE_DEFAULT};
 
-    static auto Create(const DSBUFFERDESC &bufferDesc) noexcept
+    static auto Create(const DSBUFFERDESC &bufferDesc, const std::bitset<ExtensionCount> exts) noexcept
         -> ds::expected<ComPtr<SharedBuffer>,HRESULT>;
 };
 

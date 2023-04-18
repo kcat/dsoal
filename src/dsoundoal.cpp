@@ -209,6 +209,7 @@ ds::expected<std::unique_ptr<SharedDevice>,HRESULT> CreateDeviceShare(const GUID
         Extensions flag;
     } sExtensionList[]{
         { "EAX5.0", EXT_EAX },
+        { "AL_EXT_FLOAT32", EXT_FLOAT32 },
         { "AL_EXT_STATIC_BUFFER", EXT_STATIC_BUFFER }
     };
 

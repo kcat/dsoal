@@ -19,7 +19,8 @@ namespace {
 using voidp = void*;
 using cvoidp = const void*;
 
-ALenum ConvertFormat(WAVEFORMATEXTENSIBLE &dst, const WAVEFORMATEX &src) noexcept
+ALenum ConvertFormat(WAVEFORMATEXTENSIBLE &dst, const WAVEFORMATEX &src,
+    const std::bitset<ExtensionCount> exts) noexcept
 {
     TRACE("ConvertFormat Requested buffer format:\n"
           "    FormatTag      = 0x%04x\n"
@@ -32,12 +33,16 @@ ALenum ConvertFormat(WAVEFORMATEXTENSIBLE &dst, const WAVEFORMATEX &src) noexcep
         src.wFormatTag, src.nChannels, src.nSamplesPerSec, src.nAvgBytesPerSec, src.nBlockAlign,
         src.wBitsPerSample, src.cbSize);
 
+    dst = {};
     dst.Format = src;
     dst.Format.cbSize = 0;
 
-    if(dst.Format.wFormatTag != WAVE_FORMAT_PCM)
+    bool isfloat{false};
+    if(dst.Format.wFormatTag == WAVE_FORMAT_IEEE_FLOAT && exts.test(EXT_FLOAT32))
+        isfloat = true;
+    else if(dst.Format.wFormatTag != WAVE_FORMAT_PCM)
     {
-        FIXME("ConvertFormat Format 0x%04x samples not available\n", dst.Format.wFormatTag);
+        FIXME("ConvertFormat Format 0x%04x samples not supported\n", dst.Format.wFormatTag);
         return AL_NONE;
     }
 
@@ -45,25 +50,34 @@ ALenum ConvertFormat(WAVEFORMATEXTENSIBLE &dst, const WAVEFORMATEX &src) noexcep
     {
         switch(dst.Format.nChannels)
         {
-        case 1: return AL_FORMAT_MONO8;
-        case 2: return AL_FORMAT_STEREO8;
+        case 1: if(!isfloat) return AL_FORMAT_MONO8; break;
+        case 2: if(!isfloat) return AL_FORMAT_STEREO8; break;
         }
     }
     else if(dst.Format.wBitsPerSample == 16)
     {
         switch(dst.Format.nChannels)
         {
-        case 1: return AL_FORMAT_MONO16;
-        case 2: return AL_FORMAT_STEREO16;
+        case 1: if(!isfloat) return AL_FORMAT_MONO16; break;
+        case 2: if(!isfloat) return AL_FORMAT_STEREO16; break;
+        }
+    }
+    else if(dst.Format.wBitsPerSample == 32)
+    {
+        switch(dst.Format.nChannels)
+        {
+        case 1: if(isfloat) return AL_FORMAT_MONO_FLOAT32; break;
+        case 2: if(isfloat) return AL_FORMAT_STEREO_FLOAT32; break;
         }
     }
 
-    FIXME("ConvertFormat Could not get OpenAL format (%d-bit, %d channels)\n",
-        dst.Format.wBitsPerSample, dst.Format.nChannels);
+    FIXME("ConvertFormat Could not get OpenAL format (0x%04x, %d-bit, %d channels)\n",
+        dst.Format.wFormatTag, dst.Format.wBitsPerSample, dst.Format.nChannels);
     return AL_NONE;
 }
 
-ALenum ConvertFormat(WAVEFORMATEXTENSIBLE &dst, const WAVEFORMATEXTENSIBLE &src) noexcept
+ALenum ConvertFormat(WAVEFORMATEXTENSIBLE &dst, const WAVEFORMATEXTENSIBLE &src,
+    const std::bitset<ExtensionCount> exts) noexcept
 {
     TRACE("ConvertFormat Requested buffer format:\n"
           "    FormatTag          = 0x%04x\n"
@@ -104,37 +118,43 @@ ALenum ConvertFormat(WAVEFORMATEXTENSIBLE &dst, const WAVEFORMATEXTENSIBLE &src)
         }
     }
 
+    bool isfloat{false};
+    if(dst.SubFormat == KSDATAFORMAT_SUBTYPE_IEEE_FLOAT && exts.test(EXT_FLOAT32))
+        isfloat = true;
+    else if(dst.SubFormat == KSDATAFORMAT_SUBTYPE_PCM)
+    {
+        FIXME("ConvertFormat Unsupported sample subformat %s\n",
+            GuidPrinter{dst.SubFormat}.c_str());
+        return AL_NONE;
+    }
+
     if(dst.Format.wBitsPerSample == 8)
     {
-        if(dst.SubFormat != KSDATAFORMAT_SUBTYPE_PCM)
-        {
-            WARN("ConvertFormat Unsupported 8-bit subformat %s\n",
-                GuidPrinter{dst.SubFormat}.c_str());
-            return AL_NONE;
-        }
         switch(dst.Format.nChannels)
         {
-        case 1: return AL_FORMAT_MONO8;
-        case 2: return AL_FORMAT_STEREO8;
+        case 1: if(!isfloat) return AL_FORMAT_MONO8; break;
+        case 2: if(!isfloat) return AL_FORMAT_STEREO8; break;
         }
     }
     else if(dst.Format.wBitsPerSample == 16)
     {
-        if(dst.SubFormat != KSDATAFORMAT_SUBTYPE_PCM)
-        {
-            WARN("ConvertFormat Unsupported 16-bit subformat %s\n",
-                GuidPrinter{dst.SubFormat}.c_str());
-            return AL_NONE;
-        }
         switch(dst.Format.nChannels)
         {
-        case 1: return AL_FORMAT_MONO16;
-        case 2: return AL_FORMAT_STEREO16;
+        case 1: if(!isfloat) return AL_FORMAT_MONO16; break;
+        case 2: if(!isfloat) return AL_FORMAT_STEREO16; break;
+        }
+    }
+    else if(dst.Format.wBitsPerSample == 32)
+    {
+        switch(dst.Format.nChannels)
+        {
+        case 1: if(isfloat) return AL_FORMAT_MONO_FLOAT32; break;
+        case 2: if(isfloat) return AL_FORMAT_STEREO_FLOAT32; break;
         }
     }
 
-    FIXME("ConvertFormat Could not get OpenAL format (%d-bit, %d channels)\n",
-        dst.Format.wBitsPerSample, dst.Format.nChannels);
+    FIXME("ConvertFormat Could not get OpenAL format (%d-bit, %d channels, %s)\n",
+        dst.Format.wBitsPerSample, dst.Format.nChannels, GuidPrinter{dst.SubFormat}.c_str());
     return AL_NONE;
 }
 
@@ -153,7 +173,8 @@ void SharedBuffer::dispose() noexcept
     std::free(this);
 }
 
-ds::expected<ComPtr<SharedBuffer>,HRESULT> SharedBuffer::Create(const DSBUFFERDESC &bufferDesc) noexcept
+ds::expected<ComPtr<SharedBuffer>,HRESULT> SharedBuffer::Create(const DSBUFFERDESC &bufferDesc,
+    const std::bitset<ExtensionCount> exts) noexcept
 {
     const WAVEFORMATEX *format{bufferDesc.lpwfxFormat};
 
@@ -232,10 +253,10 @@ ds::expected<ComPtr<SharedBuffer>,HRESULT> SharedBuffer::Create(const DSBUFFERDE
             return ds::unexpected(DSERR_INVALIDPARAM);
         }
         auto wfe{CONTAINING_RECORD(format, const WAVEFORMATEXTENSIBLE, Format)};
-        shared->mAlFormat = ConvertFormat(shared->mWfxFormat, *wfe);
+        shared->mAlFormat = ConvertFormat(shared->mWfxFormat, *wfe, exts);
     }
     else
-        shared->mAlFormat = ConvertFormat(shared->mWfxFormat, *format);
+        shared->mAlFormat = ConvertFormat(shared->mWfxFormat, *format, exts);
     if(!shared->mAlFormat) return ds::unexpected(DSERR_INVALIDPARAM);
 
     alGenBuffers(1, &shared->mAlBuffer);
@@ -710,7 +731,7 @@ HRESULT STDMETHODCALLTYPE Buffer::Initialize(IDirectSound *directSound, const DS
             }
         }
 
-        auto shared = SharedBuffer::Create(*dsBufferDesc);
+        auto shared = SharedBuffer::Create(*dsBufferDesc, mParent.getExtensions());
         if(!shared) return shared.error();
         mBuffer = std::move(shared.value());
     }

@@ -22,6 +22,7 @@ class Buffer;
 
 enum Extensions : uint8_t {
     EXT_EAX,
+    EXT_FLOAT32,
     EXT_STATIC_BUFFER,
 
     ExtensionCount
@@ -202,6 +203,9 @@ public:
 
     [[nodiscard]]
     bool haveExtension(Extensions flag) const noexcept { return mExtensions.test(flag); }
+
+    [[nodiscard]]
+    std::bitset<ExtensionCount> getExtensions() const noexcept { return mExtensions; }
 
     [[nodiscard]]
     DWORD getPriorityLevel() const noexcept { return mPrioLevel; }
