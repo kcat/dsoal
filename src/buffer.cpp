@@ -1474,6 +1474,7 @@ HRESULT STDMETHODCALLTYPE Buffer::Buffer3D::SetMode(DWORD mode, DWORD apply) noe
                 alSource3f(self->mSource, AL_POSITION, x, 0.0f, -std::sqrt(1.0f - x*x));
                 alSource3f(self->mSource, AL_VELOCITY, 0.0f, 0.0f, 0.0f);
                 alSource3f(self->mSource, AL_DIRECTION, 0.0f, 0.0f, 0.0f);
+                alSourcef(self->mSource, AL_ROLLOFF_FACTOR, 0.0f);
             }
             else
             {
@@ -1483,12 +1484,11 @@ HRESULT STDMETHODCALLTYPE Buffer::Buffer3D::SetMode(DWORD mode, DWORD apply) noe
                     self->mImmediate.vVelocity.y, -self->mImmediate.vVelocity.z);
                 alSource3f(self->mSource, AL_DIRECTION, self->mImmediate.vConeOrientation.x,
                     self->mImmediate.vConeOrientation.y, -self->mImmediate.vConeOrientation.z);
+                alSourcef(self->mSource, AL_ROLLOFF_FACTOR,
+                    self->mParent.getPrimary().getCurrentRolloffFactor());
             }
             alSourcei(self->mSource, AL_SOURCE_RELATIVE,
                 (mode!=DS3DMODE_NORMAL) ? AL_TRUE : AL_FALSE);
-
-            alSourcef(self->mSource, AL_ROLLOFF_FACTOR, (mode==DS3DMODE_DISABLE) ? 0.0f
-                : self->mParent.getPrimary().getCurrentRolloffFactor());
             alGetError();
         }
     }
