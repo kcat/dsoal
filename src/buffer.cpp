@@ -1470,7 +1470,9 @@ HRESULT STDMETHODCALLTYPE Buffer::Buffer3D::SetMode(DWORD mode, DWORD apply) noe
         {
             if(mode == DS3DMODE_DISABLE)
             {
-                const float x{static_cast<float>(self->mPan-DSBPAN_LEFT)/(DSBPAN_RIGHT-DSBPAN_LEFT) - 0.5f};
+                const float pandiff{static_cast<float>(self->mPan - DSBPAN_LEFT)};
+                const float x{pandiff/(DSBPAN_RIGHT-DSBPAN_LEFT) - 0.5f};
+
                 alSource3f(self->mSource, AL_POSITION, x, 0.0f, -std::sqrt(1.0f - x*x));
                 alSource3f(self->mSource, AL_VELOCITY, 0.0f, 0.0f, 0.0f);
                 alSource3f(self->mSource, AL_DIRECTION, 0.0f, 0.0f, 0.0f);
