@@ -2,6 +2,7 @@
 
 #include <optional>
 
+#include <ks.h>
 #include <ksmedia.h>
 #include <vfwmsgs.h>
 
