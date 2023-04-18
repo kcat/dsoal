@@ -125,8 +125,8 @@ HRESULT STDMETHODCALLTYPE Factory::CreateInstance(IUnknown *unkOuter, REFIID rii
     return mCreateInstance(riid, ppvObject);
 }
 
-HRESULT STDMETHODCALLTYPE Factory::LockServer(WINBOOL dolock) noexcept
+HRESULT STDMETHODCALLTYPE Factory::LockServer(BOOL dolock) noexcept
 {
-    FIXME(PREFIX "LockServer (%p)->(%d)\n", voidp{this}, dolock);
+    FIXME(PREFIX "LockServer (%p)->(%d): stub\n", voidp{this}, dolock);
     return S_OK;
 }

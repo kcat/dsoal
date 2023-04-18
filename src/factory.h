@@ -20,8 +20,8 @@ public:
     HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void** ppvObject) noexcept override;
     ULONG STDMETHODCALLTYPE AddRef() noexcept override;
     ULONG STDMETHODCALLTYPE Release() noexcept override;
-    HRESULT STDMETHODCALLTYPE CreateInstance(IUnknown *pUnkOuter, REFIID riid, void **ppvObject) noexcept override;
-    HRESULT STDMETHODCALLTYPE LockServer(WINBOOL fLock) noexcept override;
+    HRESULT STDMETHODCALLTYPE CreateInstance(IUnknown *unkOuter, REFIID riid, void **ppvObject) noexcept override;
+    HRESULT STDMETHODCALLTYPE LockServer(BOOL dolock) noexcept override;
 
     [[nodiscard]]
     const GUID &getId() const noexcept { return mId; }
