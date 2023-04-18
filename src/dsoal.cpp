@@ -191,36 +191,14 @@ bool load_openal()
     return true;
 }
 
-
-/* Thread-local current context. */
-thread_local ALCcontext *sLocalContext;
-
-/* Thread-local context handling. This handles attempting to release the
- * context which may have been left current when the thread is destroyed.
- */
-class ThreadCtx {
-public:
-    ~ThreadCtx()
-    {
-        std::ignore = alcSetThreadContext(nullptr);
-    }
-
-    void set(ALCcontext *ctx) const noexcept
-    { sLocalContext = ctx; }
-};
-thread_local ThreadCtx sThreadContext;
-
 } // namespace
 
 void SetALContext(ALCcontext *context)
 {
-    if(context == sLocalContext) LIKELY
+    if(context == alcGetThreadContext()) LIKELY
         return;
-
     if(!alcSetThreadContext(context)) UNLIKELY
         ERR("SetALContext Failed to set context %p!\n", voidp{context});
-    else
-        sThreadContext.set(context);
 }
 
 

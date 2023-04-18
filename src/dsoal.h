@@ -150,7 +150,6 @@ To> bit_cast(const From &src) noexcept
 
 HRESULT WINAPI GetDeviceID(const GUID &guidSrc, GUID &guidDst) noexcept;
 
-
 void SetALContext(ALCcontext *context);
 inline void UnsetALContext() { }
 
