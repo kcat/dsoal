@@ -182,15 +182,18 @@ Buffer::Buffer(DSound8OAL &parent, bool is8, IDirectSoundBuffer *original) noexc
 
     if(original)
     {
-#ifdef __MINGW32__
         /* MinGW headers do not have IDirectSoundBuffer8 inherit from
          * IDirectSoundBuffer, which MSVC apparently does. Reverse the cast
          * done for Buffer -> IDirectSoundBuffer.
          */
-        Buffer *orig{static_cast<Buffer*>(ds::bit_cast<IDirectSoundBuffer8*>(original))};
-#else
-        Buffer *orig{static_cast<Buffer*>(original)};
-#endif
+        auto upcast = [](auto *orig)
+        {
+            if constexpr(std::is_base_of_v<std::remove_pointer_t<decltype(orig)>,Buffer>)
+                return static_cast<Buffer*>(orig);
+            else
+                return static_cast<Buffer*>(ds::bit_cast<IDirectSoundBuffer8*>(orig));
+        };
+        Buffer *orig{upcast(original)};
         mBuffer = orig->mBuffer;
 
         /* According to MSDN, volume isn't copied. */

@@ -5,6 +5,7 @@
 #include <bitset>
 #include <memory>
 #include <mutex>
+#include <type_traits>
 #include <utility>
 
 #include <dsound.h>
@@ -229,17 +230,19 @@ public:
     DWORD getCurrentMode() const noexcept { return mImmediate.dwMode; }
 
     template<typename T>
-    T as() noexcept { return static_cast<T>(this); }
+    T as() noexcept
+    {
+        /* MinGW headers do not have IDirectSoundBuffer8 inherit from
+         * IDirectSoundBuffer, which MSVC apparently does. IDirectSoundBuffer
+         * is a strict subset of IDirectSoundBuffer8, so the interface is ABI
+         * compatible.
+         */
+        if constexpr(std::is_same_v<T,IDirectSoundBuffer*>
+            && !std::is_base_of_v<IDirectSoundBuffer,Buffer>)
+            return ds::bit_cast<T>(static_cast<IDirectSoundBuffer8*>(this));
+        else
+            return static_cast<T>(this);
+    }
 };
-
-#ifdef __MINGW32__
-/* MinGW headers do not have IDirectSoundBuffer8 inherit from
- * IDirectSoundBuffer, which MSVC apparently does. IDirectSoundBuffer is a
- * subset of IDirectSoundBuffer8, so it should be ABI-compatible.
- */
-template<>
-inline IDirectSoundBuffer *Buffer::as() noexcept
-{ return ds::bit_cast<IDirectSoundBuffer*>(static_cast<IDirectSoundBuffer8*>(this)); }
-#endif
 
 #endif // BUFFER_H

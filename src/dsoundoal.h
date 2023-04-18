@@ -6,6 +6,7 @@
 #include <bitset>
 #include <memory>
 #include <mutex>
+#include <type_traits>
 #include <vector>
 
 #include <dsound.h>
@@ -215,20 +216,21 @@ public:
     std::vector<Buffer*> &get3dBuffers() noexcept { return m3dBuffers; }
 
     template<typename T> [[nodiscard]]
-    T as() noexcept { return static_cast<T>(this); }
+    T as() noexcept
+    {
+        /* MinGW headers do not have IDirectSound8 inherit from IDirectSound,
+         * which MSVC apparently does. IDirectSound is a strict subset of
+         * IDirectSound8, so the interface is ABI compatible.
+         */
+        if constexpr(std::is_same_v<T,IDirectSound*>
+            && !std::is_base_of_v<IDirectSound,DSound8OAL>)
+            return ds::bit_cast<T>(static_cast<IDirectSound8*>(this));
+        else
+            return static_cast<T>(this);
+    }
 
     [[nodiscard]]
     static ComPtr<DSound8OAL> Create(bool is8);
 };
-
-#ifdef __MINGW32__
-/* MinGW headers do not have IDirectSound8 inherit from IDirectSound, which
- * MSVC apparently does. IDirectSound is a subset of IDirectSoundBuffer, so it
- * should be ABI-compatible.
- */
-template<>
-inline IDirectSound *DSound8OAL::as() noexcept
-{ return ds::bit_cast<IDirectSound*>(static_cast<IDirectSound8*>(this)); }
-#endif
 
 #endif // DSOUNDOAL_H
