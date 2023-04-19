@@ -76,6 +76,26 @@ class Buffer final : IDirectSoundBuffer8 {
     };
     UnknownImpl mUnknownIface;
 
+    class Notify final : IDirectSoundNotify {
+        auto impl_from_base() noexcept
+        {
+#ifdef __GNUC__
+    _Pragma("GCC diagnostic push") _Pragma("GCC diagnostic ignored \"-Wcast-align\"")
+#endif
+            return CONTAINING_RECORD(this, Buffer, mNotify);
+#ifdef __GNUC__
+    _Pragma("GCC diagnostic pop")
+#endif
+        }
+
+    public:
+        HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void** ppvObject) noexcept override;
+        ULONG STDMETHODCALLTYPE AddRef() noexcept override;
+        ULONG STDMETHODCALLTYPE Release() noexcept override;
+        HRESULT STDMETHODCALLTYPE SetNotificationPositions(DWORD numNotifies, const DSBPOSITIONNOTIFY *notifies) noexcept override;
+    };
+    Notify mNotify;
+
     class Buffer3D final : IDirectSound3DBuffer {
         auto impl_from_base() noexcept
         {
@@ -143,7 +163,8 @@ class Buffer final : IDirectSoundBuffer8 {
     };
     Prop mProp;
 
-    std::atomic<ULONG> mTotalRef{1u}, mDsRef{1u}, mDs3dRef{0u}, mPropRef{0u}, mUnkRef{0u};
+    std::atomic<ULONG> mTotalRef{1u}, mDsRef{1u}, mDs3dRef{0u}, mPropRef{0u}, mNotRef{0u},
+        mUnkRef{0u};
 
     DSound8OAL &mParent;
     ALCcontext *mContext{};

@@ -2010,6 +2010,40 @@ HRESULT STDMETHODCALLTYPE Buffer::Prop::QuerySupport(REFGUID guidPropSet, ULONG 
 #undef PREFIX
 
 
+/*** IDirectSoundNotify interface wrapper. ***/
+#define PREFIX "BufferNotify::"
+HRESULT STDMETHODCALLTYPE Buffer::Notify::QueryInterface(REFIID riid, void **ppvObject) noexcept
+{ return impl_from_base()->QueryInterface(riid, ppvObject); }
+
+ULONG STDMETHODCALLTYPE Buffer::Notify::AddRef() noexcept
+{
+    auto self = impl_from_base();
+    self->mTotalRef.fetch_add(1u, std::memory_order_relaxed);
+    const auto ret = self->mNotRef.fetch_add(1u, std::memory_order_relaxed) + 1;
+    DEBUG(PREFIX "AddRef (%p) ref %lu\n", voidp{this}, ret);
+    return ret;
+}
+
+ULONG STDMETHODCALLTYPE Buffer::Notify::Release() noexcept
+{
+    auto self = impl_from_base();
+    const auto ret = self->mNotRef.fetch_sub(1u, std::memory_order_relaxed) - 1;
+    DEBUG(PREFIX "Release (%p) ref %lu\n", voidp{this}, ret);
+    if(self->mTotalRef.fetch_sub(1u, std::memory_order_relaxed) == 1u) UNLIKELY
+        self->mParent.dispose(self);
+    return ret;
+}
+
+
+HRESULT STDMETHODCALLTYPE Buffer::Notify::SetNotificationPositions(DWORD numNotifies,
+    const DSBPOSITIONNOTIFY *notifies) noexcept
+{
+    FIXME(PREFIX "SetNotificationPositions (%p)->(%lu, %p)\n", voidp{this}, numNotifies,
+        cvoidp{notifies});
+    return E_NOTIMPL;
+}
+
+
 /*** IUnknown interface wrapper. ***/
 HRESULT STDMETHODCALLTYPE Buffer::UnknownImpl::QueryInterface(REFIID riid, void **ppvObject) noexcept
 { return impl_from_base()->QueryInterface(riid, ppvObject); }
