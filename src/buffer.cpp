@@ -523,11 +523,22 @@ HRESULT STDMETHODCALLTYPE Buffer::QueryInterface(REFIID riid, void** ppvObject) 
     {
         if(!(mBuffer->mFlags&DSBCAPS_CTRL3D))
         {
-            WARN(PREFIX "QueryInterface Requesting IDirectSound3DBuffer iface for non-3D object\n");
+            WARN(PREFIX "QueryInterface Requesting IDirectSound3DBuffer iface without DSBCAPS_CTRL3D\n");
             return E_NOINTERFACE;
         }
         mBuffer3D.AddRef();
         *ppvObject = mBuffer3D.as<IDirectSound3DBuffer*>();
+        return S_OK;
+    }
+    if(riid == IID_IDirectSoundNotify)
+    {
+        if(!(mBuffer->mFlags&DSBCAPS_CTRLPOSITIONNOTIFY))
+        {
+            WARN(PREFIX "QueryInterface Requesting IDirectSoundNotify iface without DSBCAPS_CTRLPOSITIONNOTIFY\n");
+            return E_NOINTERFACE;
+        }
+        mNotify.AddRef();
+        *ppvObject = mNotify.as<IDirectSoundNotify*>();
         return S_OK;
     }
     if(riid == IID_IKsPropertySet)

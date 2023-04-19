@@ -93,6 +93,9 @@ class Buffer final : IDirectSoundBuffer8 {
         ULONG STDMETHODCALLTYPE AddRef() noexcept override;
         ULONG STDMETHODCALLTYPE Release() noexcept override;
         HRESULT STDMETHODCALLTYPE SetNotificationPositions(DWORD numNotifies, const DSBPOSITIONNOTIFY *notifies) noexcept override;
+
+        template<typename T>
+        T as() noexcept { return static_cast<T>(this); }
     };
     Notify mNotify;
 
