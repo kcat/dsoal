@@ -2038,10 +2038,49 @@ ULONG STDMETHODCALLTYPE Buffer::Notify::Release() noexcept
 HRESULT STDMETHODCALLTYPE Buffer::Notify::SetNotificationPositions(DWORD numNotifies,
     const DSBPOSITIONNOTIFY *notifies) noexcept
 {
-    FIXME(PREFIX "SetNotificationPositions (%p)->(%lu, %p)\n", voidp{this}, numNotifies,
+    DEBUG(PREFIX "SetNotificationPositions (%p)->(%lu, %p)\n", voidp{this}, numNotifies,
         cvoidp{notifies});
-    return E_NOTIMPL;
+
+    if(numNotifies > 0 && !notifies)
+    {
+        WARN(PREFIX "SetNotificationPositions Null pointer with non-0 count\n");
+        return DSERR_INVALIDPARAM;
+    }
+
+    auto self = impl_from_base();
+    std::lock_guard lock{self->mMutex};
+    if(self->mSource != 0)
+    {
+        ALSection alsection{self->mContext};
+        ALint state{};
+        alGetSourcei(self->mSource, AL_SOURCE_STATE, &state);
+        if(state == AL_PLAYING)
+        {
+            WARN(PREFIX "SetNotificationPositions Source playing\n");
+            return DSERR_INVALIDCALL;
+        }
+    }
+
+    std::vector<DSBPOSITIONNOTIFY> newNots{};
+    if(numNotifies > 0)
+    {
+        for(size_t i{0};i < numNotifies;++i)
+        {
+            if(notifies[i].dwOffset >= self->mBuffer->mDataSize
+                && notifies[i].dwOffset != static_cast<DWORD>(DSBPN_OFFSETSTOP))
+            {
+                WARN(PREFIX "SetNotificationPositions Out of range (%zu: %lu >= %lu)\n", i,
+                    notifies[i].dwOffset, self->mBuffer->mDataSize);
+                return DSERR_INVALIDPARAM;
+            }
+        }
+        newNots.assign(notifies, notifies+numNotifies);
+    }
+    newNots.swap(self->mNotifies);
+
+    return DS_OK;
 }
+#undef PREFIX
 
 
 /*** IUnknown interface wrapper. ***/

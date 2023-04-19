@@ -206,6 +206,8 @@ class Buffer final : IDirectSoundBuffer8 {
     };
     LocStatus mLocStatus{};
 
+    std::vector<DSBPOSITIONNOTIFY> mNotifies;
+
     bool mIs8{};
     bool mIsInitialized{false};
 
