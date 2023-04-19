@@ -4,8 +4,10 @@
 #include <algorithm>
 #include <atomic>
 #include <bitset>
+#include <condition_variable>
 #include <memory>
 #include <mutex>
+#include <thread>
 #include <type_traits>
 #include <vector>
 
@@ -166,10 +168,17 @@ class DSound8OAL final : IDirectSound8 {
     PrimaryBuffer mPrimaryBuffer;
 
     std::vector<Buffer*> m3dBuffers;
+    std::vector<Buffer*> mNotifyBuffers;
 
+    std::condition_variable mNotifyCond;
+    std::thread mNotifyThread;
+
+    std::atomic<bool> mQuitNotify{false};
     bool mIs8{};
 
     ComPtr<Buffer> createSecondaryBuffer(IDirectSoundBuffer *original=nullptr);
+
+    void notifyThread() noexcept;
 
 public:
     /*** IUnknown methods ***/
@@ -196,6 +205,14 @@ public:
     {
         auto iter = std::remove(m3dBuffers.begin(), m3dBuffers.end(), buffer);
         m3dBuffers.erase(iter, m3dBuffers.end());
+    }
+
+    void addNotifyBuffer(Buffer *buffer);
+
+    void removeNotifyBuffer(Buffer *buffer)
+    {
+        auto iter = std::remove(mNotifyBuffers.begin(), mNotifyBuffers.end(), buffer);
+        mNotifyBuffers.erase(iter, mNotifyBuffers.end());
     }
 
     [[nodiscard]]

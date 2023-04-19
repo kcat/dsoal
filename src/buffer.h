@@ -254,6 +254,9 @@ public:
     }
 
     [[nodiscard]]
+    bool updateNotify() noexcept;
+
+    [[nodiscard]]
     ALuint getSource() const noexcept { return mSource; }
 
     [[nodiscard]]

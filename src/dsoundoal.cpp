@@ -1,6 +1,9 @@
 #include "dsoundoal.h"
 
 #include <algorithm>
+#include <chrono>
+#include <cinttypes>
+#include <functional>
 #include <optional>
 
 #include <ks.h>
@@ -343,7 +346,15 @@ DSound8OAL::DSound8OAL(bool is8) : mPrimaryBuffer{*this}, mIs8{is8}
 {
 }
 
-DSound8OAL::~DSound8OAL() = default;
+DSound8OAL::~DSound8OAL()
+{
+    if(mNotifyThread.joinable())
+    {
+        mQuitNotify = true;
+        mNotifyCond.notify_all();
+        mNotifyThread.join();
+    }
+}
 
 
 ComPtr<Buffer> DSound8OAL::createSecondaryBuffer(IDirectSoundBuffer *original)
@@ -378,6 +389,58 @@ ComPtr<Buffer> DSound8OAL::createSecondaryBuffer(IDirectSoundBuffer *original)
     sublist->mFreeMask &= ~(1_u64 << idx);
 
     return buffer;
+}
+
+
+void DSound8OAL::notifyThread() noexcept
+{
+    alcSetThreadContext(mShared->mContext.get());
+
+    ALCint refresh{};
+    alcGetIntegerv(mShared->mDevice.get(), ALC_REFRESH, 1, &refresh);
+
+    using namespace std::chrono;
+    milliseconds waittime{10000};
+    if(refresh > 0)
+    {
+        /* Calculate the wait time to be 3/5ths the time between refreshes.
+         * This causes about two wakeups per OpenAL update, but helps ensure
+         * notifications respond within half an update period.
+         */
+        waittime = milliseconds{seconds{1}} / refresh;
+        waittime = std::max(waittime*3/5, milliseconds{10});
+    }
+    TRACE(PREFIX "notifyThread Wakeup every %" PRIu64 "ms\n", waittime.count()/1000);
+
+    std::unique_lock lock{mDsMutex};
+    while(!mQuitNotify)
+    {
+        if(mNotifyBuffers.empty())
+        {
+            mNotifyCond.wait(lock);
+            continue;
+        }
+
+        auto enditer = std::remove_if(mNotifyBuffers.begin(), mNotifyBuffers.end(),
+            [](Buffer *buffer) noexcept { return !buffer->updateNotify(); });
+        mNotifyBuffers.erase(enditer, mNotifyBuffers.end());
+
+        mNotifyCond.wait_for(lock, waittime);
+    }
+
+    alcSetThreadContext(nullptr);
+}
+
+void DSound8OAL::addNotifyBuffer(Buffer *buffer)
+{
+    if(std::find(mNotifyBuffers.cbegin(), mNotifyBuffers.cend(), buffer) == mNotifyBuffers.cend())
+    {
+        mNotifyBuffers.emplace_back(buffer);
+        if(!mNotifyThread.joinable()) UNLIKELY
+            mNotifyThread = std::thread{&DSound8OAL::notifyThread, this};
+        else if(mNotifyBuffers.size() == 1)
+            mNotifyCond.notify_all();
+    }
 }
 
 

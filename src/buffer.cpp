@@ -398,6 +398,53 @@ Buffer::~Buffer()
 }
 
 
+bool Buffer::updateNotify() noexcept
+{
+    ALint state{}, ioffset{};
+    alGetSourcei(mSource, AL_BYTE_OFFSET, &ioffset);
+    alGetSourcei(mSource, AL_SOURCE_STATE, &state);
+
+    if(state == AL_STOPPED)
+    {
+        /* If the source is AL_STOPPED, it reached the end naturally, so all
+         * notifies since the last position have been hit, along with
+         * DSBPN_OFFSETSTOP (-1 or max unsigned value).
+         */
+        for(auto &notify : mNotifies)
+        {
+            if(notify.dwOffset >= mLastPos)
+                SetEvent(notify.hEventNotify);
+        }
+        mLastPos = mBuffer->mDataSize;
+        return false;
+    }
+
+    const DWORD offset{static_cast<DWORD>(ioffset)};
+    if(offset == mLastPos) return true;
+
+    if(offset > mLastPos)
+    {
+        for(auto &notify : mNotifies)
+        {
+            if(notify.dwOffset >= mLastPos && notify.dwOffset < offset)
+                SetEvent(notify.hEventNotify);
+        }
+    }
+    else
+    {
+        for(auto &notify : mNotifies)
+        {
+            if((notify.dwOffset >= mLastPos || notify.dwOffset < offset)
+                && notify.dwOffset != static_cast<DWORD>(DSBPN_OFFSETSTOP))
+                SetEvent(notify.hEventNotify);
+        }
+    }
+    mLastPos = offset;
+
+    return true;
+}
+
+
 HRESULT Buffer::setLocation(LocStatus locStatus) noexcept
 {
     if(locStatus != LocStatus::Any && mLocStatus == locStatus)
@@ -937,10 +984,11 @@ HRESULT STDMETHODCALLTYPE Buffer::Play(DWORD reserved1, DWORD priority, DWORD fl
     if(state == AL_PLAYING)
         return DS_OK;
 
+    mLastPos %= mBuffer->mDataSize;
     if(state == AL_INITIAL)
     {
         alSourcei(mSource, AL_BUFFER, static_cast<ALint>(mBuffer->mAlBuffer));
-        alSourcei(mSource, AL_BYTE_OFFSET, static_cast<ALint>(mLastPos % mBuffer->mDataSize));
+        alSourcei(mSource, AL_BYTE_OFFSET, static_cast<ALint>(mLastPos));
     }
     alSourcePlay(mSource);
     if(alGetError() != AL_NO_ERROR)
@@ -948,6 +996,9 @@ HRESULT STDMETHODCALLTYPE Buffer::Play(DWORD reserved1, DWORD priority, DWORD fl
         ERR(PREFIX "Play Couldn't start source\n");
         return DSERR_GENERIC;
     }
+
+    if((mBuffer->mFlags&DSBCAPS_CTRLPOSITIONNOTIFY) && !mNotifies.empty())
+        mParent.addNotifyBuffer(this);
 
     return DS_OK;
 }
@@ -1073,9 +1124,10 @@ HRESULT STDMETHODCALLTYPE Buffer::Stop() noexcept
     alGetSourcei(mSource, AL_SOURCE_STATE, &state);
     alGetError();
 
-    /* Ensure the notification's last tracked position is updated, as well
-     * as the queue offsets for streaming sources.
-     */
+    if((mBuffer->mFlags&DSBCAPS_CTRLPOSITIONNOTIFY))
+        mParent.removeNotifyBuffer(this);
+
+    /* Ensure the notification's last tracked position is updated. */
     mLastPos = (state == AL_STOPPED) ? mBuffer->mDataSize : static_cast<DWORD>(ofs);
 
     return DS_OK;
