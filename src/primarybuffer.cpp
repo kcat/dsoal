@@ -191,19 +191,41 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::GetStatus(DWORD *status) noexcept
     if(!status)
         return DSERR_INVALIDPARAM;
 
-    if(!mPlaying)
+    std::lock_guard lock{mMutex};
+    bool playing{mPlaying};
+    if(!playing && mParent.getPriorityLevel() < DSSCL_WRITEPRIMARY)
     {
-        /* TODO: Should be reported as playing if any secondary buffers are
-         * playing.
-         */
-        *status = 0;
+        ALSection alsection{mContext};
+        for(auto &group : mParent.getSecondaryBuffers())
+        {
+            uint64_t usemask{~group.mFreeMask};
+            while(usemask)
+            {
+                int idx{ds::countr_zero(usemask)};
+                usemask &= ~(1_u64 << idx);
+                Buffer *buffer{group.mBuffers + idx};
+
+                if(const ALuint source{buffer->getSource()})
+                {
+                    ALint state{};
+                    alGetSourcei(source, AL_SOURCE_STATE, &state);
+                    playing = (state == AL_PLAYING);
+                    if(playing) break;
+                }
+            }
+            if(playing)
+                break;
+        }
     }
-    else
+
+    if(playing)
     {
         *status = DSBSTATUS_PLAYING|DSBSTATUS_LOOPING;
         if((mFlags&DSBCAPS_LOCDEFER))
             *status |= DSBSTATUS_LOCHARDWARE;
     }
+    else
+        *status = 0;
 
     return DS_OK;
 }

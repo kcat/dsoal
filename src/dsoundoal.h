@@ -199,6 +199,9 @@ public:
     }
 
     [[nodiscard]]
+    std::vector<BufferSubList> &getSecondaryBuffers() noexcept { return mSecondaryBuffers; }
+
+    [[nodiscard]]
     std::mutex &getMutex() noexcept { return mDsMutex; }
 
     [[nodiscard]]
