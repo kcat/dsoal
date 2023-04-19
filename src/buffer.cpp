@@ -38,38 +38,58 @@ ALenum ConvertFormat(WAVEFORMATEXTENSIBLE &dst, const WAVEFORMATEX &src,
     dst.Format = src;
     dst.Format.cbSize = 0;
 
-    bool isfloat{false};
-    if(dst.Format.wFormatTag == WAVE_FORMAT_IEEE_FLOAT && exts.test(EXT_FLOAT32))
-        isfloat = true;
-    else if(dst.Format.wFormatTag != WAVE_FORMAT_PCM)
+    enum { UInt8, Int16, Float32 } sampleType{};
+    switch(dst.Format.wFormatTag)
     {
+    case WAVE_FORMAT_PCM:
+        switch(dst.Format.wBitsPerSample)
+        {
+        case 8: sampleType = UInt8; break;
+        case 16: sampleType = Int16; break;
+        default:
+            FIXME("ConvertFormat %u-bit integer samples not supported\n",
+                dst.Format.wBitsPerSample);
+            return AL_NONE;
+        }
+        break;
+    case WAVE_FORMAT_IEEE_FLOAT:
+        if(dst.Format.wBitsPerSample == 32 && exts.test(EXT_FLOAT32))
+            sampleType = Float32;
+        else
+        {
+            FIXME("ConvertFormat %u-bit floating point samples not supported\n",
+                dst.Format.wBitsPerSample);
+            return AL_NONE;
+        }
+        break;
+    default:
         FIXME("ConvertFormat Format 0x%04x samples not supported\n", dst.Format.wFormatTag);
         return AL_NONE;
     }
 
-    if(dst.Format.wBitsPerSample == 8)
+    switch(sampleType)
     {
+    case UInt8:
         switch(dst.Format.nChannels)
         {
-        case 1: if(!isfloat) return AL_FORMAT_MONO8; break;
-        case 2: if(!isfloat) return AL_FORMAT_STEREO8; break;
+        case 1: return AL_FORMAT_MONO8;
+        case 2: return AL_FORMAT_STEREO8;
         }
-    }
-    else if(dst.Format.wBitsPerSample == 16)
-    {
+        break;
+    case Int16:
         switch(dst.Format.nChannels)
         {
-        case 1: if(!isfloat) return AL_FORMAT_MONO16; break;
-        case 2: if(!isfloat) return AL_FORMAT_STEREO16; break;
+        case 1: return AL_FORMAT_MONO16;
+        case 2: return AL_FORMAT_STEREO16;
         }
-    }
-    else if(dst.Format.wBitsPerSample == 32)
-    {
+        break;
+    case Float32:
         switch(dst.Format.nChannels)
         {
-        case 1: if(isfloat) return AL_FORMAT_MONO_FLOAT32; break;
-        case 2: if(isfloat) return AL_FORMAT_STEREO_FLOAT32; break;
+        case 1: return AL_FORMAT_MONO_FLOAT32;
+        case 2: return AL_FORMAT_STEREO_FLOAT32;
         }
+        break;
     }
 
     FIXME("ConvertFormat Could not get OpenAL format (0x%04x, %d-bit, %d channels)\n",
@@ -108,50 +128,85 @@ ALenum ConvertFormat(WAVEFORMATEXTENSIBLE &dst, const WAVEFORMATEXTENSIBLE &src,
         return AL_NONE;
     }
 
-    if(dst.dwChannelMask)
+    enum { Mono, Stereo } channelConfig{};
+    switch(dst.dwChannelMask)
     {
-        if(!((dst.Format.nChannels == 1 && dst.dwChannelMask != KSAUDIO_SPEAKER_MONO)
-            || (dst.Format.nChannels == 2 && dst.dwChannelMask != KSAUDIO_SPEAKER_STEREO)))
+    case KSAUDIO_SPEAKER_MONO:
+        if(dst.Format.nChannels == 1) channelConfig = Mono;
+        else goto unsupported;
+        break;
+    case KSAUDIO_SPEAKER_STEREO:
+        if(dst.Format.nChannels == 2) channelConfig = Stereo;
+        else goto unsupported;
+        break;
+
+    case 0:
+        if(dst.Format.nChannels == 1) channelConfig = Mono;
+        else if(dst.Format.nChannels == 2) channelConfig = Stereo;
+        else goto unsupported;
+        break;
+
+    unsupported:
+    default:
+        FIXME("ConvertFormat Unsupported channel configuration (%u channels, 0x%08lx)\n",
+            dst.Format.nChannels, dst.dwChannelMask);
+        return AL_NONE;
+    }
+
+    enum { UInt8, Int16, Float32 } sampleType{};
+    if(dst.SubFormat == KSDATAFORMAT_SUBTYPE_PCM)
+    {
+        switch(dst.Format.wBitsPerSample)
         {
-            FIXME("ConvertFormat Unsupported channel configuration (%u channels, 0x%08lx)\n",
-                dst.Format.nChannels, dst.dwChannelMask);
+        case 8: sampleType = UInt8; break;
+        case 16: sampleType = Int16; break;
+        default:
+            FIXME("ConvertFormat %u-bit integer samples not supported\n",
+                dst.Format.wBitsPerSample);
             return AL_NONE;
         }
     }
-
-    bool isfloat{false};
-    if(dst.SubFormat == KSDATAFORMAT_SUBTYPE_IEEE_FLOAT && exts.test(EXT_FLOAT32))
-        isfloat = true;
-    else if(dst.SubFormat == KSDATAFORMAT_SUBTYPE_PCM)
+    else if(dst.SubFormat == KSDATAFORMAT_SUBTYPE_IEEE_FLOAT)
+    {
+        if(dst.Format.wBitsPerSample == 32 && exts.test(EXT_FLOAT32))
+            sampleType = Float32;
+        else
+        {
+            FIXME("ConvertFormat %u-bit floating point samples not supported\n",
+                dst.Format.wBitsPerSample);
+            return AL_NONE;
+        }
+    }
+    else
     {
         FIXME("ConvertFormat Unsupported sample subformat %s\n",
             GuidPrinter{dst.SubFormat}.c_str());
         return AL_NONE;
     }
 
-    if(dst.Format.wBitsPerSample == 8)
+    switch(sampleType)
     {
-        switch(dst.Format.nChannels)
+    case UInt8:
+        switch(channelConfig)
         {
-        case 1: if(!isfloat) return AL_FORMAT_MONO8; break;
-        case 2: if(!isfloat) return AL_FORMAT_STEREO8; break;
+        case Mono: return AL_FORMAT_MONO8;
+        case Stereo: return AL_FORMAT_STEREO8;
         }
-    }
-    else if(dst.Format.wBitsPerSample == 16)
-    {
-        switch(dst.Format.nChannels)
+        break;
+    case Int16:
+        switch(channelConfig)
         {
-        case 1: if(!isfloat) return AL_FORMAT_MONO16; break;
-        case 2: if(!isfloat) return AL_FORMAT_STEREO16; break;
+        case Mono: return AL_FORMAT_MONO16;
+        case Stereo: return AL_FORMAT_STEREO16;
         }
-    }
-    else if(dst.Format.wBitsPerSample == 32)
-    {
-        switch(dst.Format.nChannels)
+        break;
+    case Float32:
+        switch(channelConfig)
         {
-        case 1: if(isfloat) return AL_FORMAT_MONO_FLOAT32; break;
-        case 2: if(isfloat) return AL_FORMAT_STEREO_FLOAT32; break;
+        case Mono: return AL_FORMAT_MONO_FLOAT32;
+        case Stereo: return AL_FORMAT_STEREO_FLOAT32;
         }
+        break;
     }
 
     FIXME("ConvertFormat Could not get OpenAL format (%d-bit, %d channels, %s)\n",
