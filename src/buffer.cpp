@@ -1125,7 +1125,10 @@ HRESULT STDMETHODCALLTYPE Buffer::Stop() noexcept
     alGetError();
 
     if((mBuffer->mFlags&DSBCAPS_CTRLPOSITIONNOTIFY))
+    {
+        mParent.triggerNotifies();
         mParent.removeNotifyBuffer(this);
+    }
 
     /* Ensure the notification's last tracked position is updated. */
     mLastPos = (state == AL_STOPPED) ? mBuffer->mDataSize : static_cast<DWORD>(ofs);
@@ -2121,6 +2124,15 @@ HRESULT STDMETHODCALLTYPE Buffer::Notify::SetNotificationPositions(DWORD numNoti
         {
             WARN(PREFIX "SetNotificationPositions Source playing\n");
             return DSERR_INVALIDCALL;
+        }
+        /* If the source isn't playing and still has a notification check
+         * pending, it *just* stopped on its own. Trigger notifications and
+         * remove it so we can replace the notifications.
+         */
+        if(self->mParent.isPendingNotify(self)) UNLIKELY
+        {
+            self->mParent.triggerNotifies();
+            self->mParent.removeNotifyBuffer(self);
         }
     }
 

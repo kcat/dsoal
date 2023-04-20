@@ -431,6 +431,13 @@ void DSound8OAL::notifyThread() noexcept
     alcSetThreadContext(nullptr);
 }
 
+void DSound8OAL::triggerNotifies() noexcept
+{
+    auto enditer = std::remove_if(mNotifyBuffers.begin(), mNotifyBuffers.end(),
+        [](Buffer *buffer) noexcept { return !buffer->updateNotify(); });
+    mNotifyBuffers.erase(enditer, mNotifyBuffers.end());
+}
+
 void DSound8OAL::addNotifyBuffer(Buffer *buffer)
 {
     if(std::find(mNotifyBuffers.cbegin(), mNotifyBuffers.cend(), buffer) == mNotifyBuffers.cend())

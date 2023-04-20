@@ -216,6 +216,15 @@ public:
     }
 
     [[nodiscard]]
+    bool isPendingNotify(Buffer *buffer) const noexcept
+    {
+        const auto iter = std::find(mNotifyBuffers.cbegin(), mNotifyBuffers.cend(), buffer);
+        return iter != mNotifyBuffers.cend();
+    }
+
+    void triggerNotifies() noexcept;
+
+    [[nodiscard]]
     std::vector<BufferSubList> &getSecondaryBuffers() noexcept { return mSecondaryBuffers; }
 
     [[nodiscard]]
