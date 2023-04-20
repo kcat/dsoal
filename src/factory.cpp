@@ -4,6 +4,7 @@
 #include "dsoundoal.h"
 #include "guidprinter.h"
 #include "logging.h"
+#include "propset.h"
 
 
 namespace {
@@ -33,11 +34,18 @@ HRESULT CreateDSCapture(REFIID riid, void **ppvObject)
     return dsobj->QueryInterface(riid, ppvObject);
 }
 
+HRESULT CreateDSPrivatePropSet(REFIID riid, void **ppvObject)
+{
+    auto dsobj = DSPrivatePropertySet::Create();
+    return dsobj->QueryInterface(riid, ppvObject);
+}
+
 Factory sFactories[]{
     {CLSID_DirectSound8, CreateDS8},
     {CLSID_DirectSound, CreateDS},
     {CLSID_DirectSoundCapture8, CreateDSCapture8},
     {CLSID_DirectSoundCapture, CreateDSCapture},
+    {CLSID_DirectSoundPrivate, CreateDSPrivatePropSet},
 };
 
 } // namespace

@@ -79,6 +79,8 @@ add_library(dsound SHARED
     src/logging.h
     src/primarybuffer.cpp
     src/primarybuffer.h
+    src/propset.cpp
+    src/propset.h
     src/vmanager.h
     version.rc
     ${DEF_FILE}

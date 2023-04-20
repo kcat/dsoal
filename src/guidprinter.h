@@ -10,6 +10,7 @@
 #include <objbase.h>
 
 #include "eax.h"
+#include "propset.h"
 #include "vmanager.h"
 
 
@@ -73,6 +74,7 @@ class GuidPrinter {
         CHECKID(EAXPROPERTYID_EAX40_FXSlot3)
         CHECKID(EAXPROPERTYID_EAX40_Source)
         CHECKID(DSPROPSETID_VoiceManager)
+        CHECKID(DSPROPSETID_DirectSoundDevice)
         if(mIdStr) return;
 
         std::snprintf(mMsg, std::size(mMsg), "{%08lx-%04x-%04x-%02x%02x-%02x%02x%02x%02x%02x%02x}",
@@ -119,6 +121,7 @@ class GuidPrinter {
         CHECKID(CLSID_DirectSoundCapture)
         CHECKID(CLSID_DirectSoundCapture8)
         CHECKID(CLSID_DirectSoundFullDuplex)
+        CHECKID(CLSID_DirectSoundPrivate)
         if(mIdStr) return;
 
         std::snprintf(mMsg, std::size(mMsg), "{%08lx-%04x-%04x-%02x%02x-%02x%02x%02x%02x%02x%02x}",
