@@ -2159,23 +2159,23 @@ HRESULT STDMETHODCALLTYPE Buffer::Notify::SetNotificationPositions(DWORD numNoti
 
 
 /*** IUnknown interface wrapper. ***/
-HRESULT STDMETHODCALLTYPE Buffer::UnknownImpl::QueryInterface(REFIID riid, void **ppvObject) noexcept
+HRESULT STDMETHODCALLTYPE Buffer::Unknown::QueryInterface(REFIID riid, void **ppvObject) noexcept
 { return impl_from_base()->QueryInterface(riid, ppvObject); }
 
-ULONG STDMETHODCALLTYPE Buffer::UnknownImpl::AddRef() noexcept
+ULONG STDMETHODCALLTYPE Buffer::Unknown::AddRef() noexcept
 {
     auto self = impl_from_base();
     self->mTotalRef.fetch_add(1u, std::memory_order_relaxed);
     const auto ret = self->mUnkRef.fetch_add(1u, std::memory_order_relaxed) + 1;
-    DEBUG("Buffer::UnknownImpl::AddRef (%p) ref %lu\n", voidp{this}, ret);
+    DEBUG("Buffer::Unknown::AddRef (%p) ref %lu\n", voidp{this}, ret);
     return ret;
 }
 
-ULONG STDMETHODCALLTYPE Buffer::UnknownImpl::Release() noexcept
+ULONG STDMETHODCALLTYPE Buffer::Unknown::Release() noexcept
 {
     auto self = impl_from_base();
     const auto ret = self->mUnkRef.fetch_sub(1u, std::memory_order_relaxed) - 1;
-    DEBUG("Buffer::UnknownImpl::Release (%p) ref %lu\n", voidp{this}, ret);
+    DEBUG("Buffer::Unknown::Release (%p) ref %lu\n", voidp{this}, ret);
     if(self->mTotalRef.fetch_sub(1u, std::memory_order_relaxed) == 1u) UNLIKELY
         self->mParent.dispose(self);
     return ret;

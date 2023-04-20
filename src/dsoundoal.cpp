@@ -890,10 +890,10 @@ void DSound8OAL::dispose(Buffer *buffer) noexcept
 #undef CLASS_PREFIX
 
 #define CLASS_PREFIX "DSound8OAL::Unknown::"
-HRESULT STDMETHODCALLTYPE DSound8OAL::UnknownImpl::QueryInterface(REFIID riid, void **ppvObject) noexcept
+HRESULT STDMETHODCALLTYPE DSound8OAL::Unknown::QueryInterface(REFIID riid, void **ppvObject) noexcept
 { return impl_from_base()->QueryInterface(riid, ppvObject); }
 
-ULONG STDMETHODCALLTYPE DSound8OAL::UnknownImpl::AddRef() noexcept
+ULONG STDMETHODCALLTYPE DSound8OAL::Unknown::AddRef() noexcept
 {
     auto self = impl_from_base();
     self->mTotalRef.fetch_add(1u, std::memory_order_relaxed);
@@ -902,7 +902,7 @@ ULONG STDMETHODCALLTYPE DSound8OAL::UnknownImpl::AddRef() noexcept
     return ret;
 }
 
-ULONG STDMETHODCALLTYPE DSound8OAL::UnknownImpl::Release() noexcept
+ULONG STDMETHODCALLTYPE DSound8OAL::Unknown::Release() noexcept
 {
     auto self = impl_from_base();
     const auto ret = self->mUnkRef.fetch_sub(1u, std::memory_order_relaxed) - 1;

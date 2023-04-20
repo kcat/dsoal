@@ -132,7 +132,7 @@ class DSound8OAL final : IDirectSound8 {
     DSound8OAL(bool is8);
     ~DSound8OAL();
 
-    class UnknownImpl final : IUnknown {
+    class Unknown final : IUnknown {
         DSound8OAL *impl_from_base() noexcept
         {
 #ifdef __GNUC__
@@ -153,7 +153,7 @@ class DSound8OAL final : IDirectSound8 {
         template<typename T>
         T as() noexcept { return static_cast<T>(this); }
     };
-    UnknownImpl mUnknownIface;
+    Unknown mUnknownIface;
 
     std::atomic<ULONG> mTotalRef{1u}, mDsRef{1u}, mUnkRef{0u};
 

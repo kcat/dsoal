@@ -53,12 +53,11 @@ public:
 };
 
 class Buffer final : IDirectSoundBuffer8 {
-    class UnknownImpl final : IUnknown {
+    class Unknown final : IUnknown {
         Buffer *impl_from_base() noexcept
         {
 #ifdef __GNUC__
-    _Pragma("GCC diagnostic push")
-    _Pragma("GCC diagnostic ignored \"-Wcast-align\"")
+    _Pragma("GCC diagnostic push") _Pragma("GCC diagnostic ignored \"-Wcast-align\"")
 #endif
             return CONTAINING_RECORD(this, Buffer, mUnknownIface);
 #ifdef __GNUC__
@@ -74,7 +73,7 @@ class Buffer final : IDirectSoundBuffer8 {
         template<typename T>
         T as() noexcept { return static_cast<T>(this); }
     };
-    UnknownImpl mUnknownIface;
+    Unknown mUnknownIface;
 
     class Notify final : IDirectSoundNotify {
         auto impl_from_base() noexcept
@@ -103,8 +102,7 @@ class Buffer final : IDirectSoundBuffer8 {
         auto impl_from_base() noexcept
         {
 #ifdef __GNUC__
-    _Pragma("GCC diagnostic push")
-    _Pragma("GCC diagnostic ignored \"-Wcast-align\"")
+    _Pragma("GCC diagnostic push") _Pragma("GCC diagnostic ignored \"-Wcast-align\"")
 #endif
             return CONTAINING_RECORD(this, Buffer, mBuffer3D);
 #ifdef __GNUC__
@@ -144,8 +142,7 @@ class Buffer final : IDirectSoundBuffer8 {
         auto impl_from_base() noexcept
         {
 #ifdef __GNUC__
-    _Pragma("GCC diagnostic push")
-    _Pragma("GCC diagnostic ignored \"-Wcast-align\"")
+    _Pragma("GCC diagnostic push") _Pragma("GCC diagnostic ignored \"-Wcast-align\"")
 #endif
             return CONTAINING_RECORD(this, Buffer, mProp);
 #ifdef __GNUC__
