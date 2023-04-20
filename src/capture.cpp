@@ -26,7 +26,7 @@ HRESULT STDMETHODCALLTYPE DSCapture::QueryInterface(REFIID riid, void **ppvObjec
     DEBUG(PREFIX "QueryInterface (%p)->(%s, %p)\n", voidp{this}, GuidPrinter{riid}.c_str(),
         voidp{ppvObject});
 
-    *ppvObject = NULL;
+    *ppvObject = nullptr;
     if(riid == IID_IUnknown)
     {
         mUnknownIface.AddRef();

@@ -360,7 +360,7 @@ HRESULT WINAPI DSOAL_DirectSoundCreate(const GUID *deviceId, IDirectSound **ds, 
         WARN("DirectSoundCreate invalid parameter: ppDS == NULL\n");
         return DSERR_INVALIDPARAM;
     }
-    *ds = NULL;
+    *ds = nullptr;
 
     if(outer)
     {
@@ -396,7 +396,7 @@ HRESULT WINAPI DSOAL_DirectSoundCreate8(const GUID *deviceId, IDirectSound8 **ds
         WARN("DirectSoundCreate8 invalid parameter: ppDS == NULL\n");
         return DSERR_INVALIDPARAM;
     }
-    *ds = NULL;
+    *ds = nullptr;
 
     if(outer)
     {
@@ -433,7 +433,7 @@ HRESULT WINAPI DSOAL_DirectSoundCaptureCreate(const GUID *deviceId, IDirectSound
         WARN("DirectSoundCaptureCreate invalid parameter: ppDS == NULL\n");
         return DSERR_INVALIDPARAM;
     }
-    *ds = NULL;
+    *ds = nullptr;
 
     if(outer)
     {
@@ -470,7 +470,7 @@ HRESULT WINAPI DSOAL_DirectSoundCaptureCreate8(const GUID *deviceId, IDirectSoun
         WARN("DirectSoundCaptureCreate8 invalid parameter: ppDS == NULL\n");
         return DSERR_INVALIDPARAM;
     }
-    *ds = NULL;
+    *ds = nullptr;
 
     if(outer)
     {

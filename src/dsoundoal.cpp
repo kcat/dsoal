@@ -176,7 +176,7 @@ ds::expected<std::unique_ptr<SharedDevice>,HRESULT> CreateDeviceShare(const GUID
         ERR("CreateDeviceShare Failed to convert GUID to string\n");
         return ds::unexpected(hr);
     }
-    WideCharToMultiByte(CP_UTF8, 0, guid_str, -1, drv_name, sizeof(drv_name), NULL, NULL);
+    WideCharToMultiByte(CP_UTF8, 0, guid_str, -1, drv_name, sizeof(drv_name), nullptr, nullptr);
     drv_name[sizeof(drv_name)-1] = 0;
     CoTaskMemFree(guid_str);
     guid_str = nullptr;
@@ -459,7 +459,7 @@ HRESULT STDMETHODCALLTYPE DSound8OAL::QueryInterface(REFIID riid, void** ppvObje
 {
     DEBUG(PREFIX "(%p)->(%s, %p)\n", voidp{this}, GuidPrinter{riid}.c_str(), voidp{ppvObject});
 
-    *ppvObject = NULL;
+    *ppvObject = nullptr;
     if(riid == IID_IUnknown)
     {
         mUnknownIface.AddRef();

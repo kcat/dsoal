@@ -542,7 +542,7 @@ HRESULT STDMETHODCALLTYPE Buffer::QueryInterface(REFIID riid, void** ppvObject) 
     DEBUG(PREFIX "QueryInterface (%p)->(%s, %p)\n", voidp{this}, GuidPrinter{riid}.c_str(),
         voidp{ppvObject});
 
-    *ppvObject = NULL;
+    *ppvObject = nullptr;
     if(riid == IID_IUnknown)
     {
         mUnknownIface.AddRef();
@@ -880,9 +880,9 @@ HRESULT STDMETHODCALLTYPE Buffer::Lock(DWORD offset, DWORD bytes, void **audioPt
         return DSERR_INVALIDPARAM;
     }
 
-    *audioPtr1 = NULL;
+    *audioPtr1 = nullptr;
     *audioBytes1 = 0;
-    if(audioPtr2) *audioPtr2 = NULL;
+    if(audioPtr2) *audioPtr2 = nullptr;
     if(audioBytes2) *audioBytes2 = 0;
 
     if((flags&DSBLOCK_FROMWRITECURSOR))
@@ -1830,7 +1830,7 @@ HRESULT STDMETHODCALLTYPE Buffer::Prop::Get(REFGUID guidPropSet, ULONG dwPropID,
 
     if(cbPropData > 0 && !pPropData)
     {
-        WARN(PREFIX "Get pPropData is NULL with cbPropData > 0\n");
+        WARN(PREFIX "Get pPropData is null with cbPropData > 0\n");
         return E_POINTER;
     }
 
@@ -1924,7 +1924,7 @@ HRESULT STDMETHODCALLTYPE Buffer::Prop::Set(REFGUID guidPropSet, ULONG dwPropID,
 
     if(cbPropData > 0 && !pPropData)
     {
-        WARN(PREFIX "Set pPropData is NULL with cbPropData > 0\n");
+        WARN(PREFIX "Set pPropData is null with cbPropData > 0\n");
         return E_POINTER;
     }
 
