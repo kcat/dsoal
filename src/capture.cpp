@@ -82,11 +82,11 @@ HRESULT STDMETHODCALLTYPE DSCapture::Initialize(const GUID *guid) noexcept
 }
 #undef PREFIX
 
-#define PREFIX "DSCapture::UnknownIface::"
-HRESULT STDMETHODCALLTYPE DSCapture::UnknownIface::QueryInterface(REFIID riid, void **ppvObject) noexcept
+#define PREFIX "DSCapture::Unknown::"
+HRESULT STDMETHODCALLTYPE DSCapture::Unknown::QueryInterface(REFIID riid, void **ppvObject) noexcept
 { return impl_from_base()->QueryInterface(riid, ppvObject); }
 
-ULONG STDMETHODCALLTYPE DSCapture::UnknownIface::AddRef() noexcept
+ULONG STDMETHODCALLTYPE DSCapture::Unknown::AddRef() noexcept
 {
     auto self = impl_from_base();
     self->mTotalRef.fetch_add(1u, std::memory_order_relaxed);
@@ -95,7 +95,7 @@ ULONG STDMETHODCALLTYPE DSCapture::UnknownIface::AddRef() noexcept
     return ret;
 }
 
-ULONG STDMETHODCALLTYPE DSCapture::UnknownIface::Release() noexcept
+ULONG STDMETHODCALLTYPE DSCapture::Unknown::Release() noexcept
 {
     auto self = impl_from_base();
     const auto ret = self->mUnkRef.fetch_sub(1u, std::memory_order_relaxed) - 1;

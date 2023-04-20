@@ -12,7 +12,7 @@ class DSCapture final : IDirectSoundCapture {
     DSCapture(bool is8);
     ~DSCapture();
 
-    class UnknownIface final : IUnknown {
+    class Unknown final : IUnknown {
         DSCapture *impl_from_base() noexcept
         {
 #ifdef __GNUC__
@@ -32,7 +32,7 @@ class DSCapture final : IDirectSoundCapture {
         template<typename T>
         T as() noexcept { return static_cast<T>(this); }
     };
-    UnknownIface mUnknownIface;
+    Unknown mUnknownIface;
 
     std::atomic<ULONG> mTotalRef{1u}, mDsRef{1u}, mUnkRef{0u};
 
