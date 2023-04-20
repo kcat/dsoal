@@ -402,7 +402,7 @@ void DSound8OAL::notifyThread() noexcept
     alcGetIntegerv(mShared->mDevice.get(), ALC_REFRESH, 1, &refresh);
 
     using namespace std::chrono;
-    milliseconds waittime{10000};
+    milliseconds waittime{10};
     if(refresh > 0)
     {
         /* Calculate the wait time to be 3/5ths the time between refreshes.
