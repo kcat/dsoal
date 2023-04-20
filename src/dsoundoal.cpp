@@ -457,7 +457,7 @@ void DSound8OAL::addNotifyBuffer(Buffer *buffer)
 #define PREFIX CLASS_PREFIX "QueryInterface "
 HRESULT STDMETHODCALLTYPE DSound8OAL::QueryInterface(REFIID riid, void** ppvObject) noexcept
 {
-    DEBUG(PREFIX "(%p)->(%s, %p)\n", voidp{this}, GuidPrinter{riid}.c_str(), voidp{ppvObject});
+    DEBUG(PREFIX "(%p)->(%s, %p)\n", voidp{this}, IidPrinter{riid}.c_str(), voidp{ppvObject});
 
     *ppvObject = nullptr;
     if(riid == IID_IUnknown)
@@ -484,7 +484,7 @@ HRESULT STDMETHODCALLTYPE DSound8OAL::QueryInterface(REFIID riid, void** ppvObje
         return S_OK;
     }
 
-    FIXME(PREFIX "Unhandled GUID: %s\n", GuidPrinter{riid}.c_str());
+    FIXME(PREFIX "Unhandled GUID: %s\n", IidPrinter{riid}.c_str());
     return E_NOINTERFACE;
 }
 #undef PREFIX
@@ -551,7 +551,7 @@ HRESULT STDMETHODCALLTYPE DSound8OAL::CreateSoundBuffer(const DSBUFFERDESC *buff
               "    BufferBytes = %lu\n"
               "    3DAlgorithm = %s\n",
             bufdesc.dwSize, bufdesc.dwFlags, bufdesc.dwBufferBytes,
-            GuidPrinter{bufdesc.guid3DAlgorithm}.c_str());
+            Ds3dalgPrinter{bufdesc.guid3DAlgorithm}.c_str());
     }
     else
     {
@@ -805,7 +805,7 @@ HRESULT STDMETHODCALLTYPE DSound8OAL::SetSpeakerConfig(DWORD speakerConfig) noex
 #define PREFIX CLASS_PREFIX "Initialize "
 HRESULT STDMETHODCALLTYPE DSound8OAL::Initialize(const GUID *deviceId) noexcept
 {
-    DEBUG(PREFIX "(%p)->(%s)\n", voidp{this}, GuidPrinter{deviceId}.c_str());
+    DEBUG(PREFIX "(%p)->(%s)\n", voidp{this}, DevidPrinter{deviceId}.c_str());
 
     if(mShared)
     {

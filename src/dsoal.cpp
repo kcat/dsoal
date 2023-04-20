@@ -388,7 +388,7 @@ HRESULT WINAPI DSOAL_DirectSoundCreate(const GUID *deviceId, IDirectSound **ds, 
 
 HRESULT WINAPI DSOAL_DirectSoundCreate8(const GUID *deviceId, IDirectSound8 **ds, IUnknown *outer) noexcept
 {
-    TRACE("DirectSoundCreate8 (%s, %p, %p)\n", GuidPrinter{deviceId}.c_str(), voidp{ds},
+    TRACE("DirectSoundCreate8 (%s, %p, %p)\n", DevidPrinter{deviceId}.c_str(), voidp{ds},
         voidp{outer});
 
     if(!ds)
@@ -425,7 +425,7 @@ HRESULT WINAPI DSOAL_DirectSoundCreate8(const GUID *deviceId, IDirectSound8 **ds
 HRESULT WINAPI DSOAL_DirectSoundCaptureCreate(const GUID *deviceId, IDirectSoundCapture **ds,
     IUnknown *outer) noexcept
 {
-    TRACE("DirectSoundCaptureCreate (%s, %p, %p)\n", GuidPrinter{deviceId}.c_str(), voidp{ds},
+    TRACE("DirectSoundCaptureCreate (%s, %p, %p)\n", DevidPrinter{deviceId}.c_str(), voidp{ds},
         voidp{outer});
 
     if(!ds)
@@ -462,7 +462,7 @@ HRESULT WINAPI DSOAL_DirectSoundCaptureCreate(const GUID *deviceId, IDirectSound
 HRESULT WINAPI DSOAL_DirectSoundCaptureCreate8(const GUID *deviceId, IDirectSoundCapture8 **ds,
     IUnknown *outer) noexcept
 {
-    TRACE("DirectSoundCaptureCreate8 (%s, %p, %p)\n", GuidPrinter{deviceId}.c_str(), voidp{ds},
+    TRACE("DirectSoundCaptureCreate8 (%s, %p, %p)\n", DevidPrinter{deviceId}.c_str(), voidp{ds},
         voidp{outer});
 
     if(!ds)
@@ -503,7 +503,7 @@ HRESULT WINAPI DSOAL_DirectSoundFullDuplexCreate(const GUID *captureDevice,
     IDirectSoundBuffer8 **renderBuffer8, IUnknown *outer) noexcept
 {
     TRACE("DirectSoundFullDuplexCreate (%s, %s, %p, %p, %p, %lu, %p, %p, %p, %p)\n",
-        GuidPrinter{captureDevice}.c_str(), GuidPrinter{renderDevice}.c_str(),
+        DevidPrinter{captureDevice}.c_str(), DevidPrinter{renderDevice}.c_str(),
         cvoidp{captureBufferDesc}, cvoidp{renderBufferDesc}, voidp{hWnd}, coopLevel,
         voidp{fullDuplex}, voidp{captureBuffer8}, voidp{renderBuffer8}, voidp{outer});
     return E_NOTIMPL;
@@ -699,8 +699,8 @@ HRESULT WINAPI DSOAL_DllCanUnloadNow() noexcept
 
 HRESULT WINAPI DSOAL_DllGetClassObject(REFCLSID rclsid, REFIID riid, void **ppv) noexcept
 {
-    TRACE("DllGetClassObject (%s, %s, %p)\n", GuidPrinter{rclsid}.c_str(),
-        GuidPrinter{riid}.c_str(), voidp{ppv});
+    TRACE("DllGetClassObject (%s, %s, %p)\n", ClsidPrinter{rclsid}.c_str(),
+        IidPrinter{riid}.c_str(), voidp{ppv});
 
     if(!ppv)
     {
@@ -714,7 +714,7 @@ HRESULT WINAPI DSOAL_DllGetClassObject(REFCLSID rclsid, REFIID riid, void **ppv)
 
 HRESULT WINAPI DSOAL_GetDeviceID(const GUID *guidSrc, GUID *guidDst) noexcept
 {
-    TRACE("GetDeviceID (%s, %p)\n", GuidPrinter{guidSrc}.c_str(), voidp{guidDst});
+    TRACE("GetDeviceID (%s, %p)\n", DevidPrinter{guidSrc}.c_str(), voidp{guidDst});
 
     if(!guidSrc || !guidDst)
         return DSERR_INVALIDPARAM;

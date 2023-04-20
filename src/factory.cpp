@@ -52,14 +52,14 @@ HRESULT Factory::GetFactory(const GUID &clsid, const GUID &iid, void **out)
             return factory.QueryInterface(iid, out);
     }
 
-    FIXME(PREFIX "GetFactory No class found for %s\n", GuidPrinter{clsid}.c_str());
+    FIXME(PREFIX "GetFactory No class found for %s\n", ClsidPrinter{clsid}.c_str());
     return CLASS_E_CLASSNOTAVAILABLE;
 }
 
 
 HRESULT STDMETHODCALLTYPE Factory::QueryInterface(REFIID riid, void** ppvObject) noexcept
 {
-    DEBUG(PREFIX "QueryInterface (%p)->(%s, %p)\n", voidp{this}, GuidPrinter{riid}.c_str(),
+    DEBUG(PREFIX "QueryInterface (%p)->(%s, %p)\n", voidp{this}, IidPrinter{riid}.c_str(),
         voidp{ppvObject});
 
     if(!ppvObject)
@@ -79,7 +79,7 @@ HRESULT STDMETHODCALLTYPE Factory::QueryInterface(REFIID riid, void** ppvObject)
         return S_OK;
     }
 
-    FIXME(PREFIX "QueryInterface Unhandled GUID: %s\n", GuidPrinter{riid}.c_str());
+    FIXME(PREFIX "QueryInterface Unhandled GUID: %s\n", IidPrinter{riid}.c_str());
     return E_NOINTERFACE;
 }
 
@@ -110,7 +110,8 @@ ULONG STDMETHODCALLTYPE Factory::Release() noexcept
 
 HRESULT STDMETHODCALLTYPE Factory::CreateInstance(IUnknown *unkOuter, REFIID riid, void **ppvObject) noexcept
 {
-    TRACE(PREFIX "CreateInstance (%p)->(%p, %s, %p)\n", voidp{this}, voidp{unkOuter}, GuidPrinter{riid}.c_str(), voidp{ppvObject});
+    TRACE(PREFIX "CreateInstance (%p)->(%p, %s, %p)\n", voidp{this}, voidp{unkOuter},
+        IidPrinter{riid}.c_str(), voidp{ppvObject});
 
     if(!ppvObject)
     {

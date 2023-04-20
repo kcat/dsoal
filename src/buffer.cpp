@@ -539,7 +539,7 @@ HRESULT Buffer::setLocation(LocStatus locStatus) noexcept
 
 HRESULT STDMETHODCALLTYPE Buffer::QueryInterface(REFIID riid, void** ppvObject) noexcept
 {
-    DEBUG(PREFIX "QueryInterface (%p)->(%s, %p)\n", voidp{this}, GuidPrinter{riid}.c_str(),
+    DEBUG(PREFIX "QueryInterface (%p)->(%s, %p)\n", voidp{this}, IidPrinter{riid}.c_str(),
         voidp{ppvObject});
 
     *ppvObject = nullptr;
@@ -595,7 +595,7 @@ HRESULT STDMETHODCALLTYPE Buffer::QueryInterface(REFIID riid, void** ppvObject) 
         return S_OK;
     }
 
-    FIXME(PREFIX "QueryInterface Unhandled GUID: %s\n", GuidPrinter{riid}.c_str());
+    FIXME(PREFIX "QueryInterface Unhandled GUID: %s\n", IidPrinter{riid}.c_str());
     return E_NOINTERFACE;
 }
 
@@ -1821,7 +1821,7 @@ HRESULT STDMETHODCALLTYPE Buffer::Prop::Get(REFGUID guidPropSet, ULONG dwPropID,
     ULONG *pcbReturned) noexcept
 {
     DEBUG(PREFIX "Get (%p)->(%s, 0x%lx, %p, %lu, %p, %lu, %p)\n", voidp{this},
-        GuidPrinter{guidPropSet}.c_str(), dwPropID, pInstanceData, cbInstanceData, pPropData,
+        PropidPrinter{guidPropSet}.c_str(), dwPropID, pInstanceData, cbInstanceData, pPropData,
         cbPropData, voidp{pcbReturned});
 
     if(!pcbReturned)
@@ -1919,7 +1919,7 @@ HRESULT STDMETHODCALLTYPE Buffer::Prop::Set(REFGUID guidPropSet, ULONG dwPropID,
     void *pInstanceData, ULONG cbInstanceData, void *pPropData, ULONG cbPropData) noexcept
 {
     DEBUG(PREFIX "Set (%p)->(%s, 0x%lx, %p, %lu, %p, %lu)\n", voidp{this},
-        GuidPrinter{guidPropSet}.c_str(), dwPropID, pInstanceData, cbInstanceData, pPropData,
+        PropidPrinter{guidPropSet}.c_str(), dwPropID, pInstanceData, cbInstanceData, pPropData,
         cbPropData);
 
     if(cbPropData > 0 && !pPropData)
@@ -2004,7 +2004,7 @@ HRESULT STDMETHODCALLTYPE Buffer::Prop::QuerySupport(REFGUID guidPropSet, ULONG 
     ULONG *pTypeSupport) noexcept
 {
     DEBUG(PREFIX "QuerySupport (%p)->(%s, 0x%lx, %p)\n", voidp{this},
-        GuidPrinter{guidPropSet}.c_str(), dwPropID, voidp{pTypeSupport});
+        PropidPrinter{guidPropSet}.c_str(), dwPropID, voidp{pTypeSupport});
 
     if(!pTypeSupport)
         return E_POINTER;
@@ -2070,7 +2070,7 @@ HRESULT STDMETHODCALLTYPE Buffer::Prop::QuerySupport(REFGUID guidPropSet, ULONG 
     }
 
     FIXME(PREFIX "QuerySupport Unhandled propset: %s (propid: %lu)\n",
-        GuidPrinter{guidPropSet}.c_str(), dwPropID);
+        PropidPrinter{guidPropSet}.c_str(), dwPropID);
     return E_PROP_ID_UNSUPPORTED;
 }
 #undef PREFIX

@@ -23,7 +23,7 @@ DSCapture::~DSCapture() = default;
 
 HRESULT STDMETHODCALLTYPE DSCapture::QueryInterface(REFIID riid, void **ppvObject) noexcept
 {
-    DEBUG(PREFIX "QueryInterface (%p)->(%s, %p)\n", voidp{this}, GuidPrinter{riid}.c_str(),
+    DEBUG(PREFIX "QueryInterface (%p)->(%s, %p)\n", voidp{this}, IidPrinter{riid}.c_str(),
         voidp{ppvObject});
 
     *ppvObject = nullptr;
@@ -40,7 +40,7 @@ HRESULT STDMETHODCALLTYPE DSCapture::QueryInterface(REFIID riid, void **ppvObjec
         return S_OK;
     }
 
-    FIXME(PREFIX "QueryInterface Unhandled GUID: %s\n", GuidPrinter{riid}.c_str());
+    FIXME(PREFIX "QueryInterface Unhandled GUID: %s\n", IidPrinter{riid}.c_str());
     return E_NOINTERFACE;
 }
 
@@ -77,7 +77,7 @@ HRESULT STDMETHODCALLTYPE DSCapture::GetCaps(DSCCAPS *dscCaps) noexcept
 
 HRESULT STDMETHODCALLTYPE DSCapture::Initialize(const GUID *guid) noexcept
 {
-    FIXME(PREFIX "Initialize (%p)->(%s)\n", voidp{this}, GuidPrinter{guid}.c_str());
+    FIXME(PREFIX "Initialize (%p)->(%s)\n", voidp{this}, DevidPrinter{guid}.c_str());
     return E_NOTIMPL;
 }
 #undef PREFIX
