@@ -74,6 +74,8 @@ add_library(dsound SHARED
     src/expected.h
     src/factory.cpp
     src/factory.h
+    src/fullduplex.cpp
+    src/fullduplex.h
     src/guidprinter.h
     src/logging.cpp
     src/logging.h

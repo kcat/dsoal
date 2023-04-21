@@ -22,6 +22,7 @@
 #include "dsoal_global.h"
 #include "dsoundoal.h"
 #include "factory.h"
+#include "fullduplex.h"
 #include "guidprinter.h"
 #include "logging.h"
 
@@ -506,7 +507,39 @@ HRESULT WINAPI DSOAL_DirectSoundFullDuplexCreate(const GUID *captureDevice,
         DevidPrinter{captureDevice}.c_str(), DevidPrinter{renderDevice}.c_str(),
         cvoidp{captureBufferDesc}, cvoidp{renderBufferDesc}, voidp{hWnd}, coopLevel,
         voidp{fullDuplex}, voidp{captureBuffer8}, voidp{renderBuffer8}, voidp{outer});
-    return E_NOTIMPL;
+
+    if(renderBuffer8) *renderBuffer8 = nullptr;
+    if(captureBuffer8) *captureBuffer8 = nullptr;
+    if(!fullDuplex)
+    {
+        WARN("DirectSoundFullDuplexCreate invalid out parameter: %p\n", voidp{fullDuplex});
+        return DSERR_INVALIDPARAM;
+    }
+    *fullDuplex = nullptr;
+
+    if(outer)
+    {
+        WARN("DirectSoundFullDuplexCreate invalid parameter: pUnkOuter != NULL\n");
+        return DSERR_INVALIDPARAM;
+    }
+
+    HRESULT hr{};
+    try {
+        auto dsobj = DSFullDuplex::Create();
+        hr = dsobj->Initialize(captureDevice, renderDevice, captureBufferDesc, renderBufferDesc,
+            hWnd, coopLevel, captureBuffer8, renderBuffer8);
+        if(SUCCEEDED(hr))
+        {
+            *fullDuplex = dsobj.release()->as<IDirectSoundFullDuplex*>();
+            return DS_OK;
+        }
+    }
+    catch(std::bad_alloc &e) {
+        ERR("DirectSoundFullDuplexCreate Caught exception: %s\n", e.what());
+        hr = DSERR_OUTOFMEMORY;
+    }
+
+    return hr;
 }
 
 } // extern "C"
