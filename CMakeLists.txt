@@ -71,6 +71,7 @@ add_library(dsound SHARED
     src/dsoundoal.h
     src/eax.cpp
     src/eax.h
+    src/enumerate.h
     src/expected.h
     src/factory.cpp
     src/factory.h
