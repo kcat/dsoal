@@ -5,7 +5,6 @@
 #include <atomic>
 #include <bitset>
 #include <condition_variable>
-#include <memory>
 #include <mutex>
 #include <thread>
 #include <type_traits>
@@ -32,12 +31,7 @@ enum Extensions : uint8_t {
 
 struct SharedDevice {
     static std::mutex sDeviceListMutex;
-    static std::vector<std::unique_ptr<SharedDevice>> sDeviceList;
-
-    struct NoDeleter {
-        template<typename T>
-        void operator()(T*) noexcept { }
-    };
+    static std::vector<SharedDevice*> sDeviceList;
 
     SharedDevice(const GUID &id) : mId{id} { }
     SharedDevice(const SharedDevice&) = delete;
@@ -65,8 +59,8 @@ struct SharedDevice {
     const GUID mId;
     DWORD mSpeakerConfig{};
 
-    std::unique_ptr<ALCdevice,NoDeleter> mDevice;
-    std::unique_ptr<ALCcontext,NoDeleter> mContext;
+    ALCdevice *mDevice;
+    ALCcontext *mContext;
 
     std::atomic<ULONG> mRef{1u};
 

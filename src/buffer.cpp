@@ -327,8 +327,7 @@ ds::expected<ComPtr<SharedBuffer>,HRESULT> SharedBuffer::Create(const DSBUFFERDE
 
 #define PREFIX "Buffer::"
 Buffer::Buffer(DSound8OAL &parent, bool is8, IDirectSoundBuffer *original) noexcept
-    : mParent{parent}, mContext{parent.getShared().mContext.get()}, mMutex{parent.getMutex()}
-    , mIs8{is8}
+    : mParent{parent}, mContext{parent.getShared().mContext}, mMutex{parent.getMutex()}, mIs8{is8}
 {
     mImmediate.dwSize = sizeof(mImmediate);
     mImmediate.vPosition.x = 0.0f;

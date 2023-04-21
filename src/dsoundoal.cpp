@@ -212,8 +212,8 @@ ds::expected<std::unique_ptr<SharedDevice>,HRESULT> CreateDeviceShare(const GUID
     shared->mMaxHwSources = maxHw;
     shared->mMaxSwSources = totalSources - maxHw;
     shared->mExtensions = extensions;
-    shared->mDevice.reset(aldev.release());
-    shared->mContext.reset(alctx.release());
+    shared->mDevice = aldev.release();
+    shared->mContext = alctx.release();
 
     return shared;
 }
@@ -222,12 +222,12 @@ ds::expected<std::unique_ptr<SharedDevice>,HRESULT> CreateDeviceShare(const GUID
 
 #define CLASS_PREFIX "SharedDevice::"
 std::mutex SharedDevice::sDeviceListMutex;
-std::vector<std::unique_ptr<SharedDevice>> SharedDevice::sDeviceList;
+std::vector<SharedDevice*> SharedDevice::sDeviceList;
 
 auto SharedDevice::GetById(const GUID &deviceId) noexcept
     -> ds::expected<ComPtr<SharedDevice>,HRESULT>
 {
-    auto find_id = [&deviceId](std::unique_ptr<SharedDevice> &device)
+    auto find_id = [&deviceId](SharedDevice *device)
     { return deviceId == device->mId; };
 
     std::unique_lock listlock{sDeviceListMutex};
@@ -235,26 +235,27 @@ auto SharedDevice::GetById(const GUID &deviceId) noexcept
     if(sharediter != sDeviceList.end())
     {
         (*sharediter)->AddRef();
-        return ComPtr<SharedDevice>{(*sharediter).get()};
+        return ComPtr<SharedDevice>{*sharediter};
     }
 
     auto shared = CreateDeviceShare(deviceId);
     if(!shared) return ds::unexpected(shared.error());
 
-    sDeviceList.emplace_back(std::move(shared).value());
-    return ComPtr<SharedDevice>{sDeviceList.back().get()};
+    sDeviceList.emplace_back();
+    sDeviceList.back() = shared->release();
+    return ComPtr<SharedDevice>{sDeviceList.back()};
 }
 
 SharedDevice::~SharedDevice()
 {
     if(mContext)
     {
-        if(mContext.get() == alcGetThreadContext())
+        if(mContext == alcGetThreadContext())
             alcSetThreadContext(nullptr);
-        alcDestroyContext(mContext.release());
+        alcDestroyContext(mContext);
     }
     if(mDevice)
-        alcCloseDevice(mDevice.release());
+        alcCloseDevice(mDevice);
 }
 
 #define PREFIX CLASS_PREFIX "dispose "
@@ -262,13 +263,11 @@ void SharedDevice::dispose() noexcept
 {
     std::lock_guard listlock{sDeviceListMutex};
 
-    auto find_shared = [this](std::unique_ptr<SharedDevice> &shared)
-    { return this == shared.get(); };
-
-    auto shared_iter = std::find_if(sDeviceList.begin(), sDeviceList.end(), find_shared);
+    auto shared_iter = std::find(sDeviceList.begin(), sDeviceList.end(), this);
     if(shared_iter != sDeviceList.end())
     {
-        TRACE(PREFIX "Freeing shared device %s\n", GuidPrinter{(*shared_iter)->mId}.c_str());
+        std::unique_ptr<SharedDevice> device{*shared_iter};
+        TRACE(PREFIX "Freeing shared device %s\n", GuidPrinter{device->mId}.c_str());
         sDeviceList.erase(shared_iter);
     }
 }
@@ -351,10 +350,10 @@ ComPtr<Buffer> DSound8OAL::createSecondaryBuffer(IDirectSoundBuffer *original)
 #define PREFIX CLASS_PREFIX "notifyThread "
 void DSound8OAL::notifyThread() noexcept
 {
-    alcSetThreadContext(mShared->mContext.get());
+    alcSetThreadContext(mShared->mContext);
 
     ALCint refresh{};
-    alcGetIntegerv(mShared->mDevice.get(), ALC_REFRESH, 1, &refresh);
+    alcGetIntegerv(mShared->mDevice, ALC_REFRESH, 1, &refresh);
 
     using namespace std::chrono;
     milliseconds waittime{10};
@@ -781,7 +780,7 @@ HRESULT STDMETHODCALLTYPE DSound8OAL::Initialize(const GUID *deviceId) noexcept
     if(!shared) return shared.error();
     mShared = std::move(shared).value();
 
-    mPrimaryBuffer.setContext(mShared->mContext.get());
+    mPrimaryBuffer.setContext(mShared->mContext);
     mExtensions = mShared->mExtensions;
 
     /* Preallocate some groups for the number of "hardware" buffers we can do.
