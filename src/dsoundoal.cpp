@@ -14,6 +14,7 @@
 #include "comhelpers.h"
 #include "comptr.h"
 #include "dsoal.h"
+#include "enumerate.h"
 #include "expected.h"
 #include "guidprinter.h"
 #include "logging.h"
@@ -40,7 +41,7 @@ struct ALCcontextDeleter {
 using ALCcontextPtr = std::unique_ptr<ALCcontext,ALCcontextDeleter>;
 
 
-std::optional<DWORD> GetSpeakerConfig(IMMDevice *device, const GUID &devid)
+std::optional<DWORD> GetSpeakerConfig(IMMDevice *device)
 {
     ComPtr<IPropertyStore> ps;
     HRESULT hr{device->OpenPropertyStore(STGM_READ, ds::out_ptr(ps))};
@@ -50,24 +51,9 @@ std::optional<DWORD> GetSpeakerConfig(IMMDevice *device, const GUID &devid)
         return std::nullopt;
     }
 
-    PropVariant pv;
-    hr = ps->GetValue(PKEY_AudioEndpoint_GUID, pv.get());
-    if(FAILED(hr) || pv->vt != VT_LPWSTR)
-    {
-        WARN("GetSpeakerConfig IPropertyStore::GetValue(GUID) failed: %08lx\n", hr);
-        return std::nullopt;
-    }
-
-    GUID thisId{};
-    CLSIDFromString(pv->pwszVal, &thisId);
-
-    pv.clear();
-
-    if(devid != thisId)
-        return std::nullopt;
-
     DWORD speakerconf{DSSPEAKER_7POINT1_SURROUND};
 
+    PropVariant pv;
     hr = ps->GetValue(PKEY_AudioEndpoint_PhysicalSpeakers, pv.get());
     if(FAILED(hr))
     {
@@ -81,6 +67,7 @@ std::optional<DWORD> GetSpeakerConfig(IMMDevice *device, const GUID &devid)
     }
 
     const ULONG phys_speakers{pv->ulVal};
+    pv.clear();
 
 #define BIT_MATCH(v, b) (((v)&(b)) == (b))
     if(BIT_MATCH(phys_speakers, KSAUDIO_SPEAKER_7POINT1))
@@ -129,59 +116,27 @@ ds::expected<std::unique_ptr<SharedDevice>,HRESULT> CreateDeviceShare(const GUID
     DWORD speakerconf{DSSPEAKER_7POINT1_SURROUND};
 
     ComWrapper com;
-    ComPtr<IMMDeviceEnumerator> devenum;
-    HRESULT hr{CoCreateInstance(CLSID_MMDeviceEnumerator, nullptr, CLSCTX_INPROC_SERVER,
-        IID_IMMDeviceEnumerator, ds::out_ptr(devenum))};
-    if(FAILED(hr))
-    {
-        ERR("CreateDeviceShare CoCreateInstance failed: %08lx\n", hr);
-        return ds::unexpected(hr);
-    }
-
-    ComPtr<IMMDeviceCollection> coll;
-    hr = devenum->EnumAudioEndpoints(eRender, DEVICE_STATE_ACTIVE, ds::out_ptr(coll));
-    if(FAILED(hr))
-    {
-        WARN("CreateDeviceShare IMMDeviceEnumerator::EnumAudioEndpoints failed: %08lx\n", hr);
-        return ds::unexpected(hr);
-    }
-
-    UINT count{};
-    hr = coll->GetCount(&count);
-    if(FAILED(hr))
-    {
-        WARN("CreateDeviceShare IMMDeviceCollection::GetCount failed: %08lx\n", hr);
-        return ds::unexpected(hr);
-    }
-
-    for(UINT i{0};i < count;++i)
-    {
-        ComPtr<IMMDevice> device;
-        hr = coll->Item(i, ds::out_ptr(device));
-        if(FAILED(hr)) continue;
-
-        if(auto config = GetSpeakerConfig(device.get(), guid))
-        {
-            speakerconf = *config;
-            break;
-        }
-    }
+    auto device = GetMMDevice(com, eRender, guid);
+    if(auto config = GetSpeakerConfig(device.get()))
+        speakerconf = *config;
+    device = nullptr;
 
     char drv_name[64]{};
-
-    LPOLESTR guid_str{};
-    hr = StringFromCLSID(guid, &guid_str);
-    if(FAILED(hr))
     {
-        ERR("CreateDeviceShare Failed to convert GUID to string\n");
-        return ds::unexpected(hr);
+        LPOLESTR guid_str{};
+        HRESULT hr{StringFromCLSID(guid, &guid_str)};
+        if(FAILED(hr))
+        {
+            ERR("CreateDeviceShare Failed to convert GUID to string\n");
+            return ds::unexpected(hr);
+        }
+        WideCharToMultiByte(CP_UTF8, 0, guid_str, -1, drv_name, sizeof(drv_name), nullptr, nullptr);
+        drv_name[sizeof(drv_name)-1] = 0;
+        CoTaskMemFree(guid_str);
+        guid_str = nullptr;
     }
-    WideCharToMultiByte(CP_UTF8, 0, guid_str, -1, drv_name, sizeof(drv_name), nullptr, nullptr);
-    drv_name[sizeof(drv_name)-1] = 0;
-    CoTaskMemFree(guid_str);
-    guid_str = nullptr;
 
-    hr = DSERR_NODRIVER;
+    HRESULT hr{DSERR_NODRIVER};
     ALCdevicePtr aldev{alcOpenDevice(drv_name)};
     if(!aldev)
     {
