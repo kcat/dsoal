@@ -16,6 +16,8 @@
 
 inline constexpr WCHAR aldriver_name[] = L"dsoal-aldrv.dll";
 
+ComPtr<IMMDevice> GetMMDevice(ComWrapper&, EDataFlow flow, const GUID &id);
+
 template<typename T>
 HRESULT enumerate_mmdev(const EDataFlow flow, std::deque<GUID> &devlist, T cb)
 {

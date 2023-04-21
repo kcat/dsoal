@@ -1,7 +1,13 @@
 #include "propset.h"
 
+#include <cstring>
+#include <deque>
+
+#include <dsconf.h>
+#include <mmdeviceapi.h>
 #include <vfwmsgs.h>
 
+#include "enumerate.h"
 #include "guidprinter.h"
 #include "logging.h"
 
@@ -9,6 +15,191 @@
 namespace {
 
 using voidp = void*;
+
+
+static WCHAR *strdupW(const WCHAR *str)
+{
+    void *ret;
+    int l = lstrlenW(str);
+    if(l < 0) return nullptr;
+
+    const size_t numchars{static_cast<size_t>(l)+1};
+    ret = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, numchars*sizeof(WCHAR));
+    if(!ret) return nullptr;
+
+    std::memcpy(ret, str, numchars*sizeof(WCHAR));
+    return static_cast<WCHAR*>(ret);
+}
+
+
+#define PREFIX "DSPROPERTY_WaveDeviceMappingW "
+HRESULT DSPROPERTY_WaveDeviceMappingW(void *pPropData, ULONG cbPropData, ULONG *pcbReturned)
+{
+    auto ppd = static_cast<DSPROPERTY_DIRECTSOUNDDEVICE_WAVEDEVICEMAPPING_W_DATA*>(pPropData);
+
+    if(!ppd || cbPropData < sizeof(DSPROPERTY_DIRECTSOUNDDEVICE_WAVEDEVICEMAPPING_W_DATA))
+    {
+        WARN(PREFIX "Invalid ppd %p, %lu\n", voidp{ppd}, cbPropData);
+        return DSERR_INVALIDPARAM;
+    }
+
+    auto find_target = [ppd](const GUID *guid, const WCHAR *devname, const WCHAR*) -> bool
+    {
+        if(lstrcmpW(devname, ppd->DeviceName) == 0)
+        {
+            ppd->DeviceId = *guid;
+            return false;
+        }
+        return true;
+    };
+
+    std::deque<GUID> devlist;
+    HRESULT hr{};
+    if(ppd->DataFlow == DIRECTSOUNDDEVICE_DATAFLOW_RENDER)
+        hr = enumerate_mmdev(eRender, devlist, find_target);
+    else if(ppd->DataFlow == DIRECTSOUNDDEVICE_DATAFLOW_CAPTURE)
+        hr = enumerate_mmdev(eCapture, devlist, find_target);
+    else
+        return DSERR_INVALIDPARAM;
+
+    /* If the enumeration return value isn't S_FALSE, the device name wasn't
+     * found.
+     */
+    if(hr != S_FALSE)
+        return DSERR_INVALIDPARAM;
+
+    *pcbReturned = sizeof(*ppd);
+    return DS_OK;
+}
+#undef PREFIX
+
+#define PREFIX "DSPROPERTY_DescriptionW "
+HRESULT DSPROPERTY_DescriptionW(void *pPropData, ULONG cbPropData, ULONG *pcbReturned)
+{
+    auto ppd = static_cast<DSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_W_DATA*>(pPropData);
+
+    if(!ppd || cbPropData < sizeof(DSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_W_DATA))
+    {
+        WARN(PREFIX "Invalid ppd %p, %lu\n", voidp{ppd}, cbPropData);
+        return E_PROP_ID_UNSUPPORTED;
+    }
+
+    EDataFlow flow{};
+    if(ppd->DataFlow == DIRECTSOUNDDEVICE_DATAFLOW_RENDER)
+        flow = eRender;
+    else if(ppd->DataFlow == DIRECTSOUNDDEVICE_DATAFLOW_CAPTURE)
+        flow = eCapture;
+    else
+    {
+        WARN(PREFIX "Unhandled data flow: %u\n", ppd->DataFlow);
+        return E_PROP_ID_UNSUPPORTED;
+    }
+
+    if(ppd->DeviceId == GUID_NULL)
+    {
+        if(flow == eRender)
+            ppd->DeviceId = DSDEVID_DefaultPlayback;
+        else
+            ppd->DeviceId = DSDEVID_DefaultCapture;
+    }
+
+    GUID devid{};
+    GetDeviceID(ppd->DeviceId, devid);
+
+    ComWrapper com;
+    auto device = GetMMDevice(com, flow, devid);
+    if(!device) return DSERR_INVALIDPARAM;
+
+    ComPtr<IPropertyStore> ps;
+    HRESULT hr{device->OpenPropertyStore(STGM_READ, ds::out_ptr(ps))};
+    if(FAILED(hr))
+    {
+        WARN(PREFIX "IMMDevice::OpenPropertyStore failed: %08lx\n", hr);
+        return hr;
+    }
+
+    PropVariant pv;
+    hr = ps->GetValue(ds::bit_cast<PROPERTYKEY>(DEVPKEY_Device_FriendlyName), pv.get());
+    if(FAILED(hr) || pv->vt != VT_LPWSTR)
+    {
+        WARN(PREFIX "IPropertyStore::GetValue(FriendlyName) failed: %08lx\n", hr);
+        return hr;
+    }
+
+    ppd->Type = DIRECTSOUNDDEVICE_TYPE_WDM;
+    ppd->Description = strdupW(pv->pwszVal);
+    ppd->Module = strdupW(aldriver_name);
+    ppd->Interface = strdupW(L"Interface");
+
+    *pcbReturned = sizeof(*ppd);
+
+    return DS_OK;
+}
+#undef PREFIX
+
+#define PREFIX "DSPROPERTY_EnumerateW "
+HRESULT DSPROPERTY_EnumerateW(void *pPropData, ULONG cbPropData, ULONG*)
+{
+    auto ppd = static_cast<DSPROPERTY_DIRECTSOUNDDEVICE_ENUMERATE_W_DATA*>(pPropData);
+
+    if(!ppd || cbPropData < sizeof(DSPROPERTY_DIRECTSOUNDDEVICE_ENUMERATE_W_DATA)
+        || !ppd->Callback)
+    {
+        WARN(PREFIX "Invalid ppd %p, %lu\n", voidp{ppd}, cbPropData);
+        return E_PROP_ID_UNSUPPORTED;
+    }
+
+    auto enum_render = [ppd](const GUID *guid, const WCHAR *devname, const WCHAR *drvname) -> bool
+    {
+        if(!guid)
+            return true;
+
+        WCHAR ifacename[] = L"Interface";
+        std::wstring devnamedup{devname};
+        std::wstring drvnamedup{drvname};
+
+        DSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_W_DATA data{};
+        data.Type = DIRECTSOUNDDEVICE_TYPE_WDM;
+        data.DataFlow = DIRECTSOUNDDEVICE_DATAFLOW_RENDER;
+        data.Module = &drvnamedup[0];
+        data.Description = &devnamedup[0];
+        data.Interface = ifacename;
+
+        return ppd->Callback(&data, ppd->Context) != FALSE;
+    };
+
+    std::deque<GUID> devlist;
+    HRESULT hr{enumerate_mmdev(eRender, devlist, enum_render)};
+    if(hr == S_OK)
+    {
+        devlist.clear();
+
+        auto enum_capture = [ppd](const GUID *guid, const WCHAR *devname, const WCHAR *drvname)
+            -> bool
+        {
+            if(!guid)
+                return true;
+
+            WCHAR ifacename[] = L"Interface";
+            std::wstring devnamedup{devname};
+            std::wstring drvnamedup{drvname};
+
+            DSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_W_DATA data{};
+            data.Type = DIRECTSOUNDDEVICE_TYPE_WDM;
+            data.DataFlow = DIRECTSOUNDDEVICE_DATAFLOW_CAPTURE;
+            data.Module = &drvnamedup[0];
+            data.Description = &devnamedup[0];
+            data.Interface = ifacename;
+
+            return ppd->Callback(&data, ppd->Context) != FALSE;
+        };
+        hr = enumerate_mmdev(eCapture, devlist, enum_capture);
+    }
+
+    return SUCCEEDED(hr) ? DS_OK : hr;
+
+}
+#undef PREFIX
 
 } // namespace
 
@@ -82,6 +273,34 @@ HRESULT STDMETHODCALLTYPE DSPrivatePropertySet::Get(REFGUID guidPropSet, ULONG d
         return E_POINTER;
     }
 
+    if(guidPropSet == DSPROPSETID_DirectSoundDevice)
+    {
+        switch(dwPropID)
+        {
+#if 0
+        case DSPROPERTY_DIRECTSOUNDDEVICE_WAVEDEVICEMAPPING_A:
+            return DSPROPERTY_WaveDeviceMappingA(pPropData, cbPropData, pcbReturned);
+        case DSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_1:
+            return DSPROPERTY_Description1(pPropData, cbPropData, pcbReturned);
+        case DSPROPERTY_DIRECTSOUNDDEVICE_ENUMERATE_1:
+            return DSPROPERTY_Enumerate1(pPropData, cbPropData, pcbReturned);
+        case DSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_A:
+            return DSPROPERTY_DescriptionA(pPropData, cbPropData, pcbReturned);
+        case DSPROPERTY_DIRECTSOUNDDEVICE_ENUMERATE_A:
+            return DSPROPERTY_EnumerateA(pPropData, cbPropData, pcbReturned);
+#endif
+        case DSPROPERTY_DIRECTSOUNDDEVICE_WAVEDEVICEMAPPING_W:
+            return DSPROPERTY_WaveDeviceMappingW(pPropData, cbPropData, pcbReturned);
+        case DSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_W:
+            return DSPROPERTY_DescriptionW(pPropData, cbPropData, pcbReturned);
+        case DSPROPERTY_DIRECTSOUNDDEVICE_ENUMERATE_W:
+            return DSPROPERTY_EnumerateW(pPropData, cbPropData, pcbReturned);
+        default:
+            FIXME(PREFIX "unsupported ID: %ld\n",dwPropID);
+            return E_PROP_ID_UNSUPPORTED;
+        }
+    }
+
     FIXME(PREFIX "Unhandled propset: %s (propid: %lu)\n", PropidPrinter{guidPropSet}.c_str(),
         dwPropID);
     return E_PROP_ID_UNSUPPORTED;
@@ -109,6 +328,28 @@ HRESULT STDMETHODCALLTYPE DSPrivatePropertySet::QuerySupport(REFGUID guidPropSet
     if(!pTypeSupport)
         return E_POINTER;
     *pTypeSupport = 0;
+
+    if(guidPropSet == DSPROPSETID_DirectSoundDevice)
+    {
+        switch(dwPropID)
+        {
+#if 0
+        case DSPROPERTY_DIRECTSOUNDDEVICE_WAVEDEVICEMAPPING_A:
+        case DSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_1:
+        case DSPROPERTY_DIRECTSOUNDDEVICE_ENUMERATE_1:
+        case DSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_A:
+        case DSPROPERTY_DIRECTSOUNDDEVICE_ENUMERATE_A:
+#endif
+        case DSPROPERTY_DIRECTSOUNDDEVICE_WAVEDEVICEMAPPING_W:
+        case DSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_W:
+        case DSPROPERTY_DIRECTSOUNDDEVICE_ENUMERATE_W:
+            *pTypeSupport = KSPROPERTY_SUPPORT_GET;
+            return S_OK;
+        default:
+            FIXME(PREFIX "unsupported ID: %ld\n",dwPropID);
+            return E_PROP_ID_UNSUPPORTED;
+        }
+    }
 
     return E_PROP_ID_UNSUPPORTED;
 }

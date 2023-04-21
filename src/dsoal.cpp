@@ -208,6 +208,68 @@ void SetALContext(ALCcontext *context)
 }
 
 
+ComPtr<IMMDevice> GetMMDevice(ComWrapper&, EDataFlow flow, const GUID &id)
+{
+    ComPtr<IMMDeviceEnumerator> devenum;
+    HRESULT hr{CoCreateInstance(CLSID_MMDeviceEnumerator, nullptr, CLSCTX_INPROC_SERVER,
+        IID_IMMDeviceEnumerator, ds::out_ptr(devenum))};
+    if(FAILED(hr))
+    {
+        ERR("enumerate_mmdev CoCreateInstance failed: %08lx\n", hr);
+        return {};
+    }
+
+    ComPtr<IMMDeviceCollection> coll;
+    hr = devenum->EnumAudioEndpoints(flow, DEVICE_STATE_ACTIVE, ds::out_ptr(coll));
+    if(FAILED(hr))
+    {
+        WARN("enumerate_mmdev IMMDeviceEnumerator::EnumAudioEndpoints failed: %08lx\n", hr);
+        return {};
+    }
+
+    UINT count{};
+    hr = coll->GetCount(&count);
+    if(FAILED(hr))
+    {
+        WARN("enumerate_mmdev IMMDeviceCollection::GetCount failed: %08lx\n", hr);
+        return {};
+    }
+
+    for(UINT i{0};i < count;++i)
+    {
+        ComPtr<IMMDevice> device;
+        hr = coll->Item(i, ds::out_ptr(device));
+        if(FAILED(hr))
+        {
+            WARN("enumerate_mmdev IMMDeviceCollection::Item failed: %08lx\n", hr);
+            continue;
+        }
+
+        ComPtr<IPropertyStore> ps;
+        hr = device->OpenPropertyStore(STGM_READ, ds::out_ptr(ps));
+        if(FAILED(hr))
+        {
+            WARN("GetDeviceID IMMDevice::OpenPropertyStore failed: %08lx\n", hr);
+            continue;
+        }
+
+        PropVariant pv;
+        hr = ps->GetValue(PKEY_AudioEndpoint_GUID, pv.get());
+        if(FAILED(hr) || pv->vt != VT_LPWSTR)
+        {
+            WARN("GetDeviceID IPropertyStore::GetValue(GUID) failed: %08lx\n", hr);
+            continue;
+        }
+
+        GUID devid{};
+        CLSIDFromString(pv->pwszVal, &devid);
+        if(id == devid) return device;
+    }
+
+    return {};
+}
+
+
 HRESULT WINAPI GetDeviceID(const GUID &guidSrc, GUID &guidDst) noexcept
 {
     ERole role{};

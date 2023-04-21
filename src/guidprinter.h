@@ -6,6 +6,7 @@
 #include <iterator>
 
 #include <dsound.h>
+#include <dsconf.h>
 #include <ks.h>
 #include <objbase.h>
 
