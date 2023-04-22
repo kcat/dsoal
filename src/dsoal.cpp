@@ -215,7 +215,7 @@ ComPtr<IMMDevice> GetMMDevice(ComWrapper&, EDataFlow flow, const GUID &id)
         IID_IMMDeviceEnumerator, ds::out_ptr(devenum))};
     if(FAILED(hr))
     {
-        ERR("enumerate_mmdev CoCreateInstance failed: %08lx\n", hr);
+        ERR("GetMMDevice CoCreateInstance failed: %08lx\n", hr);
         return {};
     }
 
@@ -223,7 +223,7 @@ ComPtr<IMMDevice> GetMMDevice(ComWrapper&, EDataFlow flow, const GUID &id)
     hr = devenum->EnumAudioEndpoints(flow, DEVICE_STATE_ACTIVE, ds::out_ptr(coll));
     if(FAILED(hr))
     {
-        WARN("enumerate_mmdev IMMDeviceEnumerator::EnumAudioEndpoints failed: %08lx\n", hr);
+        WARN("GetMMDevice IMMDeviceEnumerator::EnumAudioEndpoints failed: %08lx\n", hr);
         return {};
     }
 
@@ -231,7 +231,7 @@ ComPtr<IMMDevice> GetMMDevice(ComWrapper&, EDataFlow flow, const GUID &id)
     hr = coll->GetCount(&count);
     if(FAILED(hr))
     {
-        WARN("enumerate_mmdev IMMDeviceCollection::GetCount failed: %08lx\n", hr);
+        WARN("GetMMDevice IMMDeviceCollection::GetCount failed: %08lx\n", hr);
         return {};
     }
 
@@ -241,7 +241,7 @@ ComPtr<IMMDevice> GetMMDevice(ComWrapper&, EDataFlow flow, const GUID &id)
         hr = coll->Item(i, ds::out_ptr(device));
         if(FAILED(hr))
         {
-            WARN("enumerate_mmdev IMMDeviceCollection::Item failed: %08lx\n", hr);
+            WARN("GetMMDevice IMMDeviceCollection::Item failed: %08lx\n", hr);
             continue;
         }
 
@@ -249,7 +249,7 @@ ComPtr<IMMDevice> GetMMDevice(ComWrapper&, EDataFlow flow, const GUID &id)
         hr = device->OpenPropertyStore(STGM_READ, ds::out_ptr(ps));
         if(FAILED(hr))
         {
-            WARN("GetDeviceID IMMDevice::OpenPropertyStore failed: %08lx\n", hr);
+            WARN("GetMMDevice IMMDevice::OpenPropertyStore failed: %08lx\n", hr);
             continue;
         }
 
@@ -257,7 +257,7 @@ ComPtr<IMMDevice> GetMMDevice(ComWrapper&, EDataFlow flow, const GUID &id)
         hr = ps->GetValue(PKEY_AudioEndpoint_GUID, pv.get());
         if(FAILED(hr) || pv->vt != VT_LPWSTR)
         {
-            WARN("GetDeviceID IPropertyStore::GetValue(GUID) failed: %08lx\n", hr);
+            WARN("GetMMDevice IPropertyStore::GetValue(GUID) failed: %08lx\n", hr);
             continue;
         }
 
