@@ -37,10 +37,8 @@ jobs:
           }
     steps:
     
-    - name: Checkout repository
-      uses: actions/checkout@v3.0.0
-      with:
-        fetch-depth: '0'
+    - name: Clone DSOAL
+      run: git clone https://github.com/kcat/dsoal.git .
 
     - name: Clone OpenAL Soft
       run: git clone https://github.com/kcat/openal-soft.git
