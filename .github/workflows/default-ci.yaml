@@ -21,7 +21,7 @@ jobs:
     - uses: actions/checkout@v2
 
     - name: Configure CMake
-      # Configure CMake in the 'build' subdirectory.
+      # Configure CMake in the 'build' subdirectory
       run: cmake -B ${{github.workspace}}/build -A ${{matrix.arch}}
 
     - name: Build
