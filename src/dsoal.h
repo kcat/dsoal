@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <cstring>
 #include <limits>
+#include <string_view>
 #include <type_traits>
 
 #include <windows.h>
@@ -145,6 +146,11 @@ To> bit_cast(const From &src) noexcept
     std::memcpy(&u.dst, &src, sizeof(To));
     return u.dst;
 }
+
+template<typename T, typename Traits>
+[[nodiscard]] constexpr
+auto sizei(const std::basic_string_view<T,Traits> str) noexcept -> int
+{ return static_cast<int>(std::min<std::size_t>(str.size(), std::numeric_limits<int>::max())); }
 
 } // namespace ds
 

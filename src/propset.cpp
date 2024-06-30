@@ -127,7 +127,7 @@ HRESULT DSPROPERTY_DescriptionW(void *pPropData, ULONG cbPropData, ULONG *pcbRet
 
     ppd->Type = DIRECTSOUNDDEVICE_TYPE_WDM;
     ppd->Description = strdupW(pv.value<std::wstring_view>());
-    ppd->Module = strdupW(aldriver_name);
+    ppd->Module = strdupW(std::data(aldriver_name));
     ppd->Interface = strdupW(L"Interface");
 
     *pcbReturned = sizeof(*ppd);
@@ -153,16 +153,16 @@ HRESULT DSPROPERTY_EnumerateW(void *pPropData, ULONG cbPropData, ULONG*)
         if(!guid)
             return true;
 
-        WCHAR ifacename[] = L"Interface";
+        std::wstring ifacename{L"Interface"};
         std::wstring devnamedup{devname};
         std::wstring drvnamedup{drvname};
 
         DSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_W_DATA data{};
         data.Type = DIRECTSOUNDDEVICE_TYPE_WDM;
         data.DataFlow = DIRECTSOUNDDEVICE_DATAFLOW_RENDER;
-        data.Module = &drvnamedup[0];
-        data.Description = &devnamedup[0];
-        data.Interface = ifacename;
+        data.Module = drvnamedup.data();
+        data.Description = devnamedup.data();
+        data.Interface = ifacename.data();
 
         return ppd->Callback(&data, ppd->Context) != FALSE;
     };
@@ -179,16 +179,16 @@ HRESULT DSPROPERTY_EnumerateW(void *pPropData, ULONG cbPropData, ULONG*)
             if(!guid)
                 return true;
 
-            WCHAR ifacename[] = L"Interface";
+            std::wstring ifacename{L"Interface"};
             std::wstring devnamedup{devname};
             std::wstring drvnamedup{drvname};
 
             DSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_W_DATA data{};
             data.Type = DIRECTSOUNDDEVICE_TYPE_WDM;
             data.DataFlow = DIRECTSOUNDDEVICE_DATAFLOW_CAPTURE;
-            data.Module = &drvnamedup[0];
-            data.Description = &devnamedup[0];
-            data.Interface = ifacename;
+            data.Module = drvnamedup.data();
+            data.Description = devnamedup.data();
+            data.Interface = ifacename.data();
 
             return ppd->Callback(&data, ppd->Context) != FALSE;
         };

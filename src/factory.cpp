@@ -1,5 +1,7 @@
 #include "factory.h"
 
+#include <array>
+
 #include "capture.h"
 #include "dsoundoal.h"
 #include "fullduplex.h"
@@ -47,13 +49,13 @@ HRESULT CreateDSPrivatePropSet(REFIID riid, void **ppvObject)
     return dsobj->QueryInterface(riid, ppvObject);
 }
 
-Factory sFactories[]{
-    {CLSID_DirectSound8, CreateDS8},
-    {CLSID_DirectSound, CreateDS},
-    {CLSID_DirectSoundCapture8, CreateDSCapture8},
-    {CLSID_DirectSoundCapture, CreateDSCapture},
-    {CLSID_DirectSoundFullDuplex, CreateDSFullDuplex},
-    {CLSID_DirectSoundPrivate, CreateDSPrivatePropSet},
+std::array sFactories{
+    Factory{CLSID_DirectSound8, CreateDS8},
+    Factory{CLSID_DirectSound, CreateDS},
+    Factory{CLSID_DirectSoundCapture8, CreateDSCapture8},
+    Factory{CLSID_DirectSoundCapture, CreateDSCapture},
+    Factory{CLSID_DirectSoundFullDuplex, CreateDSFullDuplex},
+    Factory{CLSID_DirectSoundPrivate, CreateDSPrivatePropSet},
 };
 
 } // namespace

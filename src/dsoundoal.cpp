@@ -41,6 +41,22 @@ struct ALCcontextDeleter {
 using ALCcontextPtr = std::unique_ptr<ALCcontext,ALCcontextDeleter>;
 
 
+auto wstr_to_utf8(std::wstring_view wstr) -> std::string
+{
+    std::string ret;
+
+    const int len{WideCharToMultiByte(CP_UTF8, 0, wstr.data(), ds::sizei(wstr), nullptr, 0,
+        nullptr, nullptr)};
+    if(len > 0)
+    {
+        ret.resize(static_cast<size_t>(len));
+        WideCharToMultiByte(CP_UTF8, 0, wstr.data(), ds::sizei(wstr), ret.data(), len,
+            nullptr, nullptr);
+    }
+
+    return ret;
+}
+
 std::optional<DWORD> GetSpeakerConfig(IMMDevice *device)
 {
     ComPtr<IPropertyStore> ps;
@@ -121,7 +137,7 @@ ds::expected<std::unique_ptr<SharedDevice>,HRESULT> CreateDeviceShare(const GUID
         speakerconf = *config;
     device = nullptr;
 
-    char drv_name[64]{};
+    std::string drv_name;
     {
         LPOLESTR guid_str{};
         HRESULT hr{StringFromCLSID(guid, &guid_str)};
@@ -130,17 +146,16 @@ ds::expected<std::unique_ptr<SharedDevice>,HRESULT> CreateDeviceShare(const GUID
             ERR("CreateDeviceShare Failed to convert GUID to string\n");
             return ds::unexpected(hr);
         }
-        WideCharToMultiByte(CP_UTF8, 0, guid_str, -1, drv_name, sizeof(drv_name), nullptr, nullptr);
-        drv_name[sizeof(drv_name)-1] = 0;
+        drv_name = wstr_to_utf8(guid_str);
         CoTaskMemFree(guid_str);
         guid_str = nullptr;
     }
 
     HRESULT hr{DSERR_NODRIVER};
-    ALCdevicePtr aldev{alcOpenDevice(drv_name)};
+    ALCdevicePtr aldev{alcOpenDevice(drv_name.c_str())};
     if(!aldev)
     {
-        WARN("CreateDeviceShare Couldn't open device \"%s\", 0x%04x\n", drv_name,
+        WARN("CreateDeviceShare Couldn't open device \"%s\", 0x%04x\n", drv_name.c_str(),
             alcGetError(nullptr));
         return ds::unexpected(hr);
     }
@@ -149,12 +164,12 @@ ds::expected<std::unique_ptr<SharedDevice>,HRESULT> CreateDeviceShare(const GUID
         alcGetString(aldev.get(), ALC_ALL_DEVICES_SPECIFIER) :
         alcGetString(aldev.get(), ALC_DEVICE_SPECIFIER));
 
-    const ALint attrs[]{
-        ALC_MONO_SOURCES, MaxSources,
-        ALC_STEREO_SOURCES, 0,
+    const std::array attrs{
+        ALint{ALC_MONO_SOURCES}, ALint{MaxSources},
+        ALint{ALC_STEREO_SOURCES}, 0,
         0
     };
-    ALCcontextPtr alctx{alcCreateContext(aldev.get(), attrs)};
+    ALCcontextPtr alctx{alcCreateContext(aldev.get(), attrs.data())};
     if(!alctx)
     {
         WARN("CreateDeviceShare Couldn't create context, 0x%04x\n", alcGetError(aldev.get()));
@@ -162,13 +177,14 @@ ds::expected<std::unique_ptr<SharedDevice>,HRESULT> CreateDeviceShare(const GUID
     }
     ALSection alsection{alctx.get()};
 
-    const struct {
+    struct ExtensionEntry {
         const char *name;
         Extensions flag;
-    } sExtensionList[]{
-        { "EAX5.0", EXT_EAX },
-        { "AL_EXT_FLOAT32", EXT_FLOAT32 },
-        { "AL_EXT_STATIC_BUFFER", EXT_STATIC_BUFFER }
+    };
+    const std::array sExtensionList{
+        ExtensionEntry{"EAX5.0", EXT_EAX},
+        ExtensionEntry{"AL_EXT_FLOAT32", EXT_FLOAT32},
+        ExtensionEntry{"AL_EXT_STATIC_BUFFER", EXT_STATIC_BUFFER}
     };
 
     std::bitset<ExtensionCount> extensions{};
@@ -607,10 +623,10 @@ HRESULT STDMETHODCALLTYPE DSound8OAL::GetCaps(DSCAPS *dsCaps) noexcept
 #undef PREFIX
 
 #define PREFIX CLASS_PREFIX "DuplicateSoundBuffer "
-HRESULT STDMETHODCALLTYPE DSound8OAL::DuplicateSoundBuffer(IDirectSoundBuffer *origBuffer,
-    IDirectSoundBuffer **dupBuffer) noexcept
+HRESULT STDMETHODCALLTYPE DSound8OAL::DuplicateSoundBuffer(IDirectSoundBuffer *original,
+    IDirectSoundBuffer **duplicate) noexcept
 {
-    DEBUG(PREFIX "(%p)->(%p, %p)\n", voidp{this}, voidp{origBuffer}, voidp{dupBuffer});
+    DEBUG(PREFIX "(%p)->(%p, %p)\n", voidp{this}, voidp{original}, voidp{duplicate});
 
     if(!mShared)
     {
@@ -618,39 +634,39 @@ HRESULT STDMETHODCALLTYPE DSound8OAL::DuplicateSoundBuffer(IDirectSoundBuffer *o
         return DSERR_UNINITIALIZED;
     }
 
-    if(!origBuffer || !dupBuffer)
+    if(!original || !duplicate)
     {
-        WARN(PREFIX "Invalid pointer: in = %p, out = %p\n", voidp{origBuffer}, voidp{dupBuffer});
+        WARN(PREFIX "Invalid pointer: in = %p, out = %p\n", voidp{original}, voidp{duplicate});
         return DSERR_INVALIDPARAM;
     }
-    *dupBuffer = nullptr;
+    *duplicate = nullptr;
 
     DSBCAPS caps{};
     caps.dwSize = sizeof(caps);
-    HRESULT hr{origBuffer->GetCaps(&caps)};
+    HRESULT hr{original->GetCaps(&caps)};
     if(FAILED(hr))
     {
-        WARN(PREFIX "Failed to get caps for buffer %p\n", voidp{origBuffer});
+        WARN(PREFIX "Failed to get caps for buffer %p\n", voidp{original});
         return DSERR_INVALIDPARAM;
     }
     if((caps.dwFlags&DSBCAPS_PRIMARYBUFFER))
     {
-        WARN(PREFIX "Cannot duplicate primary buffer %p\n", voidp{origBuffer});
+        WARN(PREFIX "Cannot duplicate primary buffer %p\n", voidp{original});
         return DSERR_INVALIDPARAM;
     }
     if((caps.dwFlags&DSBCAPS_CTRLFX))
     {
-        WARN(PREFIX "Cannot duplicate buffer %p, which has DSBCAPS_CTRLFX\n", voidp{origBuffer});
+        WARN(PREFIX "Cannot duplicate buffer %p, which has DSBCAPS_CTRLFX\n", voidp{original});
         return DSERR_INVALIDPARAM;
     }
 
-    auto buffer = createSecondaryBuffer(origBuffer);
+    auto buffer = createSecondaryBuffer(original);
     if(!buffer) return DSERR_OUTOFMEMORY;
 
     hr = buffer->Initialize(as<IDirectSound*>(), nullptr);
     if(FAILED(hr)) return hr;
 
-    *dupBuffer = buffer.release()->as<IDirectSoundBuffer*>();
+    *duplicate = buffer.release()->as<IDirectSoundBuffer*>();
     return DS_OK;
 }
 #undef PREFIX

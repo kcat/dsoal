@@ -555,9 +555,10 @@ void PrimaryBuffer::setParams(const DS3DLISTENER &params, const std::bitset<Flag
         alListener3f(AL_VELOCITY, params.vVelocity.x, params.vVelocity.y, -params.vVelocity.z);
     if(flags.test(Orientation))
     {
-        const ALfloat ori[6]{params.vOrientFront.x, params.vOrientFront.y, -params.vOrientFront.z,
-            params.vOrientTop.x, params.vOrientTop.y, -params.vOrientTop.z};
-        alListenerfv(AL_ORIENTATION, ori);
+        const std::array<ALfloat,6> ori{{
+            params.vOrientFront.x, params.vOrientFront.y, -params.vOrientFront.z,
+            params.vOrientTop.x, params.vOrientTop.y, -params.vOrientTop.z}};
+        alListenerfv(AL_ORIENTATION, ori.data());
     }
     if(flags.test(DistanceFactor))
         alSpeedOfSound(343.3f / params.flDistanceFactor);
@@ -853,8 +854,8 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::Listener3D::SetOrientation(D3DVALUE xFr
         self->mImmediate.vOrientTop.y = yTop;
         self->mImmediate.vOrientTop.z = zTop;
 
-        const ALfloat ori[6]{xFront, yFront, -zFront, xTop, yTop, -zTop};
-        alListenerfv(AL_ORIENTATION, ori);
+        const std::array<ALfloat,6> ori{{xFront, yFront, -zFront, xTop, yTop, -zTop}};
+        alListenerfv(AL_ORIENTATION, ori.data());
         alGetError();
     }
 
@@ -890,7 +891,7 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::Listener3D::SetPosition(D3DVALUE x, D3D
 
 HRESULT STDMETHODCALLTYPE PrimaryBuffer::Listener3D::SetRolloffFactor(D3DVALUE rolloffFactor, DWORD apply) noexcept
 {
-    FIXME(PREFIX "SetRolloffFactor (%p)->(%f, %lu)\n", voidp{this}, rolloffFactor, apply);
+    DEBUG(PREFIX "SetRolloffFactor (%p)->(%f, %lu)\n", voidp{this}, rolloffFactor, apply);
 
     if(rolloffFactor < DS3D_MINROLLOFFFACTOR || rolloffFactor > DS3D_MAXROLLOFFFACTOR)
     {

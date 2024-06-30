@@ -21,7 +21,7 @@ ComPtr<IMMDevice> GetMMDevice(ComWrapper&, EDataFlow flow, const GUID &id);
 template<typename T>
 HRESULT enumerate_mmdev(const EDataFlow flow, std::deque<GUID> &devlist, T cb)
 {
-    static constexpr WCHAR primary_desc[] = L"Primary Sound Driver";
+    const WCHAR *primary_desc{L"Primary Sound Driver"};
 
     ComWrapper com;
 
@@ -95,7 +95,7 @@ HRESULT enumerate_mmdev(const EDataFlow flow, std::deque<GUID> &devlist, T cb)
 
         TRACE("send_device Calling back with %s - %ls\n", GuidPrinter{devlist.back()}.c_str(),
             pv.value<const WCHAR*>());
-        keep_going = cb(&devlist.back(), pv.value<const WCHAR*>(), aldriver_name);
+        keep_going = cb(&devlist.back(), pv.value<const WCHAR*>(), std::data(aldriver_name));
     };
 
     ComPtr<IMMDevice> device;

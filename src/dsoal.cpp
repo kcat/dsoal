@@ -45,7 +45,7 @@ bool load_function(T &func, const char *name)
     func = ds::bit_cast<T>(GetProcAddress(gOpenalHandle, name));
     if(!func) UNLIKELY
     {
-        ERR("load_function Couldn't lookup %s in %ls\n", name, aldriver_name);
+        ERR("load_function Couldn't lookup %s in %ls\n", name, std::data(aldriver_name));
         return false;
     }
     return true;
@@ -57,10 +57,10 @@ void load_alcfunction(T &func, const char *name)
 
 bool load_openal()
 {
-    gOpenalHandle = LoadLibraryW(aldriver_name);
+    gOpenalHandle = LoadLibraryW(std::data(aldriver_name));
     if(!gOpenalHandle)
     {
-        ERR("load_openal Couldn't load %ls: %lu\n", aldriver_name, GetLastError());
+        ERR("load_openal Couldn't load %ls: %lu\n", std::data(aldriver_name), GetLastError());
         return false;
     }
 
@@ -164,18 +164,19 @@ bool load_openal()
 
     if(!ok)
     {
-        WARN("load_openal Unloading %ls\n", aldriver_name);
+        WARN("load_openal Unloading %ls\n", std::data(aldriver_name));
         if(gOpenalHandle)
             FreeLibrary(gOpenalHandle);
         gOpenalHandle = nullptr;
         return false;
     }
 
-    TRACE("load_openal Loaded %ls\n", aldriver_name);
+    TRACE("load_openal Loaded %ls\n", std::data(aldriver_name));
 
     if(!alcIsExtensionPresent(nullptr, "ALC_EXT_thread_local_context"))
     {
-        ERR("load_openal Required ALC_EXT_thread_local_context not supported in %ls\n", aldriver_name);
+        ERR("load_openal Required ALC_EXT_thread_local_context not supported in %ls\n",
+            std::data(aldriver_name));
         if(gOpenalHandle)
             FreeLibrary(gOpenalHandle);
         gOpenalHandle = nullptr;
@@ -368,14 +369,14 @@ DSOAL_EXPORT BOOL WINAPI DllMain(HINSTANCE hInstDLL, DWORD reason, void *reserve
     switch(reason)
     {
     case DLL_PROCESS_ATTACH:
-        if(const WCHAR *wstr{_wgetenv(L"DSOAL_LOGFILE")}; wstr && wstr[0] != 0)
+        if(const WCHAR *wstr{_wgetenv(L"DSOAL_LOGFILE")}; wstr && *wstr != 0)
         {
             FILE *f = _wfopen(wstr, L"wt");
             if(!f) ERR("Failed to open log file %ls\n", wstr);
             else gLogFile = f;
         }
 
-        if(const char *str{std::getenv("DSOAL_LOGLEVEL")}; str && str[0] != 0)
+        if(const char *str{std::getenv("DSOAL_LOGLEVEL")}; str && *str != 0)
         {
             char *endptr{};
             const auto level = std::strtol(str, &endptr, 0) + 1;
