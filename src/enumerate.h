@@ -70,14 +70,14 @@ HRESULT enumerate_mmdev(const EDataFlow flow, std::deque<GUID> &devlist, T cb)
 
         PropVariant pv;
         hr2 = ps->GetValue(PKEY_AudioEndpoint_GUID, pv.get());
-        if(FAILED(hr2) || pv->vt != VT_LPWSTR)
+        if(FAILED(hr2) || pv.type() != VT_LPWSTR)
         {
             WARN("send_device IPropertyStore::GetValue(GUID) failed: %08lx\n", hr2);
             return;
         }
 
         GUID guid{};
-        CLSIDFromString(pv->pwszVal, &guid);
+        CLSIDFromString(pv.value<const WCHAR*>(), &guid);
         pv.clear();
 
         if(!devlist.empty() && devlist[0] == guid)
@@ -94,8 +94,8 @@ HRESULT enumerate_mmdev(const EDataFlow flow, std::deque<GUID> &devlist, T cb)
         }
 
         TRACE("send_device Calling back with %s - %ls\n", GuidPrinter{devlist.back()}.c_str(),
-            pv->pwszVal);
-        keep_going = cb(&devlist.back(), pv->pwszVal, aldriver_name);
+            pv.value<const WCHAR*>());
+        keep_going = cb(&devlist.back(), pv.value<const WCHAR*>(), aldriver_name);
     };
 
     ComPtr<IMMDevice> device;

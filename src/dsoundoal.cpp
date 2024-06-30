@@ -60,13 +60,13 @@ std::optional<DWORD> GetSpeakerConfig(IMMDevice *device)
         WARN("GetSpeakerConfig IPropertyStore::GetValue(PhysicalSpeakers) failed: %08lx\n", hr);
         return speakerconf;
     }
-    if(pv->vt != VT_UI4)
+    if(pv.type() != VT_UI4 || pv.type() != VT_UINT)
     {
-        WARN("GetSpeakerConfig PhysicalSpeakers is not a ULONG: 0x%04x\n", pv->vt);
+        WARN("GetSpeakerConfig PhysicalSpeakers is not a VT_UI4: 0x%04x\n", pv.type());
         return speakerconf;
     }
 
-    const ULONG phys_speakers{pv->ulVal};
+    const auto phys_speakers = pv.value<ULONG>();
     pv.clear();
 
 #define BIT_MATCH(v, b) (((v)&(b)) == (b))
@@ -97,9 +97,9 @@ std::optional<DWORD> GetSpeakerConfig(IMMDevice *device)
         hr = ps->GetValue(PKEY_AudioEndpoint_FormFactor, pv.get());
         if(FAILED(hr))
             WARN("GetSpeakerConfig IPropertyStore::GetValue(FormFactor) failed: %08lx\n", hr);
-        else if(pv->vt != VT_UI4)
-            WARN("GetSpeakerConfig FormFactor is not a ULONG: 0x%04x\n", pv->vt);
-        else if(pv->ulVal == Headphones || pv->ulVal == Headset)
+        else if(pv.type() != VT_UI4 || pv.type() != VT_UINT)
+            WARN("GetSpeakerConfig FormFactor is not a VT_UI4: 0x%04x\n", pv.type());
+        else if(pv.value<UINT>() == Headphones || pv.value<UINT>() == Headset)
             speakerconf = DSSPEAKER_HEADPHONE;
     }
 

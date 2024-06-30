@@ -255,14 +255,14 @@ ComPtr<IMMDevice> GetMMDevice(ComWrapper&, EDataFlow flow, const GUID &id)
 
         PropVariant pv;
         hr = ps->GetValue(PKEY_AudioEndpoint_GUID, pv.get());
-        if(FAILED(hr) || pv->vt != VT_LPWSTR)
+        if(FAILED(hr) || pv.type() != VT_LPWSTR)
         {
             WARN("GetMMDevice IPropertyStore::GetValue(GUID) failed: %08lx\n", hr);
             continue;
         }
 
         GUID devid{};
-        CLSIDFromString(pv->pwszVal, &devid);
+        CLSIDFromString(pv.value<const WCHAR*>(), &devid);
         if(id == devid) return device;
     }
 
@@ -320,13 +320,13 @@ HRESULT WINAPI GetDeviceID(const GUID &guidSrc, GUID &guidDst) noexcept
 
     PropVariant pv;
     hr = ps->GetValue(PKEY_AudioEndpoint_GUID, pv.get());
-    if(FAILED(hr) || pv->vt != VT_LPWSTR)
+    if(FAILED(hr) || pv.type() != VT_LPWSTR)
     {
         WARN("GetDeviceID IPropertyStore::GetValue(GUID) failed: %08lx\n", hr);
         return hr;
     }
 
-    CLSIDFromString(pv->pwszVal, &guidDst);
+    CLSIDFromString(pv.value<const WCHAR*>(), &guidDst);
 
     return DS_OK;
 }

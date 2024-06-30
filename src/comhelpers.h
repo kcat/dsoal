@@ -1,29 +1,57 @@
 #ifndef COMHELPERS_H
 #define COMHELPERS_H
 
+#include <cassert>
+#include <string>
+#include <string_view>
 #include <utility>
 #include <windows.h>
 
 
 class PropVariant {
-    PROPVARIANT mProp;
+    PROPVARIANT mProp{};
 
 public:
     PropVariant() { PropVariantInit(&mProp); }
-    PropVariant(const PropVariant&) = delete;
+    PropVariant(const PropVariant &rhs) : PropVariant{} { PropVariantCopy(&mProp, &rhs.mProp); }
     ~PropVariant() { clear(); }
 
-    PropVariant& operator=(const PropVariant&) = delete;
+    auto operator=(const PropVariant &rhs) -> PropVariant&
+    {
+        if(this != &rhs)
+            PropVariantCopy(&mProp, &rhs.mProp);
+        return *this;
+    }
 
     void clear() { PropVariantClear(&mProp); }
 
-    PROPVARIANT* get() noexcept { return &mProp; }
+    auto get() noexcept -> PROPVARIANT* { return &mProp; }
 
-    PROPVARIANT& operator*() noexcept { return mProp; }
-    const PROPVARIANT& operator*() const noexcept { return mProp; }
+    /* NOLINTBEGIN(cppcoreguidelines-pro-type-union-access) */
+    [[nodiscard]]
+    auto type() const noexcept -> VARTYPE { return mProp.vt; }
 
-    PROPVARIANT* operator->() noexcept { return &mProp; }
-    const PROPVARIANT* operator->() const noexcept { return &mProp; }
+    template<typename T> [[nodiscard]]
+    auto value() const -> T
+    {
+        if constexpr(std::is_same_v<T,UINT>)
+        {
+            assert(mProp.vt == VT_UI4 || mProp.vt == VT_UINT);
+            return mProp.uintVal;
+        }
+        else if constexpr(std::is_same_v<T,ULONG>)
+        {
+            assert(mProp.vt == VT_UI4 || mProp.vt == VT_UINT);
+            return mProp.ulVal;
+        }
+        else if constexpr(std::is_same_v<T,std::wstring_view> || std::is_same_v<T,std::wstring>
+            || std::is_same_v<T,LPWSTR> || std::is_same_v<T,LPCWSTR>)
+        {
+            assert(mProp.vt == VT_LPWSTR);
+            return mProp.pwszVal;
+        }
+    }
+    /* NOLINTEND(cppcoreguidelines-pro-type-union-access) */
 };
 
 struct ComWrapper {

@@ -2,6 +2,7 @@
 
 #include <cstring>
 #include <deque>
+#include <string_view>
 
 #include <dsconf.h>
 #include <mmdeviceapi.h>
@@ -17,17 +18,15 @@ namespace {
 using voidp = void*;
 
 
-WCHAR *strdupW(const WCHAR *str)
+WCHAR *strdupW(const std::wstring_view str)
 {
     void *ret;
-    int l = lstrlenW(str);
-    if(l < 0) return nullptr;
 
-    const size_t numchars{static_cast<size_t>(l)+1};
+    const size_t numchars{str.size()+1};
     ret = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, numchars*sizeof(WCHAR));
     if(!ret) return nullptr;
 
-    std::memcpy(ret, str, numchars*sizeof(WCHAR));
+    std::memcpy(ret, str.data(), numchars*sizeof(WCHAR));
     return static_cast<WCHAR*>(ret);
 }
 
@@ -120,14 +119,14 @@ HRESULT DSPROPERTY_DescriptionW(void *pPropData, ULONG cbPropData, ULONG *pcbRet
 
     PropVariant pv;
     hr = ps->GetValue(ds::bit_cast<PROPERTYKEY>(DEVPKEY_Device_FriendlyName), pv.get());
-    if(FAILED(hr) || pv->vt != VT_LPWSTR)
+    if(FAILED(hr) || pv.type() != VT_LPWSTR)
     {
         WARN(PREFIX "IPropertyStore::GetValue(FriendlyName) failed: %08lx\n", hr);
         return hr;
     }
 
     ppd->Type = DIRECTSOUNDDEVICE_TYPE_WDM;
-    ppd->Description = strdupW(pv->pwszVal);
+    ppd->Description = strdupW(pv.value<std::wstring_view>());
     ppd->Module = strdupW(aldriver_name);
     ppd->Interface = strdupW(L"Interface");
 

@@ -22,6 +22,7 @@ struct ComPtr {
     explicit ComPtr(T *ptr) noexcept : mPtr{ptr} { }
     ~ComPtr() { if(mPtr) mPtr->Release(); }
 
+    /* NOLINTNEXTLINE(bugprone-unhandled-self-assignment) Yes it is. */
     ComPtr& operator=(const ComPtr &rhs) noexcept(RefIsNoexcept)
     {
         if constexpr(RefIsNoexcept)
