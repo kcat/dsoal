@@ -1,5 +1,6 @@
 #include "propset.h"
 
+#include <bit>
 #include <cstring>
 #include <deque>
 #include <string_view>
@@ -118,7 +119,7 @@ HRESULT DSPROPERTY_DescriptionW(void *pPropData, ULONG cbPropData, ULONG *pcbRet
     }
 
     PropVariant pv;
-    hr = ps->GetValue(ds::bit_cast<PROPERTYKEY>(DEVPKEY_Device_FriendlyName), pv.get());
+    hr = ps->GetValue(std::bit_cast<PROPERTYKEY>(DEVPKEY_Device_FriendlyName), pv.get());
     if(FAILED(hr) || pv.type() != VT_LPWSTR)
     {
         WARN(PREFIX "IPropertyStore::GetValue(FriendlyName) failed: %08lx\n", hr);

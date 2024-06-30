@@ -2,6 +2,7 @@
 #define BUFFER_H
 
 #include <atomic>
+#include <bit>
 #include <bitset>
 #include <memory>
 #include <mutex>
@@ -292,7 +293,7 @@ public:
          */
         if constexpr(std::is_same_v<T,IDirectSoundBuffer*>
             && !std::is_base_of_v<IDirectSoundBuffer,Buffer>)
-            return ds::bit_cast<T>(static_cast<IDirectSoundBuffer8*>(this));
+            return std::bit_cast<T>(static_cast<IDirectSoundBuffer8*>(this));
         else
             return static_cast<T>(this);
     }

@@ -1,6 +1,7 @@
 #ifndef ENUMERATE_H
 #define ENUMERATE_H
 
+#include <bit>
 #include <deque>
 
 #include <dsound.h>
@@ -86,7 +87,7 @@ HRESULT enumerate_mmdev(const EDataFlow flow, std::deque<GUID> &devlist, T cb)
         devlist.emplace_back(guid);
         if(!keep_going) return;
 
-        hr2 = ps->GetValue(ds::bit_cast<PROPERTYKEY>(DEVPKEY_Device_FriendlyName), pv.get());
+        hr2 = ps->GetValue(std::bit_cast<PROPERTYKEY>(DEVPKEY_Device_FriendlyName), pv.get());
         if(FAILED(hr2))
         {
             WARN("send_device IPropertyStore::GetValue(FriendlyName) failed: %08lx\n", hr2);

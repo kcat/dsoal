@@ -2,6 +2,7 @@
 
 #include "dsoal.h"
 
+#include <bit>
 #include <cstdio>
 #include <cstdlib>
 #include <deque>
@@ -42,7 +43,7 @@ HMODULE gOpenalHandle{};
 template<typename T>
 bool load_function(T &func, const char *name)
 {
-    func = ds::bit_cast<T>(GetProcAddress(gOpenalHandle, name));
+    func = std::bit_cast<T>(GetProcAddress(gOpenalHandle, name));
     if(!func) UNLIKELY
     {
         ERR("load_function Couldn't lookup %s in %ls\n", name, std::data(aldriver_name));
@@ -53,7 +54,7 @@ bool load_function(T &func, const char *name)
 
 template<typename T>
 void load_alcfunction(T &func, const char *name)
-{ func = ds::bit_cast<T>(alcGetProcAddress(nullptr, name)); }
+{ func = std::bit_cast<T>(alcGetProcAddress(nullptr, name)); }
 
 bool load_openal()
 {

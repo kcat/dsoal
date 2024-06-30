@@ -137,16 +137,6 @@ int> countr_zero(T value)
 #endif
 
 
-template<typename To, typename From>
-std::enable_if_t<sizeof(To) == sizeof(From) && std::is_trivially_copyable_v<From>
-    && std::is_trivially_copyable_v<To>,
-To> bit_cast(const From &src) noexcept
-{
-    union { char c; To dst; } u;
-    std::memcpy(&u.dst, &src, sizeof(To));
-    return u.dst;
-}
-
 template<typename T, typename Traits>
 [[nodiscard]] constexpr
 auto sizei(const std::basic_string_view<T,Traits> str) noexcept -> int

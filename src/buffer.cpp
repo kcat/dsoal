@@ -1,5 +1,6 @@
 #include "buffer.h"
 
+#include <bit>
 #include <cinttypes>
 #include <optional>
 #include <span>
@@ -358,7 +359,7 @@ Buffer::Buffer(DSound8OAL &parent, bool is8, IDirectSoundBuffer *original) noexc
             if constexpr(std::is_base_of_v<std::remove_pointer_t<decltype(orig)>,Buffer>)
                 return static_cast<Buffer*>(orig);
             else
-                return static_cast<Buffer*>(ds::bit_cast<IDirectSoundBuffer8*>(orig));
+                return static_cast<Buffer*>(std::bit_cast<IDirectSoundBuffer8*>(orig));
         };
         Buffer *orig{upcast(original)};
         mBuffer = orig->mBuffer;

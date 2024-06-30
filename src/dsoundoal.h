@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <bit>
 #include <bitset>
 #include <condition_variable>
 #include <mutex>
@@ -253,7 +254,7 @@ public:
          */
         if constexpr(std::is_same_v<T,IDirectSound*>
             && !std::is_base_of_v<IDirectSound,DSound8OAL>)
-            return ds::bit_cast<T>(static_cast<IDirectSound8*>(this));
+            return std::bit_cast<T>(static_cast<IDirectSound8*>(this));
         else
             return static_cast<T>(this);
     }
