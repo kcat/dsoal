@@ -47,6 +47,10 @@ class PrimaryBuffer final : IDirectSoundBuffer {
         HRESULT STDMETHODCALLTYPE SetVelocity(D3DVALUE x, D3DVALUE y, D3DVALUE z, DWORD apply) noexcept override;
         HRESULT STDMETHODCALLTYPE CommitDeferredSettings() noexcept override;
 
+        Listener3D() = default;
+        Listener3D(const Listener3D&) = delete;
+        Listener3D& operator=(const Listener3D&) = delete;
+
         template<typename T>
         T as() noexcept { return static_cast<T>(this); }
     };
@@ -63,8 +67,8 @@ class PrimaryBuffer final : IDirectSoundBuffer {
     LONG mVolume{};
     LONG mPan{};
 
-    DS3DLISTENER mImmediate;
-    DS3DLISTENER mDeferred;
+    DS3DLISTENER mImmediate{};
+    DS3DLISTENER mDeferred{};
     enum DirtyFlags {
         Position,
         Velocity,
@@ -77,14 +81,18 @@ class PrimaryBuffer final : IDirectSoundBuffer {
     };
     std::bitset<FlagCount> mDirty;
 
-    WAVEFORMATEXTENSIBLE mFormat;
+    WAVEFORMATEXTENSIBLE mFormat{};
     bool mPlaying{false};
 
     void setParams(const DS3DLISTENER &params, const std::bitset<FlagCount> flags);
 
 public:
+    PrimaryBuffer() = delete;
+    PrimaryBuffer(const PrimaryBuffer&) = delete;
     PrimaryBuffer(DSound8OAL &parent);
     ~PrimaryBuffer();
+
+    PrimaryBuffer& operator=(const PrimaryBuffer&) = delete;
 
     /*** IUnknown methods ***/
     HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void** ppvObject) noexcept override;

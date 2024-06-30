@@ -59,15 +59,17 @@ struct SharedDevice {
     const GUID mId;
     DWORD mSpeakerConfig{};
 
-    ALCdevice *mDevice;
-    ALCcontext *mContext;
+    ALCdevice *mDevice{};
+    ALCcontext *mContext{};
 
     std::atomic<ULONG> mRef{1u};
 
-    DWORD getCurrentHwCount() const noexcept
+    [[nodiscard]]
+    auto getCurrentHwCount() const noexcept -> DWORD
     { return mCurrentHwSources.load(std::memory_order_relaxed); }
 
-    DWORD getCurrentSwCount() const noexcept
+    [[nodiscard]]
+    auto getCurrentSwCount() const noexcept -> DWORD
     { return mCurrentSwSources.load(std::memory_order_relaxed); }
 
     /* Increment mCurrentHwSources up to mMaxHwSources. Returns false is the

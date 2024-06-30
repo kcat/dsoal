@@ -17,7 +17,7 @@ namespace {
 using voidp = void*;
 
 
-static WCHAR *strdupW(const WCHAR *str)
+WCHAR *strdupW(const WCHAR *str)
 {
     void *ret;
     int l = lstrlenW(str);

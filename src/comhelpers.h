@@ -29,8 +29,8 @@ public:
 struct ComWrapper {
     HRESULT mStatus{};
 
-    ComWrapper() { mStatus = CoInitialize(nullptr); }
-    ComWrapper(ComWrapper&& rhs) { mStatus = std::exchange(rhs.mStatus, E_FAIL); }
+    ComWrapper() : mStatus{CoInitialize(nullptr)} { }
+    ComWrapper(ComWrapper&& rhs) : mStatus{std::exchange(rhs.mStatus, E_FAIL)} { }
     ComWrapper(const ComWrapper&) = delete;
     ~ComWrapper() { if(SUCCEEDED(mStatus)) CoUninitialize(); }
 

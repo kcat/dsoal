@@ -5,6 +5,7 @@
 #include <bitset>
 #include <memory>
 #include <mutex>
+#include <span>
 #include <type_traits>
 #include <utility>
 
@@ -29,7 +30,10 @@ class SharedBuffer {
 
 public:
     SharedBuffer() = default;
+    SharedBuffer(const SharedBuffer&) = delete;
     ~SharedBuffer();
+
+    SharedBuffer& operator=(const SharedBuffer&) = delete;
 
     auto AddRef() noexcept -> ULONG { return mRef.fetch_add(1u, std::memory_order_relaxed)+1; }
     auto Release() noexcept -> ULONG
@@ -39,8 +43,7 @@ public:
         return ret;
     }
 
-    char *mData;
-    DWORD mDataSize{0};
+    std::span<char> mData;
     DWORD mFlags{};
 
     WAVEFORMATEXTENSIBLE mWfxFormat{};
@@ -70,6 +73,10 @@ class Buffer final : IDirectSoundBuffer8 {
         ULONG STDMETHODCALLTYPE AddRef() noexcept override;
         ULONG STDMETHODCALLTYPE Release() noexcept override;
 
+        Unknown() = default;
+        Unknown(const Unknown&) = delete;
+        Unknown& operator=(const Unknown&) = delete;
+
         template<typename T>
         T as() noexcept { return static_cast<T>(this); }
     };
@@ -92,6 +99,10 @@ class Buffer final : IDirectSoundBuffer8 {
         ULONG STDMETHODCALLTYPE AddRef() noexcept override;
         ULONG STDMETHODCALLTYPE Release() noexcept override;
         HRESULT STDMETHODCALLTYPE SetNotificationPositions(DWORD numNotifies, const DSBPOSITIONNOTIFY *notifies) noexcept override;
+
+        Notify() = default;
+        Notify(const Notify&) = delete;
+        Notify& operator=(const Notify&) = delete;
 
         template<typename T>
         T as() noexcept { return static_cast<T>(this); }
@@ -133,6 +144,10 @@ class Buffer final : IDirectSoundBuffer8 {
         HRESULT STDMETHODCALLTYPE SetPosition(D3DVALUE x, D3DVALUE y, D3DVALUE z, DWORD apply) noexcept override;
         HRESULT STDMETHODCALLTYPE SetVelocity(D3DVALUE x, D3DVALUE y, D3DVALUE z, DWORD apply) noexcept override;
 
+        Buffer3D() = default;
+        Buffer3D(const Buffer3D&) = delete;
+        Buffer3D& operator=(const Buffer3D&) = delete;
+
         template<typename T>
         T as() noexcept { return static_cast<T>(this); }
     };
@@ -157,6 +172,10 @@ class Buffer final : IDirectSoundBuffer8 {
         HRESULT STDMETHODCALLTYPE Get(REFGUID guidPropSet, ULONG dwPropID, void *pInstanceData, ULONG cbInstanceData, void *pPropData, ULONG cbPropData, ULONG *pcbReturned) noexcept override;
         HRESULT STDMETHODCALLTYPE Set(REFGUID guidPropSet, ULONG dwPropID, void *pInstanceData, ULONG cbInstanceData, void *pPropData, ULONG cbPropData) noexcept override;
         HRESULT STDMETHODCALLTYPE QuerySupport(REFGUID guidPropSet, ULONG dwPropID, ULONG *pTypeSupport) noexcept override;
+
+        Prop() = default;
+        Prop(const Prop&) = delete;
+        Prop& operator=(const Prop&) = delete;
 
         template<typename T>
         T as() noexcept { return static_cast<T>(this); }
@@ -214,8 +233,12 @@ class Buffer final : IDirectSoundBuffer8 {
     HRESULT setLocation(LocStatus locStatus) noexcept;
 
 public:
+    Buffer() = delete;
+    Buffer(const Buffer&) = delete;
     Buffer(DSound8OAL &parent, bool is8, IDirectSoundBuffer *original) noexcept;
     ~Buffer();
+
+    Buffer& operator=(const Buffer&) = delete;
 
     /*** IUnknown methods ***/
     HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void** ppvObject) noexcept override;
@@ -231,7 +254,7 @@ public:
     HRESULT STDMETHODCALLTYPE GetStatus(DWORD *status) noexcept override;
     HRESULT STDMETHODCALLTYPE Initialize(IDirectSound *directSound, const DSBUFFERDESC *dsBufferDesc) noexcept override;
     HRESULT STDMETHODCALLTYPE Lock(DWORD offset, DWORD bytes, void **audioPtr1, DWORD *audioBytes1, void **audioPtr2, DWORD *audioBytes2, DWORD flags) noexcept override;
-    HRESULT STDMETHODCALLTYPE Play(DWORD reserved1, DWORD reserved2, DWORD flags) noexcept override;
+    HRESULT STDMETHODCALLTYPE Play(DWORD reserved1, DWORD priority, DWORD flags) noexcept override;
     HRESULT STDMETHODCALLTYPE SetCurrentPosition(DWORD newPosition) noexcept override;
     HRESULT STDMETHODCALLTYPE SetFormat(const WAVEFORMATEX *wfx) noexcept override;
     HRESULT STDMETHODCALLTYPE SetVolume(LONG volume) noexcept override;

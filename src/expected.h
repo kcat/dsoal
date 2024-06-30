@@ -9,13 +9,6 @@ namespace ds {
 
 #define REQUIRES(...) std::enable_if_t<(__VA_ARGS__), bool> = true
 
-template<typename T>
-struct remove_cvref {
-    using type = std::remove_cv_t<std::remove_reference_t<T>>;
-};
-template<typename T>
-using remove_cvref_t = typename remove_cvref<T>::type;
-
 
 template<typename E>
 class unexpected {
@@ -24,8 +17,8 @@ class unexpected {
 public:
     constexpr unexpected(const unexpected&) = default;
     constexpr unexpected(unexpected&&) = default;
-    template<typename E2=E, REQUIRES(!std::is_same_v<remove_cvref_t<E2>, unexpected>
-        && !std::is_same_v<remove_cvref_t<E2>, std::in_place_t>
+    template<typename E2=E, REQUIRES(!std::is_same_v<std::remove_cvref_t<E2>, unexpected>
+        && !std::is_same_v<std::remove_cvref_t<E2>, std::in_place_t>
         && std::is_constructible_v<E, E2>)>
     constexpr explicit unexpected(E2&& rhs) : mError{std::forward<E2>(rhs)}
     { }
@@ -71,14 +64,14 @@ public:
     constexpr expected(expected&& rhs) noexcept(std::is_nothrow_move_constructible_v<variant_type>) = default;
 
     /* Value constructors */
-    template<typename U=S, REQUIRES(!std::is_same_v<remove_cvref_t<U>, std::in_place_t>
-        && !std::is_same_v<expected, remove_cvref_t<U>>
+    template<typename U=S, REQUIRES(!std::is_same_v<std::remove_cvref_t<U>, std::in_place_t>
+        && !std::is_same_v<expected, std::remove_cvref_t<U>>
         && std::is_constructible_v<S, U>
         && !std::is_convertible_v<U, S>)>
     constexpr explicit expected(U&& v) : mValues{std::in_place_index_t<0>{}, std::forward<U>(v)}
     { }
-    template<typename U=S, REQUIRES(!std::is_same_v<remove_cvref_t<U>, std::in_place_t>
-        && !std::is_same_v<expected, remove_cvref_t<U>>
+    template<typename U=S, REQUIRES(!std::is_same_v<std::remove_cvref_t<U>, std::in_place_t>
+        && !std::is_same_v<expected, std::remove_cvref_t<U>>
         && std::is_constructible_v<S, U>
         && std::is_convertible_v<U, S>)>
     constexpr expected(U&& v) : mValues{std::in_place_index_t<0>{}, std::forward<U>(v)}
@@ -107,7 +100,9 @@ public:
         : mValues{variant_type{std::in_place_index<1>, std::move(rhs.error())}}
     { }
 
+    [[nodiscard]]
     constexpr bool has_value() const noexcept { return mValues.index() == 0; }
+    [[nodiscard]]
     constexpr explicit operator bool() const noexcept { return has_value(); }
 
     constexpr S& value() & { return std::get<0>(mValues); }

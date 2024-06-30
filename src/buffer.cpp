@@ -1,6 +1,8 @@
 #include "buffer.h"
 
+#include <cinttypes>
 #include <optional>
+#include <span>
 
 #include <ks.h>
 #include <ksmedia.h>
@@ -295,8 +297,7 @@ ds::expected<ComPtr<SharedBuffer>,HRESULT> SharedBuffer::Create(const DSBUFFERDE
     if(!storage) return ds::unexpected(DSERR_OUTOFMEMORY);
 
     auto shared = ComPtr<SharedBuffer>{::new(storage) SharedBuffer{}};
-    shared->mData = reinterpret_cast<char*>(shared.get() + 1);
-    shared->mDataSize = bufSize;
+    shared->mData = {reinterpret_cast<char*>(shared.get() + 1), bufSize};
     shared->mFlags = bufferDesc.dwFlags;
 
     if(format->wFormatTag == WAVE_FORMAT_EXTENSIBLE)
@@ -316,8 +317,8 @@ ds::expected<ComPtr<SharedBuffer>,HRESULT> SharedBuffer::Create(const DSBUFFERDE
     if(!shared->mAlFormat) return ds::unexpected(DSERR_INVALIDPARAM);
 
     alGenBuffers(1, &shared->mAlBuffer);
-    alBufferDataStatic(shared->mAlBuffer, shared->mAlFormat, shared->mData,
-        static_cast<ALsizei>(shared->mDataSize),
+    alBufferDataStatic(shared->mAlBuffer, shared->mAlFormat, shared->mData.data(),
+        static_cast<ALsizei>(shared->mData.size()),
         static_cast<ALsizei>(shared->mWfxFormat.Format.nSamplesPerSec));
     alGetError();
 
@@ -414,7 +415,7 @@ bool Buffer::updateNotify() noexcept
             if(notify.dwOffset >= mLastPos)
                 SetEvent(notify.hEventNotify);
         }
-        mLastPos = mBuffer->mDataSize;
+        mLastPos = mBuffer->mData.size();
         return false;
     }
 
@@ -635,7 +636,7 @@ HRESULT STDMETHODCALLTYPE Buffer::GetCaps(DSBCAPS *bufferCaps) noexcept
         else if(mLocStatus == LocStatus::Software)
             bufferCaps->dwFlags |= DSBCAPS_LOCSOFTWARE;
     }
-    bufferCaps->dwBufferBytes = mBuffer->mDataSize;
+    bufferCaps->dwBufferBytes = static_cast<DWORD>(mBuffer->mData.size());
     bufferCaps->dwUnlockTransferRate = 4096;
     bufferCaps->dwPlayCpuOverhead = 0;
 
@@ -677,7 +678,7 @@ HRESULT STDMETHODCALLTYPE Buffer::GetCurrentPosition(DWORD *playCursor, DWORD *w
          */
         switch(status)
         {
-        case AL_STOPPED: pos = mBuffer->mDataSize; break;
+        case AL_STOPPED: pos = static_cast<DWORD>(mBuffer->mData.size()); break;
         case AL_PAUSED: pos = static_cast<ALuint>(ofs); break;
         case AL_INITIAL: pos = mLastPos; break;
         default: pos = 0;
@@ -685,12 +686,12 @@ HRESULT STDMETHODCALLTYPE Buffer::GetCurrentPosition(DWORD *playCursor, DWORD *w
         writecursor = 0;
     }
 
-    if(pos > mBuffer->mDataSize)
+    if(pos > mBuffer->mData.size())
     {
         ERR(PREFIX "GetCurrentPosition playpos > buf_size\n");
-        pos %= mBuffer->mDataSize;
+        pos %= mBuffer->mData.size();
     }
-    writecursor = (writecursor+pos) % mBuffer->mDataSize;
+    writecursor = (writecursor+pos) % mBuffer->mData.size();
 
     DEBUG(PREFIX "GetCurrentPosition pos = %lu, write pos = %lu\n", pos, writecursor);
 
@@ -886,14 +887,14 @@ HRESULT STDMETHODCALLTYPE Buffer::Lock(DWORD offset, DWORD bytes, void **audioPt
 
     if((flags&DSBLOCK_FROMWRITECURSOR))
         GetCurrentPosition(nullptr, &offset);
-    else if(offset >= mBuffer->mDataSize)
+    else if(offset >= mBuffer->mData.size())
     {
         WARN(PREFIX "Lock Invalid offset %lu\n", offset);
         return DSERR_INVALIDPARAM;
     }
     if((flags&DSBLOCK_ENTIREBUFFER))
-        bytes = mBuffer->mDataSize;
-    else if(bytes > mBuffer->mDataSize)
+        bytes = static_cast<DWORD>(mBuffer->mData.size());
+    else if(bytes > mBuffer->mData.size())
     {
         WARN(PREFIX "Lock Invalid size %lu\n", bytes);
         return DSERR_INVALIDPARAM;
@@ -906,10 +907,10 @@ HRESULT STDMETHODCALLTYPE Buffer::Lock(DWORD offset, DWORD bytes, void **audioPt
     }
 
     DWORD remain{};
-    *audioPtr1 = mBuffer->mData + offset;
-    if(bytes >= mBuffer->mDataSize-offset)
+    *audioPtr1 = std::to_address(mBuffer->mData.begin() + ptrdiff_t(offset));
+    if(bytes > mBuffer->mData.size()-offset)
     {
-        *audioBytes1 = mBuffer->mDataSize - offset;
+        *audioBytes1 = static_cast<DWORD>(mBuffer->mData.size() - offset);
         remain = bytes - *audioBytes1;
     }
     else
@@ -920,7 +921,7 @@ HRESULT STDMETHODCALLTYPE Buffer::Lock(DWORD offset, DWORD bytes, void **audioPt
 
     if(audioPtr2 && audioBytes2 && remain)
     {
-        *audioPtr2 = mBuffer->mData;
+        *audioPtr2 = mBuffer->mData.data();
         *audioBytes2 = remain;
     }
 
@@ -983,7 +984,7 @@ HRESULT STDMETHODCALLTYPE Buffer::Play(DWORD reserved1, DWORD priority, DWORD fl
     if(state == AL_PLAYING)
         return DS_OK;
 
-    mLastPos %= mBuffer->mDataSize;
+    mLastPos %= mBuffer->mData.size();
     if(state == AL_INITIAL)
     {
         alSourcei(mSource, AL_BUFFER, static_cast<ALint>(mBuffer->mAlBuffer));
@@ -1006,7 +1007,7 @@ HRESULT STDMETHODCALLTYPE Buffer::SetCurrentPosition(DWORD newPosition) noexcept
 {
     FIXME("Buffer::SetCurrentPosition (%p)->(%lu)\n", voidp{this}, newPosition);
 
-    if(newPosition >= mBuffer->mDataSize)
+    if(newPosition >= mBuffer->mData.size())
         return DSERR_INVALIDPARAM;
     newPosition -= newPosition % mBuffer->mWfxFormat.Format.nBlockAlign;
 
@@ -1130,7 +1131,8 @@ HRESULT STDMETHODCALLTYPE Buffer::Stop() noexcept
     }
 
     /* Ensure the notification's last tracked position is updated. */
-    mLastPos = (state == AL_STOPPED) ? mBuffer->mDataSize : static_cast<DWORD>(ofs);
+    mLastPos = (state == AL_STOPPED) ? static_cast<DWORD>(mBuffer->mData.size())
+        : static_cast<DWORD>(ofs);
 
     return DS_OK;
 }
@@ -1147,14 +1149,15 @@ HRESULT STDMETHODCALLTYPE Buffer::Unlock(void *audioPtr1, DWORD audioBytes1, voi
     }
 
     /* Make sure offset is between boundary and boundary + bufsize */
-    auto ofs1 = static_cast<uintptr_t>(static_cast<char*>(audioPtr1) - mBuffer->mData);
+    auto ofs1 = static_cast<uintptr_t>(static_cast<char*>(audioPtr1) - mBuffer->mData.data());
     auto ofs2 = static_cast<uintptr_t>(audioPtr2 ?
-        static_cast<char*>(audioPtr2) - mBuffer->mData : 0);
-    if(ofs1 >= mBuffer->mDataSize || mBuffer->mDataSize-ofs1 < audioBytes1 || ofs2 != 0
+        static_cast<char*>(audioPtr2) - mBuffer->mData.data() : 0);
+    if(ofs1 >= mBuffer->mData.size() || mBuffer->mData.size()-ofs1 < audioBytes1 || ofs2 != 0
         || audioBytes2 > ofs1)
     {
-        WARN(PREFIX "Unlock Invalid parameters (%p,%lu) (%p,%lu,%p,%lu)\n", voidp{mBuffer->mData},
-            mBuffer->mDataSize, audioPtr1, audioBytes1, audioPtr2, audioBytes2);
+        WARN(PREFIX "Unlock Invalid parameters (%p,%zu) (%p,%lu,%p,%lu)\n",
+            voidp{mBuffer->mData.data()}, mBuffer->mData.size(), audioPtr1, audioBytes1, audioPtr2,
+            audioBytes2);
         return DSERR_INVALIDPARAM;
     }
 
@@ -2135,20 +2138,24 @@ HRESULT STDMETHODCALLTYPE Buffer::Notify::SetNotificationPositions(DWORD numNoti
         }
     }
 
+    auto notifyspan = std::span{notifies, numNotifies};
     std::vector<DSBPOSITIONNOTIFY> newNots{};
-    if(numNotifies > 0)
+    if(!notifyspan.empty())
     {
-        for(size_t i{0};i < numNotifies;++i)
-        {
-            if(notifies[i].dwOffset >= self->mBuffer->mDataSize
-                && notifies[i].dwOffset != static_cast<DWORD>(DSBPN_OFFSETSTOP))
+        auto invalidNotify = std::find_if_not(notifyspan.begin(), notifyspan.end(),
+            [self](const DSBPOSITIONNOTIFY &notify) noexcept -> bool
             {
-                WARN(PREFIX "SetNotificationPositions Out of range (%zu: %lu >= %lu)\n", i,
-                    notifies[i].dwOffset, self->mBuffer->mDataSize);
-                return DSERR_INVALIDPARAM;
-            }
+                return notify.dwOffset < self->mBuffer->mData.size() ||
+                    notify.dwOffset != static_cast<DWORD>(DSBPN_OFFSETSTOP);
+            });
+        if(invalidNotify != notifyspan.end())
+        {
+            WARN(PREFIX "SetNotificationPositions Out of range (%" PRIdPTR ": %lu >= %zu)\n",
+                std::distance(notifyspan.begin(), invalidNotify), invalidNotify->dwOffset,
+                self->mBuffer->mData.size());
+            return DSERR_INVALIDPARAM;
         }
-        newNots.assign(notifies, notifies+numNotifies);
+        newNots.assign(notifyspan.begin(), notifyspan.end());
     }
     newNots.swap(self->mNotifies);
 
