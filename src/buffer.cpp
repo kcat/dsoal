@@ -2141,7 +2141,7 @@ HRESULT STDMETHODCALLTYPE Buffer::Notify::SetNotificationPositions(DWORD numNoti
             [self](const DSBPOSITIONNOTIFY &notify) noexcept -> bool
             {
                 return notify.dwOffset < self->mBuffer->mData.size() ||
-                    notify.dwOffset != static_cast<DWORD>(DSBPN_OFFSETSTOP);
+                    notify.dwOffset == static_cast<DWORD>(DSBPN_OFFSETSTOP);
             });
         if(invalidNotify != notifyspan.end())
         {
