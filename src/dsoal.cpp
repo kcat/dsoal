@@ -396,9 +396,9 @@ DSOAL_EXPORT BOOL WINAPI DllMain(HINSTANCE hInstDLL, DWORD reason, void *reserve
 
         if(!load_openal())
         {
-            if(gLogFile != stderr)
+            if(gLogFile)
                 fclose(gLogFile);
-            gLogFile = stderr;
+            gLogFile = nullptr;
             return FALSE;
         }
 
@@ -408,9 +408,9 @@ DSOAL_EXPORT BOOL WINAPI DllMain(HINSTANCE hInstDLL, DWORD reason, void *reserve
         break;
 
     case DLL_PROCESS_DETACH:
-        if(gLogFile != stderr)
+        if(gLogFile)
             fclose(gLogFile);
-        gLogFile = stderr;
+        gLogFile = nullptr;
         break;
     }
 

@@ -12,17 +12,13 @@
 #include <windows.h>
 
 
-LogLevel gLogLevel{LogLevel::Error};
-
-FILE *gLogFile{stderr};
-
 namespace {
 
 std::mutex sLogMutex;
 
 } // namespace
 
-void dsoal_print(LogLevel level, FILE *logfile, const char *fmt, ...)
+void dsoal_print(LogLevel level, const char *fmt, ...)
 {
     const char *prefix = "debug";
     switch(level)
@@ -61,6 +57,7 @@ void dsoal_print(LogLevel level, FILE *logfile, const char *fmt, ...)
     va_end(args);
 
     std::lock_guard _{sLogMutex};
+    FILE *logfile{gLogFile ? gLogFile : stderr};
     fputs(str, logfile);
     fflush(logfile);
 }

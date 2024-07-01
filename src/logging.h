@@ -1,7 +1,9 @@
 #ifndef LOGGING_H
 #define LOGGING_H
 
-#include <stdio.h>
+#include <cstdio>
+
+#include "dsoal.h"
 
 #ifdef __has_cpp_attribute
 #define HAS_ATTRIBUTE __has_cpp_attribute
@@ -26,42 +28,42 @@ enum class LogLevel {
     Trace,
     Debug
 };
-extern LogLevel gLogLevel;
+inline LogLevel gLogLevel{LogLevel::Error};
 
-extern FILE *gLogFile;
+inline gsl::owner<FILE*> gLogFile{};
 
 #if HAS_ATTRIBUTE(gnu::format)
 #if defined(__USE_MINGW_ANSI_STDIO) && !defined(__clang__)
-[[gnu::format(gnu_printf,3,4)]]
+[[gnu::format(gnu_printf,2,3)]]
 #else
-[[gnu::format(printf,3,4)]]
+[[gnu::format(printf,2,3)]]
 #endif
 #endif
-void dsoal_print(LogLevel level, FILE *logfile, const char *fmt, ...);
+void dsoal_print(LogLevel level, const char *fmt, ...);
 
 #define DEBUG(...) do {                                                       \
     if(gLogLevel >= LogLevel::Debug) UNLIKELY                                 \
-        dsoal_print(LogLevel::Debug, gLogFile, __VA_ARGS__);                  \
+        dsoal_print(LogLevel::Debug, __VA_ARGS__);                            \
 } while(0)
 
 #define TRACE(...) do {                                                       \
     if(gLogLevel >= LogLevel::Trace) UNLIKELY                                 \
-        dsoal_print(LogLevel::Trace, gLogFile, __VA_ARGS__);                  \
+        dsoal_print(LogLevel::Trace, __VA_ARGS__);                            \
 } while(0)
 
 #define WARN(...) do {                                                        \
     if(gLogLevel >= LogLevel::Warning) UNLIKELY                               \
-        dsoal_print(LogLevel::Warning, gLogFile, __VA_ARGS__);                \
+        dsoal_print(LogLevel::Warning, __VA_ARGS__);                          \
 } while(0)
 
 #define FIXME(...) do {                                                       \
     if(gLogLevel >= LogLevel::Fixme) UNLIKELY                                 \
-        dsoal_print(LogLevel::Fixme, gLogFile, __VA_ARGS__);                  \
+        dsoal_print(LogLevel::Fixme, __VA_ARGS__);                            \
 } while(0)
 
 #define ERR(...) do {                                                         \
     if(gLogLevel >= LogLevel::Error) UNLIKELY                                 \
-        dsoal_print(LogLevel::Error, gLogFile, __VA_ARGS__);                  \
+        dsoal_print(LogLevel::Error, __VA_ARGS__);                            \
 } while(0)
 
 #endif // LOGGING_H
