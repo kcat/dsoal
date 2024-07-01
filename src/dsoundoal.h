@@ -108,10 +108,9 @@ struct SharedDevice {
  * constructed and destructed in place without having to continually allocate
  * and deallocate them individually.
  */
-class BufferSubList {
-public:
+struct BufferSubList {
     uint64_t mFreeMask{~0_u64};
-    Buffer *mBuffers{nullptr}; /* 64 */
+    gsl::owner<std::array<Buffer,64>*> mBuffers{nullptr};
 
     BufferSubList() noexcept = default;
     BufferSubList(const BufferSubList&) = delete;

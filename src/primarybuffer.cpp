@@ -201,11 +201,11 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::GetStatus(DWORD *status) noexcept
             uint64_t usemask{~group.mFreeMask};
             while(usemask)
             {
-                int idx{ds::countr_zero(usemask)};
+                auto idx = static_cast<unsigned int>(ds::countr_zero(usemask));
                 usemask &= ~(1_u64 << idx);
-                Buffer *buffer{group.mBuffers + idx};
+                Buffer &buffer = (*group.mBuffers)[idx];
 
-                if(const ALuint source{buffer->getSource()})
+                if(const ALuint source{buffer.getSource()})
                 {
                     ALint state{};
                     alGetSourcei(source, AL_SOURCE_STATE, &state);

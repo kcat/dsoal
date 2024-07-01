@@ -4,6 +4,7 @@
 #include <chrono>
 #include <cinttypes>
 #include <functional>
+#include <memory>
 #include <optional>
 
 #include <ks.h>
@@ -24,6 +25,9 @@ namespace {
 
 using voidp = void*;
 using cvoidp = const void*;
+
+using SubListAllocator = std::allocator<std::array<Buffer,64>>;
+
 
 struct ALCdeviceDeleter {
     void operator()(ALCdevice *device) { alcCloseDevice(device); }
@@ -298,12 +302,11 @@ BufferSubList::~BufferSubList()
     uint64_t usemask{~mFreeMask};
     while(usemask)
     {
-        int idx{ds::countr_zero(usemask)};
+        auto idx = int{ds::countr_zero(usemask)};
+        std::destroy_at(std::to_address(mBuffers->begin() + idx));
         usemask &= ~(1_u64 << idx);
-
-        std::destroy_at(mBuffers + idx);
     }
-    std::free(mBuffers);
+    SubListAllocator{}.deallocate(mBuffers, 1);
 }
 
 
@@ -345,7 +348,7 @@ ComPtr<Buffer> DSound8OAL::createSecondaryBuffer(IDirectSoundBuffer *original)
     {
         /* If none are available, make another group. */
         BufferSubList group;
-        group.mBuffers = reinterpret_cast<Buffer*>(std::malloc(sizeof(Buffer[64])));
+        group.mBuffers = SubListAllocator{}.allocate(1);
         if(group.mBuffers)
         {
             mSecondaryBuffers.emplace_back(std::move(group));
@@ -355,8 +358,8 @@ ComPtr<Buffer> DSound8OAL::createSecondaryBuffer(IDirectSoundBuffer *original)
     if(!sublist)
         return {};
 
-    int idx{ds::countr_zero(sublist->mFreeMask)};
-    ComPtr<Buffer> buffer{::new(sublist->mBuffers + idx) Buffer{*this, mIs8, original}};
+    auto idx = static_cast<unsigned int>(ds::countr_zero(sublist->mFreeMask));
+    ComPtr<Buffer> buffer{::new(&(*sublist->mBuffers)[idx]) Buffer{*this, mIs8, original}};
     sublist->mFreeMask &= ~(1_u64 << idx);
 
     return buffer;
@@ -806,7 +809,7 @@ HRESULT STDMETHODCALLTYPE DSound8OAL::Initialize(const GUID *deviceId) noexcept
     for(size_t i{0};i < numGroups;++i)
     {
         BufferSubList group;
-        group.mBuffers = reinterpret_cast<Buffer*>(std::malloc(sizeof(Buffer[64])));
+        group.mBuffers = SubListAllocator{}.allocate(1);
         if(!group.mBuffers) break;
 
         mSecondaryBuffers.emplace_back(std::move(group));
@@ -845,10 +848,10 @@ void DSound8OAL::dispose(Buffer *buffer) noexcept
      */
     for(auto &group : mSecondaryBuffers)
     {
-        ptrdiff_t idx{buffer - group.mBuffers};
+        ptrdiff_t idx{buffer - group.mBuffers->data()};
         if(static_cast<std::make_unsigned_t<ptrdiff_t>>(idx) < 64)
         {
-            std::destroy_at(group.mBuffers + idx);
+            std::destroy_at(buffer);
             group.mFreeMask |= 1_u64 << idx;
             return;
         }

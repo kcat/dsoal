@@ -826,14 +826,12 @@ HRESULT STDMETHODCALLTYPE Buffer::Initialize(IDirectSound *directSound, const DS
                 WARN(PREFIX "Initialize Can't create multi-channel 3D buffers\n");
                 return DSERR_INVALIDPARAM;
             }
-            else
+
+            static bool once{};
+            if(!once)
             {
-                static bool once{};
-                if(!once)
-                {
-                    once = true;
-                    ERR(PREFIX "Initialize Multi-channel 3D sounds are not spatialized\n");
-                }
+                once = true;
+                ERR(PREFIX "Initialize Multi-channel 3D sounds are not spatialized\n");
             }
         }
         if((dsBufferDesc->dwFlags&DSBCAPS_CTRLPAN) && dsBufferDesc->lpwfxFormat->nChannels != 1)
