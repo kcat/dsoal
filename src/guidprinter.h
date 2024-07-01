@@ -1,6 +1,7 @@
 #ifndef GUIDPRINTER_H
 #define GUIDPRINTER_H
 
+#include <array>
 #include <cstdio>
 #include <cstring>
 #include <iterator>
@@ -11,7 +12,6 @@
 #include <objbase.h>
 
 #include "eax.h"
-#include "propset.h"
 #include "vmanager.h"
 
 
@@ -22,21 +22,23 @@ struct DevidTag { };
 struct Ds3dalgTag { };
 
 class GuidPrinter {
-    char mMsg[48];
+    std::array<char,48> mMsg{};
     const char *mIdStr{};
 
     void store(const GUID &guid)
     {
-        std::snprintf(mMsg, std::size(mMsg), "{%08lx-%04x-%04x-%02x%02x-%02x%02x%02x%02x%02x%02x}",
+        std::snprintf(mMsg.data(), mMsg.size(),
+            "{%08lx-%04x-%04x-%02x%02x-%02x%02x%02x%02x%02x%02x}",
             DWORD{guid.Data1}, guid.Data2, guid.Data3, guid.Data4[0], guid.Data4[1], guid.Data4[2],
             guid.Data4[3], guid.Data4[4], guid.Data4[5], guid.Data4[6], guid.Data4[7]);
-        mIdStr = mMsg;
+        mIdStr = mMsg.data();
     }
 
     void store_iid(const GUID &guid)
     {
-        if(guid == GUID_NULL) mIdStr = "GUID_NULL";
+        if(false) { }
 #define CHECKID(x) else if(guid == x) mIdStr = #x;
+        CHECKID(GUID_NULL)
         CHECKID(IID_IDirectSound)
         CHECKID(IID_IDirectSound8)
         CHECKID(IID_IDirectSoundBuffer)
@@ -53,10 +55,7 @@ class GuidPrinter {
         CHECKID(IID_IUnknown)
         if(mIdStr) return;
 
-        std::snprintf(mMsg, std::size(mMsg), "{%08lx-%04x-%04x-%02x%02x-%02x%02x%02x%02x%02x%02x}",
-            DWORD{guid.Data1}, guid.Data2, guid.Data3, guid.Data4[0], guid.Data4[1], guid.Data4[2],
-            guid.Data4[3], guid.Data4[4], guid.Data4[5], guid.Data4[6], guid.Data4[7]);
-        mIdStr = mMsg;
+        store(guid);
     }
 
     void store_propid(const GUID &guid)
@@ -78,10 +77,7 @@ class GuidPrinter {
         CHECKID(DSPROPSETID_DirectSoundDevice)
         if(mIdStr) return;
 
-        std::snprintf(mMsg, std::size(mMsg), "{%08lx-%04x-%04x-%02x%02x-%02x%02x%02x%02x%02x%02x}",
-            DWORD{guid.Data1}, guid.Data2, guid.Data3, guid.Data4[0], guid.Data4[1], guid.Data4[2],
-            guid.Data4[3], guid.Data4[4], guid.Data4[5], guid.Data4[6], guid.Data4[7]);
-        mIdStr = mMsg;
+        store(guid);
     }
 
     void store_ds3dalg(const GUID &guid)
@@ -93,25 +89,20 @@ class GuidPrinter {
         CHECKID(DS3DALG_HRTF_LIGHT)
         if(mIdStr) return;
 
-        std::snprintf(mMsg, std::size(mMsg), "{%08lx-%04x-%04x-%02x%02x-%02x%02x%02x%02x%02x%02x}",
-            DWORD{guid.Data1}, guid.Data2, guid.Data3, guid.Data4[0], guid.Data4[1], guid.Data4[2],
-            guid.Data4[3], guid.Data4[4], guid.Data4[5], guid.Data4[6], guid.Data4[7]);
-        mIdStr = mMsg;
+        store(guid);
     }
 
     void store_devid(const GUID &guid)
     {
-        if(guid == GUID_NULL) mIdStr = "GUID_NULL";
+        if(false) { }
+        CHECKID(GUID_NULL)
         CHECKID(DSDEVID_DefaultPlayback)
         CHECKID(DSDEVID_DefaultCapture)
         CHECKID(DSDEVID_DefaultVoicePlayback)
         CHECKID(DSDEVID_DefaultVoiceCapture)
         if(mIdStr) return;
 
-        std::snprintf(mMsg, std::size(mMsg), "{%08lx-%04x-%04x-%02x%02x-%02x%02x%02x%02x%02x%02x}",
-            DWORD{guid.Data1}, guid.Data2, guid.Data3, guid.Data4[0], guid.Data4[1], guid.Data4[2],
-            guid.Data4[3], guid.Data4[4], guid.Data4[5], guid.Data4[6], guid.Data4[7]);
-        mIdStr = mMsg;
+        store(guid);
     }
 
     void store_clsid(const GUID &guid)
@@ -125,10 +116,7 @@ class GuidPrinter {
         CHECKID(CLSID_DirectSoundPrivate)
         if(mIdStr) return;
 
-        std::snprintf(mMsg, std::size(mMsg), "{%08lx-%04x-%04x-%02x%02x-%02x%02x%02x%02x%02x%02x}",
-            DWORD{guid.Data1}, guid.Data2, guid.Data3, guid.Data4[0], guid.Data4[1], guid.Data4[2],
-            guid.Data4[3], guid.Data4[4], guid.Data4[5], guid.Data4[6], guid.Data4[7]);
-        mIdStr = mMsg;
+        store(guid);
     }
 
 public:
@@ -145,36 +133,37 @@ public:
     GuidPrinter(PropidTag, const GUID *guid) { if(!guid) mIdStr = "{null}"; else store_propid(*guid); }
     GuidPrinter(Ds3dalgTag, const GUID *guid) { if(!guid) mIdStr = "{null}"; else store_ds3dalg(*guid); }
 
+    [[nodiscard]]
     const char *c_str() const { return mIdStr; }
 };
 
 class IidPrinter : public GuidPrinter {
 public:
-    template<typename T>
+    template<typename T, std::enable_if_t<!std::is_same_v<std::remove_cvref_t<T>,IidPrinter>,bool> = true>
     IidPrinter(T&& guid) : GuidPrinter{IidTag{}, std::forward<T>(guid)} { }
 };
 
 class ClsidPrinter : public GuidPrinter {
 public:
-    template<typename T>
+    template<typename T, std::enable_if_t<!std::is_same_v<std::remove_cvref_t<T>,ClsidPrinter>,bool> = true>
     ClsidPrinter(T&& guid) : GuidPrinter{ClsidTag{}, std::forward<T>(guid)} { }
 };
 
 class PropidPrinter : public GuidPrinter {
 public:
-    template<typename T>
+    template<typename T, std::enable_if_t<!std::is_same_v<std::remove_cvref_t<T>,PropidPrinter>,bool> = true>
     PropidPrinter(T&& guid) : GuidPrinter{PropidTag{}, std::forward<T>(guid)} { }
 };
 
 class DevidPrinter : public GuidPrinter {
 public:
-    template<typename T>
+    template<typename T, std::enable_if_t<!std::is_same_v<std::remove_cvref_t<T>,DevidPrinter>,bool> = true>
     DevidPrinter(T&& guid) : GuidPrinter{DevidTag{}, std::forward<T>(guid)} { }
 };
 
 class Ds3dalgPrinter : public GuidPrinter {
 public:
-    template<typename T>
+    template<typename T, std::enable_if_t<!std::is_same_v<std::remove_cvref_t<T>,Ds3dalgPrinter>,bool> = true>
     Ds3dalgPrinter(T&& guid) : GuidPrinter{Ds3dalgTag{}, std::forward<T>(guid)} { }
 };
 
