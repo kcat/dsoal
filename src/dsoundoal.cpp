@@ -80,7 +80,7 @@ std::optional<DWORD> GetSpeakerConfig(IMMDevice *device)
         WARN("GetSpeakerConfig IPropertyStore::GetValue(PhysicalSpeakers) failed: %08lx\n", hr);
         return speakerconf;
     }
-    if(pv.type() != VT_UI4 || pv.type() != VT_UINT)
+    if(pv.type() != VT_UI4 && pv.type() != VT_UINT)
     {
         WARN("GetSpeakerConfig PhysicalSpeakers is not a VT_UI4: 0x%04x\n", pv.type());
         return speakerconf;
@@ -117,7 +117,7 @@ std::optional<DWORD> GetSpeakerConfig(IMMDevice *device)
         hr = ps->GetValue(PKEY_AudioEndpoint_FormFactor, pv.get());
         if(FAILED(hr))
             WARN("GetSpeakerConfig IPropertyStore::GetValue(FormFactor) failed: %08lx\n", hr);
-        else if(pv.type() != VT_UI4 || pv.type() != VT_UINT)
+        else if(pv.type() != VT_UI4 && pv.type() != VT_UINT)
             WARN("GetSpeakerConfig FormFactor is not a VT_UI4: 0x%04x\n", pv.type());
         else if(pv.value<UINT>() == Headphones || pv.value<UINT>() == Headset)
             speakerconf = DSSPEAKER_HEADPHONE;
