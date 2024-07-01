@@ -24,10 +24,10 @@
 class DSound8OAL;
 
 
+enum ExtraBytes : size_t { };
+
 class SharedBuffer {
     std::atomic<ULONG> mRef{1u};
-
-    auto dispose() noexcept -> void;
 
 public:
     SharedBuffer() = default;
@@ -40,7 +40,7 @@ public:
     auto Release() noexcept -> ULONG
     {
         const auto ret = mRef.fetch_sub(1u, std::memory_order_relaxed)-1;
-        if(ret == 0) dispose();
+        if(ret == 0) delete this;
         return ret;
     }
 
@@ -54,6 +54,17 @@ public:
 
     static auto Create(const DSBUFFERDESC &bufferDesc, const std::bitset<ExtensionCount> exts) noexcept
         -> ds::expected<ComPtr<SharedBuffer>,HRESULT>;
+
+    gsl::owner<void*> operator new(size_t, ExtraBytes extrabytes)
+    { return ::operator new(sizeof(SharedBuffer) + extrabytes, std::align_val_t{alignof(SharedBuffer)}); }
+    void operator delete(gsl::owner<void*> block, ExtraBytes) noexcept
+    { ::operator delete(block, std::align_val_t{alignof(SharedBuffer)}); }
+    void operator delete(gsl::owner<void*> block) noexcept
+    { ::operator delete(block, std::align_val_t{alignof(SharedBuffer)}); }
+
+    void *operator new(size_t size) = delete;
+    void *operator new[](size_t size) = delete;
+    void operator delete[](void *block) = delete;
 };
 
 class Buffer final : IDirectSoundBuffer8 {

@@ -226,12 +226,6 @@ SharedBuffer::~SharedBuffer()
         alDeleteBuffers(1, &mAlBuffer);
 }
 
-void SharedBuffer::dispose() noexcept
-{
-    std::destroy_at(this);
-    std::free(this);
-}
-
 ds::expected<ComPtr<SharedBuffer>,HRESULT> SharedBuffer::Create(const DSBUFFERDESC &bufferDesc,
     const std::bitset<ExtensionCount> exts) noexcept
 {
@@ -294,10 +288,12 @@ ds::expected<ComPtr<SharedBuffer>,HRESULT> SharedBuffer::Create(const DSBUFFERDE
     if(bufSize > DSBSIZE_MAX) return ds::unexpected(DSERR_INVALIDPARAM);
 
     /* Over-allocate the shared buffer, combining it with the sample storage. */
-    void *storage{std::malloc(sizeof(SharedBuffer) + bufSize)};
-    if(!storage) return ds::unexpected(DSERR_OUTOFMEMORY);
-
-    auto shared = ComPtr<SharedBuffer>{::new(storage) SharedBuffer{}};
+    auto shared = [bufSize] {
+        try { return ComPtr<SharedBuffer>{new(ExtraBytes(bufSize)) SharedBuffer{}}; }
+        catch(...) { return ComPtr<SharedBuffer>{}; }
+    }();
+    if(!shared)
+        return ds::unexpected(DSERR_OUTOFMEMORY);
     shared->mData = {reinterpret_cast<char*>(shared.get() + 1), bufSize};
     shared->mFlags = bufferDesc.dwFlags;
 
