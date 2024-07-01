@@ -385,7 +385,8 @@ void DSound8OAL::notifyThread() noexcept
         waittime = milliseconds{seconds{1}} / refresh;
         waittime = std::max(waittime*3/5, milliseconds{10});
     }
-    TRACE(PREFIX "Wakeup every %" PRIu64 "ms\n", waittime.count()/1000);
+    TRACE(PREFIX "Wakeup every %" PRId64 "ms\n",
+        int64_t{duration_cast<milliseconds>(waittime).count()});
 
     std::unique_lock lock{mDsMutex};
     while(!mQuitNotify)
