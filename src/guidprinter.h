@@ -9,6 +9,8 @@
 #include <dsound.h>
 #include <dsconf.h>
 #include <ks.h>
+#include <ksmedia.h>
+#include <mmreg.h>
 #include <objbase.h>
 
 #include "eax.h"
@@ -20,6 +22,7 @@ struct ClsidTag { };
 struct PropidTag { };
 struct DevidTag { };
 struct Ds3dalgTag { };
+struct FmtidTag { };
 
 class GuidPrinter {
     std::array<char,48> mMsg{};
@@ -119,6 +122,17 @@ class GuidPrinter {
         store(guid);
     }
 
+    void store_fmtid(const GUID &guid)
+    {
+        if(false) { }
+        CHECKID(KSDATAFORMAT_SUBTYPE_PCM)
+        CHECKID(KSDATAFORMAT_SUBTYPE_IEEE_FLOAT)
+#undef CHECKID
+        if(mIdStr) return;
+
+        store(guid);
+    }
+
 public:
     GuidPrinter(const GUID &guid) { store(guid); }
     GuidPrinter(IidTag, const GUID &guid) { store_iid(guid); }
@@ -126,12 +140,14 @@ public:
     GuidPrinter(DevidTag, const GUID &guid) { store_devid(guid); }
     GuidPrinter(PropidTag, const GUID &guid) { store_propid(guid); }
     GuidPrinter(Ds3dalgTag, const GUID &guid) { store_ds3dalg(guid); }
+    GuidPrinter(FmtidTag, const GUID &guid) { store_fmtid(guid); }
 
     GuidPrinter(const GUID *guid) { if(!guid) mIdStr = "{null}"; else store(*guid); }
     GuidPrinter(ClsidTag, const GUID *guid) { if(!guid) mIdStr = "{null}"; else store_clsid(*guid); }
     GuidPrinter(DevidTag, const GUID *guid) { if(!guid) mIdStr = "{null}"; else store_devid(*guid); }
     GuidPrinter(PropidTag, const GUID *guid) { if(!guid) mIdStr = "{null}"; else store_propid(*guid); }
     GuidPrinter(Ds3dalgTag, const GUID *guid) { if(!guid) mIdStr = "{null}"; else store_ds3dalg(*guid); }
+    GuidPrinter(FmtidTag, const GUID *guid) { if(!guid) mIdStr = "{null}"; else store_fmtid(*guid); }
 
     [[nodiscard]]
     const char *c_str() const { return mIdStr; }
@@ -165,6 +181,12 @@ class Ds3dalgPrinter : public GuidPrinter {
 public:
     template<typename T, std::enable_if_t<!std::is_same_v<std::remove_cvref_t<T>,Ds3dalgPrinter>,bool> = true>
     Ds3dalgPrinter(T&& guid) : GuidPrinter{Ds3dalgTag{}, std::forward<T>(guid)} { }
+};
+
+class FmtidPrinter : public GuidPrinter {
+public:
+    template<typename T, std::enable_if_t<!std::is_same_v<std::remove_cvref_t<T>,FmtidPrinter>,bool> = true>
+    FmtidPrinter(T&& guid) : GuidPrinter{FmtidTag{}, std::forward<T>(guid)} { }
 };
 
 #endif // GUIDPRINTER_H

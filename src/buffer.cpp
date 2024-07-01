@@ -117,7 +117,7 @@ ALenum ConvertFormat(WAVEFORMATEXTENSIBLE &dst, const WAVEFORMATEXTENSIBLE &src,
         src.Format.wFormatTag, src.Format.nChannels, src.Format.nSamplesPerSec,
         src.Format.nAvgBytesPerSec, src.Format.nBlockAlign, src.Format.wBitsPerSample,
         src.Format.cbSize, src.Samples.wValidBitsPerSample, src.dwChannelMask,
-        GuidPrinter{src.SubFormat}.c_str());
+        FmtidPrinter{src.SubFormat}.c_str());
 
     dst = src;
     dst.Format.cbSize = sizeof(dst) - sizeof(dst.Format);

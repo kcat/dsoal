@@ -347,7 +347,7 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::SetFormat(const WAVEFORMATEX *wfx) noex
             wfe->Format.wFormatTag, wfe->Format.nChannels, wfe->Format.nSamplesPerSec,
             wfe->Format.nAvgBytesPerSec, wfe->Format.nBlockAlign, wfe->Format.wBitsPerSample,
             wfe->Samples.wValidBitsPerSample, wfe->dwChannelMask,
-            GuidPrinter{wfe->SubFormat}.c_str());
+            FmtidPrinter{wfe->SubFormat}.c_str());
     }
     else
     {
