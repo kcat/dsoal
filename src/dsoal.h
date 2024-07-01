@@ -168,21 +168,8 @@ inline float mB_to_gain(float millibels)
 }
 
 
-#ifndef AL_SOFT_map_buffer
-#define AL_SOFT_map_buffer 1
-typedef unsigned int ALbitfieldSOFT;
-#define AL_MAP_READ_BIT_SOFT                     0x00000001
-#define AL_MAP_WRITE_BIT_SOFT                    0x00000002
-#define AL_MAP_PERSISTENT_BIT_SOFT               0x00000004
-#define AL_PRESERVE_DATA_BIT_SOFT                0x00000008
-typedef void (AL_APIENTRY*LPALBUFFERSTORAGESOFT)(ALuint buffer, ALenum format, const ALvoid *data, ALsizei size, ALsizei freq, ALbitfieldSOFT flags);
-typedef void* (AL_APIENTRY*LPALMAPBUFFERSOFT)(ALuint buffer, ALsizei offset, ALsizei length, ALbitfieldSOFT access);
-typedef void (AL_APIENTRY*LPALUNMAPBUFFERSOFT)(ALuint buffer);
-typedef void (AL_APIENTRY*LPALFLUSHMAPPEDBUFFERSOFT)(ALuint buffer, ALsizei offset, ALsizei length);
-#endif
-
-typedef ALenum(AL_APIENTRY*LPEAXSET)(const GUID *property_set_id, ALuint property_id, ALuint property_source_id, ALvoid *property_buffer, ALuint property_size);
-typedef ALenum(AL_APIENTRY*LPEAXGET)(const GUID *property_set_id, ALuint property_id, ALuint property_source_id, ALvoid* property_buffer, ALuint property_size);
+using LPEAXSET = ALenum(AL_APIENTRY*)(const GUID *property_set_id, ALuint property_id, ALuint property_source_id, ALvoid *property_buffer, ALuint property_size);
+using LPEAXGET = ALenum(AL_APIENTRY*)(const GUID *property_set_id, ALuint property_id, ALuint property_source_id, ALvoid* property_buffer, ALuint property_size);
 
 inline LPALCCREATECONTEXT palcCreateContext{};
 inline LPALCMAKECONTEXTCURRENT palcMakeContextCurrent{};
@@ -286,10 +273,6 @@ inline PFNALCGETTHREADCONTEXTPROC palcGetThreadContext{};
 inline LPEAXSET pEAXSet{};
 inline LPEAXGET pEAXGet{};
 inline PFNALBUFFERDATASTATICPROC palBufferDataStatic{};
-inline LPALBUFFERSTORAGESOFT palBufferStorageSOFT{};
-inline LPALMAPBUFFERSOFT palMapBufferSOFT{};
-inline LPALUNMAPBUFFERSOFT palUnmapBufferSOFT{};
-inline LPALFLUSHMAPPEDBUFFERSOFT palFlushMappedBufferSOFT{};
 
 #ifndef IN_IDE_PARSER
 #define alcCreateContext palcCreateContext
@@ -392,9 +375,5 @@ inline LPALFLUSHMAPPEDBUFFERSOFT palFlushMappedBufferSOFT{};
 #define EAXSet pEAXSet
 #define EAXGet pEAXGet
 #define alBufferDataStatic palBufferDataStatic
-#define alBufferStorageSOFT palBufferStorageSOFT
-#define alMapBufferSOFT palMapBufferSOFT
-#define alUnmapBufferSOFT palUnmapBufferSOFT
-#define alFlushMappedBufferSOFT palFlushMappedBufferSOFT
 
 #endif // DSOAL_H

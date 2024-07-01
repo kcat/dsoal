@@ -190,10 +190,6 @@ bool load_openal()
     LOAD_FUNCPTR(EAXSet);
     LOAD_FUNCPTR(EAXGet);
     LOAD_FUNCPTR(alBufferDataStatic);
-    LOAD_FUNCPTR(alBufferStorageSOFT);
-    LOAD_FUNCPTR(alMapBufferSOFT);
-    LOAD_FUNCPTR(alUnmapBufferSOFT);
-    LOAD_FUNCPTR(alFlushMappedBufferSOFT);
 #undef LOAD_FUNCPTR
 
     return true;
@@ -372,7 +368,7 @@ DSOAL_EXPORT BOOL WINAPI DllMain(HINSTANCE hInstDLL, DWORD reason, void *reserve
     case DLL_PROCESS_ATTACH:
         if(const WCHAR *wstr{_wgetenv(L"DSOAL_LOGFILE")}; wstr && *wstr != 0)
         {
-            FILE *f = _wfopen(wstr, L"wt");
+            gsl::owner<FILE*> f{_wfopen(wstr, L"wt")};
             if(!f) ERR("Failed to open log file %ls\n", wstr);
             else gLogFile = f;
         }
