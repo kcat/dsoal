@@ -131,29 +131,45 @@ ALenum ConvertFormat(WAVEFORMATEXTENSIBLE &dst, const WAVEFORMATEXTENSIBLE &src,
         return AL_NONE;
     }
 
-    enum { Mono, Stereo } channelConfig{};
+    auto unsupported_format = [dst]
+    {
+        FIXME("ConvertFormat Unsupported channel configuration (%u channels, 0x%08lx)\n",
+              dst.Format.nChannels, dst.dwChannelMask);
+        return AL_NONE;
+    };
+    enum { Mono, Stereo, Quad, X51, X71 } channelConfig{};
     switch(dst.dwChannelMask)
     {
     case KSAUDIO_SPEAKER_MONO:
         if(dst.Format.nChannels == 1) channelConfig = Mono;
-        else goto unsupported;
+        else return unsupported_format();
         break;
     case KSAUDIO_SPEAKER_STEREO:
         if(dst.Format.nChannels == 2) channelConfig = Stereo;
-        else goto unsupported;
+        else return unsupported_format();
+        break;
+    case KSAUDIO_SPEAKER_QUAD:
+        if(dst.Format.nChannels == 4 && exts.test(EXT_MCFORMATS)) channelConfig = Quad;
+        else return unsupported_format();
+        break;
+    case KSAUDIO_SPEAKER_5POINT1_BACK:
+    case KSAUDIO_SPEAKER_5POINT1_SURROUND:
+        if(dst.Format.nChannels == 6 && exts.test(EXT_MCFORMATS)) channelConfig = X51;
+        else return unsupported_format();
+        break;
+    case KSAUDIO_SPEAKER_7POINT1_SURROUND:
+        if(dst.Format.nChannels == 8 && exts.test(EXT_MCFORMATS)) channelConfig = X71;
+        else return unsupported_format();
         break;
 
     case 0:
         if(dst.Format.nChannels == 1) channelConfig = Mono;
         else if(dst.Format.nChannels == 2) channelConfig = Stereo;
-        else goto unsupported;
+        else return unsupported_format();
         break;
 
-    unsupported:
     default:
-        FIXME("ConvertFormat Unsupported channel configuration (%u channels, 0x%08lx)\n",
-            dst.Format.nChannels, dst.dwChannelMask);
-        return AL_NONE;
+        return unsupported_format();
     }
 
     enum { UInt8, Int16, Float32 } sampleType{};
@@ -194,6 +210,9 @@ ALenum ConvertFormat(WAVEFORMATEXTENSIBLE &dst, const WAVEFORMATEXTENSIBLE &src,
         {
         case Mono: return AL_FORMAT_MONO8;
         case Stereo: return AL_FORMAT_STEREO8;
+        case Quad: return AL_FORMAT_QUAD8;
+        case X51: return AL_FORMAT_51CHN8;
+        case X71: return AL_FORMAT_71CHN8;
         }
         break;
     case Int16:
@@ -201,6 +220,9 @@ ALenum ConvertFormat(WAVEFORMATEXTENSIBLE &dst, const WAVEFORMATEXTENSIBLE &src,
         {
         case Mono: return AL_FORMAT_MONO16;
         case Stereo: return AL_FORMAT_STEREO16;
+        case Quad: return AL_FORMAT_QUAD16;
+        case X51: return AL_FORMAT_51CHN16;
+        case X71: return AL_FORMAT_71CHN16;
         }
         break;
     case Float32:
@@ -208,6 +230,9 @@ ALenum ConvertFormat(WAVEFORMATEXTENSIBLE &dst, const WAVEFORMATEXTENSIBLE &src,
         {
         case Mono: return AL_FORMAT_MONO_FLOAT32;
         case Stereo: return AL_FORMAT_STEREO_FLOAT32;
+        case Quad: return AL_FORMAT_QUAD32;
+        case X51: return AL_FORMAT_51CHN32;
+        case X71: return AL_FORMAT_71CHN32;
         }
         break;
     }

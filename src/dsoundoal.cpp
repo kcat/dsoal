@@ -188,6 +188,7 @@ ds::expected<std::unique_ptr<SharedDevice>,HRESULT> CreateDeviceShare(const GUID
     const std::array sExtensionList{
         ExtensionEntry{"EAX5.0", EXT_EAX},
         ExtensionEntry{"AL_EXT_FLOAT32", EXT_FLOAT32},
+        ExtensionEntry{"AL_EXT_MCFORMATS", EXT_MCFORMATS},
         ExtensionEntry{"AL_EXT_STATIC_BUFFER", EXT_STATIC_BUFFER}
     };
 
