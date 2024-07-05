@@ -310,4 +310,23 @@ public:
     }
 };
 
+/* Secondary buffers are preallocated in groups of 64. This allows them to be
+ * constructed and destructed in place without having to continually allocate
+ * and deallocate them individually.
+ */
+struct BufferSubList {
+    uint64_t mFreeMask{~0_u64};
+    gsl::owner<std::array<Buffer,64>*> mBuffers{nullptr};
+
+    BufferSubList() noexcept = default;
+    BufferSubList(const BufferSubList&) = delete;
+    BufferSubList(BufferSubList&& rhs) noexcept : mFreeMask{rhs.mFreeMask}, mBuffers{rhs.mBuffers}
+    { rhs.mFreeMask = ~0_u64; rhs.mBuffers = nullptr; }
+    ~BufferSubList();
+
+    BufferSubList& operator=(const BufferSubList&) = delete;
+    BufferSubList& operator=(BufferSubList&& rhs) noexcept
+    { std::swap(mFreeMask, rhs.mFreeMask); std::swap(mBuffers, rhs.mBuffers); return *this; }
+};
+
 #endif // BUFFER_H
