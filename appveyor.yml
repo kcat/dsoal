@@ -1,11 +1,11 @@
 environment:
     matrix:
-      - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2017
-        GEN: "Visual Studio 15 2017"
+      - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2022
+        GEN: "Visual Studio 17 2022"
         ARCH: Win32
         CFG: Release
-      - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2017
-        GEN: "Visual Studio 15 2017"
+      - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2022
+        GEN: "Visual Studio 17 2022"
         ARCH: x64
         CFG: Release
 
