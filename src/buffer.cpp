@@ -551,6 +551,12 @@ HRESULT Buffer::setLocation(LocStatus locStatus) noexcept
         alSource3f(mSource, AL_POSITION, x, 0.0f, -std::sqrt(1.0f - x*x));
         alSourcef(mSource, AL_ROLLOFF_FACTOR, 0.0f);
         alSourcei(mSource, AL_SOURCE_RELATIVE, AL_TRUE);
+        if(mParent.haveExtension(EXT_EAX))
+        {
+            static std::array<GUID,EAX40_MAX_ACTIVE_FXSLOTS> NullSlots{};
+            EAXSet(&EAXPROPERTYID_EAX40_Source, EAXSOURCE_ACTIVEFXSLOTID, mSource,
+                NullSlots.data(), NullSlots.size()*sizeof(GUID));
+        }
     }
     alGetError();
 
