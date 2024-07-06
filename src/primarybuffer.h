@@ -13,7 +13,6 @@
 #include "AL/alc.h"
 
 
-class Buffer;
 class DSound8OAL;
 
 class PrimaryBuffer final : IDirectSoundBuffer {
@@ -84,7 +83,7 @@ class PrimaryBuffer final : IDirectSoundBuffer {
     };
     std::bitset<FlagCount> mDirty;
 
-    ComPtr<Buffer> mWriteEmu;
+    ComPtr<IDirectSoundBuffer> mWriteEmu;
     WAVEFORMATEXTENSIBLE mFormat{};
     bool mPlaying{false};
 
@@ -131,10 +130,10 @@ public:
     { mContext = context; }
 
     [[nodiscard]]
-    auto getWriteEmuRef() noexcept -> ComPtr<Buffer>& { return mWriteEmu; }
+    auto getWriteEmuRef() noexcept -> ComPtr<IDirectSoundBuffer>& { return mWriteEmu; }
 
     [[nodiscard]]
-    auto getWriteEmu() const noexcept -> Buffer* { return mWriteEmu.get(); }
+    auto getWriteEmu() const noexcept -> IDirectSoundBuffer* { return mWriteEmu.get(); }
 
     [[nodiscard]]
     auto getFlags() const noexcept -> DWORD { return mFlags; }
