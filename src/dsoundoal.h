@@ -128,6 +128,10 @@ class DSound8OAL final : IDirectSound8 {
         ULONG STDMETHODCALLTYPE AddRef() noexcept override;
         ULONG STDMETHODCALLTYPE Release() noexcept override;
 
+        Unknown() = default;
+        Unknown(const Unknown&) = delete;
+        Unknown& operator=(const Unknown&) = delete;
+
         template<typename T>
         T as() noexcept { return static_cast<T>(this); }
     };

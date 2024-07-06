@@ -1199,7 +1199,8 @@ HRESULT STDMETHODCALLTYPE Buffer::Restore() noexcept
     DEBUG("Buffer::Restore (%p)->()\n", voidp{this});
 
     std::unique_lock lock{mMutex};
-    if(mParent.getPriorityLevel() == DSSCL_WRITEPRIMARY)
+    if(mParent.getPriorityLevel() == DSSCL_WRITEPRIMARY
+        && this != mParent.getPrimary().getWriteEmu())
         return DSERR_BUFFERLOST;
 
     mBufferLost = false;

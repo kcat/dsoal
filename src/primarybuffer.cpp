@@ -17,11 +17,37 @@ constexpr size_t PrimaryBufSize{32768};
 
 } // namespace
 
-PrimaryBuffer::PrimaryBuffer(DSound8OAL &parent) : mParent{parent}, mMutex{parent.getMutex()} { }
+PrimaryBuffer::PrimaryBuffer(DSound8OAL &parent) : mParent{parent}, mMutex{parent.getMutex()}
+{
+    /* Make sure the format is valid, store 16-bit stereo 44.1khz by default. */
+    mFormat.Format.wFormatTag = WAVE_FORMAT_PCM;
+    mFormat.Format.nChannels = 2;
+    mFormat.Format.nSamplesPerSec = 44100;
+    mFormat.Format.nAvgBytesPerSec = 44100 * 4;
+    mFormat.Format.nBlockAlign = 4;
+    mFormat.Format.wBitsPerSample = 16;
+    mFormat.Format.cbSize = 0;
+}
 
 PrimaryBuffer::~PrimaryBuffer() = default;
 
 #define PREFIX "Primary::"
+auto PrimaryBuffer::createWriteEmu(DWORD flags) noexcept -> HRESULT
+{
+    auto emudesc = DSBUFFERDESC{};
+    emudesc.dwSize = sizeof(emudesc);
+    emudesc.dwFlags = DSBCAPS_LOCHARDWARE | (flags&DSBCAPS_CTRLPAN);
+    emudesc.dwBufferBytes = PrimaryBufSize - (PrimaryBufSize%mFormat.Format.nBlockAlign);
+    emudesc.lpwfxFormat = &mFormat.Format;
+
+    mWriteEmu = ComPtr{new(std::nothrow) Buffer{mParent, false, nullptr}};
+    if(!mWriteEmu) return DSERR_OUTOFMEMORY;
+
+    auto hr = HRESULT{mWriteEmu->Initialize(mParent.as<IDirectSound*>(), &emudesc)};
+    if(FAILED(hr)) mWriteEmu = nullptr;
+    return hr;
+}
+
 HRESULT STDMETHODCALLTYPE PrimaryBuffer::QueryInterface(REFIID riid, void** ppvObject) noexcept
 {
     DEBUG(PREFIX "QueryInterface (%p)->(%s, %p)\n", voidp{this}, IidPrinter{riid}.c_str(),
@@ -111,6 +137,10 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::GetCurrentPosition(DWORD *playCursor, D
 {
     DEBUG(PREFIX "GetCurrentPosition (%p)->(%p, %p)\n", voidp{this}, voidp{playCursor},
         voidp{writeCursor});
+
+    std::lock_guard lock{mMutex};
+    if(mWriteEmu)
+        return mWriteEmu->GetCurrentPosition(playCursor, writeCursor);
     return DSERR_PRIOLEVELNEEDED;
 }
 
@@ -253,6 +283,13 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::Initialize(IDirectSound *directSound, c
     if(mFlags != 0)
         return DSERR_ALREADYINITIALIZED;
 
+    if(mParent.getPriorityLevel() == DSSCL_WRITEPRIMARY)
+    {
+        mWriteEmu = nullptr;
+        if(auto hr = createWriteEmu(dsBufferDesc->dwFlags); FAILED(hr))
+            return hr;
+    }
+
     mFlags = dsBufferDesc->dwFlags | DSBCAPS_LOCHARDWARE;
 
     mImmediate.dwSize = sizeof(mImmediate);
@@ -284,6 +321,10 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::Lock(DWORD offset, DWORD bytes, void **
 {
     DEBUG(PREFIX "Lock (%p)->(%lu, %lu, %p, %p, %p, %p, %lu)\n", voidp{this}, offset, bytes,
         voidp{audioPtr1}, voidp{audioBytes1}, voidp{audioPtr2}, voidp{audioBytes2}, flags);
+
+    std::lock_guard lock{mMutex};
+    if(mWriteEmu)
+        return mWriteEmu->Lock(offset, bytes, audioPtr1, audioBytes1, audioPtr2, audioBytes2, flags);
     return DSERR_PRIOLEVELNEEDED;
 }
 
@@ -297,9 +338,15 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::Play(DWORD reserved1, DWORD reserved2, 
         return DSERR_INVALIDPARAM;
     }
 
-    mPlaying = true;
+    std::lock_guard lock{mMutex};
+    auto hr = HRESULT{S_OK};
+    if(mWriteEmu)
+        hr = mWriteEmu->Play(reserved1, reserved2, flags);
 
-    return DS_OK;
+    if(SUCCEEDED(hr))
+        mPlaying = true;
+
+    return hr;
 }
 
 HRESULT STDMETHODCALLTYPE PrimaryBuffer::SetCurrentPosition(DWORD newPosition) noexcept
@@ -458,7 +505,13 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::SetFormat(const WAVEFORMATEX *wfx) noex
         return DS_OK;
     };
 
-    return copy_format(mFormat);
+    auto hr = HRESULT{copy_format(mFormat)};
+    if(SUCCEEDED(hr) && mWriteEmu)
+    {
+        mWriteEmu = nullptr;
+        hr = createWriteEmu(mFlags);
+    }
+    return hr;
 }
 
 HRESULT STDMETHODCALLTYPE PrimaryBuffer::SetVolume(LONG volume) noexcept
@@ -496,9 +549,13 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::SetPan(LONG pan) noexcept
     if(!(mFlags&DSBCAPS_CTRLPAN))
         return DSERR_CONTROLUNAVAIL;
 
-    mPan = pan;
+    auto hr = HRESULT{S_OK};
+    if(mWriteEmu)
+        hr = mWriteEmu->SetPan(pan);
+    if(SUCCEEDED(hr))
+        mPan = pan;
 
-    return DS_OK;
+    return hr;
 }
 
 HRESULT STDMETHODCALLTYPE PrimaryBuffer::SetFrequency(DWORD frequency) noexcept
@@ -512,21 +569,33 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::Stop() noexcept
     DEBUG("PrimaryBuffer::Stop (%p)->()\n", voidp{this});
 
     std::lock_guard lock{mMutex};
-    mPlaying = false;
+    auto hr = HRESULT{S_OK};
+    if(mWriteEmu)
+        hr = mWriteEmu->Stop();
+    if(SUCCEEDED(hr))
+        mPlaying = false;
 
-    return DS_OK;
+    return hr;
 }
 
 HRESULT STDMETHODCALLTYPE PrimaryBuffer::Unlock(void *audioPtr1, DWORD audioBytes1, void *audioPtr2, DWORD audioBytes2) noexcept
 {
     FIXME(PREFIX "Unlock (%p)->(%p, %lu, %p, %lu)\n", voidp{this}, audioPtr1, audioBytes1,
         audioPtr2, audioBytes2);
+
+    std::lock_guard lock{mMutex};
+    if(mWriteEmu)
+        return mWriteEmu->Unlock(audioPtr1, audioBytes1, audioPtr2, audioBytes2);
     return DSERR_INVALIDCALL;
 }
 
 HRESULT STDMETHODCALLTYPE PrimaryBuffer::Restore() noexcept
 {
     FIXME(PREFIX "Restore (%p)->()\n", voidp{this});
+
+    std::lock_guard lock{mMutex};
+    if(mWriteEmu)
+        return mWriteEmu->Restore();
     return DS_OK;
 }
 

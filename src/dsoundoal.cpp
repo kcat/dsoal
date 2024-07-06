@@ -693,15 +693,43 @@ HRESULT STDMETHODCALLTYPE DSound8OAL::SetCooperativeLevel(HWND hwnd, DWORD level
         return DSERR_INVALIDPARAM;
     }
 
-    if(level == DSSCL_WRITEPRIMARY)
+    auto hr = HRESULT{S_OK};
+    if(level == DSSCL_WRITEPRIMARY && mPrioLevel != DSSCL_WRITEPRIMARY)
     {
-        FIXME(PREFIX "DSSCL_WRITEPRIMARY not currently supported\n");
-        return DSERR_INVALIDPARAM;
+        mPrimaryBuffer.getWriteEmuRef() = nullptr;
+
+        for(auto &group : mSecondaryBuffers)
+        {
+            auto usemask = ~group.mFreeMask;
+            while(usemask)
+            {
+                auto idx = static_cast<unsigned int>(ds::countr_zero(usemask));
+                usemask &= ~(1_u64 << idx);
+
+                auto state = DWORD{};
+                auto &buffer = (*group.mBuffers)[idx];
+                hr = buffer.GetStatus(&state);
+                if(FAILED(hr) || (state&DSBSTATUS_PLAYING))
+                {
+                    WARN(PREFIX "DSSCL_WRITEPRIMARY set with playing buffers!\n");
+                    return DSERR_INVALIDCALL;
+                }
+                buffer.setLost();
+            }
+        }
+
+        if(const DWORD flags{mPrimaryBuffer.getFlags()})
+            hr = mPrimaryBuffer.createWriteEmu(flags);
     }
+    else if(level < DSSCL_WRITEPRIMARY && mPrioLevel == DSSCL_WRITEPRIMARY)
+    {
+        TRACE(PREFIX "Nuking mWriteEmu\n");
+        mPrimaryBuffer.getWriteEmuRef() = nullptr;
+    }
+    if(SUCCEEDED(hr))
+        mPrioLevel = level;
 
-    mPrioLevel = level;
-
-    return DS_OK;
+    return hr;
 }
 #undef PREFIX
 

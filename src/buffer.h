@@ -288,6 +288,8 @@ public:
     [[nodiscard]]
     bool updateNotify() noexcept;
 
+    void setLost() noexcept { mBufferLost = true; }
+
     [[nodiscard]]
     ALuint getSource() const noexcept { return mSource; }
 
