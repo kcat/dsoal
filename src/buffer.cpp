@@ -426,23 +426,12 @@ bool Buffer::updateNotify() noexcept
     alGetSourcei(mSource, AL_BYTE_OFFSET, &ioffset);
     alGetSourcei(mSource, AL_SOURCE_STATE, &state);
 
-    if(state == AL_STOPPED)
-    {
-        /* If the source is AL_STOPPED, it reached the end naturally, so all
-         * notifies since the last position have been hit, along with
-         * DSBPN_OFFSETSTOP (-1 or max unsigned value).
-         */
-        for(auto &notify : mNotifies)
-        {
-            if(notify.dwOffset >= mLastPos)
-                SetEvent(notify.hEventNotify);
-        }
-        mLastPos = mBuffer->mData.size();
-        return false;
-    }
-
-    const DWORD offset{static_cast<DWORD>(ioffset)};
-    if(offset == mLastPos) return true;
+    /* If the source is AL_STOPPED, it reached the end naturally, so all
+     * notifies since the last position have been hit, along with
+     * DSBPN_OFFSETSTOP (-1 or max unsigned value).
+     */
+    const auto offset = (state == AL_STOPPED) ? static_cast<DWORD>(mBuffer->mData.size())
+        : static_cast<DWORD>(ioffset);
 
     if(offset > mLastPos)
     {
@@ -452,7 +441,7 @@ bool Buffer::updateNotify() noexcept
                 SetEvent(notify.hEventNotify);
         }
     }
-    else
+    else if(offset < mLastPos)
     {
         for(auto &notify : mNotifies)
         {
@@ -462,6 +451,16 @@ bool Buffer::updateNotify() noexcept
         }
     }
     mLastPos = offset;
+
+    if(state != AL_PLAYING)
+    {
+        for(auto &notify : mNotifies)
+        {
+            if(notify.dwOffset == static_cast<DWORD>(DSBPN_OFFSETSTOP))
+                SetEvent(notify.hEventNotify);
+        }
+        return false;
+    }
 
     return true;
 }
