@@ -65,7 +65,7 @@ class PrimaryBuffer final : IDirectSoundBuffer {
     DSound8OAL &mParent;
     ALCcontext *mContext{};
 
-    std::mutex &mMutex;
+    std::recursive_mutex &mMutex;
     LONG mVolume{};
     LONG mPan{};
 

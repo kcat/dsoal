@@ -200,7 +200,7 @@ class Buffer final : IDirectSoundBuffer8 {
     DSound8OAL &mParent;
     ALCcontext *mContext{};
 
-    std::mutex &mMutex;
+    std::recursive_mutex &mMutex;
     ComPtr<SharedBuffer> mBuffer;
     ALuint mSource{};
     DWORD mLastPos{0};

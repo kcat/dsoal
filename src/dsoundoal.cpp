@@ -693,6 +693,7 @@ HRESULT STDMETHODCALLTYPE DSound8OAL::SetCooperativeLevel(HWND hwnd, DWORD level
         return DSERR_INVALIDPARAM;
     }
 
+    std::lock_guard lock{mDsMutex};
     auto hr = HRESULT{S_OK};
     if(level == DSSCL_WRITEPRIMARY && mPrioLevel != DSSCL_WRITEPRIMARY)
     {

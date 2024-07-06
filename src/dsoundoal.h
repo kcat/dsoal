@@ -15,7 +15,6 @@
 
 #include "AL/alc.h"
 #include "comptr.h"
-#include "dsoal.h"
 #include "expected.h"
 #include "primarybuffer.h"
 
@@ -139,7 +138,7 @@ class DSound8OAL final : IDirectSound8 {
 
     std::atomic<ULONG> mTotalRef{1u}, mDsRef{1u}, mUnkRef{0u};
 
-    std::mutex mDsMutex;
+    std::recursive_mutex mDsMutex;
     DWORD mPrioLevel{};
 
     ComPtr<SharedDevice> mShared;
@@ -152,7 +151,7 @@ class DSound8OAL final : IDirectSound8 {
     std::vector<Buffer*> m3dBuffers;
     std::vector<Buffer*> mNotifyBuffers;
 
-    std::condition_variable mNotifyCond;
+    std::condition_variable_any mNotifyCond;
     std::thread mNotifyThread;
 
     std::atomic<bool> mQuitNotify{false};
@@ -210,7 +209,7 @@ public:
     std::vector<BufferSubList> &getSecondaryBuffers() noexcept { return mSecondaryBuffers; }
 
     [[nodiscard]]
-    std::mutex &getMutex() noexcept { return mDsMutex; }
+    auto getMutex() noexcept -> std::recursive_mutex& { return mDsMutex; }
 
     [[nodiscard]]
     bool haveExtension(Extensions flag) const noexcept { return mExtensions.test(flag); }
