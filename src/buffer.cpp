@@ -149,16 +149,16 @@ ALenum ConvertFormat(WAVEFORMATEXTENSIBLE &dst, const WAVEFORMATEXTENSIBLE &src,
         else return unsupported_format();
         break;
     case KSAUDIO_SPEAKER_QUAD:
-        if(dst.Format.nChannels == 4 && exts.test(EXT_MCFORMATS)) channelConfig = Quad;
+        if(dst.Format.nChannels == 4) channelConfig = Quad;
         else return unsupported_format();
         break;
     case KSAUDIO_SPEAKER_5POINT1_BACK:
     case KSAUDIO_SPEAKER_5POINT1_SURROUND:
-        if(dst.Format.nChannels == 6 && exts.test(EXT_MCFORMATS)) channelConfig = X51;
+        if(dst.Format.nChannels == 6) channelConfig = X51;
         else return unsupported_format();
         break;
     case KSAUDIO_SPEAKER_7POINT1_SURROUND:
-        if(dst.Format.nChannels == 8 && exts.test(EXT_MCFORMATS)) channelConfig = X71;
+        if(dst.Format.nChannels == 8) channelConfig = X71;
         else return unsupported_format();
         break;
 
@@ -187,7 +187,7 @@ ALenum ConvertFormat(WAVEFORMATEXTENSIBLE &dst, const WAVEFORMATEXTENSIBLE &src,
     }
     else if(dst.SubFormat == KSDATAFORMAT_SUBTYPE_IEEE_FLOAT)
     {
-        if(dst.Format.wBitsPerSample == 32 && exts.test(EXT_FLOAT32))
+        if(dst.Format.wBitsPerSample == 32)
             sampleType = Float32;
         else
         {
@@ -199,7 +199,7 @@ ALenum ConvertFormat(WAVEFORMATEXTENSIBLE &dst, const WAVEFORMATEXTENSIBLE &src,
     else
     {
         FIXME("ConvertFormat Unsupported sample subformat %s\n",
-            GuidPrinter{dst.SubFormat}.c_str());
+            FmtidPrinter{dst.SubFormat}.c_str());
         return AL_NONE;
     }
 
@@ -210,9 +210,9 @@ ALenum ConvertFormat(WAVEFORMATEXTENSIBLE &dst, const WAVEFORMATEXTENSIBLE &src,
         {
         case Mono: return AL_FORMAT_MONO8;
         case Stereo: return AL_FORMAT_STEREO8;
-        case Quad: return AL_FORMAT_QUAD8;
-        case X51: return AL_FORMAT_51CHN8;
-        case X71: return AL_FORMAT_71CHN8;
+        case Quad: if(exts.test(EXT_MCFORMATS)) return AL_FORMAT_QUAD8; break;
+        case X51: if(exts.test(EXT_MCFORMATS)) return AL_FORMAT_51CHN8; break;
+        case X71: if(exts.test(EXT_MCFORMATS)) return AL_FORMAT_71CHN8; break;
         }
         break;
     case Int16:
@@ -220,25 +220,28 @@ ALenum ConvertFormat(WAVEFORMATEXTENSIBLE &dst, const WAVEFORMATEXTENSIBLE &src,
         {
         case Mono: return AL_FORMAT_MONO16;
         case Stereo: return AL_FORMAT_STEREO16;
-        case Quad: return AL_FORMAT_QUAD16;
-        case X51: return AL_FORMAT_51CHN16;
-        case X71: return AL_FORMAT_71CHN16;
+        case Quad: if(exts.test(EXT_MCFORMATS)) return AL_FORMAT_QUAD16; break;
+        case X51: if(exts.test(EXT_MCFORMATS)) return AL_FORMAT_51CHN16; break;
+        case X71: if(exts.test(EXT_MCFORMATS)) return AL_FORMAT_71CHN16; break;
         }
         break;
     case Float32:
-        switch(channelConfig)
+        if(exts.test(EXT_FLOAT32))
         {
-        case Mono: return AL_FORMAT_MONO_FLOAT32;
-        case Stereo: return AL_FORMAT_STEREO_FLOAT32;
-        case Quad: return AL_FORMAT_QUAD32;
-        case X51: return AL_FORMAT_51CHN32;
-        case X71: return AL_FORMAT_71CHN32;
+            switch(channelConfig)
+            {
+            case Mono: return AL_FORMAT_MONO_FLOAT32;
+            case Stereo: return AL_FORMAT_STEREO_FLOAT32;
+            case Quad: if(exts.test(EXT_MCFORMATS)) return AL_FORMAT_QUAD32; break;
+            case X51: if(exts.test(EXT_MCFORMATS)) return AL_FORMAT_51CHN32; break;
+            case X71: if(exts.test(EXT_MCFORMATS)) return AL_FORMAT_71CHN32; break;
+            }
         }
         break;
     }
 
     FIXME("ConvertFormat Could not get OpenAL format (%d-bit, %d channels, %s)\n",
-        dst.Format.wBitsPerSample, dst.Format.nChannels, GuidPrinter{dst.SubFormat}.c_str());
+        dst.Format.wBitsPerSample, dst.Format.nChannels, FmtidPrinter{dst.SubFormat}.c_str());
     return AL_NONE;
 }
 
