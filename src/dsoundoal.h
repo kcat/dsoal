@@ -7,6 +7,7 @@
 #include <bitset>
 #include <condition_variable>
 #include <mutex>
+#include <span>
 #include <thread>
 #include <type_traits>
 #include <vector>
@@ -227,7 +228,7 @@ public:
     PrimaryBuffer &getPrimary() noexcept { return mPrimaryBuffer; }
 
     [[nodiscard]]
-    std::vector<Buffer*> &get3dBuffers() noexcept { return m3dBuffers; }
+    auto get3dBuffers() noexcept -> std::span<Buffer*> { return m3dBuffers; }
 
     template<typename T> [[nodiscard]]
     T as() noexcept
