@@ -10,7 +10,7 @@ on:
 
 env:
   Configuration: Release
-  DSOALRepo: kcat/dsoal
+  DSOALRepo: ${{github.repository}}
   DSOALBranch: ${{github.ref_name}}
   OpenALSoftRepo: kcat/openal-soft
   OpenALSoftBranch: master
