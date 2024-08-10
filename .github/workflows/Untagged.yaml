@@ -3,7 +3,7 @@ name: Untagged build
 on:
   push:
     branches:
-      - 'master'
+      - '*'
     tags-ignore:
       - '*.*.*'
     paths-ignore:
@@ -15,7 +15,9 @@ on:
 env:
   Configuration: Release
   DSOALRepo: kcat/dsoal
+  DSOALBranch: ${{github.ref_name}}
   OpenALSoftRepo: kcat/openal-soft
+  OpenALSoftBranch: master
 
 permissions:
   contents: write
@@ -39,13 +41,11 @@ jobs:
     
     - name: Clone DSOAL
       run: |
-        git clone https://github.com/${{env.DSOALRepo}}.git .
-        echo "DSOALBranch=$(git rev-parse --abbrev-ref HEAD)" >> $env:GITHUB_ENV
+        git clone --branch ${{env.DSOALBranch}} https://github.com/${{env.DSOALRepo}}.git .
 
     - name: Clone OpenAL Soft
       run: |
-        git clone https://github.com/${{env.OpenALSoftRepo}}.git
-        echo "OpenALSoftBranch=$(git rev-parse --abbrev-ref HEAD)" >> $env:GITHUB_ENV
+        git clone --branch ${{env.OpenALSoftBranch}} https://github.com/${{env.OpenALSoftRepo}}.git
 
     - name: Get version details
       run: |

@@ -11,7 +11,9 @@ on:
 env:
   Configuration: Release
   DSOALRepo: kcat/dsoal
+  DSOALBranch: ${{github.ref_name}}
   OpenALSoftRepo: kcat/openal-soft
+  OpenALSoftBranch: master
 
 permissions:
   contents: write
@@ -35,18 +37,16 @@ jobs:
     
     - name: Clone DSOAL
       run: |
-        git clone https://github.com/${{env.DSOALRepo}}.git .
+        git clone --branch ${{env.DSOALBranch}} https://github.com/${{env.DSOALRepo}}.git .
         git fetch --tags
         echo "DSOALCommitTag=$(git describe --tags)" >> $env:GITHUB_ENV
-        echo "DSOALBranch=$(git rev-parse --abbrev-ref HEAD)" >> $env:GITHUB_ENV
 
     - name: Clone OpenAL Soft
       run: |
-        git clone https://github.com/${{env.OpenALSoftRepo}}.git
+        git clone --branch ${{env.OpenALSoftBranch}} https://github.com/${{env.OpenALSoftRepo}}.git
         cd "openal-soft"
         git fetch --tags
         echo "OpenALSoftCommitTag=$(git describe --tags --abbrev=0 --match *.*.*)" >> $env:GITHUB_ENV
-        echo "OpenALSoftBranch=$(git rev-parse --abbrev-ref HEAD)" >> $env:GITHUB_ENV
         cd "${{github.workspace}}"
         
     - name: Clone OpenAL Soft v${{env.OpenALSoftCommitTag}}
