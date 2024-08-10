@@ -15,9 +15,6 @@ env:
   OpenALSoftRepo: kcat/openal-soft
   OpenALSoftBranch: master
 
-permissions:
-  contents: write
-
 jobs:
   Build:
     name: ${{matrix.config.name}}
