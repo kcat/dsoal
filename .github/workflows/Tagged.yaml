@@ -6,14 +6,15 @@ on:
       - '*.*.*'
     paths-ignore:
       - '.github/workflows/Untagged.yaml'
+  workflow_dispatch:
 
 env:
   Configuration: Release
+  DSOALRepo: kcat/dsoal
+  OpenALSoftRepo: kcat/openal-soft
 
 permissions:
-  id-token: "write"
-  contents: "write"
-  packages: "write"
+  contents: write
 
 jobs:
   Build:
@@ -32,100 +33,125 @@ jobs:
           }
     steps:
     
-    - name: Checkout repository
-      uses: actions/checkout@v3.0.0
-
-    - name: Clone latest OpenAL Soft commit
+    - name: Clone DSOAL
       run: |
-        "DSOALCommitTag=$(git describe --tags)" >> $env:GITHUB_ENV
-        git clone https://github.com/kcat/openal-soft.git
+        git clone https://github.com/${{env.DSOALRepo}}.git .
+        git fetch --tags
+        echo "DSOALCommitTag=$(git describe --tags)" >> $env:GITHUB_ENV
+        echo "DSOALBranch=$(git rev-parse --abbrev-ref HEAD)" >> $env:GITHUB_ENV
+
+    - name: Clone OpenAL Soft
+      run: |
+        git clone https://github.com/${{env.OpenALSoftRepo}}.git
         cd "openal-soft"
-        "OpenALSoftCommitTag=$(git describe --tags --abbrev=0 --match *.*.*)" >> $env:GITHUB_ENV
+        git fetch --tags
+        echo "OpenALSoftCommitTag=$(git describe --tags --abbrev=0 --match *.*.*)" >> $env:GITHUB_ENV
+        echo "OpenALSoftBranch=$(git rev-parse --abbrev-ref HEAD)" >> $env:GITHUB_ENV
         cd "${{github.workspace}}"
         
-    - name: Clone latest OpenAL Soft tag
+    - name: Clone OpenAL Soft v${{env.OpenALSoftCommitTag}}
       run: |
         rm openal-soft -r -force
-        git clone --depth 1 --branch ${{env.OpenALSoftCommitTag}} https://github.com/kcat/openal-soft.git
+        git clone --branch ${{env.OpenALSoftCommitTag}} https://github.com/${{env.OpenALSoftRepo}}.git
 
-    - name: ${{matrix.config.name}} - Build DSOAL
+    - name: Get version details
+      run: |
+        echo "DSOALCommitHashShort=$(git rev-parse --short=7 HEAD)" >> $env:GITHUB_ENV
+        echo "DSOALCommitDate=$(git show -s --date=iso-local --format=%cd)" >> $env:GITHUB_ENV
+        echo "DSOALCommitCount=$(git rev-list --count HEAD)" >> $env:GITHUB_ENV
+        cd "openal-soft"
+        echo "OpenALSoftCommitHashShort=$(git rev-parse --short=7 HEAD)" >> $env:GITHUB_ENV
+        echo "OpenALSoftCommitDate=$(git show -s --date=iso-local --format=%cd)" >> $env:GITHUB_ENV
+        echo "OpenALSoftCommitCount=$(git rev-list --count HEAD)" >> $env:GITHUB_ENV
+        cd "${{github.workspace}}"
+
+    - name: Build DSOAL
       run: |
         cmake -B "${{github.workspace}}/build" -A ${{matrix.config.platform}}
         cmake --build "${{github.workspace}}/build" --config ${{env.Configuration}}
 
-    - name: ${{matrix.config.name}} - Build OpenAL Soft
+    - name: Build OpenAL Soft
       run: |
         cmake -B "${{github.workspace}}/openal-soft/build" -DCMAKE_Configuration=${{env.Configuration}} -A ${{matrix.config.platform}} -DALSOFT_BUILD_ROUTER=ON -DALSOFT_REQUIRE_WINMM=ON -DALSOFT_REQUIRE_DSOUND=ON -DALSOFT_REQUIRE_WASAPI=ON "${{github.workspace}}/openal-soft"
         cmake --build "${{github.workspace}}/openal-soft/build" --config ${{env.Configuration}}
 
-    - name: ${{matrix.config.name}} - Collect binaries
+    - name: Collect binaries
       run: |
         mkdir "DSOAL"
         mkdir "DSOAL/Documentation"
-        move "${{github.workspace}}/build/${{env.Configuration}}/dsound.dll"                "DSOAL/dsound.dll"
-        move "${{github.workspace}}/openal-soft/build/${{env.Configuration}}/soft_oal.dll"  "DSOAL/dsoal-aldrv.dll"
-        copy "${{github.workspace}}/openal-soft/alsoftrc.sample"                            "DSOAL/alsoft.ini"
-        copy "${{github.workspace}}/README.md"                                              "DSOAL/Documentation/DSOAL-ReadMe.txt"
-        copy "${{github.workspace}}/LICENSE"                                                "DSOAL/Documentation/DSOAL-License.txt"
-        copy "${{github.workspace}}/openal-soft/README.md"                                  "DSOAL/Documentation/OpenALSoft-ReadMe.txt"
-        copy "${{github.workspace}}/openal-soft/COPYING"                                    "DSOAL/Documentation/OpenALSoft-License.txt"
-        copy "${{github.workspace}}/openal-soft/BSD-3Clause"                                "DSOAL/Documentation/OpenALSoft-BSD-3Clause.txt"
-        copy "${{github.workspace}}/openal-soft/ChangeLog"                                  "DSOAL/Documentation/OpenALSoft-ChangeLog.txt"
+        move "${{github.workspace}}/build/${{env.Configuration}}/dsound.dll"                                   "DSOAL/dsound.dll"
+        move "${{github.workspace}}/openal-soft/build/${{env.Configuration}}/soft_oal.dll"                     "DSOAL/dsoal-aldrv.dll"
+        copy "${{github.workspace}}/openal-soft/alsoftrc.sample"                                               "DSOAL/alsoft.ini"
+        copy "${{github.workspace}}/README.md"                                                                 "DSOAL/Documentation/DSOAL-ReadMe.txt"
+        copy "${{github.workspace}}/LICENSE"                                                                   "DSOAL/Documentation/DSOAL-License.txt"
+        echo "${{env.DSOALRepo}}" >>                                                                           "DSOAL/Documentation/DSOAL-Version.txt"
+        echo "v${{env.DSOALCommitTag}}-${{env.DSOALCommitHashShort}} ${{env.DSOALBranch}}" >>                  "DSOAL/Documentation/DSOAL-Version.txt"
+        echo "Commit #${{env.DSOALCommitCount}}" >>                                                            "DSOAL/Documentation/DSOAL-Version.txt"
+        echo "${{env.DSOALCommitDate}}" >>                                                                     "DSOAL/Documentation/DSOAL-Version.txt"
+        copy "${{github.workspace}}/openal-soft/README.md"                                                     "DSOAL/Documentation/OpenALSoft-ReadMe.txt"
+        copy "${{github.workspace}}/openal-soft/COPYING"                                                       "DSOAL/Documentation/OpenALSoft-License.txt"
+        copy "${{github.workspace}}/openal-soft/BSD-3Clause"                                                   "DSOAL/Documentation/OpenALSoft-BSD-3Clause.txt"
+        copy "${{github.workspace}}/openal-soft/ChangeLog"                                                     "DSOAL/Documentation/OpenALSoft-ChangeLog.txt"
+        echo "${{env.OpenALSoftRepo}}" >>                                                                      "DSOAL/Documentation/OpenALSoft-Version.txt"
+        echo "v${{env.OpenALSoftCommitTag}}-${{env.OpenALSoftCommitHashShort}} ${{env.OpenALSoftBranch}}" >>   "DSOAL/Documentation/OpenALSoft-Version.txt"
+        echo "Commit #${{env.OpenALSoftCommitCount}}" >>                                                       "DSOAL/Documentation/OpenALSoft-Version.txt"
+        echo "${{env.OpenALSoftCommitDate}}" >>                                                                "DSOAL/Documentation/OpenALSoft-Version.txt"
 
-    - name: ${{matrix.config.name}} - Upload artifact to GitHub actions
-      uses: actions/upload-artifact@v3
+    - name: Upload artifact to GitHub actions
+      uses: actions/upload-artifact@v4
       with:
-        name: DSOAL_${{env.DSOALCommitTag}}+OpenALSoft_${{env.OpenALSoftCommitTag}}-${{matrix.config.name}}
+        name: DSOAL_v${{env.DSOALCommitTag}}+OpenALSoft_v${{env.OpenALSoftCommitTag}}-${{matrix.config.name}}
         path: DSOAL/
 
     outputs:
+      DSOALBranch: ${{env.DSOALBranch}}
+      DSOALCommitHashShort: ${{env.DSOALCommitHashShort}}
+      DSOALCommitDate: ${{env.DSOALCommitDate}}
+      DSOALCommitCount: ${{env.DSOALCommitCount}}
       DSOALCommitTag: ${{env.DSOALCommitTag}}
+      OpenALSoftRepo: ${{env.OpenALSoftRepo}}
+      OpenALSoftBranch: ${{env.OpenALSoftBranch}}
+      OpenALSoftCommitHashShort: ${{env.OpenALSoftCommitHashShort}}
+      OpenALSoftCommitDate: ${{env.OpenALSoftCommitDate}}
+      OpenALSoftCommitCount: ${{env.OpenALSoftCommitCount}}
       OpenALSoftCommitTag: ${{env.OpenALSoftCommitTag}}
 
   Release:
     needs: Build
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     steps:
 
     - name: Download a Build Artifact
-      uses: actions/download-artifact@v3.0.2
+      uses: actions/download-artifact@v4
       with:
         path: Release
 
-    - name: Separate binaries by architecture
+    - name: Collect binaries
       run: |
-        MkDir "Release/DSOAL/Win32"
-        Copy-Item -Path "Release/DSOAL_${{needs.Build.outputs.DSOALCommitTag}}+OpenALSoft_${{needs.Build.outputs.OpenALSoftCommitTag}}-Win32/*" -Destination "Release/DSOAL/Win32" -Recurse
-        Move-Item "Release/DSOAL/Win32/Documentation" "Release/DSOAL"
-        MkDir "Release/DSOAL/Win64"
-        Copy-Item -Path "Release/DSOAL_${{needs.Build.outputs.DSOALCommitTag}}+OpenALSoft_${{needs.Build.outputs.OpenALSoftCommitTag}}-Win64/*" -Destination "Release/DSOAL/Win64" -Recurse
-        Remove-Item -LiteralPath "Release/DSOAL/Win64/Documentation" -Force -Recurse
-        Rename-Item "Release/DSOAL_${{needs.Build.outputs.DSOALCommitTag}}+OpenALSoft_${{needs.Build.outputs.OpenALSoftCommitTag}}-Win32" -NewName "Win32"
-        Rename-Item "Release/DSOAL_${{needs.Build.outputs.DSOALCommitTag}}+OpenALSoft_${{needs.Build.outputs.OpenALSoftCommitTag}}-Win64" -NewName "Win64"
-
-    - name: Compress artifacts - Win32
-      uses: vimtor/action-zip@v1.1
-      with:
-        files: 'Release/Win32/'
-        dest: "Release/DSOAL_${{needs.Build.outputs.DSOALCommitTag}}+OpenALSoft_${{needs.Build.outputs.OpenALSoftCommitTag}}-Win32.zip"
-
-    - name: Compress artifacts - Win64
-      uses: vimtor/action-zip@v1.1
-      with:
-        files: 'Release/Win64/'
-        dest: "Release/DSOAL_${{needs.Build.outputs.DSOALCommitTag}}+OpenALSoft_${{needs.Build.outputs.OpenALSoftCommitTag}}-Win64.zip"
+        mv "Release/DSOAL_v${{needs.Build.outputs.DSOALCommitTag}}+OpenALSoft_v${{needs.Build.outputs.OpenALSoftCommitTag}}-Win32" "Release/Win32"
+        mv "Release/DSOAL_v${{needs.Build.outputs.DSOALCommitTag}}+OpenALSoft_v${{needs.Build.outputs.OpenALSoftCommitTag}}-Win64" "Release/Win64"
+        mkdir "Release/DSOAL"
+        mv "Release/Win32" "Release/DSOAL/Win32"
+        mv "Release/Win64" "Release/DSOAL/Win64"
+        mv "Release/DSOAL/Win32/Documentation" "Release/DSOAL/Documentation"
+        rm -r "Release/DSOAL/Win64/Documentation"
+        cp -R "Release/DSOAL" "Release/DSOAL+HRTF"
+        mv "Release/DSOAL+HRTF/Win32/alsoft.ini" "Release/DSOAL+HRTF/Documentation/alsoft.ini"
+        rm "Release/DSOAL+HRTF/Win64/alsoft.ini"
+        curl https://raw.githubusercontent.com/${{needs.Build.outputs.OpenALSoftRepo}}/${{needs.Build.outputs.OpenALSoftBranch}}/configs/HRTF/alsoft.ini -o "Release/DSOAL+HRTF/Win32/alsoft.ini"
+        cp "Release/DSOAL+HRTF/Win32/alsoft.ini" "Release/DSOAL+HRTF/Win64/alsoft.ini"
 
     - name: Compress artifacts
-      uses: vimtor/action-zip@v1.1
-      with:
-        files: 'Release/DSOAL/'
-        dest: "Release/DSOAL.zip"
+      run: |
+        cd Release
+        7z a DSOAL.zip      ./DSOAL/*
+        7z a DSOAL+HRTF.zip ./DSOAL+HRTF/*
 
     - name: GitHub pre-release
-      uses: "marvinpinto/action-automatic-releases@latest"
+      uses: "slord399/action-automatic-releases@v1.0.1"
       with:
         repo_token: "${{secrets.GITHUB_TOKEN}}"
         automatic_release_tag: "${{needs.Build.outputs.DSOALCommitTag}}"
         prerelease: false
-        title: "DSOAL ${{needs.Build.outputs.DSOALCommitTag}} + OpenAL Soft ${{needs.Build.outputs.OpenALSoftCommitTag}}"
+        title: "DSOAL v${{needs.Build.outputs.DSOALCommitTag}} + OpenAL Soft v${{needs.Build.outputs.OpenALSoftCommitTag}}"
         files: "Release/*"
