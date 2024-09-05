@@ -24,7 +24,8 @@ if(MSVC)
     if(HAVE_PERMISSIVE_SWITCH)
         set(DSOAL_CFLAGS ${DSOAL_CFLAGS} $<$<COMPILE_LANGUAGE:CXX>:/permissive->)
     endif()
-    set(DSOAL_CFLAGS ${DSOAL_CFLAGS} /W4 /w14640 /wd4065 /wd4127 /wd4268 /wd4324 /wd5030 /wd5051)
+    set(DSOAL_CFLAGS ${DSOAL_CFLAGS} /W4 /w14640 /wd4065 /wd4127 /wd4268 /wd4324 /wd5030 /wd5051
+        $<$<COMPILE_LANGUAGE:CXX>:/EHsc>)
 else()
     set(DEF_FILE mingw.def)
 
