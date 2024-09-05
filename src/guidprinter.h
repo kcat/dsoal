@@ -23,6 +23,7 @@ struct PropidTag { };
 struct DevidTag { };
 struct Ds3dalgTag { };
 struct FmtidTag { };
+struct DsfxTag { };
 
 class GuidPrinter {
     std::array<char,48> mMsg{};
@@ -78,6 +79,23 @@ class GuidPrinter {
         CHECKID(EAXPROPERTYID_EAX40_Source)
         CHECKID(DSPROPSETID_VoiceManager)
         CHECKID(DSPROPSETID_DirectSoundDevice)
+        if(mIdStr) return;
+
+        store(guid);
+    }
+
+    void store_dsfxid(const GUID &guid)
+    {
+        if(false) { }
+        CHECKID(GUID_DSFX_STANDARD_CHORUS)
+        CHECKID(GUID_DSFX_STANDARD_COMPRESSOR)
+        CHECKID(GUID_DSFX_STANDARD_DISTORTION)
+        CHECKID(GUID_DSFX_STANDARD_ECHO)
+        CHECKID(GUID_DSFX_STANDARD_FLANGER)
+        CHECKID(GUID_DSFX_STANDARD_GARGLE)
+        CHECKID(GUID_DSFX_STANDARD_I3DL2REVERB)
+        CHECKID(GUID_DSFX_STANDARD_PARAMEQ)
+        CHECKID(GUID_DSFX_WAVES_REVERB)
         if(mIdStr) return;
 
         store(guid);
@@ -141,6 +159,7 @@ public:
     GuidPrinter(PropidTag, const GUID &guid) { store_propid(guid); }
     GuidPrinter(Ds3dalgTag, const GUID &guid) { store_ds3dalg(guid); }
     GuidPrinter(FmtidTag, const GUID &guid) { store_fmtid(guid); }
+    GuidPrinter(DsfxTag, const GUID &guid) { store_dsfxid(guid); }
 
     GuidPrinter(const GUID *guid) { if(!guid) mIdStr = "{null}"; else store(*guid); }
     GuidPrinter(ClsidTag, const GUID *guid) { if(!guid) mIdStr = "{null}"; else store_clsid(*guid); }
@@ -148,6 +167,7 @@ public:
     GuidPrinter(PropidTag, const GUID *guid) { if(!guid) mIdStr = "{null}"; else store_propid(*guid); }
     GuidPrinter(Ds3dalgTag, const GUID *guid) { if(!guid) mIdStr = "{null}"; else store_ds3dalg(*guid); }
     GuidPrinter(FmtidTag, const GUID *guid) { if(!guid) mIdStr = "{null}"; else store_fmtid(*guid); }
+    GuidPrinter(DsfxTag, const GUID *guid) { if(!guid) mIdStr = "{null}"; else store_dsfxid(*guid); }
 
     [[nodiscard]]
     const char *c_str() const { return mIdStr; }
@@ -187,6 +207,12 @@ class FmtidPrinter : public GuidPrinter {
 public:
     template<typename T, std::enable_if_t<!std::is_same_v<std::remove_cvref_t<T>,FmtidPrinter>,bool> = true>
     FmtidPrinter(T&& guid) : GuidPrinter{FmtidTag{}, std::forward<T>(guid)} { }
+};
+
+class DsfxPrinter : public GuidPrinter {
+public:
+    template<typename T, std::enable_if_t<!std::is_same_v<std::remove_cvref_t<T>,DsfxPrinter>,bool> = true>
+    DsfxPrinter(T&& guid) : GuidPrinter{DsfxTag{}, std::forward<T>(guid)} { }
 };
 
 #endif // GUIDPRINTER_H

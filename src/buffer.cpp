@@ -1245,9 +1245,48 @@ HRESULT STDMETHODCALLTYPE Buffer::Restore() noexcept
 #define PREFIX CLASS_PREFIX "SetFX"
 HRESULT STDMETHODCALLTYPE Buffer::SetFX(DWORD effectsCount, DSEFFECTDESC *dsFXDesc, DWORD *resultCodes) noexcept
 {
-    FIXME(PREFIX "(%p)->(%lu, %p, %p)\n", voidp{this}, effectsCount, voidp{dsFXDesc},
+    TRACE(PREFIX "(%p)->(%lu, %p, %p)\n", voidp{this}, effectsCount, voidp{dsFXDesc},
         voidp{resultCodes});
-    return E_NOTIMPL;
+
+    if(!(mBuffer->mFlags&DSBCAPS_CTRLFX))
+        return DSERR_CONTROLUNAVAIL;
+
+    if(effectsCount == 0)
+    {
+        /* No effects, we can do that. */
+        if(dsFXDesc || resultCodes)
+        {
+            WARN("Non-null pointers for no effects (%p, %p)\n", voidp{dsFXDesc},
+                voidp{resultCodes});
+            return E_INVALIDARG;
+        }
+        return DS_OK;
+    }
+
+    if(!dsFXDesc)
+    {
+        WARN("Missing FX descriptions\n");
+        return E_INVALIDARG;
+    }
+    const auto fxdescs = std::span{dsFXDesc, effectsCount};
+    const auto rescodes = std::span{resultCodes, resultCodes ? effectsCount : 0ul};
+
+    /* We don't handle DS8 FX. Still not sure how exactly this is supposed to
+     * work, surely it doesn't instantiate a unique effect processor for each
+     * buffer? But you may sometimes want multiple instances of the same effect
+     * type...
+     *
+     * Not that many apps used this API, so it's not likely a big loss.
+     */
+    std::fill(rescodes.begin(), rescodes.end(), DSFXR_FAILED);
+
+    std::for_each(fxdescs.begin(), fxdescs.end(), [](const DSEFFECTDESC &desc)
+    {
+        DEBUG("Unsupported effect: 0x%lx, %s\n", desc.dwFlags,
+            DsfxPrinter{desc.guidDSFXClass}.c_str());
+    });
+
+    return DSERR_FXUNAVAILABLE;
 }
 #undef PREFIX
 
