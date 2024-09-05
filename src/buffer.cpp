@@ -1256,7 +1256,7 @@ HRESULT STDMETHODCALLTYPE Buffer::SetFX(DWORD effectsCount, DSEFFECTDESC *dsFXDe
         /* No effects, we can do that. */
         if(dsFXDesc || resultCodes)
         {
-            WARN("Non-null pointers for no effects (%p, %p)\n", voidp{dsFXDesc},
+            WARN(PREFIX "Non-null pointers for no effects (%p, %p)\n", voidp{dsFXDesc},
                 voidp{resultCodes});
             return E_INVALIDARG;
         }
@@ -1265,7 +1265,7 @@ HRESULT STDMETHODCALLTYPE Buffer::SetFX(DWORD effectsCount, DSEFFECTDESC *dsFXDe
 
     if(!dsFXDesc)
     {
-        WARN("Missing FX descriptions\n");
+        WARN(PREFIX "Missing FX descriptions\n");
         return E_INVALIDARG;
     }
     const auto fxdescs = std::span{dsFXDesc, effectsCount};
@@ -1282,7 +1282,7 @@ HRESULT STDMETHODCALLTYPE Buffer::SetFX(DWORD effectsCount, DSEFFECTDESC *dsFXDe
 
     std::for_each(fxdescs.begin(), fxdescs.end(), [](const DSEFFECTDESC &desc)
     {
-        DEBUG("Unsupported effect: 0x%lx, %s\n", desc.dwFlags,
+        DEBUG(PREFIX "Unsupported effect: 0x%lx, %s\n", desc.dwFlags,
             DsfxPrinter{desc.guidDSFXClass}.c_str());
     });
 
