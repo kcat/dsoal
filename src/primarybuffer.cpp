@@ -631,7 +631,11 @@ void PrimaryBuffer::setParams(const DS3DLISTENER &params, const std::bitset<Flag
         alListenerfv(AL_ORIENTATION, ori.data());
     }
     if(flags.test(DistanceFactor))
+    {
         alSpeedOfSound(343.3f / params.flDistanceFactor);
+        if(mParent.haveExtension(EXT_EFX))
+            alListenerf(AL_METERS_PER_UNIT, params.flDistanceFactor);
+    }
     if(flags.test(RolloffFactor))
     {
         for(Buffer *buffer : mParent.get3dBuffers())
@@ -862,9 +866,13 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::Listener3D::SetDistanceFactor(D3DVALUE 
     else
     {
         ALSection alsection{self->mContext};
+        alcSuspendContext(self->mContext);
         self->mImmediate.flDistanceFactor = distanceFactor;
-        alSpeedOfSound(343.3f/distanceFactor);
+        alSpeedOfSound(343.3f / distanceFactor);
+        if(self->mParent.haveExtension(EXT_EFX))
+            alListenerf(AL_METERS_PER_UNIT, distanceFactor);
         alGetError();
+        alcProcessContext(self->mContext);
     }
 
     return S_OK;

@@ -187,6 +187,7 @@ ds::expected<std::unique_ptr<SharedDevice>,HRESULT> CreateDeviceShare(const GUID
     };
     const std::array sExtensionList{
         ExtensionEntry{"EAX5.0", EXT_EAX},
+        ExtensionEntry{"ALC_EXT_EFX", EXT_EFX},
         ExtensionEntry{"AL_EXT_FLOAT32", EXT_FLOAT32},
         ExtensionEntry{"AL_EXT_MCFORMATS", EXT_MCFORMATS},
         ExtensionEntry{"AL_EXT_STATIC_BUFFER", EXT_STATIC_BUFFER}
@@ -195,7 +196,15 @@ ds::expected<std::unique_ptr<SharedDevice>,HRESULT> CreateDeviceShare(const GUID
     std::bitset<ExtensionCount> extensions{};
     for(auto &ext : sExtensionList)
     {
-        if(alIsExtensionPresent(ext.name))
+        if(std::string_view{ext.name}.substr(0,3) == "ALC")
+        {
+            if(alcIsExtensionPresent(aldev.get(), ext.name))
+            {
+                extensions.set(ext.flag);
+                TRACE("CreateDeviceShare Found extension %s\n", ext.name);
+            }
+        }
+        else if(alIsExtensionPresent(ext.name))
         {
             extensions.set(ext.flag);
             TRACE("CreateDeviceShare Found extension %s\n", ext.name);
