@@ -335,6 +335,10 @@ DSound8OAL::~DSound8OAL()
     if(mNotifyThread.joinable())
     {
         mQuitNotify = true;
+        /* Temporarily lock the mutex to ensure we're not between checking
+         * mQuitNotify and before waiting on mNotifyCond.
+         */
+        { std::unique_lock _{mDsMutex}; }
         mNotifyCond.notify_all();
         mNotifyThread.join();
     }
