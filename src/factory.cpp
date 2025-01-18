@@ -70,14 +70,14 @@ HRESULT Factory::GetFactory(const GUID &clsid, const GUID &iid, void **out)
             return factory.QueryInterface(iid, out);
     }
 
-    FIXME(PREFIX "GetFactory No class found for %s\n", ClsidPrinter{clsid}.c_str());
+    FIXME(PREFIX "GetFactory No class found for {}", ClsidPrinter{clsid}.c_str());
     return CLASS_E_CLASSNOTAVAILABLE;
 }
 
 
 HRESULT STDMETHODCALLTYPE Factory::QueryInterface(REFIID riid, void** ppvObject) noexcept
 {
-    DEBUG(PREFIX "QueryInterface (%p)->(%s, %p)\n", voidp{this}, IidPrinter{riid}.c_str(),
+    DEBUG(PREFIX "QueryInterface ({})->({}, {})", voidp{this}, IidPrinter{riid}.c_str(),
         voidp{ppvObject});
 
     if(!ppvObject)
@@ -97,14 +97,14 @@ HRESULT STDMETHODCALLTYPE Factory::QueryInterface(REFIID riid, void** ppvObject)
         return S_OK;
     }
 
-    FIXME(PREFIX "QueryInterface Unhandled GUID: %s\n", IidPrinter{riid}.c_str());
+    FIXME(PREFIX "QueryInterface Unhandled GUID: {}", IidPrinter{riid}.c_str());
     return E_NOINTERFACE;
 }
 
 ULONG STDMETHODCALLTYPE Factory::AddRef() noexcept
 {
     const auto ret = mRef.fetch_add(1u, std::memory_order_relaxed) + 1;
-    DEBUG(PREFIX "AddRef (%p) ref %lu\n", voidp{this}, ret);
+    DEBUG(PREFIX "AddRef ({}) ref {}", voidp{this}, ret);
     return ret;
 }
 
@@ -117,23 +117,23 @@ ULONG STDMETHODCALLTYPE Factory::Release() noexcept
     do {
         if(ret == 0) UNLIKELY
         {
-            WARN(PREFIX "Release (%p) ref already %lu\n", voidp{this}, ret);
+            WARN(PREFIX "Release ({}) ref already {}", voidp{this}, ret);
             return ret;
         }
     } while(!mRef.compare_exchange_weak(ret, ret-1, std::memory_order_relaxed));
     ret -= 1;
-    DEBUG(PREFIX "Release (%p) ref %lu\n", voidp{this}, ret);
+    DEBUG(PREFIX "Release ({}) ref {}", voidp{this}, ret);
     return ret;
 }
 
 HRESULT STDMETHODCALLTYPE Factory::CreateInstance(IUnknown *unkOuter, REFIID riid, void **ppvObject) noexcept
 {
-    TRACE(PREFIX "CreateInstance (%p)->(%p, %s, %p)\n", voidp{this}, voidp{unkOuter},
+    TRACE(PREFIX "CreateInstance ({})->({}, {}, {})", voidp{this}, voidp{unkOuter},
         IidPrinter{riid}.c_str(), voidp{ppvObject});
 
     if(!ppvObject)
     {
-        WARN(PREFIX "CreateInstance NULL output parameter\n");
+        WARN(PREFIX "CreateInstance NULL output parameter");
         return DSERR_INVALIDPARAM;
     }
     *ppvObject = nullptr;
@@ -146,6 +146,6 @@ HRESULT STDMETHODCALLTYPE Factory::CreateInstance(IUnknown *unkOuter, REFIID rii
 
 HRESULT STDMETHODCALLTYPE Factory::LockServer(BOOL dolock) noexcept
 {
-    FIXME(PREFIX "LockServer (%p)->(%d): stub\n", voidp{this}, dolock);
+    FIXME(PREFIX "LockServer ({})->({}): stub", voidp{this}, dolock);
     return S_OK;
 }

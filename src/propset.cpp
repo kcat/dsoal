@@ -39,7 +39,7 @@ HRESULT DSPROPERTY_WaveDeviceMappingW(void *pPropData, ULONG cbPropData, ULONG *
 
     if(!ppd || cbPropData < sizeof(DSPROPERTY_DIRECTSOUNDDEVICE_WAVEDEVICEMAPPING_W_DATA))
     {
-        WARN(PREFIX "Invalid ppd %p, %lu\n", voidp{ppd}, cbPropData);
+        WARN(PREFIX "Invalid ppd {}, {}", voidp{ppd}, cbPropData);
         return DSERR_INVALIDPARAM;
     }
 
@@ -80,7 +80,7 @@ HRESULT DSPROPERTY_DescriptionW(void *pPropData, ULONG cbPropData, ULONG *pcbRet
 
     if(!ppd || cbPropData < sizeof(DSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_W_DATA))
     {
-        WARN(PREFIX "Invalid ppd %p, %lu\n", voidp{ppd}, cbPropData);
+        WARN(PREFIX "Invalid ppd {}, {}", voidp{ppd}, cbPropData);
         return E_PROP_ID_UNSUPPORTED;
     }
 
@@ -91,7 +91,7 @@ HRESULT DSPROPERTY_DescriptionW(void *pPropData, ULONG cbPropData, ULONG *pcbRet
         flow = eCapture;
     else
     {
-        WARN(PREFIX "Unhandled data flow: %u\n", ppd->DataFlow);
+        WARN(PREFIX "Unhandled data flow: {}", ds::to_underlying(ppd->DataFlow));
         return E_PROP_ID_UNSUPPORTED;
     }
 
@@ -114,7 +114,7 @@ HRESULT DSPROPERTY_DescriptionW(void *pPropData, ULONG cbPropData, ULONG *pcbRet
     HRESULT hr{device->OpenPropertyStore(STGM_READ, ds::out_ptr(ps))};
     if(FAILED(hr))
     {
-        WARN(PREFIX "IMMDevice::OpenPropertyStore failed: %08lx\n", hr);
+        WARN(PREFIX "IMMDevice::OpenPropertyStore failed: {:08x}", as_unsigned(hr));
         return hr;
     }
 
@@ -122,7 +122,7 @@ HRESULT DSPROPERTY_DescriptionW(void *pPropData, ULONG cbPropData, ULONG *pcbRet
     hr = ps->GetValue(std::bit_cast<PROPERTYKEY>(DEVPKEY_Device_FriendlyName), pv.get());
     if(FAILED(hr) || pv.type() != VT_LPWSTR)
     {
-        WARN(PREFIX "IPropertyStore::GetValue(FriendlyName) failed: %08lx\n", hr);
+        WARN(PREFIX "IPropertyStore::GetValue(FriendlyName) failed: {:08x}", as_unsigned(hr));
         return hr;
     }
 
@@ -145,7 +145,7 @@ HRESULT DSPROPERTY_EnumerateW(void *pPropData, ULONG cbPropData, ULONG*)
     if(!ppd || cbPropData < sizeof(DSPROPERTY_DIRECTSOUNDDEVICE_ENUMERATE_W_DATA)
         || !ppd->Callback)
     {
-        WARN(PREFIX "Invalid ppd %p, %lu\n", voidp{ppd}, cbPropData);
+        WARN(PREFIX "Invalid ppd {}, {}", voidp{ppd}, cbPropData);
         return E_PROP_ID_UNSUPPORTED;
     }
 
@@ -217,7 +217,7 @@ ComPtr<DSPrivatePropertySet> DSPrivatePropertySet::Create()
 #define PREFIX CLASS_PREFIX "QueryInterface "
 HRESULT STDMETHODCALLTYPE DSPrivatePropertySet::QueryInterface(REFIID riid, void **ppvObject) noexcept
 {
-    DEBUG(PREFIX "(%p)->(%s, %p)\n", voidp{this}, IidPrinter{riid}.c_str(), voidp{ppvObject});
+    DEBUG(PREFIX "({})->({}, {})", voidp{this}, IidPrinter{riid}.c_str(), voidp{ppvObject});
 
     *ppvObject = nullptr;
     if(riid == IID_IUnknown)
@@ -233,7 +233,7 @@ HRESULT STDMETHODCALLTYPE DSPrivatePropertySet::QueryInterface(REFIID riid, void
         return S_OK;
     }
 
-    FIXME(PREFIX "Unhandled GUID: %s\n", IidPrinter{riid}.c_str());
+    FIXME(PREFIX "Unhandled GUID: {}", IidPrinter{riid}.c_str());
     return E_NOINTERFACE;
 }
 #undef PREFIX
@@ -241,14 +241,14 @@ HRESULT STDMETHODCALLTYPE DSPrivatePropertySet::QueryInterface(REFIID riid, void
 ULONG STDMETHODCALLTYPE DSPrivatePropertySet::AddRef() noexcept
 {
     const auto ret = mRef.fetch_add(1u, std::memory_order_relaxed) + 1;
-    DEBUG(CLASS_PREFIX "AddRef (%p) ref %lu\n", voidp{this}, ret);
+    DEBUG(CLASS_PREFIX "AddRef ({}) ref {}", voidp{this}, ret);
     return ret;
 }
 
 ULONG STDMETHODCALLTYPE DSPrivatePropertySet::Release() noexcept
 {
     const auto ret = mRef.fetch_sub(1u, std::memory_order_relaxed) - 1;
-    DEBUG(CLASS_PREFIX "Release (%p) ref %lu\n", voidp{this}, ret);
+    DEBUG(CLASS_PREFIX "Release ({}) ref {}", voidp{this}, ret);
     if(ret == 0) UNLIKELY delete this;
     return ret;
 }
@@ -259,7 +259,7 @@ HRESULT STDMETHODCALLTYPE DSPrivatePropertySet::Get(REFGUID guidPropSet, ULONG d
     void *pInstanceData, ULONG cbInstanceData, void *pPropData, ULONG cbPropData,
     ULONG *pcbReturned) noexcept
 {
-    DEBUG(PREFIX "(%p)->(%s, 0x%lx, %p, %lu, %p, %lu, %p)\n", voidp{this},
+    DEBUG(PREFIX "({})->({}, {:#x}, {}, {}, {}, {}, {})", voidp{this},
         PropidPrinter{guidPropSet}.c_str(), dwPropID, pInstanceData, cbInstanceData, pPropData,
         cbPropData, voidp{pcbReturned});
 
@@ -269,7 +269,7 @@ HRESULT STDMETHODCALLTYPE DSPrivatePropertySet::Get(REFGUID guidPropSet, ULONG d
 
     if(cbPropData > 0 && !pPropData)
     {
-        WARN(PREFIX "pPropData is null with cbPropData > 0\n");
+        WARN(PREFIX "pPropData is null with cbPropData > 0");
         return E_POINTER;
     }
 
@@ -296,12 +296,12 @@ HRESULT STDMETHODCALLTYPE DSPrivatePropertySet::Get(REFGUID guidPropSet, ULONG d
         case DSPROPERTY_DIRECTSOUNDDEVICE_ENUMERATE_W:
             return DSPROPERTY_EnumerateW(pPropData, cbPropData, pcbReturned);
         default:
-            FIXME(PREFIX "unsupported ID: %ld\n",dwPropID);
+            FIXME(PREFIX "unsupported ID: {}",dwPropID);
             return E_PROP_ID_UNSUPPORTED;
         }
     }
 
-    FIXME(PREFIX "Unhandled propset: %s (propid: %lu)\n", PropidPrinter{guidPropSet}.c_str(),
+    FIXME(PREFIX "Unhandled propset: {} (propid: {})", PropidPrinter{guidPropSet}.c_str(),
         dwPropID);
     return E_PROP_ID_UNSUPPORTED;
 }
@@ -311,7 +311,7 @@ HRESULT STDMETHODCALLTYPE DSPrivatePropertySet::Get(REFGUID guidPropSet, ULONG d
 HRESULT STDMETHODCALLTYPE DSPrivatePropertySet::Set(REFGUID guidPropSet, ULONG dwPropID,
     void *pInstanceData, ULONG cbInstanceData, void *pPropData, ULONG cbPropData) noexcept
 {
-    DEBUG(PREFIX "(%p)->(%s, 0x%lx, %p, %lu, %p, %lu)\n", voidp{this},
+    DEBUG(PREFIX "({})->({}, {:#x}, {}, {}, {}, {})", voidp{this},
         PropidPrinter{guidPropSet}.c_str(), dwPropID, pInstanceData, cbInstanceData, pPropData,
         cbPropData);
     return E_PROP_ID_UNSUPPORTED;
@@ -322,7 +322,7 @@ HRESULT STDMETHODCALLTYPE DSPrivatePropertySet::Set(REFGUID guidPropSet, ULONG d
 HRESULT STDMETHODCALLTYPE DSPrivatePropertySet::QuerySupport(REFGUID guidPropSet, ULONG dwPropID,
     ULONG *pTypeSupport) noexcept
 {
-    FIXME(PREFIX "(%p)->(%s, 0x%lx, %p)\n", voidp{this}, PropidPrinter{guidPropSet}.c_str(),
+    FIXME(PREFIX "({})->({}, {:#x}, {})", voidp{this}, PropidPrinter{guidPropSet}.c_str(),
         dwPropID, voidp{pTypeSupport});
 
     if(!pTypeSupport)
@@ -346,7 +346,7 @@ HRESULT STDMETHODCALLTYPE DSPrivatePropertySet::QuerySupport(REFGUID guidPropSet
             *pTypeSupport = KSPROPERTY_SUPPORT_GET;
             return S_OK;
         default:
-            FIXME(PREFIX "unsupported ID: %ld\n",dwPropID);
+            FIXME(PREFIX "unsupported ID: {}",dwPropID);
             return E_PROP_ID_UNSUPPORTED;
         }
     }

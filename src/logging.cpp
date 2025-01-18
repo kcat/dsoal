@@ -1,63 +1,39 @@
 #include "logging.h"
 
-#include <algorithm>
-#include <array>
-#include <cstdarg>
-#include <cstdio>
 #include <mutex>
-#include <string>
-#include <vector>
+#include <string_view>
+#include <utility>
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
+#include "fmt/core.h"
 
 namespace {
+
+using namespace std::string_view_literals;
 
 std::mutex sLogMutex;
 
 } // namespace
 
-void dsoal_print(LogLevel level, const char *fmt, ...)
+void dsoal_print_impl(LogLevel level, const fmt::string_view fmt, fmt::format_args args)
 {
-    const char *prefix = "debug";
+    const auto msg = fmt::vformat(fmt, std::move(args));
+
+    auto prefix = "debug"sv;
     switch(level)
     {
     case LogLevel::Disable: break;
     case LogLevel::Debug: break;
-    case LogLevel::Error: prefix = "err"; break;
-    case LogLevel::Fixme: prefix = "fixme"; break;
-    case LogLevel::Warning: prefix = "warn"; break;
-    case LogLevel::Trace: prefix = "trace"; break;
+    case LogLevel::Error: prefix = "err"sv; break;
+    case LogLevel::Warning: prefix = "warn"sv; break;
+    case LogLevel::Fixme: prefix = "fixme"sv; break;
+    case LogLevel::Trace: prefix = "trace"sv; break;
     }
 
-    std::vector<char> dynmsg;
-    std::array<char,256> stcmsg{};
-    char *str{stcmsg.data()};
-
-    const auto threadId = GetCurrentThreadId();
-    int prefixlen{std::snprintf(str, stcmsg.size(), "%04lx:%s:dsound:", threadId, prefix)};
-    if(prefixlen < 0) prefixlen = 0;
-    const auto uprefixlen = static_cast<unsigned int>(prefixlen);
-
-    std::va_list args, args2;
-    va_start(args, fmt);
-    va_copy(args2, args);
-    const int msglen{std::vsnprintf(str+uprefixlen, stcmsg.size()-uprefixlen, fmt, args)};
-    if(msglen >= 0 && static_cast<size_t>(msglen)+uprefixlen >= stcmsg.size()) UNLIKELY
-    {
-        dynmsg.resize(static_cast<size_t>(msglen)+uprefixlen + 1u);
-        str = dynmsg.data();
-
-        std::copy_n(stcmsg.data(), uprefixlen, str);
-
-        std::vsnprintf(str+uprefixlen, dynmsg.size()-uprefixlen, fmt, args2);
-    }
-    va_end(args2);
-    va_end(args);
-
-    std::lock_guard _{sLogMutex};
-    FILE *logfile{gLogFile ? gLogFile : stderr};
-    fputs(str, logfile);
+    auto _ = std::lock_guard{sLogMutex};
+    auto *logfile = gLogFile ? gLogFile : stderr;
+    fmt::println(logfile, "{:04X}:{}:dsound: {}", GetCurrentThreadId(), prefix, msg);
     fflush(logfile);
 }

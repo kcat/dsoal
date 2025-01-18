@@ -45,29 +45,13 @@ struct ALCcontextDeleter {
 using ALCcontextPtr = std::unique_ptr<ALCcontext,ALCcontextDeleter>;
 
 
-auto wstr_to_utf8(std::wstring_view wstr) -> std::string
-{
-    std::string ret;
-
-    const int len{WideCharToMultiByte(CP_UTF8, 0, wstr.data(), ds::sizei(wstr), nullptr, 0,
-        nullptr, nullptr)};
-    if(len > 0)
-    {
-        ret.resize(static_cast<size_t>(len));
-        WideCharToMultiByte(CP_UTF8, 0, wstr.data(), ds::sizei(wstr), ret.data(), len,
-            nullptr, nullptr);
-    }
-
-    return ret;
-}
-
 std::optional<DWORD> GetSpeakerConfig(IMMDevice *device)
 {
     ComPtr<IPropertyStore> ps;
     HRESULT hr{device->OpenPropertyStore(STGM_READ, ds::out_ptr(ps))};
     if(FAILED(hr))
     {
-        WARN("GetSpeakerConfig IMMDevice::OpenPropertyStore failed: %08lx\n", hr);
+        WARN("GetSpeakerConfig IMMDevice::OpenPropertyStore failed: {:08x}", as_unsigned(hr));
         return std::nullopt;
     }
 
@@ -77,12 +61,13 @@ std::optional<DWORD> GetSpeakerConfig(IMMDevice *device)
     hr = ps->GetValue(PKEY_AudioEndpoint_PhysicalSpeakers, pv.get());
     if(FAILED(hr))
     {
-        WARN("GetSpeakerConfig IPropertyStore::GetValue(PhysicalSpeakers) failed: %08lx\n", hr);
+        WARN("GetSpeakerConfig IPropertyStore::GetValue(PhysicalSpeakers) failed: {:08x}",
+            as_unsigned(hr));
         return speakerconf;
     }
     if(pv.type() != VT_UI4 && pv.type() != VT_UINT)
     {
-        WARN("GetSpeakerConfig PhysicalSpeakers is not a VT_UI4: 0x%04x\n", pv.type());
+        WARN("GetSpeakerConfig PhysicalSpeakers is not a VT_UI4: 0x{:04x}", pv.type());
         return speakerconf;
     }
 
@@ -106,7 +91,7 @@ std::optional<DWORD> GetSpeakerConfig(IMMDevice *device)
         speakerconf = DSSPEAKER_MONO;
     else
     {
-        FIXME("GetSpeakerConfig Unhandled physical speaker layout: 0x%08lx\n",
+        FIXME("GetSpeakerConfig Unhandled physical speaker layout: 0x{:08x}",
             phys_speakers);
         return speakerconf;
     }
@@ -116,22 +101,24 @@ std::optional<DWORD> GetSpeakerConfig(IMMDevice *device)
     {
         hr = ps->GetValue(PKEY_AudioEndpoint_FormFactor, pv.get());
         if(FAILED(hr))
-            WARN("GetSpeakerConfig IPropertyStore::GetValue(FormFactor) failed: %08lx\n", hr);
+            WARN("GetSpeakerConfig IPropertyStore::GetValue(FormFactor) failed: {:08x}",
+                as_unsigned(hr));
         else if(pv.type() != VT_UI4 && pv.type() != VT_UINT)
-            WARN("GetSpeakerConfig FormFactor is not a VT_UI4: 0x%04x\n", pv.type());
+            WARN("GetSpeakerConfig FormFactor is not a VT_UI4: 0x{:04x}", pv.type());
         else if(pv.value<UINT>() == Headphones || pv.value<UINT>() == Headset)
             speakerconf = DSSPEAKER_HEADPHONE;
     }
 
-    TRACE("GetSpeakerConfig Got config %d:%d from physical speakers 0x%08lx\n",
+    TRACE("GetSpeakerConfig Got config {}:{} from physical speakers 0x{:08x}",
         DSSPEAKER_GEOMETRY(speakerconf), DSSPEAKER_CONFIG(speakerconf), phys_speakers);
 
     return speakerconf;
 }
 
+#define PREFIX "CreateDeviceShare "
 ds::expected<std::unique_ptr<SharedDevice>,HRESULT> CreateDeviceShare(const GUID &guid)
 {
-    TRACE("CreateDeviceShare Creating shared device %s\n", GuidPrinter{guid}.c_str());
+    TRACE(PREFIX "Creating shared device {}", GuidPrinter{guid}.c_str());
 
     DWORD speakerconf{DSSPEAKER_7POINT1_SURROUND};
 
@@ -141,13 +128,13 @@ ds::expected<std::unique_ptr<SharedDevice>,HRESULT> CreateDeviceShare(const GUID
         speakerconf = *config;
     device = nullptr;
 
-    std::string drv_name;
+    auto drv_name = std::string{};
     {
         LPOLESTR guid_str{};
         HRESULT hr{StringFromCLSID(guid, &guid_str)};
         if(FAILED(hr))
         {
-            ERR("CreateDeviceShare Failed to convert GUID to string\n");
+            ERR(PREFIX "Failed to convert GUID to string\n");
             return ds::unexpected(hr);
         }
         drv_name = wstr_to_utf8(guid_str);
@@ -155,15 +142,14 @@ ds::expected<std::unique_ptr<SharedDevice>,HRESULT> CreateDeviceShare(const GUID
         guid_str = nullptr;
     }
 
-    HRESULT hr{DSERR_NODRIVER};
     ALCdevicePtr aldev{alcOpenDevice(drv_name.c_str())};
     if(!aldev)
     {
-        WARN("CreateDeviceShare Couldn't open device \"%s\", 0x%04x\n", drv_name.c_str(),
+        WARN(PREFIX "Couldn't open device \"{}\", 0x{:04x}", drv_name,
             alcGetError(nullptr));
-        return ds::unexpected(hr);
+        return ds::unexpected(DSERR_NODRIVER);
     }
-    TRACE("CreateDeviceShare Opened AL device: %s\n",
+    TRACE(PREFIX "Opened AL device: {}",
         alcIsExtensionPresent(aldev.get(), "ALC_ENUMERATE_ALL_EXT") ?
         alcGetString(aldev.get(), ALC_ALL_DEVICES_SPECIFIER) :
         alcGetString(aldev.get(), ALC_DEVICE_SPECIFIER));
@@ -176,8 +162,8 @@ ds::expected<std::unique_ptr<SharedDevice>,HRESULT> CreateDeviceShare(const GUID
     ALCcontextPtr alctx{alcCreateContext(aldev.get(), attrs.data())};
     if(!alctx)
     {
-        WARN("CreateDeviceShare Couldn't create context, 0x%04x\n", alcGetError(aldev.get()));
-        return ds::unexpected(hr);
+        WARN(PREFIX "Couldn't create context, 0x{:04x}", alcGetError(aldev.get()));
+        return ds::unexpected(DSERR_NODRIVER);
     }
     ALSection alsection{alctx.get()};
 
@@ -201,13 +187,13 @@ ds::expected<std::unique_ptr<SharedDevice>,HRESULT> CreateDeviceShare(const GUID
             if(alcIsExtensionPresent(aldev.get(), ext.name))
             {
                 extensions.set(ext.flag);
-                TRACE("CreateDeviceShare Found extension %s\n", ext.name);
+                TRACE(PREFIX "Found extension {}", ext.name);
             }
         }
         else if(alIsExtensionPresent(ext.name))
         {
             extensions.set(ext.flag);
-            TRACE("CreateDeviceShare Found extension %s\n", ext.name);
+            TRACE(PREFIX "Found extension {}", ext.name);
         }
     }
 
@@ -216,8 +202,8 @@ ds::expected<std::unique_ptr<SharedDevice>,HRESULT> CreateDeviceShare(const GUID
      */
     if(!extensions.test(EXT_STATIC_BUFFER))
     {
-        WARN("CreateDeviceShare Missing the required AL_EXT_STATIC_BUFFER extension\n");
-        return ds::unexpected(hr);
+        WARN(PREFIX "Missing the required AL_EXT_STATIC_BUFFER extension");
+        return ds::unexpected(DSERR_NODRIVER);
     }
 
     ALCint numMono{}, numStereo{};
@@ -230,7 +216,7 @@ ds::expected<std::unique_ptr<SharedDevice>,HRESULT> CreateDeviceShare(const GUID
     const DWORD totalSources{static_cast<DWORD>(numMono) + static_cast<DWORD>(numStereo)};
     if(totalSources < 128)
     {
-        ERR("CreateDeviceShare Could only allocate %lu sources (minimum 128 required)\n",
+        ERR("CreateDeviceShare Could only allocate {} sources (minimum 128 required)",
             totalSources);
         return ds::unexpected(DSERR_OUTOFMEMORY);
     }
@@ -247,6 +233,7 @@ ds::expected<std::unique_ptr<SharedDevice>,HRESULT> CreateDeviceShare(const GUID
 
     return shared;
 }
+#undef PREFIX
 
 } // namespace
 
@@ -297,7 +284,7 @@ void SharedDevice::dispose() noexcept
     if(shared_iter != sDeviceList.end())
     {
         std::unique_ptr<SharedDevice> device{*shared_iter};
-        TRACE(PREFIX "Freeing shared device %s\n", GuidPrinter{device->mId}.c_str());
+        TRACE(PREFIX "Freeing shared device {}", GuidPrinter{device->mId}.c_str());
         sDeviceList.erase(shared_iter);
     }
 }
@@ -399,8 +386,7 @@ void DSound8OAL::notifyThread() noexcept
         waittime = milliseconds{seconds{1}} / refresh;
         waittime = std::max(waittime*3/5, milliseconds{10});
     }
-    TRACE(PREFIX "Wakeup every %" PRId64 "ms\n",
-        int64_t{duration_cast<milliseconds>(waittime).count()});
+    TRACE(PREFIX "Wakeup every {}ms", int64_t{duration_cast<milliseconds>(waittime).count()});
 
     std::unique_lock lock{mDsMutex};
     while(!mQuitNotify)
@@ -445,7 +431,7 @@ void DSound8OAL::addNotifyBuffer(Buffer *buffer)
 #define PREFIX CLASS_PREFIX "QueryInterface "
 HRESULT STDMETHODCALLTYPE DSound8OAL::QueryInterface(REFIID riid, void** ppvObject) noexcept
 {
-    DEBUG(PREFIX "(%p)->(%s, %p)\n", voidp{this}, IidPrinter{riid}.c_str(), voidp{ppvObject});
+    DEBUG(PREFIX "({})->({}, {})", voidp{this}, IidPrinter{riid}.c_str(), voidp{ppvObject});
 
     *ppvObject = nullptr;
     if(riid == IID_IUnknown)
@@ -458,7 +444,7 @@ HRESULT STDMETHODCALLTYPE DSound8OAL::QueryInterface(REFIID riid, void** ppvObje
     {
         if(!mIs8) UNLIKELY
         {
-            WARN(PREFIX "Requesting IDirectSound8 iface for non-DS8 object\n");
+            WARN(PREFIX "Requesting IDirectSound8 iface for non-DS8 object");
             return E_NOINTERFACE;
         }
         AddRef();
@@ -472,7 +458,7 @@ HRESULT STDMETHODCALLTYPE DSound8OAL::QueryInterface(REFIID riid, void** ppvObje
         return S_OK;
     }
 
-    FIXME(PREFIX "Unhandled GUID: %s\n", IidPrinter{riid}.c_str());
+    FIXME(PREFIX "Unhandled GUID: {}", IidPrinter{riid}.c_str());
     return E_NOINTERFACE;
 }
 #undef PREFIX
@@ -481,14 +467,14 @@ ULONG STDMETHODCALLTYPE DSound8OAL::AddRef() noexcept
 {
     mTotalRef.fetch_add(1u, std::memory_order_relaxed);
     const auto ret = mDsRef.fetch_add(1u, std::memory_order_relaxed) + 1;
-    DEBUG(CLASS_PREFIX "AddRef (%p) ref %lu\n", voidp{this}, ret);
+    DEBUG(CLASS_PREFIX "AddRef ({}) ref {}", voidp{this}, ret);
     return ret;
 }
 
 ULONG STDMETHODCALLTYPE DSound8OAL::Release() noexcept
 {
     const auto ret = mDsRef.fetch_sub(1u, std::memory_order_relaxed) - 1;
-    DEBUG(CLASS_PREFIX "Release (%p) ref %lu\n", voidp{this}, ret);
+    DEBUG(CLASS_PREFIX "Release ({}) ref {}", voidp{this}, ret);
     if(mTotalRef.fetch_sub(1u, std::memory_order_relaxed) == 1u) UNLIKELY
         delete this;
     return ret;
@@ -499,31 +485,31 @@ ULONG STDMETHODCALLTYPE DSound8OAL::Release() noexcept
 HRESULT STDMETHODCALLTYPE DSound8OAL::CreateSoundBuffer(const DSBUFFERDESC *bufferDesc,
     IDirectSoundBuffer **dsBuffer, IUnknown *outer) noexcept
 {
-    DEBUG(PREFIX "(%p)->(%p, %p, %p)\n", voidp{this}, cvoidp{bufferDesc}, voidp{dsBuffer},
+    DEBUG(PREFIX "({})->({}, {}, {})", voidp{this}, cvoidp{bufferDesc}, voidp{dsBuffer},
         voidp{outer});
 
     if(!dsBuffer)
     {
-        WARN(PREFIX "dsBuffer is null\n");
+        WARN(PREFIX "dsBuffer is null");
         return DSERR_INVALIDPARAM;
     }
     *dsBuffer = nullptr;
 
     if(outer)
     {
-        WARN(PREFIX "Aggregation isn't supported\n");
+        WARN(PREFIX "Aggregation isn't supported");
         return DSERR_NOAGGREGATION;
     }
     if(!bufferDesc || bufferDesc->dwSize < sizeof(DSBUFFERDESC1))
     {
-        WARN(PREFIX "Invalid DSBUFFERDESC (%p, %lu)\n", cvoidp{bufferDesc},
+        WARN(PREFIX "Invalid DSBUFFERDESC ({}, {})", cvoidp{bufferDesc},
             bufferDesc ? bufferDesc->dwSize : 0);
         return DSERR_INVALIDPARAM;
     }
 
     if(!mShared)
     {
-        WARN(PREFIX "Device not initialized\n");
+        WARN(PREFIX "Device not initialized");
         return DSERR_UNINITIALIZED;
     }
 
@@ -534,19 +520,19 @@ HRESULT STDMETHODCALLTYPE DSound8OAL::CreateSoundBuffer(const DSBUFFERDESC *buff
     if(bufdesc.dwSize >= sizeof(DSBUFFERDESC))
     {
         TRACE(PREFIX "Requested buffer:\n"
-              "    Size        = %lu\n"
-              "    Flags       = 0x%08lx\n"
-              "    BufferBytes = %lu\n"
-              "    3DAlgorithm = %s\n",
+              "    Size        = {}\n"
+              "    Flags       = 0x{:08x}\n"
+              "    BufferBytes = {}\n"
+              "    3DAlgorithm = {}",
             bufdesc.dwSize, bufdesc.dwFlags, bufdesc.dwBufferBytes,
             Ds3dalgPrinter{bufdesc.guid3DAlgorithm}.c_str());
     }
     else
     {
         TRACE(PREFIX "Requested buffer:\n"
-              "    Size        = %lu\n"
-              "    Flags       = 0x%08lx\n"
-              "    BufferBytes = %lu\n",
+              "    Size        = {}\n"
+              "    Flags       = 0x{:08x}\n"
+              "    BufferBytes = {}",
             bufdesc.dwSize, bufdesc.dwFlags, bufdesc.dwBufferBytes);
     }
 
@@ -556,7 +542,7 @@ HRESULT STDMETHODCALLTYPE DSound8OAL::CreateSoundBuffer(const DSBUFFERDESC *buff
         /* Neither does DirectSound 8. */
         if(mIs8)
         {
-            WARN(PREFIX "Cannot create buffers with 3D and pan control\n");
+            WARN(PREFIX "Cannot create buffers with 3D and pan control");
             return DSERR_INVALIDPARAM;
         }
 
@@ -565,7 +551,7 @@ HRESULT STDMETHODCALLTYPE DSound8OAL::CreateSoundBuffer(const DSBUFFERDESC *buff
         if(!once)
         {
             ++once;
-            FIXME(PREFIX "Buffers with 3D and pan control ignore panning\n");
+            FIXME(PREFIX "Buffers with 3D and pan control ignore panning");
         }
     }
 
@@ -598,17 +584,17 @@ HRESULT STDMETHODCALLTYPE DSound8OAL::CreateSoundBuffer(const DSBUFFERDESC *buff
 #define PREFIX CLASS_PREFIX "GetCaps "
 HRESULT STDMETHODCALLTYPE DSound8OAL::GetCaps(DSCAPS *dsCaps) noexcept
 {
-    DEBUG(PREFIX "(%p)->(%p)\n", voidp{this}, voidp{dsCaps});
+    DEBUG(PREFIX "({})->({})", voidp{this}, voidp{dsCaps});
 
     if(!mShared)
     {
-        WARN(PREFIX "Device not initialized\n");
+        WARN(PREFIX "Device not initialized");
         return DSERR_UNINITIALIZED;
     }
 
     if(!dsCaps || dsCaps->dwSize < sizeof(*dsCaps))
     {
-        WARN(PREFIX "Invalid DSCAPS (%p, %lu)\n", voidp{dsCaps}, dsCaps ? dsCaps->dwSize : 0lu);
+        WARN(PREFIX "Invalid DSCAPS ({}, {})", voidp{dsCaps}, dsCaps ? dsCaps->dwSize : 0lu);
         return DSERR_INVALIDPARAM;
     }
 
@@ -644,17 +630,17 @@ HRESULT STDMETHODCALLTYPE DSound8OAL::GetCaps(DSCAPS *dsCaps) noexcept
 HRESULT STDMETHODCALLTYPE DSound8OAL::DuplicateSoundBuffer(IDirectSoundBuffer *original,
     IDirectSoundBuffer **duplicate) noexcept
 {
-    DEBUG(PREFIX "(%p)->(%p, %p)\n", voidp{this}, voidp{original}, voidp{duplicate});
+    DEBUG(PREFIX "({})->({}, {})", voidp{this}, voidp{original}, voidp{duplicate});
 
     if(!mShared)
     {
-        WARN(PREFIX "Device not initialized\n");
+        WARN(PREFIX "Device not initialized");
         return DSERR_UNINITIALIZED;
     }
 
     if(!original || !duplicate)
     {
-        WARN(PREFIX "Invalid pointer: in = %p, out = %p\n", voidp{original}, voidp{duplicate});
+        WARN(PREFIX "Invalid pointer: in = {}, out = {}", voidp{original}, voidp{duplicate});
         return DSERR_INVALIDPARAM;
     }
     *duplicate = nullptr;
@@ -664,17 +650,17 @@ HRESULT STDMETHODCALLTYPE DSound8OAL::DuplicateSoundBuffer(IDirectSoundBuffer *o
     HRESULT hr{original->GetCaps(&caps)};
     if(FAILED(hr))
     {
-        WARN(PREFIX "Failed to get caps for buffer %p\n", voidp{original});
+        WARN(PREFIX "Failed to get caps for buffer {}", voidp{original});
         return DSERR_INVALIDPARAM;
     }
     if((caps.dwFlags&DSBCAPS_PRIMARYBUFFER))
     {
-        WARN(PREFIX "Cannot duplicate primary buffer %p\n", voidp{original});
+        WARN(PREFIX "Cannot duplicate primary buffer {}", voidp{original});
         return DSERR_INVALIDPARAM;
     }
     if((caps.dwFlags&DSBCAPS_CTRLFX))
     {
-        WARN(PREFIX "Cannot duplicate buffer %p, which has DSBCAPS_CTRLFX\n", voidp{original});
+        WARN(PREFIX "Cannot duplicate buffer {}, which has DSBCAPS_CTRLFX", voidp{original});
         return DSERR_INVALIDPARAM;
     }
 
@@ -692,17 +678,17 @@ HRESULT STDMETHODCALLTYPE DSound8OAL::DuplicateSoundBuffer(IDirectSoundBuffer *o
 #define PREFIX CLASS_PREFIX "SetCooperativeLevel "
 HRESULT STDMETHODCALLTYPE DSound8OAL::SetCooperativeLevel(HWND hwnd, DWORD level) noexcept
 {
-    DEBUG(PREFIX "(%p)->(%p, %lu)\n", voidp{this}, voidp{hwnd}, level);
+    DEBUG(PREFIX "({})->({}, {})", voidp{this}, voidp{hwnd}, level);
 
     if(!mShared)
     {
-        WARN(PREFIX "Device not initialized\n");
+        WARN(PREFIX "Device not initialized");
         return DSERR_UNINITIALIZED;
     }
 
     if(level > DSSCL_WRITEPRIMARY || level < DSSCL_NORMAL)
     {
-        WARN(PREFIX "Invalid cooperative level: %lu\n", level);
+        WARN(PREFIX "Invalid cooperative level: {}", level);
         return DSERR_INVALIDPARAM;
     }
 
@@ -725,7 +711,7 @@ HRESULT STDMETHODCALLTYPE DSound8OAL::SetCooperativeLevel(HWND hwnd, DWORD level
                 hr = buffer.GetStatus(&state);
                 if(FAILED(hr) || (state&DSBSTATUS_PLAYING))
                 {
-                    WARN(PREFIX "DSSCL_WRITEPRIMARY set with playing buffers!\n");
+                    WARN(PREFIX "DSSCL_WRITEPRIMARY set with playing buffers!");
                     return DSERR_INVALIDCALL;
                 }
                 buffer.setLost();
@@ -737,7 +723,7 @@ HRESULT STDMETHODCALLTYPE DSound8OAL::SetCooperativeLevel(HWND hwnd, DWORD level
     }
     else if(level < DSSCL_WRITEPRIMARY && mPrioLevel == DSSCL_WRITEPRIMARY)
     {
-        TRACE(PREFIX "Nuking mWriteEmu\n");
+        TRACE(PREFIX "Nuking mWriteEmu");
         mPrimaryBuffer.getWriteEmuRef() = nullptr;
     }
     if(SUCCEEDED(hr))
@@ -750,17 +736,17 @@ HRESULT STDMETHODCALLTYPE DSound8OAL::SetCooperativeLevel(HWND hwnd, DWORD level
 #define PREFIX CLASS_PREFIX "Compact "
 HRESULT STDMETHODCALLTYPE DSound8OAL::Compact() noexcept
 {
-    DEBUG(PREFIX "(%p)->()\n", voidp{this});
+    DEBUG(PREFIX "({})->()", voidp{this});
 
     if(!mShared)
     {
-        WARN(PREFIX "Device not initialized\n");
+        WARN(PREFIX "Device not initialized");
         return DSERR_UNINITIALIZED;
     }
 
     if(mPrioLevel < DSSCL_PRIORITY)
     {
-        WARN("Cooperative level too low: %lu\n", mPrioLevel);
+        WARN("Cooperative level too low: {}", mPrioLevel);
         return DSERR_PRIOLEVELNEEDED;
     }
 
@@ -771,7 +757,7 @@ HRESULT STDMETHODCALLTYPE DSound8OAL::Compact() noexcept
 #define PREFIX CLASS_PREFIX "GetSpeakerConfig "
 HRESULT STDMETHODCALLTYPE DSound8OAL::GetSpeakerConfig(DWORD *speakerConfig) noexcept
 {
-    DEBUG(PREFIX "(%p)->(%p)\n", voidp{this}, voidp{speakerConfig});
+    DEBUG(PREFIX "({})->({})", voidp{this}, voidp{speakerConfig});
 
     if(!speakerConfig)
         return DSERR_INVALIDPARAM;
@@ -779,7 +765,7 @@ HRESULT STDMETHODCALLTYPE DSound8OAL::GetSpeakerConfig(DWORD *speakerConfig) noe
 
     if(!mShared)
     {
-        WARN(PREFIX "Device not initialized\n");
+        WARN(PREFIX "Device not initialized");
         return DSERR_UNINITIALIZED;
     }
 
@@ -792,11 +778,11 @@ HRESULT STDMETHODCALLTYPE DSound8OAL::GetSpeakerConfig(DWORD *speakerConfig) noe
 #define PREFIX CLASS_PREFIX "SetSpeakerConfig "
 HRESULT STDMETHODCALLTYPE DSound8OAL::SetSpeakerConfig(DWORD speakerConfig) noexcept
 {
-    DEBUG(PREFIX "(%p)->(0x%08lx)\n", voidp{this}, speakerConfig);
+    DEBUG(PREFIX "({})->(0x{:08x})", voidp{this}, speakerConfig);
 
     if(!mShared)
     {
-        WARN(PREFIX "Device not initialized\n");
+        WARN(PREFIX "Device not initialized");
         return DSERR_UNINITIALIZED;
     }
 
@@ -805,12 +791,12 @@ HRESULT STDMETHODCALLTYPE DSound8OAL::SetSpeakerConfig(DWORD speakerConfig) noex
 
     if(geo && (geo < DSSPEAKER_GEOMETRY_MIN || geo > DSSPEAKER_GEOMETRY_MAX))
     {
-        WARN(PREFIX "Invalid speaker angle %lu\n", geo);
+        WARN(PREFIX "Invalid speaker angle {}", geo);
         return DSERR_INVALIDPARAM;
     }
     if(speaker < DSSPEAKER_HEADPHONE || speaker > DSSPEAKER_5POINT1_SURROUND)
     {
-        WARN(PREFIX "Invalid speaker config %lu\n", speaker);
+        WARN(PREFIX "Invalid speaker config {}", speaker);
         return DSERR_INVALIDPARAM;
     }
 
@@ -822,11 +808,11 @@ HRESULT STDMETHODCALLTYPE DSound8OAL::SetSpeakerConfig(DWORD speakerConfig) noex
 #define PREFIX CLASS_PREFIX "Initialize "
 HRESULT STDMETHODCALLTYPE DSound8OAL::Initialize(const GUID *deviceId) noexcept
 {
-    DEBUG(PREFIX "(%p)->(%s)\n", voidp{this}, DevidPrinter{deviceId}.c_str());
+    DEBUG(PREFIX "({})->({})", voidp{this}, DevidPrinter{deviceId}.c_str());
 
     if(mShared)
     {
-        WARN(PREFIX "Device already initialized\n");
+        WARN(PREFIX "Device already initialized");
         return DSERR_ALREADYINITIALIZED;
     }
 
@@ -866,7 +852,7 @@ HRESULT STDMETHODCALLTYPE DSound8OAL::Initialize(const GUID *deviceId) noexcept
 #define PREFIX CLASS_PREFIX "VerifyCertification "
 HRESULT STDMETHODCALLTYPE DSound8OAL::VerifyCertification(DWORD *certified) noexcept
 {
-    DEBUG(PREFIX "(%p)->(%p)\n", voidp{this}, voidp{certified});
+    DEBUG(PREFIX "({})->({})", voidp{this}, voidp{certified});
 
     if(!certified)
         return DSERR_INVALIDPARAM;
@@ -874,7 +860,7 @@ HRESULT STDMETHODCALLTYPE DSound8OAL::VerifyCertification(DWORD *certified) noex
 
     if(!mShared)
     {
-        WARN(PREFIX "Device not initialized\n");
+        WARN(PREFIX "Device not initialized");
         return DSERR_UNINITIALIZED;
     }
 
@@ -915,7 +901,7 @@ ULONG STDMETHODCALLTYPE DSound8OAL::Unknown::AddRef() noexcept
     auto self = impl_from_base();
     self->mTotalRef.fetch_add(1u, std::memory_order_relaxed);
     const auto ret = self->mUnkRef.fetch_add(1u, std::memory_order_relaxed) + 1;
-    DEBUG(CLASS_PREFIX "AddRef (%p) ref %lu\n", voidp{this}, ret);
+    DEBUG(CLASS_PREFIX "AddRef ({}) ref {}", voidp{this}, ret);
     return ret;
 }
 
@@ -923,7 +909,7 @@ ULONG STDMETHODCALLTYPE DSound8OAL::Unknown::Release() noexcept
 {
     auto self = impl_from_base();
     const auto ret = self->mUnkRef.fetch_sub(1u, std::memory_order_relaxed) - 1;
-    DEBUG(CLASS_PREFIX "Release (%p) ref %lu\n", voidp{this}, ret);
+    DEBUG(CLASS_PREFIX "Release ({}) ref {}", voidp{this}, ret);
     if(self->mTotalRef.fetch_sub(1u, std::memory_order_relaxed) == 1u) UNLIKELY
         delete self;
     return ret;

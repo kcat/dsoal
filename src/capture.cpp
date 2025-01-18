@@ -23,7 +23,7 @@ DSCapture::~DSCapture() = default;
 
 HRESULT STDMETHODCALLTYPE DSCapture::QueryInterface(REFIID riid, void **ppvObject) noexcept
 {
-    DEBUG(PREFIX "QueryInterface (%p)->(%s, %p)\n", voidp{this}, IidPrinter{riid}.c_str(),
+    DEBUG(PREFIX "QueryInterface ({})->({}, {})", voidp{this}, IidPrinter{riid}.c_str(),
         voidp{ppvObject});
 
     *ppvObject = nullptr;
@@ -40,7 +40,7 @@ HRESULT STDMETHODCALLTYPE DSCapture::QueryInterface(REFIID riid, void **ppvObjec
         return S_OK;
     }
 
-    FIXME(PREFIX "QueryInterface Unhandled GUID: %s\n", IidPrinter{riid}.c_str());
+    FIXME(PREFIX "QueryInterface Unhandled GUID: {}", IidPrinter{riid}.c_str());
     return E_NOINTERFACE;
 }
 
@@ -48,14 +48,14 @@ ULONG STDMETHODCALLTYPE DSCapture::AddRef() noexcept
 {
     mTotalRef.fetch_add(1u, std::memory_order_relaxed);
     const auto ret = mDsRef.fetch_add(1u, std::memory_order_relaxed) + 1;
-    DEBUG(PREFIX "AddRef (%p) ref %lu\n", voidp{this}, ret);
+    DEBUG(PREFIX "AddRef ({}) ref {}", voidp{this}, ret);
     return ret;
 }
 
 ULONG STDMETHODCALLTYPE DSCapture::Release() noexcept
 {
     const auto ret = mDsRef.fetch_sub(1u, std::memory_order_relaxed) - 1;
-    DEBUG(PREFIX "Release (%p) ref %lu\n", voidp{this}, ret);
+    DEBUG(PREFIX "Release ({}) ref {}", voidp{this}, ret);
     if(mTotalRef.fetch_sub(1u, std::memory_order_relaxed) == 1u) UNLIKELY
         delete this;
     return ret;
@@ -64,20 +64,20 @@ ULONG STDMETHODCALLTYPE DSCapture::Release() noexcept
 HRESULT STDMETHODCALLTYPE DSCapture::CreateCaptureBuffer(const DSCBUFFERDESC *dscBufferDesc,
     IDirectSoundCaptureBuffer **dsCaptureBuffer, IUnknown *unk) noexcept
 {
-    FIXME(PREFIX "CreateCaptureBuffer (%p)->(%p, %p, %p)\n", voidp{this}, cvoidp{dscBufferDesc},
+    FIXME(PREFIX "CreateCaptureBuffer ({})->({}, {}, {})", voidp{this}, cvoidp{dscBufferDesc},
         voidp{dsCaptureBuffer}, voidp{unk});
     return E_NOTIMPL;
 }
 
 HRESULT STDMETHODCALLTYPE DSCapture::GetCaps(DSCCAPS *dscCaps) noexcept
 {
-    FIXME(PREFIX "GetCaps (%p)->(%p)\n", voidp{this}, voidp{dscCaps});
+    FIXME(PREFIX "GetCaps ({})->({})", voidp{this}, voidp{dscCaps});
     return E_NOTIMPL;
 }
 
 HRESULT STDMETHODCALLTYPE DSCapture::Initialize(const GUID *guid) noexcept
 {
-    FIXME(PREFIX "Initialize (%p)->(%s)\n", voidp{this}, DevidPrinter{guid}.c_str());
+    FIXME(PREFIX "Initialize ({})->({})", voidp{this}, DevidPrinter{guid}.c_str());
     return E_NOTIMPL;
 }
 #undef PREFIX
@@ -91,7 +91,7 @@ ULONG STDMETHODCALLTYPE DSCapture::Unknown::AddRef() noexcept
     auto self = impl_from_base();
     self->mTotalRef.fetch_add(1u, std::memory_order_relaxed);
     const auto ret = self->mUnkRef.fetch_add(1u, std::memory_order_relaxed) + 1;
-    DEBUG(PREFIX "AddRef (%p) ref %lu\n", voidp{this}, ret);
+    DEBUG(PREFIX "AddRef ({}) ref {}", voidp{this}, ret);
     return ret;
 }
 
@@ -99,7 +99,7 @@ ULONG STDMETHODCALLTYPE DSCapture::Unknown::Release() noexcept
 {
     auto self = impl_from_base();
     const auto ret = self->mUnkRef.fetch_sub(1u, std::memory_order_relaxed) - 1;
-    DEBUG(PREFIX "Release (%p) ref %lu\n", voidp{this}, ret);
+    DEBUG(PREFIX "Release ({}) ref {}", voidp{this}, ret);
     if(self->mTotalRef.fetch_sub(1u, std::memory_order_relaxed) == 1u) UNLIKELY
         delete self;
     return ret;

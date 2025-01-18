@@ -5,6 +5,8 @@ project(dsoal LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+add_subdirectory(fmt-11.1.1)
+
 include(CheckCXXCompilerFlag)
 
 set(DSOAL_CPPDEFS )
@@ -80,6 +82,6 @@ add_library(dsound SHARED
     ${DEF_FILE}
 )
 set_target_properties(dsound PROPERTIES PREFIX "")
-target_link_libraries(dsound PRIVATE ${DSOAL_LINK_FLAGS})
+target_link_libraries(dsound PRIVATE dsoal::fmt ${DSOAL_LINK_FLAGS})
 target_compile_definitions(dsound PRIVATE DSOAL_LIBRARY ${DSOAL_CPPDEFS})
 target_compile_options(dsound PRIVATE ${DSOAL_CFLAGS})

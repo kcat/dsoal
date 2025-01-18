@@ -4,7 +4,9 @@
 #include <cmath>
 #include <cstdint>
 #include <cstring>
+#include <cwchar>
 #include <limits>
+#include <string>
 #include <string_view>
 #include <type_traits>
 
@@ -23,8 +25,18 @@ template<typename T> using owner = T;
 constexpr int64_t operator "" _i64(unsigned long long int n) noexcept { return static_cast<int64_t>(n); }
 constexpr uint64_t operator "" _u64(unsigned long long int n) noexcept { return static_cast<uint64_t>(n); }
 
+template<typename T, std::enable_if_t<std::is_integral_v<T>,bool> = true>
+constexpr auto as_unsigned(T value) noexcept
+{
+    using UT = std::make_unsigned_t<T>;
+    return static_cast<UT>(value);
+}
+
 inline constexpr size_t MaxSources{1024};
 inline constexpr size_t MaxHwSources{128};
+
+auto wstr_to_utf8(std::wstring_view wstr) -> std::string;
+auto utf8_to_wstr(std::string_view str) -> std::wstring;
 
 namespace ds {
 

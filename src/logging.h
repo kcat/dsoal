@@ -1,9 +1,10 @@
 #ifndef LOGGING_H
 #define LOGGING_H
 
-#include <cstdio>
+#include <type_traits>
 
 #include "dsoal.h"
+#include "fmt/core.h"
 
 #ifdef __has_cpp_attribute
 #define HAS_ATTRIBUTE __has_cpp_attribute
@@ -19,6 +20,13 @@
 #define UNLIKELY
 #endif
 
+namespace ds {
+
+template<typename T>
+constexpr auto to_underlying(T e) noexcept -> std::underlying_type_t<T>
+{ return static_cast<std::underlying_type_t<T>>(e); }
+
+} // namespace ds
 
 enum class LogLevel {
     Disable,
@@ -32,14 +40,14 @@ inline LogLevel gLogLevel{LogLevel::Error};
 
 inline gsl::owner<FILE*> gLogFile{};
 
-#if HAS_ATTRIBUTE(gnu::format)
-#if defined(__USE_MINGW_ANSI_STDIO) && !defined(__clang__)
-[[gnu::format(gnu_printf,2,3)]]
-#else
-[[gnu::format(printf,2,3)]]
-#endif
-#endif
-void dsoal_print(LogLevel level, const char *fmt, ...);
+void dsoal_print_impl(LogLevel level, const fmt::string_view fmt, fmt::format_args args);
+
+template<typename ...Args>
+void dsoal_print(LogLevel level, fmt::format_string<Args...> fmt, Args&& ...args) noexcept
+try {
+    dsoal_print_impl(level, fmt, fmt::make_format_args(args...));
+} catch(...) { }
+
 
 #define DEBUG(...) do {                                                       \
     if(gLogLevel >= LogLevel::Debug) UNLIKELY                                 \

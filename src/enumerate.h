@@ -16,14 +16,13 @@
 
 
 inline constexpr WCHAR aldriver_name[] = L"dsoal-aldrv.dll";
+inline constexpr WCHAR primary_desc[] = L"Primary Sound Driver";
 
 ComPtr<IMMDevice> GetMMDevice(ComWrapper&, EDataFlow flow, const GUID &id);
 
 template<typename T>
 HRESULT enumerate_mmdev(const EDataFlow flow, std::deque<GUID> &devlist, T cb)
 {
-    const WCHAR *primary_desc{L"Primary Sound Driver"};
-
     ComWrapper com;
 
     ComPtr<IMMDeviceEnumerator> devenum;
@@ -31,7 +30,7 @@ HRESULT enumerate_mmdev(const EDataFlow flow, std::deque<GUID> &devlist, T cb)
         IID_IMMDeviceEnumerator, ds::out_ptr(devenum))};
     if(FAILED(hr))
     {
-        ERR("enumerate_mmdev CoCreateInstance failed: %08lx\n", hr);
+        ERR("enumerate_mmdev CoCreateInstance failed: {:08x}", as_unsigned(hr));
         return hr;
     }
 
@@ -39,7 +38,8 @@ HRESULT enumerate_mmdev(const EDataFlow flow, std::deque<GUID> &devlist, T cb)
     hr = devenum->EnumAudioEndpoints(flow, DEVICE_STATE_ACTIVE, ds::out_ptr(coll));
     if(FAILED(hr))
     {
-        WARN("enumerate_mmdev IMMDeviceEnumerator::EnumAudioEndpoints failed: %08lx\n", hr);
+        WARN("enumerate_mmdev IMMDeviceEnumerator::EnumAudioEndpoints failed: {:08x}",
+            as_unsigned(hr));
         return DS_OK;
     }
 
@@ -47,7 +47,7 @@ HRESULT enumerate_mmdev(const EDataFlow flow, std::deque<GUID> &devlist, T cb)
     hr = coll->GetCount(&count);
     if(FAILED(hr))
     {
-        WARN("enumerate_mmdev IMMDeviceCollection::GetCount failed: %08lx\n", hr);
+        WARN("enumerate_mmdev IMMDeviceCollection::GetCount failed: {:08x}", as_unsigned(hr));
         return DS_OK;
     }
 
@@ -56,7 +56,7 @@ HRESULT enumerate_mmdev(const EDataFlow flow, std::deque<GUID> &devlist, T cb)
 
     std::deque<GUID>{}.swap(devlist);
 
-    TRACE("enumerate_mmdev Calling back with NULL (%ls)\n", primary_desc);
+    TRACE("enumerate_mmdev Calling back with NULL ({})", wstr_to_utf8(primary_desc));
     bool keep_going{cb(nullptr, primary_desc, L"")};
 
     auto send_device = [&devlist,&cb,&keep_going](IMMDevice *device)
@@ -65,7 +65,7 @@ HRESULT enumerate_mmdev(const EDataFlow flow, std::deque<GUID> &devlist, T cb)
         HRESULT hr2{device->OpenPropertyStore(STGM_READ, ds::out_ptr(ps))};
         if(FAILED(hr2))
         {
-            WARN("send_device IMMDevice::OpenPropertyStore failed: %08lx\n", hr2);
+            WARN("send_device IMMDevice::OpenPropertyStore failed: {:08x}", as_unsigned(hr2));
             return;
         }
 
@@ -73,7 +73,7 @@ HRESULT enumerate_mmdev(const EDataFlow flow, std::deque<GUID> &devlist, T cb)
         hr2 = ps->GetValue(PKEY_AudioEndpoint_GUID, pv.get());
         if(FAILED(hr2) || pv.type() != VT_LPWSTR)
         {
-            WARN("send_device IPropertyStore::GetValue(GUID) failed: %08lx\n", hr2);
+            WARN("send_device IPropertyStore::GetValue(GUID) failed: {:08x}", as_unsigned(hr2));
             return;
         }
 
@@ -90,12 +90,13 @@ HRESULT enumerate_mmdev(const EDataFlow flow, std::deque<GUID> &devlist, T cb)
         hr2 = ps->GetValue(std::bit_cast<PROPERTYKEY>(DEVPKEY_Device_FriendlyName), pv.get());
         if(FAILED(hr2))
         {
-            WARN("send_device IPropertyStore::GetValue(FriendlyName) failed: %08lx\n", hr2);
+            WARN("send_device IPropertyStore::GetValue(FriendlyName) failed: {:08x}",
+                as_unsigned(hr2));
             return;
         }
 
-        TRACE("send_device Calling back with %s - %ls\n", GuidPrinter{devlist.back()}.c_str(),
-            pv.value<const WCHAR*>());
+        TRACE("send_device Calling back with {} - {}", GuidPrinter{devlist.back()}.c_str(),
+            wstr_to_utf8(pv.value<const WCHAR*>()));
         keep_going = cb(&devlist.back(), pv.value<const WCHAR*>(), std::data(aldriver_name));
     };
 
@@ -109,7 +110,7 @@ HRESULT enumerate_mmdev(const EDataFlow flow, std::deque<GUID> &devlist, T cb)
         hr = coll->Item(i, ds::out_ptr(device));
         if(FAILED(hr))
         {
-            WARN("enumerate_mmdev IMMDeviceCollection::Item failed: %08lx\n", hr);
+            WARN("enumerate_mmdev IMMDeviceCollection::Item failed: {:08x}", as_unsigned(hr));
             continue;
         }
 
