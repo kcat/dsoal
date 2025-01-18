@@ -211,8 +211,8 @@ ds::expected<std::unique_ptr<SharedDevice>,HRESULT> CreateDeviceShare(const GUID
     alcGetIntegerv(aldev.get(), ALC_STEREO_SOURCES, 1, &numStereo);
     alcGetError(aldev.get());
 
-    if(numMono < 0) numMono = 0;
-    if(numStereo < 0) numStereo = 0;
+    numMono = std::max(numMono, 0);
+    numStereo = std::max(numStereo, 0);
     const DWORD totalSources{static_cast<DWORD>(numMono) + static_cast<DWORD>(numStereo)};
     if(totalSources < 128)
     {
@@ -693,7 +693,7 @@ HRESULT STDMETHODCALLTYPE DSound8OAL::SetCooperativeLevel(HWND hwnd, DWORD level
     }
 
     std::lock_guard lock{mDsMutex};
-    auto hr = HRESULT{S_OK};
+    auto hr = S_OK;
     if(level == DSSCL_WRITEPRIMARY && mPrioLevel != DSSCL_WRITEPRIMARY)
     {
         mPrimaryBuffer.getWriteEmuRef() = nullptr;

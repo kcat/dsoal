@@ -166,7 +166,7 @@ void SetALContext(ALCcontext *context);
 inline void UnsetALContext() { }
 
 struct ALSection {
-    ALSection(ALCcontext *context) { SetALContext(context); }
+    explicit ALSection(ALCcontext *context) { SetALContext(context); }
     ~ALSection() { UnsetALContext(); }
 };
 
@@ -176,7 +176,7 @@ inline float mB_to_gain(float millibels)
 {
     if(millibels <= DSBVOLUME_MIN)
         return 0.0f;
-    return std::pow(10.0f, static_cast<float>(millibels) / 2'000.0f);
+    return std::pow(10.0f, millibels / 2'000.0f);
 }
 
 

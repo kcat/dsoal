@@ -201,11 +201,13 @@ auto wstr_to_utf8(std::wstring_view wstr) -> std::string
 {
     auto ret = std::string{};
 
+    /* NOLINTNEXTLINE(bugprone-suspicious-stringview-data-usage) */
     const auto len = WideCharToMultiByte(CP_UTF8, 0, wstr.data(), ds::sizei(wstr), nullptr, 0,
         nullptr, nullptr);
     if(len > 0)
     {
         ret.resize(static_cast<size_t>(len));
+        /* NOLINTNEXTLINE(bugprone-suspicious-stringview-data-usage) */
         WideCharToMultiByte(CP_UTF8, 0, wstr.data(), ds::sizei(wstr), ret.data(), len, nullptr,
             nullptr);
     }
@@ -217,10 +219,12 @@ auto utf8_to_wstr(std::string_view str) -> std::wstring
 {
     auto ret = std::wstring{};
 
+    /* NOLINTNEXTLINE(bugprone-suspicious-stringview-data-usage) */
     const auto len = MultiByteToWideChar(CP_UTF8, 0, str.data(), ds::sizei(str), nullptr, 0);
     if(len > 0)
     {
         ret.resize(static_cast<size_t>(len));
+        /* NOLINTNEXTLINE(bugprone-suspicious-stringview-data-usage) */
         MultiByteToWideChar(CP_UTF8, 0, str.data(), ds::sizei(str), ret.data(), len);
     }
 

@@ -92,7 +92,7 @@ class PrimaryBuffer final : IDirectSoundBuffer {
 public:
     PrimaryBuffer() = delete;
     PrimaryBuffer(const PrimaryBuffer&) = delete;
-    PrimaryBuffer(DSound8OAL &parent);
+    explicit PrimaryBuffer(DSound8OAL &parent);
     ~PrimaryBuffer();
 
     PrimaryBuffer& operator=(const PrimaryBuffer&) = delete;

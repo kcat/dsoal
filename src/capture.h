@@ -9,7 +9,7 @@
 
 
 class DSCapture final : IDirectSoundCapture {
-    DSCapture(bool is8);
+    explicit DSCapture(bool is8);
     ~DSCapture();
 
     class Unknown final : IUnknown {

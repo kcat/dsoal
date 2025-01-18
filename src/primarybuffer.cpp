@@ -43,7 +43,7 @@ auto PrimaryBuffer::createWriteEmu(DWORD flags) noexcept -> HRESULT
     auto emu = ComPtr{new(std::nothrow) Buffer{mParent, false, nullptr}};
     if(!emu) return DSERR_OUTOFMEMORY;
 
-    if(auto hr = HRESULT{emu->Initialize(mParent.as<IDirectSound*>(), &emudesc)}; FAILED(hr))
+    if(auto hr = emu->Initialize(mParent.as<IDirectSound*>(), &emudesc); FAILED(hr))
         return hr;
 
     return emu->QueryInterface(IID_IDirectSoundBuffer, ds::out_ptr(mWriteEmu));
@@ -340,7 +340,7 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::Play(DWORD reserved1, DWORD reserved2, 
     }
 
     std::lock_guard lock{mMutex};
-    auto hr = HRESULT{S_OK};
+    auto hr = S_OK;
     if(mWriteEmu)
         hr = mWriteEmu->Play(reserved1, reserved2, flags);
 
@@ -381,7 +381,8 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::SetFormat(const WAVEFORMATEX *wfx) noex
             return DS_OK;
         }
 
-        const WAVEFORMATEXTENSIBLE *wfe{CONTAINING_RECORD(wfx, const WAVEFORMATEXTENSIBLE, Format)};
+        /* NOLINTBEGIN(cppcoreguidelines-pro-type-union-access) */
+        auto *wfe = CONTAINING_RECORD(wfx, const WAVEFORMATEXTENSIBLE, Format);
         TRACE(PREFIX "SetFormat Requested primary format:\n"
               "    FormatTag          = 0x{:04x}\n"
               "    Channels           = {}\n"
@@ -396,6 +397,7 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::SetFormat(const WAVEFORMATEX *wfx) noex
             wfe->Format.nAvgBytesPerSec, wfe->Format.nBlockAlign, wfe->Format.wBitsPerSample,
             wfe->Samples.wValidBitsPerSample, wfe->dwChannelMask,
             FmtidPrinter{wfe->SubFormat}.c_str());
+        /* NOLINTEND(cppcoreguidelines-pro-type-union-access) */
     }
     else
     {
@@ -461,8 +463,9 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::SetFormat(const WAVEFORMATEX *wfx) noex
         }
         else if(wfx->wFormatTag == WAVE_FORMAT_EXTENSIBLE)
         {
-            const WAVEFORMATEXTENSIBLE *fromx{CONTAINING_RECORD(wfx, const WAVEFORMATEXTENSIBLE, Format)};
+            auto *fromx = CONTAINING_RECORD(wfx, const WAVEFORMATEXTENSIBLE, Format);
 
+            /* NOLINTBEGIN(cppcoreguidelines-pro-type-union-access) */
             if(fromx->Samples.wValidBitsPerSample > fromx->Format.wBitsPerSample)
                 return DSERR_INVALIDPARAM;
 
@@ -490,6 +493,7 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::SetFormat(const WAVEFORMATEX *wfx) noex
                 dst.Samples.wValidBitsPerSample = fromx->Format.wBitsPerSample;
             dst.dwChannelMask = fromx->dwChannelMask;
             dst.SubFormat = fromx->SubFormat;
+            /* NOLINTEND(cppcoreguidelines-pro-type-union-access) */
         }
         else
         {
@@ -506,7 +510,7 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::SetFormat(const WAVEFORMATEX *wfx) noex
         return DS_OK;
     };
 
-    auto hr = HRESULT{copy_format(mFormat)};
+    auto hr = copy_format(mFormat);
     if(SUCCEEDED(hr) && mWriteEmu)
     {
         mWriteEmu = nullptr;
@@ -550,7 +554,7 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::SetPan(LONG pan) noexcept
     if(!(mFlags&DSBCAPS_CTRLPAN))
         return DSERR_CONTROLUNAVAIL;
 
-    auto hr = HRESULT{S_OK};
+    auto hr = S_OK;
     if(mWriteEmu)
         hr = mWriteEmu->SetPan(pan);
     if(SUCCEEDED(hr))
@@ -570,7 +574,7 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::Stop() noexcept
     DEBUG("PrimaryBuffer::Stop ({})->()", voidp{this});
 
     std::lock_guard lock{mMutex};
-    auto hr = HRESULT{S_OK};
+    auto hr = S_OK;
     if(mWriteEmu)
         hr = mWriteEmu->Stop();
     if(SUCCEEDED(hr))

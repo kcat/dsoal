@@ -15,8 +15,8 @@
 #include "logging.h"
 
 
-inline constexpr WCHAR aldriver_name[] = L"dsoal-aldrv.dll";
-inline constexpr WCHAR primary_desc[] = L"Primary Sound Driver";
+inline constexpr WCHAR aldriver_name[] = L"dsoal-aldrv.dll"; /* NOLINT(*-avoid-c-arrays) */
+inline constexpr WCHAR primary_desc[] = L"Primary Sound Driver"; /* NOLINT(*-avoid-c-arrays) */
 
 ComPtr<IMMDevice> GetMMDevice(ComWrapper&, EDataFlow flow, const GUID &id);
 
@@ -56,7 +56,7 @@ HRESULT enumerate_mmdev(const EDataFlow flow, std::deque<GUID> &devlist, T cb)
 
     std::deque<GUID>{}.swap(devlist);
 
-    TRACE("enumerate_mmdev Calling back with NULL ({})", wstr_to_utf8(primary_desc));
+    TRACE("enumerate_mmdev Calling back with NULL ({})", wstr_to_utf8(std::data(primary_desc)));
     bool keep_going{cb(nullptr, primary_desc, L"")};
 
     auto send_device = [&devlist,&cb,&keep_going](IMMDevice *device)

@@ -37,7 +37,7 @@ struct SharedDevice {
     static std::mutex sDeviceListMutex;
     static std::vector<SharedDevice*> sDeviceList;
 
-    SharedDevice(const GUID &id) : mId{id} { }
+    explicit SharedDevice(const GUID &id) : mId{id} { }
     SharedDevice(const SharedDevice&) = delete;
     ~SharedDevice();
 
@@ -55,8 +55,8 @@ struct SharedDevice {
 
     DWORD mMaxHwSources{};
     DWORD mMaxSwSources{};
-    std::atomic<DWORD> mCurrentHwSources{};
-    std::atomic<DWORD> mCurrentSwSources{};
+    std::atomic<DWORD> mCurrentHwSources;
+    std::atomic<DWORD> mCurrentSwSources;
 
     std::bitset<ExtensionCount> mExtensions;
 
@@ -108,7 +108,7 @@ struct SharedDevice {
 
 
 class DSound8OAL final : IDirectSound8 {
-    DSound8OAL(bool is8);
+    explicit DSound8OAL(bool is8);
     ~DSound8OAL();
 
     class Unknown final : IUnknown {

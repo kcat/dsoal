@@ -18,7 +18,7 @@ struct ComPtr {
     ComPtr(const ComPtr &rhs) noexcept(RefIsNoexcept) : mPtr{rhs.mPtr}
     { if(mPtr) mPtr->AddRef(); }
     ComPtr(ComPtr&& rhs) noexcept : mPtr{rhs.mPtr} { rhs.mPtr = nullptr; }
-    ComPtr(std::nullptr_t) noexcept { }
+    ComPtr(std::nullptr_t) noexcept { } /* NOLINT(google-explicit-constructor) */
     explicit ComPtr(T *ptr) noexcept : mPtr{ptr} { }
     ~ComPtr() { if(mPtr) mPtr->Release(); }
 
@@ -82,7 +82,7 @@ class out_ptr_t {
     std::variant<PT,void*> mPtr{};
 
 public:
-    out_ptr_t(SP &res) : mRes{res} { }
+    explicit out_ptr_t(SP &res) : mRes{res} { }
     ~out_ptr_t()
     {
         auto set_res = [this](auto &ptr)
@@ -93,10 +93,10 @@ public:
 
     out_ptr_t& operator=(const out_ptr_t&) = delete;
 
-    operator PT*() noexcept
+    operator PT*() noexcept /* NOLINT(google-explicit-constructor) */
     { return &std::get<PT>(mPtr); }
 
-    operator void**() noexcept
+    operator void**() noexcept /* NOLINT(google-explicit-constructor) */
     {
         mPtr.template emplace<void*>();
         return &std::get<void*>(mPtr);

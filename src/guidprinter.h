@@ -31,7 +31,7 @@ class GuidPrinter {
 
     void store(const GUID &guid)
     {
-        std::snprintf(mMsg.data(), mMsg.size(),
+        std::snprintf(mMsg.data(), mMsg.size(), /* NOLINT(cppcoreguidelines-pro-type-vararg) */
             "{%08lx-%04x-%04x-%02x%02x-%02x%02x%02x%02x%02x%02x}",
             DWORD{guid.Data1}, guid.Data2, guid.Data3, guid.Data4[0], guid.Data4[1], guid.Data4[2],
             guid.Data4[3], guid.Data4[4], guid.Data4[5], guid.Data4[6], guid.Data4[7]);
@@ -152,7 +152,7 @@ class GuidPrinter {
     }
 
 public:
-    GuidPrinter(const GUID &guid) { store(guid); }
+    explicit GuidPrinter(const GUID &guid) { store(guid); }
     GuidPrinter(IidTag, const GUID &guid) { store_iid(guid); }
     GuidPrinter(ClsidTag, const GUID &guid) { store_clsid(guid); }
     GuidPrinter(DevidTag, const GUID &guid) { store_devid(guid); }
@@ -161,7 +161,7 @@ public:
     GuidPrinter(FmtidTag, const GUID &guid) { store_fmtid(guid); }
     GuidPrinter(DsfxTag, const GUID &guid) { store_dsfxid(guid); }
 
-    GuidPrinter(const GUID *guid) { if(!guid) mIdStr = "{null}"; else store(*guid); }
+    explicit GuidPrinter(const GUID *guid) { if(!guid) mIdStr = "{null}"; else store(*guid); }
     GuidPrinter(ClsidTag, const GUID *guid) { if(!guid) mIdStr = "{null}"; else store_clsid(*guid); }
     GuidPrinter(DevidTag, const GUID *guid) { if(!guid) mIdStr = "{null}"; else store_devid(*guid); }
     GuidPrinter(PropidTag, const GUID *guid) { if(!guid) mIdStr = "{null}"; else store_propid(*guid); }
@@ -176,43 +176,43 @@ public:
 class IidPrinter : public GuidPrinter {
 public:
     template<typename T, std::enable_if_t<!std::is_same_v<std::remove_cvref_t<T>,IidPrinter>,bool> = true>
-    IidPrinter(T&& guid) : GuidPrinter{IidTag{}, std::forward<T>(guid)} { }
+    explicit IidPrinter(T&& guid) : GuidPrinter{IidTag{}, std::forward<T>(guid)} { }
 };
 
 class ClsidPrinter : public GuidPrinter {
 public:
     template<typename T, std::enable_if_t<!std::is_same_v<std::remove_cvref_t<T>,ClsidPrinter>,bool> = true>
-    ClsidPrinter(T&& guid) : GuidPrinter{ClsidTag{}, std::forward<T>(guid)} { }
+    explicit ClsidPrinter(T&& guid) : GuidPrinter{ClsidTag{}, std::forward<T>(guid)} { }
 };
 
 class PropidPrinter : public GuidPrinter {
 public:
     template<typename T, std::enable_if_t<!std::is_same_v<std::remove_cvref_t<T>,PropidPrinter>,bool> = true>
-    PropidPrinter(T&& guid) : GuidPrinter{PropidTag{}, std::forward<T>(guid)} { }
+    explicit PropidPrinter(T&& guid) : GuidPrinter{PropidTag{}, std::forward<T>(guid)} { }
 };
 
 class DevidPrinter : public GuidPrinter {
 public:
     template<typename T, std::enable_if_t<!std::is_same_v<std::remove_cvref_t<T>,DevidPrinter>,bool> = true>
-    DevidPrinter(T&& guid) : GuidPrinter{DevidTag{}, std::forward<T>(guid)} { }
+    explicit DevidPrinter(T&& guid) : GuidPrinter{DevidTag{}, std::forward<T>(guid)} { }
 };
 
 class Ds3dalgPrinter : public GuidPrinter {
 public:
     template<typename T, std::enable_if_t<!std::is_same_v<std::remove_cvref_t<T>,Ds3dalgPrinter>,bool> = true>
-    Ds3dalgPrinter(T&& guid) : GuidPrinter{Ds3dalgTag{}, std::forward<T>(guid)} { }
+    explicit Ds3dalgPrinter(T&& guid) : GuidPrinter{Ds3dalgTag{}, std::forward<T>(guid)} { }
 };
 
 class FmtidPrinter : public GuidPrinter {
 public:
     template<typename T, std::enable_if_t<!std::is_same_v<std::remove_cvref_t<T>,FmtidPrinter>,bool> = true>
-    FmtidPrinter(T&& guid) : GuidPrinter{FmtidTag{}, std::forward<T>(guid)} { }
+    explicit FmtidPrinter(T&& guid) : GuidPrinter{FmtidTag{}, std::forward<T>(guid)} { }
 };
 
 class DsfxPrinter : public GuidPrinter {
 public:
     template<typename T, std::enable_if_t<!std::is_same_v<std::remove_cvref_t<T>,DsfxPrinter>,bool> = true>
-    DsfxPrinter(T&& guid) : GuidPrinter{DsfxTag{}, std::forward<T>(guid)} { }
+    explicit DsfxPrinter(T&& guid) : GuidPrinter{DsfxTag{}, std::forward<T>(guid)} { }
 };
 
 #endif // GUIDPRINTER_H

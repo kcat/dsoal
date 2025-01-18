@@ -102,6 +102,7 @@ ALenum ConvertFormat(WAVEFORMATEXTENSIBLE &dst, const WAVEFORMATEX &src,
 ALenum ConvertFormat(WAVEFORMATEXTENSIBLE &dst, const WAVEFORMATEXTENSIBLE &src,
     const std::bitset<ExtensionCount> exts) noexcept
 {
+    /* NOLINTBEGIN(cppcoreguidelines-pro-type-union-access) */
     TRACE("ConvertFormat Requested buffer format:\n"
           "    FormatTag          = 0x{:04x}\n"
           "    Channels           = {}\n"
@@ -129,6 +130,7 @@ ALenum ConvertFormat(WAVEFORMATEXTENSIBLE &dst, const WAVEFORMATEXTENSIBLE &src,
             dst.Format.wBitsPerSample, dst.Samples.wValidBitsPerSample);
         return AL_NONE;
     }
+    /* NOLINTEND(cppcoreguidelines-pro-type-union-access) */
 
     auto unsupported_format = [dst]
     {
@@ -321,6 +323,7 @@ ds::expected<ComPtr<SharedBuffer>,HRESULT> SharedBuffer::Create(const DSBUFFERDE
     }();
     if(!shared)
         return ds::unexpected(DSERR_OUTOFMEMORY);
+    /* NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic) */
     shared->mData = {reinterpret_cast<char*>(shared.get() + 1), bufSize};
     shared->mFlags = bufferDesc.dwFlags;
 

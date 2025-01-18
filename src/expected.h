@@ -74,7 +74,7 @@ public:
         && !std::is_same_v<expected, std::remove_cvref_t<U>>
         && std::is_constructible_v<S, U>
         && std::is_convertible_v<U, S>)>
-    constexpr expected(U&& v) : mValues{std::in_place_index_t<0>{}, std::forward<U>(v)}
+    constexpr expected(U&& v) : mValues{std::in_place_index_t<0>{}, std::forward<U>(v)} /* NOLINT(google-explicit-constructor) */
     { }
 
     /* Error constructors */
@@ -85,7 +85,7 @@ public:
     { }
     template<typename T, REQUIRES(std::is_constructible_v<F, const T&>
         && std::is_convertible_v<const T&, F>)>
-    constexpr expected(const unexpected<T> &rhs)
+    constexpr expected(const unexpected<T> &rhs) /* NOLINT(google-explicit-constructor) */
         : mValues{variant_type{std::in_place_index<1>, rhs.error()}}
     { }
 
@@ -96,7 +96,7 @@ public:
     { }
     template<typename T, REQUIRES(std::is_constructible_v<F, T>
         && std::is_convertible_v<T, F>)>
-    constexpr expected(unexpected<T>&& rhs)
+    constexpr expected(unexpected<T>&& rhs) /* NOLINT(google-explicit-constructor) */
         : mValues{variant_type{std::in_place_index<1>, std::move(rhs.error())}}
     { }
 
