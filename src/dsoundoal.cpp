@@ -2,8 +2,6 @@
 
 #include <algorithm>
 #include <chrono>
-#include <cinttypes>
-#include <functional>
 #include <memory>
 #include <optional>
 
@@ -17,6 +15,7 @@
 #include "dsoal.h"
 #include "enumerate.h"
 #include "expected.h"
+#include "fmt/chrono.h"
 #include "guidprinter.h"
 #include "logging.h"
 
@@ -35,12 +34,7 @@ struct ALCdeviceDeleter {
 using ALCdevicePtr = std::unique_ptr<ALCdevice,ALCdeviceDeleter>;
 
 struct ALCcontextDeleter {
-    void operator()(ALCcontext *context)
-    {
-        if(context == alcGetThreadContext())
-            alcSetThreadContext(nullptr);
-        alcDestroyContext(context);
-    }
+    void operator()(ALCcontext *context) { alcDestroyContext(context); }
 };
 using ALCcontextPtr = std::unique_ptr<ALCcontext,ALCcontextDeleter>;
 
@@ -165,7 +159,6 @@ ds::expected<std::unique_ptr<SharedDevice>,HRESULT> CreateDeviceShare(const GUID
         WARN(PREFIX "Couldn't create context, 0x{:04x}", alcGetError(aldev.get()));
         return ds::unexpected(DSERR_NODRIVER);
     }
-    ALSection alsection{alctx.get()};
 
     struct ExtensionEntry {
         const char *name;
@@ -190,7 +183,7 @@ ds::expected<std::unique_ptr<SharedDevice>,HRESULT> CreateDeviceShare(const GUID
                 TRACE(PREFIX "Found extension {}", ext.name);
             }
         }
-        else if(alIsExtensionPresent(ext.name))
+        else if(alIsExtensionPresentDirect(alctx.get(), ext.name))
         {
             extensions.set(ext.flag);
             TRACE(PREFIX "Found extension {}", ext.name);
@@ -266,11 +259,7 @@ auto SharedDevice::GetById(const GUID &deviceId) noexcept
 SharedDevice::~SharedDevice()
 {
     if(mContext)
-    {
-        if(mContext == alcGetThreadContext())
-            alcSetThreadContext(nullptr);
         alcDestroyContext(mContext);
-    }
     if(mDevice)
         alcCloseDevice(mDevice);
 }
@@ -370,8 +359,6 @@ ComPtr<Buffer> DSound8OAL::createSecondaryBuffer(IDirectSoundBuffer *original)
 #define PREFIX CLASS_PREFIX "notifyThread "
 void DSound8OAL::notifyThread() noexcept
 {
-    alcSetThreadContext(mShared->mContext);
-
     ALCint refresh{};
     alcGetIntegerv(mShared->mDevice, ALC_REFRESH, 1, &refresh);
 
@@ -386,7 +373,7 @@ void DSound8OAL::notifyThread() noexcept
         waittime = milliseconds{seconds{1}} / refresh;
         waittime = std::max(waittime*3/5, milliseconds{10});
     }
-    TRACE(PREFIX "Wakeup every {}ms", int64_t{duration_cast<milliseconds>(waittime).count()});
+    TRACE(PREFIX "Wakeup every {}", duration_cast<milliseconds>(waittime));
 
     std::unique_lock lock{mDsMutex};
     while(!mQuitNotify)
@@ -403,8 +390,6 @@ void DSound8OAL::notifyThread() noexcept
 
         mNotifyCond.wait_for(lock, waittime);
     }
-
-    alcSetThreadContext(nullptr);
 }
 #undef PREFIX
 

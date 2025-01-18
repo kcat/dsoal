@@ -88,79 +88,6 @@ bool load_openal()
     LOAD_FUNCPTR(alcCaptureStart);
     LOAD_FUNCPTR(alcCaptureStop);
     LOAD_FUNCPTR(alcCaptureSamples);
-    LOAD_FUNCPTR(alEnable);
-    LOAD_FUNCPTR(alDisable);
-    LOAD_FUNCPTR(alIsEnabled);
-    LOAD_FUNCPTR(alGetString);
-    LOAD_FUNCPTR(alGetBooleanv);
-    LOAD_FUNCPTR(alGetIntegerv);
-    LOAD_FUNCPTR(alGetFloatv);
-    LOAD_FUNCPTR(alGetDoublev);
-    LOAD_FUNCPTR(alGetBoolean);
-    LOAD_FUNCPTR(alGetInteger);
-    LOAD_FUNCPTR(alGetFloat);
-    LOAD_FUNCPTR(alGetDouble);
-    LOAD_FUNCPTR(alGetError);
-    LOAD_FUNCPTR(alIsExtensionPresent);
-    LOAD_FUNCPTR(alGetProcAddress);
-    LOAD_FUNCPTR(alGetEnumValue);
-    LOAD_FUNCPTR(alListenerf);
-    LOAD_FUNCPTR(alListener3f);
-    LOAD_FUNCPTR(alListenerfv);
-    LOAD_FUNCPTR(alListeneri);
-    LOAD_FUNCPTR(alListener3i);
-    LOAD_FUNCPTR(alListeneriv);
-    LOAD_FUNCPTR(alGetListenerf);
-    LOAD_FUNCPTR(alGetListener3f);
-    LOAD_FUNCPTR(alGetListenerfv);
-    LOAD_FUNCPTR(alGetListeneri);
-    LOAD_FUNCPTR(alGetListener3i);
-    LOAD_FUNCPTR(alGetListeneriv);
-    LOAD_FUNCPTR(alGenSources);
-    LOAD_FUNCPTR(alDeleteSources);
-    LOAD_FUNCPTR(alIsSource);
-    LOAD_FUNCPTR(alSourcef);
-    LOAD_FUNCPTR(alSource3f);
-    LOAD_FUNCPTR(alSourcefv);
-    LOAD_FUNCPTR(alSourcei);
-    LOAD_FUNCPTR(alSource3i);
-    LOAD_FUNCPTR(alSourceiv);
-    LOAD_FUNCPTR(alGetSourcef);
-    LOAD_FUNCPTR(alGetSource3f);
-    LOAD_FUNCPTR(alGetSourcefv);
-    LOAD_FUNCPTR(alGetSourcei);
-    LOAD_FUNCPTR(alGetSource3i);
-    LOAD_FUNCPTR(alGetSourceiv);
-    LOAD_FUNCPTR(alSourcePlayv);
-    LOAD_FUNCPTR(alSourceStopv);
-    LOAD_FUNCPTR(alSourceRewindv);
-    LOAD_FUNCPTR(alSourcePausev);
-    LOAD_FUNCPTR(alSourcePlay);
-    LOAD_FUNCPTR(alSourceStop);
-    LOAD_FUNCPTR(alSourceRewind);
-    LOAD_FUNCPTR(alSourcePause);
-    LOAD_FUNCPTR(alSourceQueueBuffers);
-    LOAD_FUNCPTR(alSourceUnqueueBuffers);
-    LOAD_FUNCPTR(alGenBuffers);
-    LOAD_FUNCPTR(alDeleteBuffers);
-    LOAD_FUNCPTR(alIsBuffer);
-    LOAD_FUNCPTR(alBufferf);
-    LOAD_FUNCPTR(alBuffer3f);
-    LOAD_FUNCPTR(alBufferfv);
-    LOAD_FUNCPTR(alBufferi);
-    LOAD_FUNCPTR(alBuffer3i);
-    LOAD_FUNCPTR(alBufferiv);
-    LOAD_FUNCPTR(alGetBufferf);
-    LOAD_FUNCPTR(alGetBuffer3f);
-    LOAD_FUNCPTR(alGetBufferfv);
-    LOAD_FUNCPTR(alGetBufferi);
-    LOAD_FUNCPTR(alGetBuffer3i);
-    LOAD_FUNCPTR(alGetBufferiv);
-    LOAD_FUNCPTR(alBufferData);
-    LOAD_FUNCPTR(alDopplerFactor);
-    LOAD_FUNCPTR(alDopplerVelocity);
-    LOAD_FUNCPTR(alDistanceModel);
-    LOAD_FUNCPTR(alSpeedOfSound);
 #undef LOAD_FUNCPTR
 
     if(!ok)
@@ -174,9 +101,9 @@ bool load_openal()
 
     TRACE("load_openal Loaded {}", wstr_to_utf8(std::data(aldriver_name)));
 
-    if(!alcIsExtensionPresent(nullptr, "ALC_EXT_thread_local_context"))
+    if(!alcIsExtensionPresent(nullptr, "ALC_EXT_direct_context"))
     {
-        ERR("load_openal Required ALC_EXT_thread_local_context not supported in {}",
+        ERR("load_openal Required ALC_EXT_direct_context not supported in {}",
             wstr_to_utf8(std::data(aldriver_name)));
         if(gOpenalHandle)
             FreeLibrary(gOpenalHandle);
@@ -184,12 +111,82 @@ bool load_openal()
         return false;
     }
 
-#define LOAD_FUNCPTR(f) load_alcfunction(p##f, #f)
-    LOAD_FUNCPTR(alcSetThreadContext);
-    LOAD_FUNCPTR(alcGetThreadContext);
-    LOAD_FUNCPTR(EAXSet);
-    LOAD_FUNCPTR(EAXGet);
-    LOAD_FUNCPTR(alBufferDataStatic);
+#define LOAD_FUNCPTR(f) load_alcfunction(f, #f)
+    LOAD_FUNCPTR(alEnableDirect);
+    LOAD_FUNCPTR(alDisableDirect);
+    LOAD_FUNCPTR(alIsEnabledDirect);
+    LOAD_FUNCPTR(alGetStringDirect);
+    LOAD_FUNCPTR(alGetBooleanvDirect);
+    LOAD_FUNCPTR(alGetIntegervDirect);
+    LOAD_FUNCPTR(alGetFloatvDirect);
+    LOAD_FUNCPTR(alGetDoublevDirect);
+    LOAD_FUNCPTR(alGetBooleanDirect);
+    LOAD_FUNCPTR(alGetIntegerDirect);
+    LOAD_FUNCPTR(alGetFloatDirect);
+    LOAD_FUNCPTR(alGetDoubleDirect);
+    LOAD_FUNCPTR(alGetErrorDirect);
+    LOAD_FUNCPTR(alIsExtensionPresentDirect);
+    LOAD_FUNCPTR(alGetProcAddressDirect);
+    LOAD_FUNCPTR(alGetEnumValueDirect);
+    LOAD_FUNCPTR(alListenerfDirect);
+    LOAD_FUNCPTR(alListener3fDirect);
+    LOAD_FUNCPTR(alListenerfvDirect);
+    LOAD_FUNCPTR(alListeneriDirect);
+    LOAD_FUNCPTR(alListener3iDirect);
+    LOAD_FUNCPTR(alListenerivDirect);
+    LOAD_FUNCPTR(alGetListenerfDirect);
+    LOAD_FUNCPTR(alGetListener3fDirect);
+    LOAD_FUNCPTR(alGetListenerfvDirect);
+    LOAD_FUNCPTR(alGetListeneriDirect);
+    LOAD_FUNCPTR(alGetListener3iDirect);
+    LOAD_FUNCPTR(alGetListenerivDirect);
+    LOAD_FUNCPTR(alGenSourcesDirect);
+    LOAD_FUNCPTR(alDeleteSourcesDirect);
+    LOAD_FUNCPTR(alIsSourceDirect);
+    LOAD_FUNCPTR(alSourcefDirect);
+    LOAD_FUNCPTR(alSource3fDirect);
+    LOAD_FUNCPTR(alSourcefvDirect);
+    LOAD_FUNCPTR(alSourceiDirect);
+    LOAD_FUNCPTR(alSource3iDirect);
+    LOAD_FUNCPTR(alSourceivDirect);
+    LOAD_FUNCPTR(alGetSourcefDirect);
+    LOAD_FUNCPTR(alGetSource3fDirect);
+    LOAD_FUNCPTR(alGetSourcefvDirect);
+    LOAD_FUNCPTR(alGetSourceiDirect);
+    LOAD_FUNCPTR(alGetSource3iDirect);
+    LOAD_FUNCPTR(alGetSourceivDirect);
+    LOAD_FUNCPTR(alSourcePlayvDirect);
+    LOAD_FUNCPTR(alSourceStopvDirect);
+    LOAD_FUNCPTR(alSourceRewindvDirect);
+    LOAD_FUNCPTR(alSourcePausevDirect);
+    LOAD_FUNCPTR(alSourcePlayDirect);
+    LOAD_FUNCPTR(alSourceStopDirect);
+    LOAD_FUNCPTR(alSourceRewindDirect);
+    LOAD_FUNCPTR(alSourcePauseDirect);
+    LOAD_FUNCPTR(alSourceQueueBuffersDirect);
+    LOAD_FUNCPTR(alSourceUnqueueBuffersDirect);
+    LOAD_FUNCPTR(alGenBuffersDirect);
+    LOAD_FUNCPTR(alDeleteBuffersDirect);
+    LOAD_FUNCPTR(alIsBufferDirect);
+    LOAD_FUNCPTR(alBufferfDirect);
+    LOAD_FUNCPTR(alBuffer3fDirect);
+    LOAD_FUNCPTR(alBufferfvDirect);
+    LOAD_FUNCPTR(alBufferiDirect);
+    LOAD_FUNCPTR(alBuffer3iDirect);
+    LOAD_FUNCPTR(alBufferivDirect);
+    LOAD_FUNCPTR(alGetBufferfDirect);
+    LOAD_FUNCPTR(alGetBuffer3fDirect);
+    LOAD_FUNCPTR(alGetBufferfvDirect);
+    LOAD_FUNCPTR(alGetBufferiDirect);
+    LOAD_FUNCPTR(alGetBuffer3iDirect);
+    LOAD_FUNCPTR(alGetBufferivDirect);
+    LOAD_FUNCPTR(alBufferDataDirect);
+    LOAD_FUNCPTR(alDopplerFactorDirect);
+    LOAD_FUNCPTR(alDistanceModelDirect);
+    LOAD_FUNCPTR(alSpeedOfSoundDirect);
+    LOAD_FUNCPTR(EAXSetDirect);
+    LOAD_FUNCPTR(EAXGetDirect);
+    LOAD_FUNCPTR(alBufferDataStaticDirect);
 #undef LOAD_FUNCPTR
 
     return true;
@@ -229,15 +226,6 @@ auto utf8_to_wstr(std::string_view str) -> std::wstring
     }
 
     return ret;
-}
-
-
-void SetALContext(ALCcontext *context)
-{
-    if(context == alcGetThreadContext()) LIKELY
-        return;
-    if(!alcSetThreadContext(context)) UNLIKELY
-        ERR("SetALContext Failed to set context {}!", voidp{context});
 }
 
 

@@ -162,15 +162,6 @@ auto sizei(const std::basic_string_view<T,Traits> str) noexcept -> int
 
 HRESULT WINAPI GetDeviceID(const GUID &guidSrc, GUID &guidDst) noexcept;
 
-void SetALContext(ALCcontext *context);
-inline void UnsetALContext() { }
-
-struct ALSection {
-    explicit ALSection(ALCcontext *context) { SetALContext(context); }
-    ~ALSection() { UnsetALContext(); }
-};
-
-
 [[nodiscard]]
 inline float mB_to_gain(float millibels)
 {
@@ -179,9 +170,6 @@ inline float mB_to_gain(float millibels)
     return std::pow(10.0f, millibels / 2'000.0f);
 }
 
-
-using LPEAXSET = ALenum(AL_APIENTRY*)(const GUID *property_set_id, ALuint property_id, ALuint property_source_id, ALvoid *property_buffer, ALuint property_size);
-using LPEAXGET = ALenum(AL_APIENTRY*)(const GUID *property_set_id, ALuint property_id, ALuint property_source_id, ALvoid* property_buffer, ALuint property_size);
 
 inline LPALCCREATECONTEXT palcCreateContext{};
 inline LPALCMAKECONTEXTCURRENT palcMakeContextCurrent{};
@@ -203,88 +191,86 @@ inline LPALCCAPTURECLOSEDEVICE palcCaptureCloseDevice{};
 inline LPALCCAPTURESTART palcCaptureStart{};
 inline LPALCCAPTURESTOP palcCaptureStop{};
 inline LPALCCAPTURESAMPLES palcCaptureSamples{};
-inline LPALENABLE palEnable{};
-inline LPALDISABLE palDisable{};
-inline LPALISENABLED palIsEnabled{};
-inline LPALGETSTRING palGetString{};
-inline LPALGETBOOLEANV palGetBooleanv{};
-inline LPALGETINTEGERV palGetIntegerv{};
-inline LPALGETFLOATV palGetFloatv{};
-inline LPALGETDOUBLEV palGetDoublev{};
-inline LPALGETBOOLEAN palGetBoolean{};
-inline LPALGETINTEGER palGetInteger{};
-inline LPALGETFLOAT palGetFloat{};
-inline LPALGETDOUBLE palGetDouble{};
-inline LPALGETERROR palGetError{};
-inline LPALISEXTENSIONPRESENT palIsExtensionPresent{};
-inline LPALGETPROCADDRESS palGetProcAddress{};
-inline LPALGETENUMVALUE palGetEnumValue{};
-inline LPALLISTENERF palListenerf{};
-inline LPALLISTENER3F palListener3f{};
-inline LPALLISTENERFV palListenerfv{};
-inline LPALLISTENERI palListeneri{};
-inline LPALLISTENER3I palListener3i{};
-inline LPALLISTENERIV palListeneriv{};
-inline LPALGETLISTENERF palGetListenerf{};
-inline LPALGETLISTENER3F palGetListener3f{};
-inline LPALGETLISTENERFV palGetListenerfv{};
-inline LPALGETLISTENERI palGetListeneri{};
-inline LPALGETLISTENER3I palGetListener3i{};
-inline LPALGETLISTENERIV palGetListeneriv{};
-inline LPALGENSOURCES palGenSources{};
-inline LPALDELETESOURCES palDeleteSources{};
-inline LPALISSOURCE palIsSource{};
-inline LPALSOURCEF palSourcef{};
-inline LPALSOURCE3F palSource3f{};
-inline LPALSOURCEFV palSourcefv{};
-inline LPALSOURCEI palSourcei{};
-inline LPALSOURCE3I palSource3i{};
-inline LPALSOURCEIV palSourceiv{};
-inline LPALGETSOURCEF palGetSourcef{};
-inline LPALGETSOURCE3F palGetSource3f{};
-inline LPALGETSOURCEFV palGetSourcefv{};
-inline LPALGETSOURCEI palGetSourcei{};
-inline LPALGETSOURCE3I palGetSource3i{};
-inline LPALGETSOURCEIV palGetSourceiv{};
-inline LPALSOURCEPLAYV palSourcePlayv{};
-inline LPALSOURCESTOPV palSourceStopv{};
-inline LPALSOURCEREWINDV palSourceRewindv{};
-inline LPALSOURCEPAUSEV palSourcePausev{};
-inline LPALSOURCEPLAY palSourcePlay{};
-inline LPALSOURCESTOP palSourceStop{};
-inline LPALSOURCEREWIND palSourceRewind{};
-inline LPALSOURCEPAUSE palSourcePause{};
-inline LPALSOURCEQUEUEBUFFERS palSourceQueueBuffers{};
-inline LPALSOURCEUNQUEUEBUFFERS palSourceUnqueueBuffers{};
-inline LPALGENBUFFERS palGenBuffers{};
-inline LPALDELETEBUFFERS palDeleteBuffers{};
-inline LPALISBUFFER palIsBuffer{};
-inline LPALBUFFERF palBufferf{};
-inline LPALBUFFER3F palBuffer3f{};
-inline LPALBUFFERFV palBufferfv{};
-inline LPALBUFFERI palBufferi{};
-inline LPALBUFFER3I palBuffer3i{};
-inline LPALBUFFERIV palBufferiv{};
-inline LPALGETBUFFERF palGetBufferf{};
-inline LPALGETBUFFER3F palGetBuffer3f{};
-inline LPALGETBUFFERFV palGetBufferfv{};
-inline LPALGETBUFFERI palGetBufferi{};
-inline LPALGETBUFFER3I palGetBuffer3i{};
-inline LPALGETBUFFERIV palGetBufferiv{};
-inline LPALBUFFERDATA palBufferData{};
-inline LPALDOPPLERFACTOR palDopplerFactor{};
-inline LPALDOPPLERVELOCITY palDopplerVelocity{};
-inline LPALDISTANCEMODEL palDistanceModel{};
-inline LPALSPEEDOFSOUND palSpeedOfSound{};
+
+inline LPALENABLEDIRECT alEnableDirect{};
+inline LPALDISABLEDIRECT alDisableDirect{};
+inline LPALISENABLEDDIRECT alIsEnabledDirect{};
+inline LPALGETSTRINGDIRECT alGetStringDirect{};
+inline LPALGETBOOLEANVDIRECT alGetBooleanvDirect{};
+inline LPALGETINTEGERVDIRECT alGetIntegervDirect{};
+inline LPALGETFLOATVDIRECT alGetFloatvDirect{};
+inline LPALGETDOUBLEVDIRECT alGetDoublevDirect{};
+inline LPALGETBOOLEANDIRECT alGetBooleanDirect{};
+inline LPALGETINTEGERDIRECT alGetIntegerDirect{};
+inline LPALGETFLOATDIRECT alGetFloatDirect{};
+inline LPALGETDOUBLEDIRECT alGetDoubleDirect{};
+inline LPALGETERRORDIRECT alGetErrorDirect{};
+inline LPALISEXTENSIONPRESENTDIRECT alIsExtensionPresentDirect{};
+inline LPALGETPROCADDRESSDIRECT alGetProcAddressDirect{};
+inline LPALGETENUMVALUEDIRECT alGetEnumValueDirect{};
+inline LPALLISTENERFDIRECT alListenerfDirect{};
+inline LPALLISTENER3FDIRECT alListener3fDirect{};
+inline LPALLISTENERFVDIRECT alListenerfvDirect{};
+inline LPALLISTENERIDIRECT alListeneriDirect{};
+inline LPALLISTENER3IDIRECT alListener3iDirect{};
+inline LPALLISTENERIVDIRECT alListenerivDirect{};
+inline LPALGETLISTENERFDIRECT alGetListenerfDirect{};
+inline LPALGETLISTENER3FDIRECT alGetListener3fDirect{};
+inline LPALGETLISTENERFVDIRECT alGetListenerfvDirect{};
+inline LPALGETLISTENERIDIRECT alGetListeneriDirect{};
+inline LPALGETLISTENER3IDIRECT alGetListener3iDirect{};
+inline LPALGETLISTENERIVDIRECT alGetListenerivDirect{};
+inline LPALGENSOURCESDIRECT alGenSourcesDirect{};
+inline LPALDELETESOURCESDIRECT alDeleteSourcesDirect{};
+inline LPALISSOURCEDIRECT alIsSourceDirect{};
+inline LPALSOURCEFDIRECT alSourcefDirect{};
+inline LPALSOURCE3FDIRECT alSource3fDirect{};
+inline LPALSOURCEFVDIRECT alSourcefvDirect{};
+inline LPALSOURCEIDIRECT alSourceiDirect{};
+inline LPALSOURCE3IDIRECT alSource3iDirect{};
+inline LPALSOURCEIVDIRECT alSourceivDirect{};
+inline LPALGETSOURCEFDIRECT alGetSourcefDirect{};
+inline LPALGETSOURCE3FDIRECT alGetSource3fDirect{};
+inline LPALGETSOURCEFVDIRECT alGetSourcefvDirect{};
+inline LPALGETSOURCEIDIRECT alGetSourceiDirect{};
+inline LPALGETSOURCE3IDIRECT alGetSource3iDirect{};
+inline LPALGETSOURCEIVDIRECT alGetSourceivDirect{};
+inline LPALSOURCEPLAYVDIRECT alSourcePlayvDirect{};
+inline LPALSOURCESTOPVDIRECT alSourceStopvDirect{};
+inline LPALSOURCEREWINDVDIRECT alSourceRewindvDirect{};
+inline LPALSOURCEPAUSEVDIRECT alSourcePausevDirect{};
+inline LPALSOURCEPLAYDIRECT alSourcePlayDirect{};
+inline LPALSOURCESTOPDIRECT alSourceStopDirect{};
+inline LPALSOURCEREWINDDIRECT alSourceRewindDirect{};
+inline LPALSOURCEPAUSEDIRECT alSourcePauseDirect{};
+inline LPALSOURCEQUEUEBUFFERSDIRECT alSourceQueueBuffersDirect{};
+inline LPALSOURCEUNQUEUEBUFFERSDIRECT alSourceUnqueueBuffersDirect{};
+inline LPALGENBUFFERSDIRECT alGenBuffersDirect{};
+inline LPALDELETEBUFFERSDIRECT alDeleteBuffersDirect{};
+inline LPALISBUFFERDIRECT alIsBufferDirect{};
+inline LPALBUFFERFDIRECT alBufferfDirect{};
+inline LPALBUFFER3FDIRECT alBuffer3fDirect{};
+inline LPALBUFFERFVDIRECT alBufferfvDirect{};
+inline LPALBUFFERIDIRECT alBufferiDirect{};
+inline LPALBUFFER3IDIRECT alBuffer3iDirect{};
+inline LPALBUFFERIVDIRECT alBufferivDirect{};
+inline LPALGETBUFFERFDIRECT alGetBufferfDirect{};
+inline LPALGETBUFFER3FDIRECT alGetBuffer3fDirect{};
+inline LPALGETBUFFERFVDIRECT alGetBufferfvDirect{};
+inline LPALGETBUFFERIDIRECT alGetBufferiDirect{};
+inline LPALGETBUFFER3IDIRECT alGetBuffer3iDirect{};
+inline LPALGETBUFFERIVDIRECT alGetBufferivDirect{};
+inline LPALBUFFERDATADIRECT alBufferDataDirect{};
+inline LPALDOPPLERFACTORDIRECT alDopplerFactorDirect{};
+inline LPALDISTANCEMODELDIRECT alDistanceModelDirect{};
+inline LPALSPEEDOFSOUNDDIRECT alSpeedOfSoundDirect{};
 
 /* Extension functions. Technically device- or driver-specific, but as long as
  * they're pulled from the NULL device it should be routed correctly.
  */
-inline PFNALCSETTHREADCONTEXTPROC palcSetThreadContext{};
-inline PFNALCGETTHREADCONTEXTPROC palcGetThreadContext{};
-inline LPEAXSET pEAXSet{};
-inline LPEAXGET pEAXGet{};
-inline PFNALBUFFERDATASTATICPROC palBufferDataStatic{};
+inline LPEAXSETDIRECT EAXSetDirect{};
+inline LPEAXGETDIRECT EAXGetDirect{};
+inline LPALBUFFERDATASTATICDIRECT alBufferDataStaticDirect{};
 
 #ifndef IN_IDE_PARSER
 #define alcCreateContext palcCreateContext
@@ -307,85 +293,6 @@ inline PFNALBUFFERDATASTATICPROC palBufferDataStatic{};
 #define alcCaptureStart palcCaptureStart
 #define alcCaptureStop palcCaptureStop
 #define alcCaptureSamples palcCaptureSamples
-#define alEnable palEnable
-#define alDisable palDisable
-#define alIsEnabled palIsEnabled
-#define alGetString palGetString
-#define alGetBooleanv palGetBooleanv
-#define alGetIntegerv palGetIntegerv
-#define alGetFloatv palGetFloatv
-#define alGetDoublev palGetDoublev
-#define alGetBoolean palGetBoolean
-#define alGetInteger palGetInteger
-#define alGetFloat palGetFloat
-#define alGetDouble palGetDouble
-#define alGetError palGetError
-#define alIsExtensionPresent palIsExtensionPresent
-#define alGetProcAddress palGetProcAddress
-#define alGetEnumValue palGetEnumValue
-#define alListenerf palListenerf
-#define alListener3f palListener3f
-#define alListenerfv palListenerfv
-#define alListeneri palListeneri
-#define alListener3i palListener3i
-#define alListeneriv palListeneriv
-#define alGetListenerf palGetListenerf
-#define alGetListener3f palGetListener3f
-#define alGetListenerfv palGetListenerfv
-#define alGetListeneri palGetListeneri
-#define alGetListener3i palGetListener3i
-#define alGetListeneriv palGetListeneriv
-#define alGenSources palGenSources
-#define alDeleteSources palDeleteSources
-#define alIsSource palIsSource
-#define alSourcef palSourcef
-#define alSource3f palSource3f
-#define alSourcefv palSourcefv
-#define alSourcei palSourcei
-#define alSource3i palSource3i
-#define alSourceiv palSourceiv
-#define alGetSourcef palGetSourcef
-#define alGetSource3f palGetSource3f
-#define alGetSourcefv palGetSourcefv
-#define alGetSourcei palGetSourcei
-#define alGetSource3i palGetSource3i
-#define alGetSourceiv palGetSourceiv
-#define alSourcePlayv palSourcePlayv
-#define alSourceStopv palSourceStopv
-#define alSourceRewindv palSourceRewindv
-#define alSourcePausev palSourcePausev
-#define alSourcePlay palSourcePlay
-#define alSourceStop palSourceStop
-#define alSourceRewind palSourceRewind
-#define alSourcePause palSourcePause
-#define alSourceQueueBuffers palSourceQueueBuffers
-#define alSourceUnqueueBuffers palSourceUnqueueBuffers
-#define alGenBuffers palGenBuffers
-#define alDeleteBuffers palDeleteBuffers
-#define alIsBuffer palIsBuffer
-#define alBufferf palBufferf
-#define alBuffer3f palBuffer3f
-#define alBufferfv palBufferfv
-#define alBufferi palBufferi
-#define alBuffer3i palBuffer3i
-#define alBufferiv palBufferiv
-#define alGetBufferf palGetBufferf
-#define alGetBuffer3f palGetBuffer3f
-#define alGetBufferfv palGetBufferfv
-#define alGetBufferi palGetBufferi
-#define alGetBuffer3i palGetBuffer3i
-#define alGetBufferiv palGetBufferiv
-#define alBufferData palBufferData
-#define alDopplerFactor palDopplerFactor
-#define alDopplerVelocity palDopplerVelocity
-#define alDistanceModel palDistanceModel
-#define alSpeedOfSound palSpeedOfSound
 #endif
-
-#define alcSetThreadContext palcSetThreadContext
-#define alcGetThreadContext palcGetThreadContext
-#define EAXSet pEAXSet
-#define EAXGet pEAXGet
-#define alBufferDataStatic palBufferDataStatic
 
 #endif // DSOAL_H

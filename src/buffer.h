@@ -48,11 +48,13 @@ public:
     DWORD mFlags{};
 
     WAVEFORMATEXTENSIBLE mWfxFormat{};
+    ALCcontext *mContext{};
     ALenum mAlFormat{AL_NONE};
     ALuint mAlBuffer{0};
     VmMode mVoiceMode{DSPROPERTY_VMANAGER_MODE_DEFAULT};
 
-    static auto Create(const DSBUFFERDESC &bufferDesc, const std::bitset<ExtensionCount> exts) noexcept
+    static auto Create(ALCcontext *context, const DSBUFFERDESC &bufferDesc,
+        const std::bitset<ExtensionCount> exts) noexcept
         -> ds::expected<ComPtr<SharedBuffer>,HRESULT>;
 
     gsl::owner<void*> operator new(size_t, ExtraBytes extrabytes)

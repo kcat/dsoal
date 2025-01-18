@@ -226,7 +226,6 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::GetStatus(DWORD *status) noexcept
     bool playing{mPlaying};
     if(!playing && mParent.getPriorityLevel() < DSSCL_WRITEPRIMARY)
     {
-        ALSection alsection{mContext};
         for(auto &group : mParent.getSecondaryBuffers())
         {
             uint64_t usemask{~group.mFreeMask};
@@ -239,7 +238,7 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::GetStatus(DWORD *status) noexcept
                 if(const ALuint source{buffer.getSource()})
                 {
                     ALint state{};
-                    alGetSourcei(source, AL_SOURCE_STATE, &state);
+                    alGetSourceiDirect(mContext, source, AL_SOURCE_STATE, &state);
                     playing = (state == AL_PLAYING);
                     if(playing) break;
                 }
@@ -312,7 +311,6 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::Initialize(IDirectSound *directSound, c
     mDeferred = mImmediate;
     mDirty.reset();
 
-    ALSection alsection{mContext};
     setParams(mDeferred, ~0llu);
 
     return DS_OK;
@@ -533,9 +531,8 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::SetVolume(LONG volume) noexcept
     if(!(mFlags&DSBCAPS_CTRLVOLUME))
         return DSERR_CONTROLUNAVAIL;
 
-    ALSection alsection{mContext};
     mVolume = volume;
-    alListenerf(AL_GAIN, mB_to_gain(static_cast<float>(volume)));
+    alListenerfDirect(mContext, AL_GAIN, mB_to_gain(static_cast<float>(volume)));
 
     return DS_OK;
 }
@@ -624,21 +621,23 @@ void PrimaryBuffer::setParams(const DS3DLISTENER &params, const std::bitset<Flag
         mImmediate.flDopplerFactor = params.flDopplerFactor;
 
     if(flags.test(Position))
-        alListener3f(AL_POSITION, params.vPosition.x, params.vPosition.y, -params.vPosition.z);
+        alListener3fDirect(mContext, AL_POSITION, params.vPosition.x, params.vPosition.y,
+            -params.vPosition.z);
     if(flags.test(Velocity))
-        alListener3f(AL_VELOCITY, params.vVelocity.x, params.vVelocity.y, -params.vVelocity.z);
+        alListener3fDirect(mContext, AL_VELOCITY, params.vVelocity.x, params.vVelocity.y,
+            -params.vVelocity.z);
     if(flags.test(Orientation))
     {
         const std::array<ALfloat,6> ori{{
             params.vOrientFront.x, params.vOrientFront.y, -params.vOrientFront.z,
             params.vOrientTop.x, params.vOrientTop.y, -params.vOrientTop.z}};
-        alListenerfv(AL_ORIENTATION, ori.data());
+        alListenerfvDirect(mContext, AL_ORIENTATION, ori.data());
     }
     if(flags.test(DistanceFactor))
     {
-        alSpeedOfSound(343.3f / params.flDistanceFactor);
+        alSpeedOfSoundDirect(mContext, 343.3f / params.flDistanceFactor);
         if(mParent.haveExtension(EXT_EFX))
-            alListenerf(AL_METERS_PER_UNIT, params.flDistanceFactor);
+            alListenerfDirect(mContext, AL_METERS_PER_UNIT, params.flDistanceFactor);
     }
     if(flags.test(RolloffFactor))
     {
@@ -647,12 +646,12 @@ void PrimaryBuffer::setParams(const DS3DLISTENER &params, const std::bitset<Flag
             if(buffer->getCurrentMode() != DS3DMODE_DISABLE)
             {
                 if(ALuint source{buffer->getSource()})
-                    alSourcef(source, AL_ROLLOFF_FACTOR, params.flRolloffFactor);
+                    alSourcefDirect(mContext, source, AL_ROLLOFF_FACTOR, params.flRolloffFactor);
             }
         }
     }
     if(flags.test(DopplerFactor))
-        alDopplerFactor(params.flDopplerFactor);
+        alDopplerFactorDirect(mContext, params.flDopplerFactor);
 }
 
 void PrimaryBuffer::commit() noexcept
@@ -660,12 +659,12 @@ void PrimaryBuffer::commit() noexcept
     if(auto flags = std::exchange(mDirty, 0); flags.any())
     {
         setParams(mDeferred, flags);
-        alGetError();
+        alGetErrorDirect(mContext);
     }
 
     for(Buffer *buffer : mParent.get3dBuffers())
         buffer->commit();
-    alGetError();
+    alGetErrorDirect(mContext);
 }
 #undef PREFIX
 
@@ -841,7 +840,6 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::Listener3D::SetAllParameters(const DS3D
     }
     else
     {
-        ALSection alsection{self->mContext};
         alcSuspendContext(self->mContext);
         self->setParams(*listener, ~0ull);
         alcProcessContext(self->mContext);
@@ -869,13 +867,12 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::Listener3D::SetDistanceFactor(D3DVALUE 
     }
     else
     {
-        ALSection alsection{self->mContext};
         alcSuspendContext(self->mContext);
         self->mImmediate.flDistanceFactor = distanceFactor;
-        alSpeedOfSound(343.3f / distanceFactor);
+        alSpeedOfSoundDirect(self->mContext, 343.3f / distanceFactor);
         if(self->mParent.haveExtension(EXT_EFX))
-            alListenerf(AL_METERS_PER_UNIT, distanceFactor);
-        alGetError();
+            alListenerfDirect(self->mContext, AL_METERS_PER_UNIT, distanceFactor);
+        alGetErrorDirect(self->mContext);
         alcProcessContext(self->mContext);
     }
 
@@ -901,10 +898,9 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::Listener3D::SetDopplerFactor(D3DVALUE d
     }
     else
     {
-        ALSection alsection{self->mContext};
         self->mImmediate.flDopplerFactor = dopplerFactor;
-        alDopplerFactor(dopplerFactor);
-        alGetError();
+        alDopplerFactorDirect(self->mContext, dopplerFactor);
+        alGetErrorDirect(self->mContext);
     }
 
     return S_OK;
@@ -929,7 +925,6 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::Listener3D::SetOrientation(D3DVALUE xFr
     }
     else
     {
-        ALSection alsection{self->mContext};
         self->mImmediate.vOrientFront.x = xFront;
         self->mImmediate.vOrientFront.y = yFront;
         self->mImmediate.vOrientFront.z = zFront;
@@ -938,8 +933,8 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::Listener3D::SetOrientation(D3DVALUE xFr
         self->mImmediate.vOrientTop.z = zTop;
 
         const std::array<ALfloat,6> ori{{xFront, yFront, -zFront, xTop, yTop, -zTop}};
-        alListenerfv(AL_ORIENTATION, ori.data());
-        alGetError();
+        alListenerfvDirect(self->mContext, AL_ORIENTATION, ori.data());
+        alGetErrorDirect(self->mContext);
     }
 
     return S_OK;
@@ -960,13 +955,12 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::Listener3D::SetPosition(D3DVALUE x, D3D
     }
     else
     {
-        ALSection alsection{self->mContext};
         self->mImmediate.vPosition.x = x;
         self->mImmediate.vPosition.y = y;
         self->mImmediate.vPosition.z = z;
 
-        alListener3f(AL_POSITION, x, y, -z);
-        alGetError();
+        alListener3fDirect(self->mContext, AL_POSITION, x, y, -z);
+        alGetErrorDirect(self->mContext);
     }
 
     return S_OK;
@@ -991,7 +985,6 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::Listener3D::SetRolloffFactor(D3DVALUE r
     }
     else
     {
-        ALSection alsection{self->mContext};
         alcSuspendContext(self->mContext);
         self->mImmediate.flRolloffFactor = rolloffFactor;
 
@@ -1000,10 +993,10 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::Listener3D::SetRolloffFactor(D3DVALUE r
             if(buffer->getCurrentMode() != DS3DMODE_DISABLE)
             {
                 if(ALuint source{buffer->getSource()})
-                    alSourcef(source, AL_ROLLOFF_FACTOR, rolloffFactor);
+                    alSourcefDirect(self->mContext, source, AL_ROLLOFF_FACTOR, rolloffFactor);
             }
         }
-        alGetError();
+        alGetErrorDirect(self->mContext);
         alcProcessContext(self->mContext);
     }
 
@@ -1025,13 +1018,12 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::Listener3D::SetVelocity(D3DVALUE x, D3D
     }
     else
     {
-        ALSection alsection{self->mContext};
         self->mImmediate.vVelocity.x = x;
         self->mImmediate.vVelocity.y = y;
         self->mImmediate.vVelocity.z = z;
 
-        alListener3f(AL_VELOCITY, x, y, -z);
-        alGetError();
+        alListener3fDirect(self->mContext, AL_VELOCITY, x, y, -z);
+        alGetErrorDirect(self->mContext);
     }
 
     return S_OK;
@@ -1043,12 +1035,11 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::Listener3D::CommitDeferredSettings() no
 
     auto self = impl_from_base();
     std::lock_guard lock{self->mMutex};
-    ALSection alsection{self->mContext};
+
     alcSuspendContext(self->mContext);
-
     self->commit();
-
     alcProcessContext(self->mContext);
+
     return DS_OK;
 }
 #undef PREFIX

@@ -1,6 +1,7 @@
 #include "buffer.h"
 
 #include <bit>
+#include <functional>
 #include <optional>
 #include <span>
 
@@ -252,11 +253,11 @@ ALenum ConvertFormat(WAVEFORMATEXTENSIBLE &dst, const WAVEFORMATEXTENSIBLE &src,
 SharedBuffer::~SharedBuffer()
 {
     if(mAlBuffer != 0)
-        alDeleteBuffers(1, &mAlBuffer);
+        alDeleteBuffersDirect(mContext, 1, &mAlBuffer);
 }
 
-ds::expected<ComPtr<SharedBuffer>,HRESULT> SharedBuffer::Create(const DSBUFFERDESC &bufferDesc,
-    const std::bitset<ExtensionCount> exts) noexcept
+auto SharedBuffer::Create(ALCcontext *context, const DSBUFFERDESC &bufferDesc,
+    const std::bitset<ExtensionCount> exts) noexcept -> ds::expected<ComPtr<SharedBuffer>,HRESULT>
 {
     const WAVEFORMATEX *format{bufferDesc.lpwfxFormat};
 
@@ -317,10 +318,10 @@ ds::expected<ComPtr<SharedBuffer>,HRESULT> SharedBuffer::Create(const DSBUFFERDE
     if(bufSize > DSBSIZE_MAX) return ds::unexpected(DSERR_INVALIDPARAM);
 
     /* Over-allocate the shared buffer, combining it with the sample storage. */
-    auto shared = [bufSize] {
+    auto shared = std::invoke([bufSize] {
         try { return ComPtr<SharedBuffer>{new(ExtraBytes(bufSize)) SharedBuffer{}}; }
         catch(...) { return ComPtr<SharedBuffer>{}; }
-    }();
+    });
     if(!shared)
         return ds::unexpected(DSERR_OUTOFMEMORY);
     /* NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic) */
@@ -343,11 +344,12 @@ ds::expected<ComPtr<SharedBuffer>,HRESULT> SharedBuffer::Create(const DSBUFFERDE
         shared->mAlFormat = ConvertFormat(shared->mWfxFormat, *format, exts);
     if(!shared->mAlFormat) return ds::unexpected(DSERR_INVALIDPARAM);
 
-    alGenBuffers(1, &shared->mAlBuffer);
-    alBufferDataStatic(shared->mAlBuffer, shared->mAlFormat, shared->mData.data(),
+    shared->mContext = context;
+    alGenBuffersDirect(context, 1, &shared->mAlBuffer);
+    alBufferDataStaticDirect(context, shared->mAlBuffer, shared->mAlFormat, shared->mData.data(),
         static_cast<ALsizei>(shared->mData.size()),
         static_cast<ALsizei>(shared->mWfxFormat.Format.nSamplesPerSec));
-    alGetError();
+    alGetErrorDirect(context);
 
     return shared;
 }
@@ -403,12 +405,10 @@ Buffer::Buffer(DSound8OAL &parent, bool is8, IDirectSoundBuffer *original) noexc
 
 Buffer::~Buffer()
 {
-    ALSection alsection{mContext};
-
     if(mSource != 0)
     {
-        alDeleteSources(1, &mSource);
-        alGetError();
+        alDeleteSourcesDirect(mContext, 1, &mSource);
+        alGetErrorDirect(mContext);
         mSource = 0;
         if(mLocStatus == LocStatus::Hardware)
             mParent.getShared().decHwSources();
@@ -428,8 +428,8 @@ Buffer::~Buffer()
 bool Buffer::updateNotify() noexcept
 {
     ALint state{}, ioffset{};
-    alGetSourcei(mSource, AL_BYTE_OFFSET, &ioffset);
-    alGetSourcei(mSource, AL_SOURCE_STATE, &state);
+    alGetSourceiDirect(mContext, mSource, AL_BYTE_OFFSET, &ioffset);
+    alGetSourceiDirect(mContext, mSource, AL_SOURCE_STATE, &state);
 
     /* If the source is AL_STOPPED, it reached the end naturally, so all
      * notifies since the last position have been hit, along with
@@ -483,9 +483,9 @@ HRESULT Buffer::setLocation(LocStatus locStatus) noexcept
      */
     if(mSource != 0)
     {
-        alDeleteSources(1, &mSource);
+        alDeleteSourcesDirect(mContext, 1, &mSource);
         mSource = 0;
-        alGetError();
+        alGetErrorDirect(mContext);
 
         if(mLocStatus == LocStatus::Hardware)
             mParent.getShared().decHwSources();
@@ -514,9 +514,9 @@ HRESULT Buffer::setLocation(LocStatus locStatus) noexcept
         return DSERR_ALLOCATED;
     }
 
-    alGenSources(1, &mSource);
-    alSourcef(mSource, AL_GAIN, mB_to_gain(static_cast<float>(mVolume)));
-    alSourcef(mSource, AL_PITCH, (mFrequency == 0) ? 1.0f :
+    alGenSourcesDirect(mContext, 1, &mSource);
+    alSourcefDirect(mContext, mSource, AL_GAIN, mB_to_gain(static_cast<float>(mVolume)));
+    alSourcefDirect(mContext, mSource, AL_PITCH, (mFrequency == 0) ? 1.0f :
         static_cast<float>(mFrequency)/static_cast<float>(mBuffer->mWfxFormat.Format.nSamplesPerSec));
 
     if((mBuffer->mFlags&DSBCAPS_CTRL3D))
@@ -524,45 +524,48 @@ HRESULT Buffer::setLocation(LocStatus locStatus) noexcept
         if(mImmediate.dwMode == DS3DMODE_DISABLE)
         {
             const float x{static_cast<float>(mPan-DSBPAN_LEFT)/(DSBPAN_RIGHT-DSBPAN_LEFT) - 0.5f};
-            alSource3f(mSource, AL_POSITION, x, 0.0f, -std::sqrt(1.0f - x*x));
-            alSource3f(mSource, AL_VELOCITY, 0.0f, 0.0f, 0.0f);
-            alSource3f(mSource, AL_DIRECTION, 0.0f, 0.0f, 0.0f);
-            alSourcef(mSource, AL_ROLLOFF_FACTOR, 0.0f);
+            alSource3fDirect(mContext, mSource, AL_POSITION, x, 0.0f, -std::sqrt(1.0f - x*x));
+            alSource3fDirect(mContext, mSource, AL_VELOCITY, 0.0f, 0.0f, 0.0f);
+            alSource3fDirect(mContext, mSource, AL_DIRECTION, 0.0f, 0.0f, 0.0f);
+            alSourcefDirect(mContext, mSource, AL_ROLLOFF_FACTOR, 0.0f);
         }
         else
         {
-            alSource3f(mSource, AL_POSITION, mImmediate.vPosition.x, mImmediate.vPosition.y,
-                -mImmediate.vPosition.z);
-            alSource3f(mSource, AL_VELOCITY, mImmediate.vVelocity.x, mImmediate.vVelocity.y,
-                -mImmediate.vVelocity.z);
-            alSource3f(mSource, AL_DIRECTION, mImmediate.vConeOrientation.x,
+            alSource3fDirect(mContext, mSource, AL_POSITION, mImmediate.vPosition.x,
+                mImmediate.vPosition.y, -mImmediate.vPosition.z);
+            alSource3fDirect(mContext, mSource, AL_VELOCITY, mImmediate.vVelocity.x,
+                mImmediate.vVelocity.y, -mImmediate.vVelocity.z);
+            alSource3fDirect(mContext, mSource, AL_DIRECTION, mImmediate.vConeOrientation.x,
                 mImmediate.vConeOrientation.y, -mImmediate.vConeOrientation.z);
-            alSourcef(mSource, AL_ROLLOFF_FACTOR, mParent.getPrimary().getCurrentRolloffFactor());
+            alSourcefDirect(mContext, mSource, AL_ROLLOFF_FACTOR,
+                mParent.getPrimary().getCurrentRolloffFactor());
         }
-        alSourcei(mSource, AL_SOURCE_RELATIVE,
+        alSourceiDirect(mContext, mSource, AL_SOURCE_RELATIVE,
             (mImmediate.dwMode!=DS3DMODE_NORMAL) ? AL_TRUE : AL_FALSE);
-        alSourcef(mSource, AL_CONE_INNER_ANGLE, static_cast<float>(mImmediate.dwInsideConeAngle));
-        alSourcef(mSource, AL_CONE_OUTER_ANGLE, static_cast<float>(mImmediate.dwOutsideConeAngle));
-        alSourcef(mSource, AL_CONE_OUTER_GAIN,
+        alSourcefDirect(mContext, mSource, AL_CONE_INNER_ANGLE,
+            static_cast<float>(mImmediate.dwInsideConeAngle));
+        alSourcefDirect(mContext, mSource, AL_CONE_OUTER_ANGLE,
+            static_cast<float>(mImmediate.dwOutsideConeAngle));
+        alSourcefDirect(mContext, mSource, AL_CONE_OUTER_GAIN,
             mB_to_gain(static_cast<float>(mImmediate.lConeOutsideVolume)));
-        alSourcef(mSource, AL_REFERENCE_DISTANCE, mImmediate.flMinDistance);
-        alSourcef(mSource, AL_MAX_DISTANCE, mImmediate.flMaxDistance);
+        alSourcefDirect(mContext, mSource, AL_REFERENCE_DISTANCE, mImmediate.flMinDistance);
+        alSourcefDirect(mContext, mSource, AL_MAX_DISTANCE, mImmediate.flMaxDistance);
     }
     else
     {
         const ALfloat x{static_cast<ALfloat>(mPan-DSBPAN_LEFT)/(DSBPAN_RIGHT-DSBPAN_LEFT) - 0.5f};
 
-        alSource3f(mSource, AL_POSITION, x, 0.0f, -std::sqrt(1.0f - x*x));
-        alSourcef(mSource, AL_ROLLOFF_FACTOR, 0.0f);
-        alSourcei(mSource, AL_SOURCE_RELATIVE, AL_TRUE);
+        alSource3fDirect(mContext, mSource, AL_POSITION, x, 0.0f, -std::sqrt(1.0f - x*x));
+        alSourcefDirect(mContext, mSource, AL_ROLLOFF_FACTOR, 0.0f);
+        alSourceiDirect(mContext, mSource, AL_SOURCE_RELATIVE, AL_TRUE);
         if(mParent.haveExtension(EXT_EAX))
         {
             static std::array<GUID,EAX40_MAX_ACTIVE_FXSLOTS> NullSlots{};
-            EAXSet(&EAXPROPERTYID_EAX40_Source, EAXSOURCE_ACTIVEFXSLOTID, mSource,
+            EAXSetDirect(mContext, &EAXPROPERTYID_EAX40_Source, EAXSOURCE_ACTIVEFXSLOTID, mSource,
                 NullSlots.data(), NullSlots.size()*sizeof(GUID));
         }
     }
-    alGetError();
+    alGetErrorDirect(mContext);
 
     mLocStatus = locStatus;
     return DS_OK;
@@ -687,10 +690,9 @@ HRESULT STDMETHODCALLTYPE Buffer::GetCurrentPosition(DWORD *playCursor, DWORD *w
 
     if(mSource != 0)
     {
-        ALSection alsection{mContext};
-        alGetSourcei(mSource, AL_BYTE_OFFSET, &ofs);
-        alGetSourcei(mSource, AL_SOURCE_STATE, &status);
-        alGetError();
+        alGetSourceiDirect(mContext, mSource, AL_BYTE_OFFSET, &ofs);
+        alGetSourceiDirect(mContext, mSource, AL_SOURCE_STATE, &status);
+        alGetErrorDirect(mContext);
     }
 
     auto &format = mBuffer->mWfxFormat.Format;
@@ -823,10 +825,9 @@ HRESULT STDMETHODCALLTYPE Buffer::GetStatus(DWORD *status) noexcept
     ALint looping{AL_FALSE};
     if(mSource != 0)
     {
-        ALSection alsection{mContext};
-        alGetSourcei(mSource, AL_SOURCE_STATE, &state);
-        alGetSourcei(mSource, AL_LOOPING, &looping);
-        alGetError();
+        alGetSourceiDirect(mContext, mSource, AL_SOURCE_STATE, &state);
+        alGetSourceiDirect(mContext, mSource, AL_LOOPING, &looping);
+        alGetErrorDirect(mContext);
     }
 
     if((mBuffer->mFlags&DSBCAPS_LOCDEFER))
@@ -847,7 +848,6 @@ HRESULT STDMETHODCALLTYPE Buffer::Initialize(IDirectSound *directSound, const DS
     std::unique_lock lock{mMutex};
     if(mIsInitialized) return DSERR_ALREADYINITIALIZED;
 
-    ALSection alsection{mContext};
     if(!mBuffer)
     {
         if(!dsBufferDesc)
@@ -888,7 +888,7 @@ HRESULT STDMETHODCALLTYPE Buffer::Initialize(IDirectSound *directSound, const DS
             }
         }
 
-        auto shared = SharedBuffer::Create(*dsBufferDesc, mParent.getExtensions());
+        auto shared = SharedBuffer::Create(mContext, *dsBufferDesc, mParent.getExtensions());
         if(!shared) return shared.error();
         mBuffer = std::move(shared.value());
     }
@@ -986,7 +986,6 @@ HRESULT STDMETHODCALLTYPE Buffer::Play(DWORD reserved1, DWORD priority, DWORD fl
         return DSERR_BUFFERLOST;
     }
 
-    ALSection alsection{mContext};
     if((mBuffer->mFlags&DSBCAPS_LOCDEFER))
     {
         LocStatus loc{LocStatus::Any};
@@ -1004,8 +1003,8 @@ HRESULT STDMETHODCALLTYPE Buffer::Play(DWORD reserved1, DWORD priority, DWORD fl
         if(loc != LocStatus::Any && mLocStatus != LocStatus::None && loc != mLocStatus)
         {
             ALint state{};
-            alGetSourcei(mSource, AL_SOURCE_STATE, &state);
-            alGetError();
+            alGetSourceiDirect(mContext, mSource, AL_SOURCE_STATE, &state);
+            alGetErrorDirect(mContext);
 
             if(state == AL_PLAYING)
             {
@@ -1024,9 +1023,9 @@ HRESULT STDMETHODCALLTYPE Buffer::Play(DWORD reserved1, DWORD priority, DWORD fl
     }
 
     ALint state{};
-    alSourcei(mSource, AL_LOOPING, (flags&DSBPLAY_LOOPING) ? AL_TRUE : AL_FALSE);
-    alGetSourcei(mSource, AL_SOURCE_STATE, &state);
-    alGetError();
+    alSourceiDirect(mContext, mSource, AL_LOOPING, (flags&DSBPLAY_LOOPING) ? AL_TRUE : AL_FALSE);
+    alGetSourceiDirect(mContext, mSource, AL_SOURCE_STATE, &state);
+    alGetErrorDirect(mContext);
 
     if(state == AL_PLAYING)
         return DS_OK;
@@ -1034,11 +1033,11 @@ HRESULT STDMETHODCALLTYPE Buffer::Play(DWORD reserved1, DWORD priority, DWORD fl
     mLastPos %= mBuffer->mData.size();
     if(state == AL_INITIAL)
     {
-        alSourcei(mSource, AL_BUFFER, static_cast<ALint>(mBuffer->mAlBuffer));
-        alSourcei(mSource, AL_BYTE_OFFSET, static_cast<ALint>(mLastPos));
+        alSourceiDirect(mContext, mSource, AL_BUFFER, static_cast<ALint>(mBuffer->mAlBuffer));
+        alSourceiDirect(mContext, mSource, AL_BYTE_OFFSET, static_cast<ALint>(mLastPos));
     }
-    alSourcePlay(mSource);
-    if(alGetError() != AL_NO_ERROR)
+    alSourcePlayDirect(mContext, mSource);
+    if(alGetErrorDirect(mContext) != AL_NO_ERROR)
     {
         ERR(PREFIX "Couldn't start source");
         return DSERR_GENERIC;
@@ -1063,9 +1062,8 @@ HRESULT STDMETHODCALLTYPE Buffer::SetCurrentPosition(DWORD newPosition) noexcept
     std::unique_lock lock{mMutex};
     if(mSource != 0)
     {
-        ALSection alsection{mContext};
-        alSourcei(mSource, AL_BYTE_OFFSET, static_cast<ALint>(newPosition));
-        alGetError();
+        alSourceiDirect(mContext, mSource, AL_BYTE_OFFSET, static_cast<ALint>(newPosition));
+        alGetErrorDirect(mContext);
     }
     mLastPos = newPosition;
 
@@ -1098,10 +1096,7 @@ HRESULT STDMETHODCALLTYPE Buffer::SetVolume(LONG volume) noexcept
     std::unique_lock lock{mMutex};
     mVolume = volume;
     if(mSource != 0) LIKELY
-    {
-        ALSection alsection{mContext};
-        alSourcef(mSource, AL_GAIN, mB_to_gain(static_cast<float>(volume)));
-    }
+        alSourcefDirect(mContext, mSource, AL_GAIN, mB_to_gain(static_cast<float>(volume)));
 
     return DS_OK;
 }
@@ -1126,13 +1121,12 @@ HRESULT STDMETHODCALLTYPE Buffer::SetPan(LONG pan) noexcept
     if((!(mBuffer->mFlags&DSBCAPS_CTRL3D) || mImmediate.dwMode == DS3DMODE_DISABLE)
         && mSource != 0) LIKELY
     {
-        ALSection alsection{mContext};
         /* NOTE: Strict movement along the X plane can cause the sound to jump
          * between left and right sharply. Using a curved path helps smooth it
          * out.
          */
         const float x{static_cast<float>(pan-DSBPAN_LEFT)/(DSBPAN_RIGHT-DSBPAN_LEFT) - 0.5f};
-        alSource3f(mSource, AL_POSITION, x, 0.0f, -std::sqrt(1.0f - x*x));
+        alSource3fDirect(mContext, mSource, AL_POSITION, x, 0.0f, -std::sqrt(1.0f - x*x));
     }
 
     return DS_OK;
@@ -1157,10 +1151,9 @@ HRESULT STDMETHODCALLTYPE Buffer::SetFrequency(DWORD frequency) noexcept
     mFrequency = frequency ? frequency : mBuffer->mWfxFormat.Format.nSamplesPerSec;
     if(mSource != 0)
     {
-        ALSection alsection{mContext};
         const float pitch{static_cast<float>(mFrequency) /
             static_cast<float>(mBuffer->mWfxFormat.Format.nSamplesPerSec)};
-        alSourcef(mSource, AL_PITCH, pitch);
+        alSourcefDirect(mContext, mSource, AL_PITCH, pitch);
     }
 
     return DS_OK;
@@ -1176,12 +1169,12 @@ HRESULT STDMETHODCALLTYPE Buffer::Stop() noexcept
     if(mSource == 0) UNLIKELY
         return DS_OK;
 
-    ALSection alsection{mContext};
-    ALint ofs, state;
-    alSourcePause(mSource);
-    alGetSourcei(mSource, AL_BYTE_OFFSET, &ofs);
-    alGetSourcei(mSource, AL_SOURCE_STATE, &state);
-    alGetError();
+    auto ofs = ALint{};
+    auto state = ALint{};
+    alSourcePauseDirect(mContext, mSource);
+    alGetSourceiDirect(mContext, mSource, AL_BYTE_OFFSET, &ofs);
+    alGetSourceiDirect(mContext, mSource, AL_SOURCE_STATE, &state);
+    alGetErrorDirect(mContext);
 
     if((mBuffer->mFlags&DSBCAPS_CTRLPOSITIONNOTIFY))
     {
@@ -1311,7 +1304,6 @@ HRESULT STDMETHODCALLTYPE Buffer::AcquireResources(DWORD flags, DWORD effectsCou
         return DSERR_INVALIDPARAM;
     }
 
-    ALSection alsection{mContext};
     if((mBuffer->mFlags&DSBCAPS_LOCDEFER))
     {
         static constexpr DWORD LocFlags{DSBPLAY_LOCSOFTWARE | DSBPLAY_LOCHARDWARE};
@@ -1328,8 +1320,8 @@ HRESULT STDMETHODCALLTYPE Buffer::AcquireResources(DWORD flags, DWORD effectsCou
         if(loc != LocStatus::Any && mLocStatus != LocStatus::None && loc != mLocStatus)
         {
             ALint state{};
-            alGetSourcei(mSource, AL_SOURCE_STATE, &state);
-            alGetError();
+            alGetSourceiDirect(mContext, mSource, AL_SOURCE_STATE, &state);
+            alGetErrorDirect(mContext);
 
             if(state == AL_PLAYING)
             {
@@ -1385,48 +1377,51 @@ void Buffer::setParams(const DS3DBUFFER &params, const std::bitset<FlagCount> fl
     if(mImmediate.dwMode != DS3DMODE_DISABLE)
     {
         if(flags.test(Position))
-            alSource3f(mSource, AL_POSITION, params.vPosition.x, params.vPosition.y,
-                -params.vPosition.z);
+            alSource3fDirect(mContext, mSource, AL_POSITION, params.vPosition.x,
+                params.vPosition.y, -params.vPosition.z);
         if(flags.test(Velocity))
-            alSource3f(mSource, AL_VELOCITY, params.vVelocity.x, params.vVelocity.y,
-                -params.vVelocity.z);
+            alSource3fDirect(mContext, mSource, AL_VELOCITY, params.vVelocity.x,
+                params.vVelocity.y, -params.vVelocity.z);
         if(flags.test(ConeOrientation))
-            alSource3f(mSource, AL_DIRECTION, params.vConeOrientation.x, params.vConeOrientation.y,
-                -params.vConeOrientation.z);
+            alSource3fDirect(mContext, mSource, AL_DIRECTION, params.vConeOrientation.x,
+                params.vConeOrientation.y, -params.vConeOrientation.z);
     }
     if(flags.test(ConeAngles))
     {
-        alSourcei(mSource, AL_CONE_INNER_ANGLE, static_cast<ALint>(params.dwInsideConeAngle));
-        alSourcei(mSource, AL_CONE_OUTER_ANGLE, static_cast<ALint>(params.dwOutsideConeAngle));
+        alSourceiDirect(mContext, mSource, AL_CONE_INNER_ANGLE,
+            static_cast<ALint>(params.dwInsideConeAngle));
+        alSourceiDirect(mContext, mSource, AL_CONE_OUTER_ANGLE,
+            static_cast<ALint>(params.dwOutsideConeAngle));
     }
     if(flags.test(ConeVolume))
-        alSourcef(mSource, AL_CONE_OUTER_GAIN,
+        alSourcefDirect(mContext, mSource, AL_CONE_OUTER_GAIN,
             mB_to_gain(static_cast<float>(params.lConeOutsideVolume)));
     if(flags.test(MinDistance))
-        alSourcef(mSource, AL_REFERENCE_DISTANCE, params.flMinDistance);
+        alSourcefDirect(mContext, mSource, AL_REFERENCE_DISTANCE, params.flMinDistance);
     if(flags.test(MaxDistance))
-        alSourcef(mSource, AL_MAX_DISTANCE, params.flMaxDistance);
+        alSourcefDirect(mContext, mSource, AL_MAX_DISTANCE, params.flMaxDistance);
     if(flags.test(Mode))
     {
         if(params.dwMode == DS3DMODE_DISABLE)
         {
             const float x{static_cast<float>(mPan-DSBPAN_LEFT)/(DSBPAN_RIGHT-DSBPAN_LEFT) - 0.5f};
-            alSource3f(mSource, AL_POSITION, x, 0.0f, -std::sqrt(1.0f - x*x));
-            alSource3f(mSource, AL_VELOCITY, 0.0f, 0.0f, 0.0f);
-            alSource3f(mSource, AL_DIRECTION, 0.0f, 0.0f, 0.0f);
-            alSourcef(mSource, AL_ROLLOFF_FACTOR, 0.0f);
+            alSource3fDirect(mContext, mSource, AL_POSITION, x, 0.0f, -std::sqrt(1.0f - x*x));
+            alSource3fDirect(mContext, mSource, AL_VELOCITY, 0.0f, 0.0f, 0.0f);
+            alSource3fDirect(mContext, mSource, AL_DIRECTION, 0.0f, 0.0f, 0.0f);
+            alSourcefDirect(mContext, mSource, AL_ROLLOFF_FACTOR, 0.0f);
         }
         else
         {
-            alSource3f(mSource, AL_POSITION, mImmediate.vPosition.x, mImmediate.vPosition.y,
-                -mImmediate.vPosition.z);
-            alSource3f(mSource, AL_VELOCITY, mImmediate.vVelocity.x, mImmediate.vVelocity.y,
-                -mImmediate.vVelocity.z);
-            alSource3f(mSource, AL_DIRECTION, mImmediate.vConeOrientation.x,
+            alSource3fDirect(mContext, mSource, AL_POSITION, mImmediate.vPosition.x,
+                mImmediate.vPosition.y, -mImmediate.vPosition.z);
+            alSource3fDirect(mContext, mSource, AL_VELOCITY, mImmediate.vVelocity.x,
+                mImmediate.vVelocity.y, -mImmediate.vVelocity.z);
+            alSource3fDirect(mContext, mSource, AL_DIRECTION, mImmediate.vConeOrientation.x,
                 mImmediate.vConeOrientation.y, -mImmediate.vConeOrientation.z);
-            alSourcef(mSource, AL_ROLLOFF_FACTOR, mParent.getPrimary().getCurrentRolloffFactor());
+            alSourcefDirect(mContext, mSource, AL_ROLLOFF_FACTOR,
+                mParent.getPrimary().getCurrentRolloffFactor());
         }
-        alSourcei(mSource, AL_SOURCE_RELATIVE,
+        alSourceiDirect(mContext, mSource, AL_SOURCE_RELATIVE,
             (params.dwMode!=DS3DMODE_NORMAL) ? AL_TRUE : AL_FALSE);
     }
 }
@@ -1670,9 +1665,8 @@ HRESULT STDMETHODCALLTYPE Buffer::Buffer3D::SetAllParameters(const DS3DBUFFER *d
     }
     else
     {
-        ALSection alsection{self->mContext};
         self->setParams(*ds3dBuffer, ~0ull);
-        alGetError();
+        alGetErrorDirect(self->mContext);
     }
 
     return DS_OK;
@@ -1700,14 +1694,15 @@ HRESULT STDMETHODCALLTYPE Buffer::Buffer3D::SetConeAngles(DWORD insideConeAngle,
     }
     else
     {
-        ALSection alsection{self->mContext};
         self->mImmediate.dwInsideConeAngle = insideConeAngle;
         self->mImmediate.dwOutsideConeAngle = outsideConeAngle;
 
         if(self->mSource != 0)
         {
-            alSourcei(self->mSource, AL_CONE_INNER_ANGLE, static_cast<ALint>(insideConeAngle));
-            alSourcei(self->mSource, AL_CONE_OUTER_ANGLE, static_cast<ALint>(outsideConeAngle));
+            alSourceiDirect(self->mContext, self->mSource, AL_CONE_INNER_ANGLE,
+                static_cast<ALint>(insideConeAngle));
+            alSourceiDirect(self->mContext, self->mSource, AL_CONE_OUTER_ANGLE,
+                static_cast<ALint>(outsideConeAngle));
         }
     }
 
@@ -1729,15 +1724,14 @@ HRESULT STDMETHODCALLTYPE Buffer::Buffer3D::SetConeOrientation(D3DVALUE x, D3DVA
     }
     else
     {
-        ALSection alsection{self->mContext};
         self->mImmediate.vConeOrientation.x = x;
         self->mImmediate.vConeOrientation.y = y;
         self->mImmediate.vConeOrientation.z = z;
 
         if(self->mImmediate.dwMode != DS3DMODE_DISABLE && self->mSource != 0)
         {
-            alSource3f(self->mSource, AL_DIRECTION, x, y, -z);
-            alGetError();
+            alSource3fDirect(self->mContext, self->mSource, AL_DIRECTION, x, y, -z);
+            alGetErrorDirect(self->mContext);
         }
     }
 
@@ -1763,11 +1757,10 @@ HRESULT STDMETHODCALLTYPE Buffer::Buffer3D::SetConeOutsideVolume(LONG coneOutsid
     }
     else
     {
-        ALSection alsection{self->mContext};
         self->mImmediate.lConeOutsideVolume = coneOutsideVolume;
 
         if(self->mSource != 0)
-            alSourcef(self->mSource, AL_CONE_OUTER_GAIN,
+            alSourcefDirect(self->mContext, self->mSource, AL_CONE_OUTER_GAIN,
                 mB_to_gain(static_cast<float>(coneOutsideVolume)));
     }
 
@@ -1793,11 +1786,10 @@ HRESULT STDMETHODCALLTYPE Buffer::Buffer3D::SetMaxDistance(D3DVALUE maxDistance,
     }
     else
     {
-        ALSection alsection{self->mContext};
         self->mImmediate.flMaxDistance = maxDistance;
 
         if(self->mSource != 0)
-            alSourcef(self->mSource, AL_MAX_DISTANCE, maxDistance);
+            alSourcefDirect(self->mContext, self->mSource, AL_MAX_DISTANCE, maxDistance);
     }
 
     return DS_OK;
@@ -1822,11 +1814,10 @@ HRESULT STDMETHODCALLTYPE Buffer::Buffer3D::SetMinDistance(D3DVALUE minDistance,
     }
     else
     {
-        ALSection alsection{self->mContext};
         self->mImmediate.flMinDistance = minDistance;
 
         if(self->mSource != 0)
-            alSourcef(self->mSource, AL_REFERENCE_DISTANCE, minDistance);
+            alSourcefDirect(self->mContext, self->mSource, AL_REFERENCE_DISTANCE, minDistance);
     }
 
     return DS_OK;
@@ -1851,7 +1842,6 @@ HRESULT STDMETHODCALLTYPE Buffer::Buffer3D::SetMode(DWORD mode, DWORD apply) noe
     }
     else
     {
-        ALSection alsection{self->mContext};
         self->mImmediate.dwMode = mode;
 
         if(self->mSource != 0)
@@ -1861,25 +1851,29 @@ HRESULT STDMETHODCALLTYPE Buffer::Buffer3D::SetMode(DWORD mode, DWORD apply) noe
                 const float pandiff{static_cast<float>(self->mPan - DSBPAN_LEFT)};
                 const float x{pandiff/(DSBPAN_RIGHT-DSBPAN_LEFT) - 0.5f};
 
-                alSource3f(self->mSource, AL_POSITION, x, 0.0f, -std::sqrt(1.0f - x*x));
-                alSource3f(self->mSource, AL_VELOCITY, 0.0f, 0.0f, 0.0f);
-                alSource3f(self->mSource, AL_DIRECTION, 0.0f, 0.0f, 0.0f);
-                alSourcef(self->mSource, AL_ROLLOFF_FACTOR, 0.0f);
+                alSource3fDirect(self->mContext, self->mSource, AL_POSITION, x, 0.0f,
+                    -std::sqrt(1.0f - x*x));
+                alSource3fDirect(self->mContext, self->mSource, AL_VELOCITY, 0.0f, 0.0f, 0.0f);
+                alSource3fDirect(self->mContext, self->mSource, AL_DIRECTION, 0.0f, 0.0f, 0.0f);
+                alSourcefDirect(self->mContext, self->mSource, AL_ROLLOFF_FACTOR, 0.0f);
             }
             else
             {
-                alSource3f(self->mSource, AL_POSITION, self->mImmediate.vPosition.x,
-                    self->mImmediate.vPosition.y, -self->mImmediate.vPosition.z);
-                alSource3f(self->mSource, AL_VELOCITY, self->mImmediate.vVelocity.x,
-                    self->mImmediate.vVelocity.y, -self->mImmediate.vVelocity.z);
-                alSource3f(self->mSource, AL_DIRECTION, self->mImmediate.vConeOrientation.x,
-                    self->mImmediate.vConeOrientation.y, -self->mImmediate.vConeOrientation.z);
-                alSourcef(self->mSource, AL_ROLLOFF_FACTOR,
+                alSource3fDirect(self->mContext, self->mSource, AL_POSITION,
+                    self->mImmediate.vPosition.x, self->mImmediate.vPosition.y,
+                    -self->mImmediate.vPosition.z);
+                alSource3fDirect(self->mContext, self->mSource, AL_VELOCITY,
+                    self->mImmediate.vVelocity.x, self->mImmediate.vVelocity.y,
+                    -self->mImmediate.vVelocity.z);
+                alSource3fDirect(self->mContext, self->mSource, AL_DIRECTION,
+                    self->mImmediate.vConeOrientation.x, self->mImmediate.vConeOrientation.y,
+                    -self->mImmediate.vConeOrientation.z);
+                alSourcefDirect(self->mContext, self->mSource, AL_ROLLOFF_FACTOR,
                     self->mParent.getPrimary().getCurrentRolloffFactor());
             }
-            alSourcei(self->mSource, AL_SOURCE_RELATIVE,
+            alSourceiDirect(self->mContext, self->mSource, AL_SOURCE_RELATIVE,
                 (mode!=DS3DMODE_NORMAL) ? AL_TRUE : AL_FALSE);
-            alGetError();
+            alGetErrorDirect(self->mContext);
         }
     }
 
@@ -1901,15 +1895,14 @@ HRESULT STDMETHODCALLTYPE Buffer::Buffer3D::SetPosition(D3DVALUE x, D3DVALUE y, 
     }
     else
     {
-        ALSection alsection{self->mContext};
         self->mImmediate.vPosition.x = x;
         self->mImmediate.vPosition.y = y;
         self->mImmediate.vPosition.z = z;
 
         if(self->mImmediate.dwMode != DS3DMODE_DISABLE && self->mSource != 0)
         {
-            alSource3f(self->mSource, AL_POSITION, x, y, -z);
-            alGetError();
+            alSource3fDirect(self->mContext, self->mSource, AL_POSITION, x, y, -z);
+            alGetErrorDirect(self->mContext);
         }
     }
 
@@ -1931,15 +1924,14 @@ HRESULT STDMETHODCALLTYPE Buffer::Buffer3D::SetVelocity(D3DVALUE x, D3DVALUE y, 
     }
     else
     {
-        ALSection alsection{self->mContext};
         self->mImmediate.vVelocity.x = x;
         self->mImmediate.vVelocity.y = y;
         self->mImmediate.vVelocity.z = z;
 
         if(self->mImmediate.dwMode != DS3DMODE_DISABLE && self->mSource != 0)
         {
-            alSource3f(self->mSource, AL_VELOCITY, x, y, -z);
-            alGetError();
+            alSource3fDirect(self->mContext, self->mSource, AL_VELOCITY, x, y, -z);
+            alGetErrorDirect(self->mContext);
         }
     }
 
@@ -2007,8 +1999,8 @@ HRESULT STDMETHODCALLTYPE Buffer::Prop::Get(REFGUID guidPropSet, ULONG dwPropID,
     {
         if(self->mParent.haveExtension(EXT_EAX))
         {
-            ALSection alsection{self->mContext};
-            const ALenum err{EAXGet(&guidPropSet, dwPropID, self->mSource, pPropData, cbPropData)};
+            const ALenum err{EAXGetDirect(self->mContext, &guidPropSet, dwPropID, self->mSource,
+                pPropData, cbPropData)};
             if(err != AL_NO_ERROR)
                 return E_FAIL;
             /* Not sure what to do here. OpenAL EAX doesn't return the amount
@@ -2048,10 +2040,7 @@ HRESULT STDMETHODCALLTYPE Buffer::Prop::Get(REFGUID guidPropSet, ULONG dwPropID,
             {
                 ALint state{};
                 if(self->mSource != 0)
-                {
-                    ALSection alsection{self->mContext};
-                    alGetSourcei(self->mSource, AL_SOURCE_STATE, &state);
-                }
+                    alGetSourceiDirect(self->mContext, self->mSource, AL_SOURCE_STATE, &state);
 
                 /* FIXME: Probably not accurate. */
                 if(state == AL_PLAYING)
@@ -2101,13 +2090,13 @@ HRESULT STDMETHODCALLTYPE Buffer::Prop::Set(REFGUID guidPropSet, ULONG dwPropID,
     {
         if(self->mParent.haveExtension(EXT_EAX))
         {
-            ALSection alsection{self->mContext};
             const bool immediate{!(dwPropID&0x80000000u)};
 
             if(immediate)
                 alcSuspendContext(self->mContext);
 
-            const ALenum err{EAXSet(&guidPropSet, dwPropID, self->mSource, pPropData, cbPropData)};
+            const ALenum err{EAXSetDirect(self->mContext, &guidPropSet, dwPropID, self->mSource,
+                pPropData, cbPropData)};
             if(immediate)
             {
                 /* FIXME: Commit DSound settings regardless? alcProcessContext
@@ -2273,9 +2262,8 @@ HRESULT STDMETHODCALLTYPE Buffer::Notify::SetNotificationPositions(DWORD numNoti
     std::lock_guard lock{self->mMutex};
     if(self->mSource != 0)
     {
-        ALSection alsection{self->mContext};
         ALint state{};
-        alGetSourcei(self->mSource, AL_SOURCE_STATE, &state);
+        alGetSourceiDirect(self->mContext, self->mSource, AL_SOURCE_STATE, &state);
         if(state == AL_PLAYING)
         {
             WARN(PREFIX "SetNotificationPositions Source playing");
