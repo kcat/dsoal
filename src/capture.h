@@ -2,6 +2,7 @@
 #define CAPTURE_H
 
 #include <atomic>
+#include <mutex>
 
 #include <dsound.h>
 
@@ -36,6 +37,8 @@ class DSCapture final : IDirectSoundCapture {
 
     std::atomic<ULONG> mTotalRef{1u}, mDsRef{1u}, mUnkRef{0u};
 
+    std::mutex mMutex;
+    std::string mDeviceName;
     bool mIs8{};
 
 public:
