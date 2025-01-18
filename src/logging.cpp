@@ -34,6 +34,6 @@ void dsoal_print_impl(LogLevel level, const fmt::string_view fmt, fmt::format_ar
 
     auto _ = std::lock_guard{sLogMutex};
     auto *logfile = gLogFile ? gLogFile : stderr;
-    fmt::println(logfile, "{:04X}:{}:dsound: {}", GetCurrentThreadId(), prefix, msg);
+    fmt::println(logfile, "{:04X}:{}:dsound:{}", GetCurrentThreadId(), prefix, msg);
     fflush(logfile);
 }
