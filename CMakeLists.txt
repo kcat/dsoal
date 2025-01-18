@@ -46,7 +46,7 @@ if(MINGW)
 endif(MINGW)
 enable_language(RC)
 
-add_library(dsound SHARED
+set(SRC_OBJS
     src/AL/al.h
     src/AL/alc.h
     src/AL/alext.h
@@ -77,11 +77,22 @@ add_library(dsound SHARED
     src/primarybuffer.h
     src/propset.cpp
     src/propset.h
-    src/vmanager.h
-    version.rc
-    ${DEF_FILE}
-)
+    src/vmanager.h)
+
+add_library(dsound SHARED ${SRC_OBJS} version.rc ${DEF_FILE})
 set_target_properties(dsound PROPERTIES PREFIX "")
 target_link_libraries(dsound PRIVATE dsoal::fmt ${DSOAL_LINK_FLAGS})
 target_compile_definitions(dsound PRIVATE DSOAL_LIBRARY ${DSOAL_CPPDEFS})
 target_compile_options(dsound PRIVATE ${DSOAL_CFLAGS})
+
+set(NEED_ANALYZE_SOURCE_FILES "")
+foreach(obj ${SRC_OBJS})
+    list(APPEND NEED_ANALYZE_SOURCE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/${obj}")
+endforeach()
+set(CLANG_TIDY_EXECUTABLE "clang-tidy")
+if(DEFINED ENV{CLANG_TIDY_EXECUTABLE})
+    set(CLANG_TIDY_EXECUTABLE $ENV{CLANG_TIDY_EXECUTABLE})
+endif()
+add_custom_target(clang-tidy-check ${CLANG_TIDY_EXECUTABLE} -format-style=file
+    -p ${CMAKE_BINARY_DIR}/compile_commands.json ${NEED_ANALYZE_SOURCE_FILES}
+    DEPENDS ${NEED_ANALYZE_SOURCE_FILES} ${CMAKE_BINARY_DIR}/compile_commands.json)
