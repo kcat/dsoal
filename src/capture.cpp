@@ -629,15 +629,28 @@ HRESULT STDMETHODCALLTYPE DSCBuffer::GetObjectInPath(REFGUID rguidObject, DWORD 
 {
     FIXME(PREFIX "({})->({}, {}, {}, {})", voidp{this}, GuidPrinter{rguidObject}.c_str(), dwIndex,
         GuidPrinter{rguidInterface}.c_str(), voidp{ppObject});
-    return E_NOTIMPL;
+
+    if(!ppObject)
+        return DSERR_INVALIDPARAM;
+    *ppObject = nullptr;
+
+    return DSERR_CONTROLUNAVAIL;
 }
 #undef PREFIX
 
 #define PREFIX CLASS_PREFIX "GetFXStatus "
 HRESULT STDMETHODCALLTYPE DSCBuffer::GetFXStatus(DWORD dwFXCount, LPDWORD pdwFXStatus) noexcept
 {
-    FIXME(PREFIX "({})->({}, {})", voidp{this}, dwFXCount, voidp{pdwFXStatus});
-    return E_NOTIMPL;
+    TRACE(PREFIX "({})->({}, {})", voidp{this}, dwFXCount, voidp{pdwFXStatus});
+
+    if(dwFXCount > 0)
+    {
+        WARN(PREFIX "Querying too many effects");
+        return DSERR_INVALIDPARAM;
+    }
+
+    /* 0 effects is fine, that's allowed when initializing. */
+    return DS_OK;
 }
 #undef PREFIX
 #undef CLASS_PREFIX
