@@ -571,7 +571,7 @@ HRESULT Buffer::setLocation(LocStatus locStatus) noexcept
     return DS_OK;
 }
 
-#define PREFIX CLASS_PREFIX "QueryInterface"
+#define PREFIX CLASS_PREFIX "QueryInterface "
 HRESULT STDMETHODCALLTYPE Buffer::QueryInterface(REFIID riid, void** ppvObject) noexcept
 {
     DEBUG(PREFIX "({})->({}, {})", voidp{this}, IidPrinter{riid}.c_str(), voidp{ppvObject});
@@ -652,7 +652,7 @@ ULONG STDMETHODCALLTYPE Buffer::Release() noexcept
 }
 
 
-#define PREFIX CLASS_PREFIX "GetCaps"
+#define PREFIX CLASS_PREFIX "GetCaps "
 HRESULT STDMETHODCALLTYPE Buffer::GetCaps(DSBCAPS *bufferCaps) noexcept
 {
     DEBUG(PREFIX "({})->({})", voidp{this}, voidp{bufferCaps});
@@ -680,7 +680,7 @@ HRESULT STDMETHODCALLTYPE Buffer::GetCaps(DSBCAPS *bufferCaps) noexcept
 }
 #undef PREFIX
 
-#define PREFIX CLASS_PREFIX "GetCurrentPosition"
+#define PREFIX CLASS_PREFIX "GetCurrentPosition "
 HRESULT STDMETHODCALLTYPE Buffer::GetCurrentPosition(DWORD *playCursor, DWORD *writeCursor) noexcept
 {
     DEBUG(PREFIX "({})->({}, {})", voidp{this}, voidp{playCursor}, voidp{writeCursor});
@@ -738,7 +738,7 @@ HRESULT STDMETHODCALLTYPE Buffer::GetCurrentPosition(DWORD *playCursor, DWORD *w
 }
 #undef PREFIX
 
-#define PREFIX CLASS_PREFIX "GetFormat"
+#define PREFIX CLASS_PREFIX "GetFormat "
 HRESULT STDMETHODCALLTYPE Buffer::GetFormat(WAVEFORMATEX *wfx, DWORD sizeAllocated, DWORD *sizeWritten) noexcept
 {
     DEBUG(PREFIX "({})->({}, {}, {})", voidp{this}, voidp{wfx}, sizeAllocated,
@@ -764,7 +764,7 @@ HRESULT STDMETHODCALLTYPE Buffer::GetFormat(WAVEFORMATEX *wfx, DWORD sizeAllocat
 }
 #undef PREFIX
 
-#define PREFIX CLASS_PREFIX "GetVolume"
+#define PREFIX CLASS_PREFIX "GetVolume "
 HRESULT STDMETHODCALLTYPE Buffer::GetVolume(LONG *volume) noexcept
 {
     DEBUG(PREFIX "({})->({})", voidp{this}, voidp{volume});
@@ -780,7 +780,7 @@ HRESULT STDMETHODCALLTYPE Buffer::GetVolume(LONG *volume) noexcept
 }
 #undef PREFIX
 
-#define PREFIX CLASS_PREFIX "GetPan"
+#define PREFIX CLASS_PREFIX "GetPan "
 HRESULT STDMETHODCALLTYPE Buffer::GetPan(LONG *pan) noexcept
 {
     DEBUG(PREFIX "({})->({})", voidp{this}, voidp{pan});
@@ -796,7 +796,7 @@ HRESULT STDMETHODCALLTYPE Buffer::GetPan(LONG *pan) noexcept
 }
 #undef PREFIX
 
-#define PREFIX CLASS_PREFIX "GetFrequency"
+#define PREFIX CLASS_PREFIX "GetFrequency "
 HRESULT STDMETHODCALLTYPE Buffer::GetFrequency(DWORD *frequency) noexcept
 {
     DEBUG(PREFIX "({})->({})", voidp{this}, voidp{frequency});
@@ -812,7 +812,7 @@ HRESULT STDMETHODCALLTYPE Buffer::GetFrequency(DWORD *frequency) noexcept
 }
 #undef PREFIX
 
-#define PREFIX CLASS_PREFIX "GetStatus"
+#define PREFIX CLASS_PREFIX "GetStatus "
 HRESULT STDMETHODCALLTYPE Buffer::GetStatus(DWORD *status) noexcept
 {
     DEBUG(PREFIX "({})->({})", voidp{this}, voidp{status});
@@ -840,7 +840,7 @@ HRESULT STDMETHODCALLTYPE Buffer::GetStatus(DWORD *status) noexcept
 }
 #undef PREFIX
 
-#define PREFIX CLASS_PREFIX "Initialize"
+#define PREFIX CLASS_PREFIX "Initialize "
 HRESULT STDMETHODCALLTYPE Buffer::Initialize(IDirectSound *directSound, const DSBUFFERDESC *dsBufferDesc) noexcept
 {
     DEBUG(PREFIX "({})->({}, {})", voidp{this}, voidp{directSound}, cvoidp{dsBufferDesc});
@@ -913,7 +913,7 @@ HRESULT STDMETHODCALLTYPE Buffer::Initialize(IDirectSound *directSound, const DS
 }
 #undef PREFIX
 
-#define PREFIX CLASS_PREFIX "Lock"
+#define PREFIX CLASS_PREFIX "Lock "
 HRESULT STDMETHODCALLTYPE Buffer::Lock(DWORD offset, DWORD bytes, void **audioPtr1, DWORD *audioBytes1, void **audioPtr2, DWORD *audioBytes2, DWORD flags) noexcept
 {
     DEBUG(PREFIX "({})->({}, {}, {}, {}, {}, {}, {})", voidp{this}, offset, bytes,
@@ -974,7 +974,7 @@ HRESULT STDMETHODCALLTYPE Buffer::Lock(DWORD offset, DWORD bytes, void **audioPt
 }
 #undef PREFIX
 
-#define PREFIX CLASS_PREFIX "Play"
+#define PREFIX CLASS_PREFIX "Play "
 HRESULT STDMETHODCALLTYPE Buffer::Play(DWORD reserved1, DWORD priority, DWORD flags) noexcept
 {
     DEBUG(PREFIX "({})->({}, {}, {})", voidp{this}, reserved1, priority, flags);
@@ -1050,7 +1050,7 @@ HRESULT STDMETHODCALLTYPE Buffer::Play(DWORD reserved1, DWORD priority, DWORD fl
 }
 #undef PREFIX
 
-#define PREFIX CLASS_PREFIX "SetCurrentPosition"
+#define PREFIX CLASS_PREFIX "SetCurrentPosition "
 HRESULT STDMETHODCALLTYPE Buffer::SetCurrentPosition(DWORD newPosition) noexcept
 {
     DEBUG(PREFIX "({})->({})", voidp{this}, newPosition);
@@ -1071,7 +1071,7 @@ HRESULT STDMETHODCALLTYPE Buffer::SetCurrentPosition(DWORD newPosition) noexcept
 }
 #undef PREFIX
 
-#define PREFIX CLASS_PREFIX "SetFormat"
+#define PREFIX CLASS_PREFIX "SetFormat "
 HRESULT STDMETHODCALLTYPE Buffer::SetFormat(const WAVEFORMATEX *wfx) noexcept
 {
     DEBUG(PREFIX "({})->({})", voidp{this}, cvoidp{wfx});
@@ -1079,7 +1079,7 @@ HRESULT STDMETHODCALLTYPE Buffer::SetFormat(const WAVEFORMATEX *wfx) noexcept
 }
 #undef PREFIX
 
-#define PREFIX CLASS_PREFIX "SetVolume"
+#define PREFIX CLASS_PREFIX "SetVolume "
 HRESULT STDMETHODCALLTYPE Buffer::SetVolume(LONG volume) noexcept
 {
     DEBUG(PREFIX "({})->({})", voidp{this}, volume);
@@ -1102,7 +1102,7 @@ HRESULT STDMETHODCALLTYPE Buffer::SetVolume(LONG volume) noexcept
 }
 #undef PREFIX
 
-#define PREFIX CLASS_PREFIX "SetPan"
+#define PREFIX CLASS_PREFIX "SetPan "
 HRESULT STDMETHODCALLTYPE Buffer::SetPan(LONG pan) noexcept
 {
     DEBUG(PREFIX "({})->({})", voidp{this}, pan);
@@ -1133,7 +1133,7 @@ HRESULT STDMETHODCALLTYPE Buffer::SetPan(LONG pan) noexcept
 }
 #undef PREFIX
 
-#define PREFIX CLASS_PREFIX "SetFrequency"
+#define PREFIX CLASS_PREFIX "SetFrequency "
 HRESULT STDMETHODCALLTYPE Buffer::SetFrequency(DWORD frequency) noexcept
 {
     DEBUG(PREFIX "({})->({})", voidp{this}, frequency);
@@ -1160,7 +1160,7 @@ HRESULT STDMETHODCALLTYPE Buffer::SetFrequency(DWORD frequency) noexcept
 }
 #undef PREFIX
 
-#define PREFIX CLASS_PREFIX "Stop"
+#define PREFIX CLASS_PREFIX "Stop "
 HRESULT STDMETHODCALLTYPE Buffer::Stop() noexcept
 {
     DEBUG(PREFIX "({})->()", voidp{this});
@@ -1190,7 +1190,7 @@ HRESULT STDMETHODCALLTYPE Buffer::Stop() noexcept
 }
 #undef PREFIX
 
-#define PREFIX CLASS_PREFIX "Unlock"
+#define PREFIX CLASS_PREFIX "Unlock "
 HRESULT STDMETHODCALLTYPE Buffer::Unlock(void *audioPtr1, DWORD audioBytes1, void *audioPtr2, DWORD audioBytes2) noexcept
 {
     DEBUG(PREFIX "({})->({}, {}, {}, {})", voidp{this}, audioPtr1, audioBytes1, audioPtr2,
@@ -1222,7 +1222,7 @@ HRESULT STDMETHODCALLTYPE Buffer::Unlock(void *audioPtr1, DWORD audioBytes1, voi
 }
 #undef PREFIX
 
-#define PREFIX CLASS_PREFIX "Restore"
+#define PREFIX CLASS_PREFIX "Restore "
 HRESULT STDMETHODCALLTYPE Buffer::Restore() noexcept
 {
     DEBUG(PREFIX "({})->()", voidp{this});
@@ -1237,7 +1237,7 @@ HRESULT STDMETHODCALLTYPE Buffer::Restore() noexcept
 }
 #undef PREFIX
 
-#define PREFIX CLASS_PREFIX "SetFX"
+#define PREFIX CLASS_PREFIX "SetFX "
 HRESULT STDMETHODCALLTYPE Buffer::SetFX(DWORD effectsCount, DSEFFECTDESC *dsFXDesc, DWORD *resultCodes) noexcept
 {
     TRACE(PREFIX "({})->({}, {}, {})", voidp{this}, effectsCount, voidp{dsFXDesc},
@@ -1285,7 +1285,7 @@ HRESULT STDMETHODCALLTYPE Buffer::SetFX(DWORD effectsCount, DSEFFECTDESC *dsFXDe
 }
 #undef PREFIX
 
-#define PREFIX CLASS_PREFIX "AcquireResources"
+#define PREFIX CLASS_PREFIX "AcquireResources "
 HRESULT STDMETHODCALLTYPE Buffer::AcquireResources(DWORD flags, DWORD effectsCount, DWORD *resultCodes) noexcept
 {
     DEBUG(PREFIX "({})->({}, {}, {})", voidp{this}, flags, effectsCount, voidp{resultCodes});
@@ -1338,7 +1338,7 @@ HRESULT STDMETHODCALLTYPE Buffer::AcquireResources(DWORD flags, DWORD effectsCou
 }
 #undef PREFIX
 
-#define PREFIX CLASS_PREFIX "GetObjectInPath"
+#define PREFIX CLASS_PREFIX "GetObjectInPath "
 HRESULT STDMETHODCALLTYPE Buffer::GetObjectInPath(REFGUID objectId, DWORD index, REFGUID interfaceId, void **ppObject) noexcept
 {
     FIXME(PREFIX "({})->({}, {}, {}, {})", voidp{this}, GuidPrinter{objectId}.c_str(), index,

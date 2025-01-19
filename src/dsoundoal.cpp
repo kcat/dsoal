@@ -209,8 +209,7 @@ ds::expected<std::unique_ptr<SharedDevice>,HRESULT> CreateDeviceShare(const GUID
     const DWORD totalSources{static_cast<DWORD>(numMono) + static_cast<DWORD>(numStereo)};
     if(totalSources < 128)
     {
-        ERR("CreateDeviceShare Could only allocate {} sources (minimum 128 required)",
-            totalSources);
+        ERR(PREFIX "Could only allocate {} sources (minimum 128 required)", totalSources);
         return ds::unexpected(DSERR_OUTOFMEMORY);
     }
 
