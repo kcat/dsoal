@@ -3,8 +3,8 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
-#include <memory>
 #include <span>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -51,19 +51,33 @@ class DSCBuffer final : IDirectSoundCaptureBuffer8 {
 
     bool mIs8{};
     bool mLocked{};
+    bool mCapturing{};
 
     DSCapture &mParent;
+    std::thread mCaptureThread;
     WAVEFORMATEXTENSIBLE mWaveFmt{};
+    ALCdevice *mDevice{};
     std::vector<DSBPOSITIONNOTIFY> mNotifies;
     std::vector<std::byte> mBuffer;
-
-    ALCdevice *mDevice{};
+    std::atomic<DWORD> mWritePos{0u};
+    std::atomic<bool> mQuitNow{false};
 
 public:
-    ~DSCBuffer() { if(mDevice) alcCaptureCloseDevice(mDevice); }
+    ~DSCBuffer()
+    {
+        if(mDevice)
+            alcCaptureCloseDevice(mDevice);
+        if(mCaptureThread.joinable())
+        {
+            mQuitNow = true;
+            mCaptureThread.join();
+        }
+    }
 
     DSCBuffer(const DSCBuffer&) = delete;
     DSCBuffer& operator=(const DSCBuffer&) = delete;
+
+    void captureThread();
 
     HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void** ppvObject) noexcept override;
     ULONG STDMETHODCALLTYPE AddRef() noexcept override;
@@ -88,6 +102,57 @@ public:
 };
 
 #define CLASS_PREFIX "DSCBuffer::"
+#define PREFIX CLASS_PREFIX "captureThread "
+void DSCBuffer::captureThread()
+{
+    auto devlock = mParent.getUniqueLock();
+    while(!mQuitNow.load(std::memory_order_acquire))
+    {
+        devlock.unlock();
+        std::this_thread::sleep_for(std::chrono::milliseconds{10});
+        devlock.lock();
+
+        auto avails = ALCint{};
+        alcGetIntegerv(mDevice, ALC_CAPTURE_SAMPLES, 1, &avails);
+        if(avails < 0)
+        {
+            ERR(PREFIX "Invalid capture sample count: {}", avails);
+            continue;
+        }
+
+        auto availframes = static_cast<ALCuint>(avails);
+        if(availframes == 0) continue;
+
+        auto writepos = mWritePos.load(std::memory_order_relaxed);
+        const auto oldpos = writepos;
+        while(availframes > 0)
+        {
+            const auto toread = std::min<size_t>(availframes,
+                (mBuffer.size() - writepos) / mWaveFmt.Format.nBlockAlign);
+
+            alcCaptureSamples(mDevice, &mBuffer[writepos], static_cast<ALCsizei>(toread));
+
+            availframes -= static_cast<ALCuint>(toread);
+            writepos += static_cast<DWORD>(toread) * mWaveFmt.Format.nBlockAlign;
+            if(writepos == mBuffer.size()) writepos = 0;
+        }
+
+        auto trigger_notify = [oldpos,writepos](const DSBPOSITIONNOTIFY &notify)
+        {
+            if(oldpos > writepos)
+            {
+                if(notify.dwOffset != static_cast<DWORD>(DSCBPN_OFFSET_STOP)
+                    && (notify.dwOffset >= oldpos || notify.dwOffset < writepos))
+                    SetEvent(notify.hEventNotify);
+            }
+            else if(notify.dwOffset >= oldpos && notify.dwOffset < writepos)
+                SetEvent(notify.hEventNotify);
+        };
+        std::for_each(mNotifies.cbegin(), mNotifies.cend(), trigger_notify);
+        mWritePos.store(writepos, std::memory_order_release);
+    }
+}
+#undef PREFIX
 
 #define PREFIX CLASS_PREFIX "QueryInterface "
 HRESULT STDMETHODCALLTYPE DSCBuffer::QueryInterface(REFIID riid, void **ppvObject) noexcept
@@ -152,13 +217,6 @@ HRESULT STDMETHODCALLTYPE DSCBuffer::GetCaps(LPDSCBCAPS lpDSCBCaps) noexcept
 {
     TRACE(PREFIX "({})->({})", voidp{this}, voidp{lpDSCBCaps});
 
-    auto lock = mParent.getLockGuard();
-    if(!mDevice)
-    {
-        WARN(PREFIX "Not initialized");
-        return DSERR_UNINITIALIZED;
-    }
-
     if(!lpDSCBCaps || lpDSCBCaps->dwSize < sizeof(*lpDSCBCaps))
     {
         WARN(PREFIX "Bad caps: {}, {}", voidp{lpDSCBCaps}, lpDSCBCaps ? lpDSCBCaps->dwSize : 0ul);
@@ -176,9 +234,30 @@ HRESULT STDMETHODCALLTYPE DSCBuffer::GetCaps(LPDSCBCAPS lpDSCBCaps) noexcept
 HRESULT STDMETHODCALLTYPE DSCBuffer::GetCurrentPosition(LPDWORD lpdwCapturePosition,
     LPDWORD lpdwReadPosition) noexcept
 {
-    FIXME(PREFIX "({})->({}, {})", voidp{this}, voidp{lpdwCapturePosition},
+    DEBUG(PREFIX "({})->({}, {})", voidp{this}, voidp{lpdwCapturePosition},
         voidp{lpdwReadPosition});
-    return E_NOTIMPL;
+
+    const auto writepos = mWritePos.load(std::memory_order_acquire);
+    if(mCapturing)
+    {
+        if(lpdwCapturePosition)
+            *lpdwCapturePosition = writepos;
+        if(lpdwReadPosition)
+        {
+            /* 10ms read-ahead */
+            const auto readahead = mWaveFmt.Format.nSamplesPerSec/100*mWaveFmt.Format.nBlockAlign;
+            *lpdwReadPosition = (writepos + readahead) % mBuffer.size();
+        }
+    }
+    else
+    {
+        if(lpdwCapturePosition)
+            *lpdwCapturePosition = writepos;
+        if(lpdwReadPosition)
+            *lpdwReadPosition = writepos;
+    }
+
+    return DS_OK;
 }
 #undef PREFIX
 
@@ -212,8 +291,20 @@ HRESULT STDMETHODCALLTYPE DSCBuffer::GetFormat(LPWAVEFORMATEX lpwfxFormat, DWORD
 #define PREFIX CLASS_PREFIX "GetStatus "
 HRESULT STDMETHODCALLTYPE DSCBuffer::GetStatus(LPDWORD lpdwStatus) noexcept
 {
-    FIXME(PREFIX "({})->({})", voidp{this}, voidp{lpdwStatus});
-    return E_NOTIMPL;
+    TRACE(PREFIX "({})->({})", voidp{this}, voidp{lpdwStatus});
+
+    if(!lpdwStatus)
+    {
+        WARN(PREFIX "Null out pointer");
+        return DSERR_INVALIDPARAM;
+    }
+
+    if(!mCapturing)
+        *lpdwStatus = 0;
+    else
+        *lpdwStatus = DSCBSTATUS_CAPTURING | DSCBSTATUS_LOOPING;
+
+    return DS_OK;
 }
 #undef PREFIX
 
@@ -423,14 +514,14 @@ HRESULT STDMETHODCALLTYPE DSCBuffer::Lock(DWORD dwReadCusor, DWORD dwReadBytes,
     }
 
     auto remain = DWORD{};
-    if(dwReadCusor >= mBuffer.size() - dwReadBytes)
+    if(dwReadCusor > mBuffer.size() - dwReadBytes)
     {
         *lpdwAudioBytes1 = static_cast<DWORD>(mBuffer.size() - dwReadCusor);
         remain = dwReadBytes - *lpdwAudioBytes1;
     }
     else
         *lpdwAudioBytes1 = dwReadBytes;
-    *lplpvAudioPtr1 = std::to_address(mBuffer.begin() + static_cast<ptrdiff_t>(dwReadCusor));
+    *lplpvAudioPtr1 = &mBuffer[dwReadCusor];
 
     if(lplpvAudioPtr2 && lpdwAudioBytes2 && remain)
     {
@@ -445,16 +536,49 @@ HRESULT STDMETHODCALLTYPE DSCBuffer::Lock(DWORD dwReadCusor, DWORD dwReadBytes,
 #define PREFIX CLASS_PREFIX "Start "
 HRESULT STDMETHODCALLTYPE DSCBuffer::Start(DWORD dwFlags) noexcept
 {
-    FIXME(PREFIX "({})->({:#x})", voidp{this}, dwFlags);
-    return E_NOTIMPL;
+    TRACE(PREFIX "({})->({:#x})", voidp{this}, dwFlags);
+
+    if(!(dwFlags&DSCBSTART_LOOPING))
+    {
+        FIXME(PREFIX "Non-looping capture not currently supported");
+        return DSERR_INVALIDPARAM;
+    }
+
+    if(!mCapturing)
+    {
+        mQuitNow.store(false, std::memory_order_release);
+        mCaptureThread = std::thread{&DSCBuffer::captureThread, this};
+        alcCaptureStart(mDevice);
+        mCapturing = true;
+    }
+
+    return DS_OK;
 }
 #undef PREFIX
 
 #define PREFIX CLASS_PREFIX "Stop "
 HRESULT STDMETHODCALLTYPE DSCBuffer::Stop() noexcept
 {
-    FIXME(PREFIX "({})->()", voidp{this});
-    return E_NOTIMPL;
+    TRACE(PREFIX "({})->()", voidp{this});
+
+    if(mCapturing)
+    {
+        alcCaptureStop(mDevice);
+        std::ignore = mParent.getLockGuard();
+        mQuitNow = true;
+        mCaptureThread.join();
+        mCapturing = false;
+
+        static constexpr auto trigger_notify = [](const DSBPOSITIONNOTIFY &notify)
+        {
+            if(notify.dwOffset == static_cast<DWORD>(DSCBPN_OFFSET_STOP))
+                SetEvent(notify.hEventNotify);
+        };
+        auto lock = mParent.getLockGuard();
+        std::for_each(mNotifies.cbegin(), mNotifies.cend(), trigger_notify);
+    }
+
+    return DS_OK;
 }
 #undef PREFIX
 
@@ -552,7 +676,7 @@ HRESULT STDMETHODCALLTYPE DSCBuffer::Notify::SetNotificationPositions(DWORD numN
             [self](const DSBPOSITIONNOTIFY &notify) noexcept -> bool
             {
                 return notify.dwOffset < self->mBuffer.size() ||
-                    notify.dwOffset == static_cast<DWORD>(DSBPN_OFFSETSTOP);
+                    notify.dwOffset == static_cast<DWORD>(DSCBPN_OFFSET_STOP);
             });
         if(invalidNotify != notifyspan.end())
         {
