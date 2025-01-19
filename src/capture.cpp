@@ -318,6 +318,12 @@ HRESULT STDMETHODCALLTYPE DSCBuffer::Initialize(LPDIRECTSOUNDCAPTURE lpDSC,
     if(mDevice)
         return DSERR_ALREADYINITIALIZED;
 
+    if(lpcDSCBDesc->dwFXCount > 0)
+    {
+        WARN(PREFIX "Capture effects not supported");
+        return DSERR_INVALIDPARAM;
+    }
+
     if(!lpcDSCBDesc->lpwfxFormat)
         return DSERR_INVALIDPARAM;
 
@@ -779,7 +785,7 @@ HRESULT STDMETHODCALLTYPE DSCapture::CreateCaptureBuffer(const DSCBUFFERDESC *ds
 
     auto bufdesc = DSCBUFFERDESC{};
     std::memcpy(&bufdesc, dscBufferDesc, std::min<DWORD>(sizeof(bufdesc), dscBufferDesc->dwSize));
-    bufdesc.dwSize = std::min<DWORD>(sizeof(bufdesc), dscBufferDesc->dwSize);
+    bufdesc.dwSize = sizeof(bufdesc);
 
     try {
         auto dscbuf = DSCBuffer::Create(*this, mIs8);
