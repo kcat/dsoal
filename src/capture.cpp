@@ -17,6 +17,10 @@ namespace {
 using voidp = void*;
 using cvoidp = const void*;
 
+#ifndef DSCBPN_OFFSET_STOP
+#define DSCBPN_OFFSET_STOP          0xffffffff
+#endif
+
 class DSCBuffer final : IDirectSoundCaptureBuffer8 {
     explicit DSCBuffer(DSCapture &parent, bool is8) : mIs8{is8}, mParent{parent} { }
 
