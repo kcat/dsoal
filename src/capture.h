@@ -45,7 +45,8 @@ public:
     HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObject) noexcept override;
     ULONG STDMETHODCALLTYPE AddRef() noexcept override;
     ULONG STDMETHODCALLTYPE Release() noexcept override;
-    HRESULT STDMETHODCALLTYPE CreateCaptureBuffer(const DSCBUFFERDESC *dscBufferDesc, IDirectSoundCaptureBuffer **dsCaptureBuffer, IUnknown *unk) noexcept override;
+    HRESULT STDMETHODCALLTYPE CreateCaptureBuffer(const DSCBUFFERDESC *dscBufferDesc,
+        IDirectSoundCaptureBuffer **dsCaptureBuffer, IUnknown *outer) noexcept override;
     HRESULT STDMETHODCALLTYPE GetCaps(DSCCAPS *dscCaps) noexcept override;
     HRESULT STDMETHODCALLTYPE Initialize(const GUID *guid) noexcept override;
 
