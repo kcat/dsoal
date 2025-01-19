@@ -1,5 +1,13 @@
 #include "capture.h"
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <span>
+#include <utility>
+#include <vector>
+
 #include "guidprinter.h"
 #include "logging.h"
 
@@ -10,7 +18,7 @@ using voidp = void*;
 using cvoidp = const void*;
 
 class DSCBuffer final : IDirectSoundCaptureBuffer8 {
-    explicit DSCBuffer(bool is8) : mIs8{is8} { }
+    explicit DSCBuffer(DSCapture &parent, bool is8) : mIs8{is8}, mParent{parent} { }
 
     class Notify final : IDirectSoundNotify {
         auto impl_from_base() noexcept
@@ -42,9 +50,17 @@ class DSCBuffer final : IDirectSoundCaptureBuffer8 {
     std::atomic<ULONG> mTotalRef{1u}, mDsRef{1u}, mNotRef{0u};
 
     bool mIs8{};
+    bool mLocked{};
+
+    DSCapture &mParent;
+    WAVEFORMATEXTENSIBLE mWaveFmt{};
+    std::vector<DSBPOSITIONNOTIFY> mNotifies;
+    std::vector<std::byte> mBuffer;
+
+    ALCdevice *mDevice{};
 
 public:
-    ~DSCBuffer() = default;
+    ~DSCBuffer() { if(mDevice) alcCaptureCloseDevice(mDevice); }
 
     DSCBuffer(const DSCBuffer&) = delete;
     DSCBuffer& operator=(const DSCBuffer&) = delete;
@@ -67,8 +83,8 @@ public:
     template<typename T>
     T as() noexcept { return static_cast<T>(this); }
 
-    static auto Create(bool is8) -> ComPtr<DSCBuffer>
-    { return ComPtr<DSCBuffer>{new DSCBuffer{is8}}; }
+    static auto Create(DSCapture &parent, bool is8) -> ComPtr<DSCBuffer>
+    { return ComPtr<DSCBuffer>{new DSCBuffer{parent, is8}}; }
 };
 
 #define CLASS_PREFIX "DSCBuffer::"
@@ -134,8 +150,25 @@ ULONG STDMETHODCALLTYPE DSCBuffer::Release() noexcept
 #define PREFIX CLASS_PREFIX "GetCaps "
 HRESULT STDMETHODCALLTYPE DSCBuffer::GetCaps(LPDSCBCAPS lpDSCBCaps) noexcept
 {
-    FIXME(PREFIX "({})->({})", voidp{this}, voidp{lpDSCBCaps});
-    return E_NOTIMPL;
+    TRACE(PREFIX "({})->({})", voidp{this}, voidp{lpDSCBCaps});
+
+    auto lock = mParent.getLockGuard();
+    if(!mDevice)
+    {
+        WARN(PREFIX "Not initialized");
+        return DSERR_UNINITIALIZED;
+    }
+
+    if(!lpDSCBCaps || lpDSCBCaps->dwSize < sizeof(*lpDSCBCaps))
+    {
+        WARN(PREFIX "Bad caps: {}, {}", voidp{lpDSCBCaps}, lpDSCBCaps ? lpDSCBCaps->dwSize : 0ul);
+        return DSERR_INVALIDPARAM;
+    }
+
+    lpDSCBCaps->dwSize = sizeof(*lpDSCBCaps);
+    lpDSCBCaps->dwFlags = 0;
+    lpDSCBCaps->dwBufferBytes = static_cast<DWORD>(mBuffer.size());
+    return DS_OK;
 }
 #undef PREFIX
 
@@ -153,9 +186,26 @@ HRESULT STDMETHODCALLTYPE DSCBuffer::GetCurrentPosition(LPDWORD lpdwCapturePosit
 HRESULT STDMETHODCALLTYPE DSCBuffer::GetFormat(LPWAVEFORMATEX lpwfxFormat, DWORD dwSizeAllocated,
     LPDWORD lpdwSizeWritten) noexcept
 {
-    FIXME(PREFIX "({})->({}, {}, {})", voidp{this}, voidp{lpwfxFormat}, dwSizeAllocated,
+    TRACE(PREFIX "({})->({}, {}, {})", voidp{this}, voidp{lpwfxFormat}, dwSizeAllocated,
         voidp{lpdwSizeWritten});
-    return E_NOTIMPL;
+
+    if(!lpwfxFormat && !lpdwSizeWritten)
+    {
+        WARN(PREFIX "Cannot report format of format size");
+        return DSERR_INVALIDPARAM;
+    }
+
+    auto size = DWORD{sizeof(mWaveFmt.Format)} + mWaveFmt.Format.cbSize;
+    if(lpwfxFormat)
+    {
+        if(dwSizeAllocated < size)
+            return DSERR_INVALIDPARAM;
+        std::memcpy(lpwfxFormat, &mWaveFmt.Format, size);
+    }
+    if(lpdwSizeWritten)
+        *lpdwSizeWritten = size;
+
+    return DS_OK;
 }
 #undef PREFIX
 
@@ -171,8 +221,170 @@ HRESULT STDMETHODCALLTYPE DSCBuffer::GetStatus(LPDWORD lpdwStatus) noexcept
 HRESULT STDMETHODCALLTYPE DSCBuffer::Initialize(LPDIRECTSOUNDCAPTURE lpDSC,
     LPCDSCBUFFERDESC lpcDSCBDesc) noexcept
 {
-    FIXME(PREFIX "({})->({}, {})", voidp{this}, voidp{lpDSC}, cvoidp{lpcDSCBDesc});
-    return E_NOTIMPL;
+    TRACE(PREFIX "({})->({}, {})", voidp{this}, voidp{lpDSC}, cvoidp{lpcDSCBDesc});
+
+    auto lock = mParent.getLockGuard();
+    if(mDevice)
+        return DSERR_ALREADYINITIALIZED;
+
+    if(!lpcDSCBDesc->lpwfxFormat)
+        return DSERR_INVALIDPARAM;
+
+    auto *format = lpcDSCBDesc->lpwfxFormat;
+    if(format->nChannels < 1 || format->nChannels > 2)
+    {
+        WARN(PREFIX "Invalid Channels {}", format->nChannels);
+        return DSERR_INVALIDPARAM;
+    }
+    if(format->wBitsPerSample <= 0 || (format->wBitsPerSample%8) != 0)
+    {
+        WARN(PREFIX "Invalid BitsPerSample {}", format->wBitsPerSample);
+        return DSERR_INVALIDPARAM;
+    }
+    if(format->nBlockAlign != format->nChannels*format->wBitsPerSample/8)
+    {
+        WARN(PREFIX "Invalid BlockAlign {} (expected {} = {}*{}/8)",
+            format->nBlockAlign, format->nChannels*format->wBitsPerSample/8,
+            format->nChannels, format->wBitsPerSample);
+        return DSERR_INVALIDPARAM;
+    }
+    if(format->nSamplesPerSec < DSBFREQUENCY_MIN || format->nSamplesPerSec > DSBFREQUENCY_MAX)
+    {
+        WARN(PREFIX "Invalid sample rate {}", format->nSamplesPerSec);
+        return DSERR_INVALIDPARAM;
+    }
+    if(format->nAvgBytesPerSec != format->nSamplesPerSec*format->nBlockAlign)
+    {
+        WARN(PREFIX "Invalid AvgBytesPerSec {} (expected {} = {}*{})",
+            format->nAvgBytesPerSec, format->nSamplesPerSec*format->nBlockAlign,
+            format->nSamplesPerSec, format->nBlockAlign);
+        return DSERR_INVALIDPARAM;
+    }
+
+    auto alformat = ALenum{AL_NONE};
+    if(format->wFormatTag == WAVE_FORMAT_PCM)
+    {
+        if(format->nChannels == 1)
+        {
+            switch(format->wBitsPerSample)
+            {
+            case 8: alformat = AL_FORMAT_MONO8; break;
+            case 16: alformat = AL_FORMAT_MONO16; break;
+            default:
+                WARN(PREFIX "Unsupported bpp {}", format->wBitsPerSample);
+                return DSERR_BADFORMAT;
+            }
+        }
+        else if(format->nChannels == 2)
+        {
+            switch(format->wBitsPerSample)
+            {
+            case 8: alformat = AL_FORMAT_STEREO8; break;
+            case 16: alformat = AL_FORMAT_STEREO16; break;
+            default:
+                WARN(PREFIX "Unsupported bpp {}", format->wBitsPerSample);
+                return DSERR_BADFORMAT;
+            }
+        }
+        else
+        {
+            WARN(PREFIX "Unsupported channels: {}", format->nChannels);
+            return DSERR_BADFORMAT;
+        }
+
+        mWaveFmt = {};
+        mWaveFmt.Format = *format;
+        mWaveFmt.Format.cbSize = 0;
+    }
+    else if(format->wFormatTag == WAVE_FORMAT_EXTENSIBLE)
+    {
+        if(format->cbSize < sizeof(WAVEFORMATEXTENSIBLE)-sizeof(WAVEFORMATEX))
+            return DSERR_INVALIDPARAM;
+        if(format->cbSize > sizeof(WAVEFORMATEXTENSIBLE)-sizeof(WAVEFORMATEX)
+            && format->cbSize != sizeof(WAVEFORMATEXTENSIBLE))
+            return DSERR_CONTROLUNAVAIL;
+
+        /* NOLINTBEGIN(cppcoreguidelines-pro-type-union-access) */
+        auto *wfe = CONTAINING_RECORD(format, const WAVEFORMATEXTENSIBLE, Format);
+        if(wfe->SubFormat != KSDATAFORMAT_SUBTYPE_PCM)
+            return DSERR_BADFORMAT;
+        if(wfe->Samples.wValidBitsPerSample
+            && wfe->Samples.wValidBitsPerSample != wfe->Format.wBitsPerSample)
+            return DSERR_BADFORMAT;
+
+        if(wfe->Format.nChannels == 1 && wfe->dwChannelMask == SPEAKER_FRONT_CENTER)
+        {
+            switch(wfe->Format.wBitsPerSample)
+            {
+            case 8: alformat = AL_FORMAT_MONO8; break;
+            case 16: alformat = AL_FORMAT_MONO16; break;
+            default:
+                WARN(PREFIX "Unsupported bpp {}", wfe->Format.wBitsPerSample);
+                return DSERR_BADFORMAT;
+            }
+        }
+        else if(wfe->Format.nChannels == 2 && wfe->dwChannelMask == (SPEAKER_FRONT_LEFT|SPEAKER_FRONT_RIGHT))
+        {
+            switch(wfe->Format.wBitsPerSample)
+            {
+            case 8: alformat = AL_FORMAT_STEREO8; break;
+            case 16: alformat = AL_FORMAT_STEREO16; break;
+            default:
+                WARN(PREFIX "Unsupported bpp {}", wfe->Format.wBitsPerSample);
+                return DSERR_BADFORMAT;
+            }
+        }
+        else
+        {
+            WARN(PREFIX "Unsupported channels: {} -- 0x{:08x}", wfe->Format.nChannels,
+                wfe->dwChannelMask);
+            return DSERR_BADFORMAT;
+        }
+
+        mWaveFmt = *wfe;
+        mWaveFmt.Format.cbSize = sizeof(mWaveFmt) - sizeof(mWaveFmt.Format);
+        mWaveFmt.Samples.wValidBitsPerSample = mWaveFmt.Format.wBitsPerSample;
+        /* NOLINTEND(cppcoreguidelines-pro-type-union-access) */
+    }
+    else
+    {
+        WARN("Unhandled formattag %x\n", format->wFormatTag);
+        return DSERR_BADFORMAT;
+    }
+
+    if(!alformat)
+    {
+        WARN(PREFIX "Could not get OpenAL format");
+        return DSERR_BADFORMAT;
+    }
+
+    if(lpcDSCBDesc->dwBufferBytes < mWaveFmt.Format.nBlockAlign
+        || lpcDSCBDesc->dwBufferBytes > DWORD{std::numeric_limits<ALCsizei>::max()}
+        || (lpcDSCBDesc->dwBufferBytes%mWaveFmt.Format.nBlockAlign) != 0)
+    {
+        WARN("Invalid BufferBytes ({} % {})", lpcDSCBDesc->dwBufferBytes,
+             mWaveFmt.Format.nBlockAlign);
+        return DSERR_INVALIDPARAM;
+    }
+
+    try {
+        mBuffer.resize(lpcDSCBDesc->dwBufferBytes);
+    }
+    catch(std::exception &e) {
+        ERR(PREFIX "Exception creating buffer: {}", e.what());
+        return DSERR_OUTOFMEMORY;
+    }
+
+    mDevice = alcCaptureOpenDevice(mParent.getName().c_str(), mWaveFmt.Format.nSamplesPerSec,
+        alformat, static_cast<ALCsizei>(lpcDSCBDesc->dwBufferBytes/mWaveFmt.Format.nBlockAlign));
+    if(!mDevice)
+    {
+        ERR(PREFIX "Couldn't open device {} {:#x}@{}, reason: 0x{:04x}", mParent.getName(),
+            alformat, mWaveFmt.Format.nSamplesPerSec, alcGetError(nullptr));
+        return DSERR_INVALIDPARAM;
+    }
+
+    return DS_OK;
 }
 #undef PREFIX
 
@@ -181,10 +393,52 @@ HRESULT STDMETHODCALLTYPE DSCBuffer::Lock(DWORD dwReadCusor, DWORD dwReadBytes,
     LPVOID *lplpvAudioPtr1, LPDWORD lpdwAudioBytes1, LPVOID *lplpvAudioPtr2,
     LPDWORD lpdwAudioBytes2, DWORD dwFlags) noexcept
 {
-    FIXME(PREFIX "({})->({}, {}, {}, {}, {}, {}, {:#x})", voidp{this}, dwReadCusor, dwReadBytes,
+    DEBUG(PREFIX "({})->({}, {}, {}, {}, {}, {}, {:#x})", voidp{this}, dwReadCusor, dwReadBytes,
         voidp{lplpvAudioPtr1}, voidp{lpdwAudioBytes1}, voidp{lplpvAudioPtr2},
         voidp{lpdwAudioBytes2}, dwFlags);
-    return E_NOTIMPL;
+
+    if(lplpvAudioPtr1) *lplpvAudioPtr1 = nullptr;
+    if(lpdwAudioBytes1) *lpdwAudioBytes1 = 0;
+    if(lplpvAudioPtr2) *lplpvAudioPtr2 = nullptr;
+    if(lpdwAudioBytes2) *lpdwAudioBytes2 = 0;
+    if(!lplpvAudioPtr1 || !lpdwAudioBytes1)
+    {
+        WARN(PREFIX "Invalid pointer/len {} {}", voidp{lplpvAudioPtr1}, voidp{lpdwAudioBytes1});
+        return DSERR_INVALIDPARAM;
+    }
+
+    auto lock = mParent.getLockGuard();
+    if((dwFlags&DSCBLOCK_ENTIREBUFFER))
+        dwReadBytes = static_cast<DWORD>(mBuffer.size());
+    else if(dwReadBytes > mBuffer.size())
+    {
+        WARN(PREFIX "Invalid size: {} > {}", dwReadBytes, mBuffer.size());
+        return DSERR_INVALIDPARAM;
+    }
+
+    if(std::exchange(mLocked, true))
+    {
+        WARN(PREFIX "Already locked");
+        return DSERR_INVALIDPARAM;
+    }
+
+    auto remain = DWORD{};
+    if(dwReadCusor >= mBuffer.size() - dwReadBytes)
+    {
+        *lpdwAudioBytes1 = static_cast<DWORD>(mBuffer.size() - dwReadCusor);
+        remain = dwReadBytes - *lpdwAudioBytes1;
+    }
+    else
+        *lpdwAudioBytes1 = dwReadBytes;
+    *lplpvAudioPtr1 = std::to_address(mBuffer.begin() + static_cast<ptrdiff_t>(dwReadCusor));
+
+    if(lplpvAudioPtr2 && lpdwAudioBytes2 && remain)
+    {
+        *lplpvAudioPtr2 = mBuffer.data();
+        *lpdwAudioBytes2 = remain;
+    }
+
+    return DS_OK;
 }
 #undef PREFIX
 
@@ -208,9 +462,29 @@ HRESULT STDMETHODCALLTYPE DSCBuffer::Stop() noexcept
 HRESULT STDMETHODCALLTYPE DSCBuffer::Unlock(LPVOID lpvAudioPtr1, DWORD dwAudioBytes1,
     LPVOID lpvAudioPtr2, DWORD dwAudioBytes2) noexcept
 {
-    FIXME(PREFIX "({})->({}, {}, {}, {})", voidp{this}, voidp{lpvAudioPtr1}, dwAudioBytes1,
+    DEBUG(PREFIX "({})->({}, {}, {}, {})", voidp{this}, voidp{lpvAudioPtr1}, dwAudioBytes1,
         voidp{lpvAudioPtr2}, dwAudioBytes2);
-    return E_NOTIMPL;
+
+    auto lock = mParent.getLockGuard();
+    if(!std::exchange(mLocked, false))
+    {
+        WARN(PREFIX "Not locked");
+        return DSERR_INVALIDPARAM;
+    }
+
+    const auto boundary = reinterpret_cast<uintptr_t>(mBuffer.data());
+    auto ofs1 = reinterpret_cast<uintptr_t>(lpvAudioPtr1);
+    auto ofs2 = reinterpret_cast<uintptr_t>(lpvAudioPtr2);
+    if(ofs1 < boundary)
+        return DSERR_INVALIDPARAM;
+    if(ofs2 && ofs2 != boundary)
+        return DSERR_INVALIDPARAM;
+
+    ofs1 -= boundary;
+    if(mBuffer.size()-ofs1 < dwAudioBytes1 || dwAudioBytes2 > ofs1)
+        return DSERR_INVALIDPARAM;
+
+    return DS_OK;
 }
 #undef PREFIX
 
@@ -261,7 +535,37 @@ HRESULT STDMETHODCALLTYPE DSCBuffer::Notify::SetNotificationPositions(DWORD numN
     const DSBPOSITIONNOTIFY *notifies) noexcept
 {
     FIXME(PREFIX "({})->({}, {})", voidp{this}, numNotifies, cvoidp{notifies});
-    return E_NOTIMPL;
+
+    if(!notifies && numNotifies > 0)
+        return DSERR_INVALIDPARAM;
+
+    auto *self = impl_from_base();
+    auto lock = self->mParent.getLockGuard();
+
+    /* TODO: Check if playing */
+
+    auto newnots = std::vector<DSBPOSITIONNOTIFY>{};
+    auto notifyspan = std::span{notifies, numNotifies};
+    if(!notifyspan.empty())
+    {
+        auto invalidNotify = std::find_if_not(notifyspan.begin(), notifyspan.end(),
+            [self](const DSBPOSITIONNOTIFY &notify) noexcept -> bool
+            {
+                return notify.dwOffset < self->mBuffer.size() ||
+                    notify.dwOffset == static_cast<DWORD>(DSBPN_OFFSETSTOP);
+            });
+        if(invalidNotify != notifyspan.end())
+        {
+            WARN(PREFIX "SetNotificationPositions Out of range ({}: {} >= {})",
+                 std::distance(notifyspan.begin(), invalidNotify), invalidNotify->dwOffset,
+                 self->mBuffer.size());
+            return DSERR_INVALIDPARAM;
+        }
+        newnots.assign(notifyspan.begin(), notifyspan.end());
+    }
+    std::swap(self->mNotifies, newnots);
+
+    return DS_OK;
 }
 #undef PREFIX
 #undef CLASS_PREFIX
@@ -354,7 +658,7 @@ HRESULT STDMETHODCALLTYPE DSCapture::CreateCaptureBuffer(const DSCBUFFERDESC *ds
     bufdesc.dwSize = std::min<DWORD>(sizeof(bufdesc), dscBufferDesc->dwSize);
 
     try {
-        auto dscbuf = DSCBuffer::Create(mIs8);
+        auto dscbuf = DSCBuffer::Create(*this, mIs8);
         if(auto hr = dscbuf->Initialize(this, &bufdesc); FAILED(hr))
             return hr;
 
@@ -392,7 +696,7 @@ HRESULT STDMETHODCALLTYPE DSCapture::GetCaps(DSCCAPS *dscCaps) noexcept
         return DSERR_INVALIDPARAM;
     }
 
-    dscCaps->dwFlags = 0;
+    dscCaps->dwFlags = DSCCAPS_CERTIFIED;
     /* Support all WAVE_FORMAT formats specified in mmsystem.h */
     dscCaps->dwFormats = 0x000fffff;
     dscCaps->dwChannels = 2;

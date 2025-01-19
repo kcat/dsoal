@@ -50,6 +50,15 @@ public:
     HRESULT STDMETHODCALLTYPE GetCaps(DSCCAPS *dscCaps) noexcept override;
     HRESULT STDMETHODCALLTYPE Initialize(const GUID *guid) noexcept override;
 
+    [[nodiscard]]
+    auto getLockGuard() { return std::lock_guard{mMutex}; }
+
+    [[nodiscard]]
+    auto getUniqueLock() { return std::unique_lock{mMutex}; }
+
+    [[nodiscard]]
+    auto getName() const noexcept -> const std::string& { return mDeviceName; }
+
     template<typename T> [[nodiscard]]
     T as() noexcept { return static_cast<T>(this); }
 
