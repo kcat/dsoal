@@ -550,6 +550,7 @@ HRESULT STDMETHODCALLTYPE DSCBuffer::Start(DWORD dwFlags) noexcept
         return DSERR_INVALIDPARAM;
     }
 
+    auto lock = mParent.getLockGuard();
     if(!mCapturing)
     {
         mQuitNow.store(false, std::memory_order_release);
@@ -664,7 +665,7 @@ ULONG STDMETHODCALLTYPE DSCBuffer::Notify::Release() noexcept
 HRESULT STDMETHODCALLTYPE DSCBuffer::Notify::SetNotificationPositions(DWORD numNotifies,
     const DSBPOSITIONNOTIFY *notifies) noexcept
 {
-    FIXME(PREFIX "({})->({}, {})", voidp{this}, numNotifies, cvoidp{notifies});
+    TRACE(PREFIX "({})->({}, {})", voidp{this}, numNotifies, cvoidp{notifies});
 
     if(!notifies && numNotifies > 0)
         return DSERR_INVALIDPARAM;
@@ -672,7 +673,11 @@ HRESULT STDMETHODCALLTYPE DSCBuffer::Notify::SetNotificationPositions(DWORD numN
     auto *self = impl_from_base();
     auto lock = self->mParent.getLockGuard();
 
-    /* TODO: Check if playing */
+    if(self->mCapturing)
+    {
+        WARN(PREFIX "Setting notifications while capturing");
+        return DSERR_INVALIDCALL;
+    }
 
     auto newnots = std::vector<DSBPOSITIONNOTIFY>{};
     auto notifyspan = std::span{notifies, numNotifies};
