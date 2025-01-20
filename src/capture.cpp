@@ -311,6 +311,18 @@ HRESULT STDMETHODCALLTYPE DSCBuffer::Initialize(LPDIRECTSOUNDCAPTURE lpDSC,
 {
     TRACE(PREFIX "({})->({}, {})", voidp{this}, voidp{lpDSC}, cvoidp{lpcDSCBDesc});
 
+    TRACE(PREFIX "Requested buffer:\n"
+        "    Size        = {}\n"
+        "    Flags       = 0x{:08x}\n"
+        "    BufferBytes = {}\n"
+        "    Reserved    = {}\n"
+        "    wfxFormat   = {}\n"
+        "    FXCount     = {}\n"
+        "    DSCFXDesc   = {}",
+        lpcDSCBDesc->dwSize, lpcDSCBDesc->dwFlags, lpcDSCBDesc->dwBufferBytes,
+        lpcDSCBDesc->dwReserved, cvoidp{lpcDSCBDesc->lpwfxFormat}, lpcDSCBDesc->dwFXCount,
+        cvoidp{lpcDSCBDesc->lpDSCFXDesc});
+
     auto lock = mParent.getLockGuard();
     if(mDevice)
         return DSERR_ALREADYINITIALIZED;
@@ -325,6 +337,42 @@ HRESULT STDMETHODCALLTYPE DSCBuffer::Initialize(LPDIRECTSOUNDCAPTURE lpDSC,
         return DSERR_INVALIDPARAM;
 
     auto *format = lpcDSCBDesc->lpwfxFormat;
+    if(format->wFormatTag == WAVE_FORMAT_EXTENSIBLE)
+    {
+        auto *wfe = CONTAINING_RECORD(format, const WAVEFORMATEXTENSIBLE, Format);
+        /* NOLINTBEGIN(cppcoreguidelines-pro-type-union-access) */
+        TRACE(PREFIX "Requested capture format:\n"
+            "    FormatTag          = 0x{:04x}\n"
+            "    Channels           = {}\n"
+            "    SamplesPerSec      = {}\n"
+            "    AvgBytesPerSec     = {}\n"
+            "    BlockAlign         = {}\n"
+            "    BitsPerSample      = {}\n"
+            "    Size               = {}\n"
+            "    ValidBitsPerSample = {}\n"
+            "    ChannelMask        = 0x{:08x}\n"
+            "    SubFormat          = {}",
+            wfe->Format.wFormatTag, wfe->Format.nChannels, wfe->Format.nSamplesPerSec,
+            wfe->Format.nAvgBytesPerSec, wfe->Format.nBlockAlign, wfe->Format.wBitsPerSample,
+            wfe->Format.cbSize, wfe->Samples.wValidBitsPerSample, wfe->dwChannelMask,
+            FmtidPrinter{wfe->SubFormat}.c_str());
+        /* NOLINTEND(cppcoreguidelines-pro-type-union-access) */
+    }
+    else
+    {
+        TRACE(PREFIX "Requested capture format:\n"
+            "    FormatTag          = 0x{:04x}\n"
+            "    Channels           = {}\n"
+            "    SamplesPerSec      = {}\n"
+            "    AvgBytesPerSec     = {}\n"
+            "    BlockAlign         = {}\n"
+            "    BitsPerSample      = {}\n"
+            "    Size               = {}",
+            format->wFormatTag, format->nChannels, format->nSamplesPerSec,
+            format->nAvgBytesPerSec, format->nBlockAlign, format->wBitsPerSample,
+            format->cbSize);
+    }
+
     if(format->nChannels < 1 || format->nChannels > 2)
     {
         WARN(PREFIX "Invalid Channels {}", format->nChannels);
