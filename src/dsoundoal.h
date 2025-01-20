@@ -59,6 +59,7 @@ struct SharedDevice {
     std::atomic<DWORD> mCurrentSwSources;
 
     std::bitset<ExtensionCount> mExtensions;
+    DWORD mRefresh{100u};
 
     const GUID mId;
     DWORD mSpeakerConfig{};
@@ -146,6 +147,7 @@ class DSound8OAL final : IDirectSound8 {
     ComPtr<SharedDevice> mShared;
 
     std::bitset<ExtensionCount> mExtensions;
+    DWORD mRefresh{100u};
 
     std::vector<BufferSubList> mSecondaryBuffers;
     PrimaryBuffer mPrimaryBuffer;
@@ -218,6 +220,9 @@ public:
 
     [[nodiscard]]
     std::bitset<ExtensionCount> getExtensions() const noexcept { return mExtensions; }
+
+    [[nodiscard]]
+    auto getRefresh() const noexcept { return mRefresh; }
 
     [[nodiscard]]
     DWORD getPriorityLevel() const noexcept { return mPrioLevel; }

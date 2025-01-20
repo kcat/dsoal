@@ -215,11 +215,21 @@ ds::expected<std::unique_ptr<SharedDevice>,HRESULT> CreateDeviceShare(const GUID
 
     const DWORD maxHw{totalSources > MaxHwSources*2 ? MaxHwSources : (MaxHwSources/2)};
 
+    auto refresh = ALCint{20};
+    alcGetIntegerv(aldev.get(), ALC_REFRESH, 1, &refresh);
+    alcGetError(aldev.get());
+
+    /* Restrict the update period to between 10ms and 50ms (100hz and 20hz
+     * update rate).
+     */
+    refresh = std::clamp(refresh, 20, 100);
+
     auto shared = std::make_unique<SharedDevice>(guid);
     shared->mSpeakerConfig = speakerconf;
     shared->mMaxHwSources = maxHw;
     shared->mMaxSwSources = totalSources - maxHw;
     shared->mExtensions = extensions;
+    shared->mRefresh = static_cast<ALCuint>(refresh);
     shared->mDevice = aldev.release();
     shared->mContext = alctx.release();
 
@@ -358,21 +368,15 @@ ComPtr<Buffer> DSound8OAL::createSecondaryBuffer(IDirectSoundBuffer *original)
 #define PREFIX CLASS_PREFIX "notifyThread "
 void DSound8OAL::notifyThread() noexcept
 {
-    ALCint refresh{};
-    alcGetIntegerv(mShared->mDevice, ALC_REFRESH, 1, &refresh);
-
     using namespace std::chrono;
-    milliseconds waittime{10};
-    if(refresh > 0)
-    {
-        /* Calculate the wait time to be 3/5ths the time between refreshes.
-         * This causes about two wakeups per OpenAL update, but helps ensure
-         * notifications respond within half an update period.
-         */
-        waittime = milliseconds{seconds{1}} / refresh;
-        waittime = std::max(waittime*3/5, milliseconds{10});
-    }
-    TRACE(PREFIX "Wakeup every {}", duration_cast<milliseconds>(waittime));
+
+    /* Calculate the wait time to be 3/5ths the time between refreshes. This
+     * causes about two wakeups per OpenAL update, but helps ensure
+     * notifications respond within half an update period.
+     */
+    const auto waittime = milliseconds{seconds{1}} / mRefresh * 3 / 5;
+
+    TRACE(PREFIX "Wakeup every {}", waittime);
 
     std::unique_lock lock{mDsMutex};
     while(!mQuitNotify)
@@ -815,6 +819,7 @@ HRESULT STDMETHODCALLTYPE DSound8OAL::Initialize(const GUID *deviceId) noexcept
 
     mPrimaryBuffer.setContext(mShared->mContext);
     mExtensions = mShared->mExtensions;
+    mRefresh = mShared->mRefresh;
 
     /* Preallocate some groups for the number of "hardware" buffers we can do.
      * This will grow as needed.

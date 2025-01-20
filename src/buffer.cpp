@@ -700,8 +700,7 @@ HRESULT STDMETHODCALLTYPE Buffer::GetCurrentPosition(DWORD *playCursor, DWORD *w
     if(status == AL_PLAYING)
     {
         pos = static_cast<ALuint>(ofs);
-        writecursor = format.nSamplesPerSec / (1000 / 20);
-        writecursor *= format.nBlockAlign;
+        writecursor = format.nSamplesPerSec / mParent.getRefresh() * format.nBlockAlign;
     }
     else
     {
