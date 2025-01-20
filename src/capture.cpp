@@ -69,13 +69,13 @@ class DSCBuffer final : IDirectSoundCaptureBuffer8 {
 public:
     ~DSCBuffer()
     {
-        if(mDevice)
-            alcCaptureCloseDevice(mDevice);
         if(mCaptureThread.joinable())
         {
             mQuitNow = true;
             mCaptureThread.join();
         }
+        if(mDevice)
+            alcCaptureCloseDevice(mDevice);
     }
 
     DSCBuffer(const DSCBuffer&) = delete;
