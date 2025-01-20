@@ -241,17 +241,19 @@ HRESULT STDMETHODCALLTYPE DSCBuffer::GetCurrentPosition(LPDWORD lpdwCapturePosit
     DEBUG(PREFIX "({})->({}, {})", voidp{this}, voidp{lpdwCapturePosition},
         voidp{lpdwReadPosition});
 
-    const auto writepos = mWritePos.load(std::memory_order_acquire);
-    auto readpos = writepos;
+    auto cappos = mWritePos.load(std::memory_order_acquire);
+    const auto readpos = cappos;
     if(mCapturing)
     {
-        /* 10ms read-ahead */
-        readpos += mWaveFmt.Format.nSamplesPerSec / 100 * mWaveFmt.Format.nBlockAlign;
-        readpos %= mBuffer.size();
+        /* 10ms write-ahead (area between [readpos...cappos] is going to be
+         * overwritten as new samples come in).
+         */
+        cappos += mWaveFmt.Format.nSamplesPerSec / 100 * mWaveFmt.Format.nBlockAlign;
+        cappos %= mBuffer.size();
     }
 
-    DEBUG(PREFIX " pos = {}, read pos = {}", writepos, readpos);
-    if(lpdwCapturePosition) *lpdwCapturePosition = writepos;
+    DEBUG(PREFIX " pos = {}, read pos = {}", cappos, readpos);
+    if(lpdwCapturePosition) *lpdwCapturePosition = cappos;
     if(lpdwReadPosition) *lpdwReadPosition = readpos;
 
     return DS_OK;
