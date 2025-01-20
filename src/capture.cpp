@@ -242,24 +242,17 @@ HRESULT STDMETHODCALLTYPE DSCBuffer::GetCurrentPosition(LPDWORD lpdwCapturePosit
         voidp{lpdwReadPosition});
 
     const auto writepos = mWritePos.load(std::memory_order_acquire);
+    auto readpos = writepos;
     if(mCapturing)
     {
-        if(lpdwCapturePosition)
-            *lpdwCapturePosition = writepos;
-        if(lpdwReadPosition)
-        {
-            /* 10ms read-ahead */
-            const auto readahead = mWaveFmt.Format.nSamplesPerSec/100*mWaveFmt.Format.nBlockAlign;
-            *lpdwReadPosition = (writepos + readahead) % mBuffer.size();
-        }
+        /* 10ms read-ahead */
+        readpos += mWaveFmt.Format.nSamplesPerSec / 100 * mWaveFmt.Format.nBlockAlign;
+        readpos %= mBuffer.size();
     }
-    else
-    {
-        if(lpdwCapturePosition)
-            *lpdwCapturePosition = writepos;
-        if(lpdwReadPosition)
-            *lpdwReadPosition = writepos;
-    }
+
+    DEBUG(PREFIX " pos = {}, read pos = {}", writepos, readpos);
+    if(lpdwCapturePosition) *lpdwCapturePosition = writepos;
+    if(lpdwReadPosition) *lpdwReadPosition = readpos;
 
     return DS_OK;
 }
@@ -278,7 +271,7 @@ HRESULT STDMETHODCALLTYPE DSCBuffer::GetFormat(LPWAVEFORMATEX lpwfxFormat, DWORD
         return DSERR_INVALIDPARAM;
     }
 
-    auto size = DWORD{sizeof(mWaveFmt.Format)} + mWaveFmt.Format.cbSize;
+    const auto size = DWORD{sizeof(mWaveFmt.Format)} + mWaveFmt.Format.cbSize;
     if(lpwfxFormat)
     {
         if(dwSizeAllocated < size)
@@ -697,20 +690,22 @@ HRESULT STDMETHODCALLTYPE DSCBuffer::Notify::SetNotificationPositions(DWORD numN
     }
 
     auto newnots = std::vector<DSBPOSITIONNOTIFY>{};
-    auto notifyspan = std::span{notifies, numNotifies};
+    const auto notifyspan = std::span{notifies, numNotifies};
     if(!notifyspan.empty())
     {
-        auto invalidNotify = std::find_if_not(notifyspan.begin(), notifyspan.end(),
+        const auto invalidNotify = std::find_if_not(notifyspan.begin(), notifyspan.end(),
             [self](const DSBPOSITIONNOTIFY &notify) noexcept -> bool
             {
+                DEBUG(PREFIX " offset = {}, event = {}", notify.dwOffset,
+                    voidp{notify.hEventNotify});
                 return notify.dwOffset < self->mBuffer.size() ||
                     notify.dwOffset == static_cast<DWORD>(DSCBPN_OFFSET_STOP);
             });
         if(invalidNotify != notifyspan.end())
         {
-            WARN(PREFIX "SetNotificationPositions Out of range ({}: {} >= {})",
-                 std::distance(notifyspan.begin(), invalidNotify), invalidNotify->dwOffset,
-                 self->mBuffer.size());
+            WARN(PREFIX "Out of range ({}: {} >= {})",
+                std::distance(notifyspan.begin(), invalidNotify), invalidNotify->dwOffset,
+                self->mBuffer.size());
             return DSERR_INVALIDPARAM;
         }
         newnots.assign(notifyspan.begin(), notifyspan.end());
