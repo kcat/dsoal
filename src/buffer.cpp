@@ -574,8 +574,10 @@ HRESULT Buffer::setLocation(LocStatus locStatus) noexcept
         if(mParent.haveExtension(EXT_EAX))
         {
             static std::array<GUID,EAX40_MAX_ACTIVE_FXSLOTS> NullSlots{};
+
+            const auto slots = std::as_writable_bytes(std::span{NullSlots});
             EAXSetDirect(mContext, &EAXPROPERTYID_EAX40_Source, EAXSOURCE_ACTIVEFXSLOTID, mSource,
-                NullSlots.data(), NullSlots.size()*sizeof(GUID));
+                slots.data(), slots.size());
         }
     }
     alGetErrorDirect(mContext);
