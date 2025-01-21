@@ -63,7 +63,6 @@ class DSCBuffer final : IDirectSoundCaptureBuffer8 {
     std::atomic<ULONG> mTotalRef{1u}, mDsRef{1u}, mNotRef{0u};
 
     bool mIs8{};
-    bool mLocked{};
     bool mCapturing{};
 
     DSCapture &mParent;
@@ -73,6 +72,7 @@ class DSCBuffer final : IDirectSoundCaptureBuffer8 {
     std::vector<DSBPOSITIONNOTIFY> mNotifies;
     std::vector<std::byte> mBuffer;
     std::atomic<DWORD> mWritePos{0u};
+    std::atomic<bool> mLocked{false};
     std::atomic<bool> mQuitNow{false};
 
 public:
@@ -565,7 +565,6 @@ HRESULT STDMETHODCALLTYPE DSCBuffer::Lock(DWORD dwReadCusor, DWORD dwReadBytes,
         return DSERR_INVALIDPARAM;
     }
 
-    auto lock = mParent.getLockGuard();
     if((dwFlags&DSCBLOCK_ENTIREBUFFER))
         dwReadBytes = static_cast<DWORD>(mBuffer.size());
     else if(dwReadBytes > mBuffer.size())
@@ -574,7 +573,7 @@ HRESULT STDMETHODCALLTYPE DSCBuffer::Lock(DWORD dwReadCusor, DWORD dwReadBytes,
         return DSERR_INVALIDPARAM;
     }
 
-    if(std::exchange(mLocked, true))
+    if(mLocked.exchange(true, std::memory_order_relaxed))
     {
         WARN(PREFIX "Already locked");
         return DSERR_INVALIDPARAM;
@@ -658,8 +657,7 @@ HRESULT STDMETHODCALLTYPE DSCBuffer::Unlock(LPVOID lpvAudioPtr1, DWORD dwAudioBy
     DEBUG(PREFIX "({})->({}, {}, {}, {})", voidp{this}, voidp{lpvAudioPtr1}, dwAudioBytes1,
         voidp{lpvAudioPtr2}, dwAudioBytes2);
 
-    auto lock = mParent.getLockGuard();
-    if(!std::exchange(mLocked, false))
+    if(!mLocked.exchange(false, std::memory_order_relaxed))
     {
         WARN(PREFIX "Not locked");
         return DSERR_INVALIDPARAM;
