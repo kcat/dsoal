@@ -71,8 +71,7 @@ ULONG STDMETHODCALLTYPE DSFullDuplex::Release() noexcept
 {
     const auto ret = mFdRef.fetch_sub(1u, std::memory_order_relaxed) - 1;
     DEBUG(CLASS_PREFIX "Release ({}) ref {}", voidp{this}, ret);
-    if(mTotalRef.fetch_sub(1u, std::memory_order_relaxed) == 1u) UNLIKELY
-        delete this;
+    finalize();
     return ret;
 }
 
@@ -193,8 +192,7 @@ ULONG STDMETHODCALLTYPE DSFullDuplex::DS8::Release() noexcept
     auto self = impl_from_base();
     const auto ret = self->mDS8Ref.fetch_sub(1u, std::memory_order_relaxed) - 1;
     DEBUG(CLASS_PREFIX "Release ({}) ref {}", voidp{this}, ret);
-    if(self->mTotalRef.fetch_sub(1u, std::memory_order_relaxed) == 1u) UNLIKELY
-        delete self;
+    self->finalize();
     return ret;
 }
 
@@ -244,8 +242,7 @@ ULONG STDMETHODCALLTYPE DSFullDuplex::DSC::Release() noexcept
     auto self = impl_from_base();
     const auto ret = self->mDSCRef.fetch_sub(1u, std::memory_order_relaxed) - 1;
     DEBUG(CLASS_PREFIX "Release ({}) ref {}", voidp{this}, ret);
-    if(self->mTotalRef.fetch_sub(1u, std::memory_order_relaxed) == 1u) UNLIKELY
-        delete self;
+    self->finalize();
     return ret;
 }
 
@@ -277,8 +274,7 @@ ULONG STDMETHODCALLTYPE DSFullDuplex::Unknown::Release() noexcept
     auto self = impl_from_base();
     const auto ret = self->mUnkRef.fetch_sub(1u, std::memory_order_relaxed) - 1;
     DEBUG(CLASS_PREFIX "Release ({}) ref {}", voidp{this}, ret);
-    if(self->mTotalRef.fetch_sub(1u, std::memory_order_relaxed) == 1u) UNLIKELY
-            delete self;
+    self->finalize();
     return ret;
 }
 #undef CLASS_PREFIX

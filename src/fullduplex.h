@@ -121,6 +121,12 @@ public:
     ULONG STDMETHODCALLTYPE Release() noexcept override;
     HRESULT STDMETHODCALLTYPE Initialize(const GUID *captureGuid, const GUID *renderGuid, const DSCBUFFERDESC *dscBufferDesc, const DSBUFFERDESC *dsBufferDesc, HWND hwnd, DWORD level, IDirectSoundCaptureBuffer8 **dsCaptureBuffer8, IDirectSoundBuffer8 **dsBuffer8) noexcept override;
 
+    void finalize() noexcept
+    {
+        if(mTotalRef.fetch_sub(1u, std::memory_order_relaxed) == 1) [[unlikely]]
+            delete this;
+    }
+
     template<typename T> [[nodiscard]]
     T as() noexcept { return static_cast<T>(this); }
 

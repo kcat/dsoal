@@ -464,8 +464,7 @@ ULONG STDMETHODCALLTYPE DSound8OAL::Release() noexcept
 {
     const auto ret = mDsRef.fetch_sub(1u, std::memory_order_relaxed) - 1;
     DEBUG(CLASS_PREFIX "Release ({}) ref {}", voidp{this}, ret);
-    if(mTotalRef.fetch_sub(1u, std::memory_order_relaxed) == 1u) UNLIKELY
-        delete this;
+    finalize();
     return ret;
 }
 
@@ -897,8 +896,7 @@ ULONG STDMETHODCALLTYPE DSound8OAL::Unknown::Release() noexcept
     auto self = impl_from_base();
     const auto ret = self->mUnkRef.fetch_sub(1u, std::memory_order_relaxed) - 1;
     DEBUG(CLASS_PREFIX "Release ({}) ref {}", voidp{this}, ret);
-    if(self->mTotalRef.fetch_sub(1u, std::memory_order_relaxed) == 1u) UNLIKELY
-        delete self;
+    self->finalize();
     return ret;
 }
 #undef CLASS_PREFIX

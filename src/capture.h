@@ -50,6 +50,12 @@ public:
     HRESULT STDMETHODCALLTYPE GetCaps(DSCCAPS *dscCaps) noexcept override;
     HRESULT STDMETHODCALLTYPE Initialize(const GUID *guid) noexcept override;
 
+    void finalize() noexcept
+    {
+        if(mTotalRef.fetch_sub(1u, std::memory_order_relaxed) == 1) [[unlikely]]
+            delete this;
+    }
+
     [[nodiscard]]
     auto getLockGuard() { return std::lock_guard{mMutex}; }
 

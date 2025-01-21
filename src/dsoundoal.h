@@ -182,6 +182,12 @@ public:
     HRESULT STDMETHODCALLTYPE Initialize(const GUID *deviceId) noexcept override;
     HRESULT STDMETHODCALLTYPE VerifyCertification(DWORD *certified) noexcept override;
 
+    void finalize() noexcept
+    {
+        if(mTotalRef.fetch_sub(1u, std::memory_order_relaxed) == 1) [[unlikely]]
+            delete this;
+    }
+
     void dispose(Buffer *buffer) noexcept;
 
     void add3dBuffer(Buffer *buffer)
