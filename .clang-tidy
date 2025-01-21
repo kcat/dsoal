@@ -24,7 +24,6 @@
                     bugprone-macro-repeated-side-effects,
                     bugprone-misplaced-*,
                     bugprone-move-forwarding-reference,
-                    bugprone-multi-level-implicit-pointer-conversion,
                     bugprone-multiple-*,
                     bugprone-narrowing-conversions,
                     bugprone-no-escape,
