@@ -40,14 +40,19 @@ auto PrimaryBuffer::createWriteEmu(DWORD flags) noexcept -> HRESULT
     emudesc.dwBufferBytes = PrimaryBufSize - (PrimaryBufSize%mFormat.Format.nBlockAlign);
     emudesc.lpwfxFormat = &mFormat.Format;
 
-    auto emu = ComPtr{new(std::nothrow) Buffer{mParent, false, nullptr}};
+    auto emu = std::unique_ptr<Buffer>{new(std::nothrow) Buffer{mParent, false, nullptr}};
     if(!emu) return DSERR_OUTOFMEMORY;
 
     if(auto hr = emu->Initialize(mParent.as<IDirectSound*>(), &emudesc); FAILED(hr))
         return hr;
 
-    return emu->QueryInterface(IID_IDirectSoundBuffer, ds::out_ptr(mWriteEmu));
+    mWriteEmu = std::move(emu);
+    return DS_OK;
 }
+
+void PrimaryBuffer::destroyWriteEmu() noexcept
+{ mWriteEmu = nullptr; }
+
 
 HRESULT STDMETHODCALLTYPE PrimaryBuffer::QueryInterface(REFIID riid, void** ppvObject) noexcept
 {

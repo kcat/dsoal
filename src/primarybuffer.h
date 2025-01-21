@@ -3,17 +3,17 @@
 
 #include <atomic>
 #include <bitset>
+#include <memory>
 #include <mutex>
 
 #include <dsound.h>
 #include <mmreg.h>
 
-#include "comptr.h"
-
 #include "AL/alc.h"
 
 
 class DSound8OAL;
+class Buffer;
 
 class PrimaryBuffer final : IDirectSoundBuffer {
     class Listener3D final : IDirectSound3DListener {
@@ -83,7 +83,7 @@ class PrimaryBuffer final : IDirectSoundBuffer {
     };
     std::bitset<FlagCount> mDirty;
 
-    ComPtr<IDirectSoundBuffer> mWriteEmu;
+    std::unique_ptr<Buffer> mWriteEmu;
     WAVEFORMATEXTENSIBLE mFormat{};
     bool mPlaying{false};
 
@@ -130,15 +130,14 @@ public:
     { mContext = context; }
 
     [[nodiscard]]
-    auto getWriteEmuRef() noexcept -> ComPtr<IDirectSoundBuffer>& { return mWriteEmu; }
-
-    [[nodiscard]]
-    auto getWriteEmu() const noexcept -> IDirectSoundBuffer* { return mWriteEmu.get(); }
+    auto getWriteEmu() const noexcept -> Buffer* { return mWriteEmu.get(); }
 
     [[nodiscard]]
     auto getFlags() const noexcept -> DWORD { return mFlags; }
 
     auto createWriteEmu(DWORD flags) noexcept -> HRESULT;
+
+    void destroyWriteEmu() noexcept;
 
     template<typename T>
     T as() noexcept { return static_cast<T>(this); }

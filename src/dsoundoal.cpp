@@ -684,7 +684,7 @@ HRESULT STDMETHODCALLTYPE DSound8OAL::SetCooperativeLevel(HWND hwnd, DWORD level
     auto hr = S_OK;
     if(level == DSSCL_WRITEPRIMARY && mPrioLevel != DSSCL_WRITEPRIMARY)
     {
-        mPrimaryBuffer.getWriteEmuRef() = nullptr;
+        mPrimaryBuffer.destroyWriteEmu();
 
         for(auto &group : mSecondaryBuffers)
         {
@@ -712,7 +712,7 @@ HRESULT STDMETHODCALLTYPE DSound8OAL::SetCooperativeLevel(HWND hwnd, DWORD level
     else if(level < DSSCL_WRITEPRIMARY && mPrioLevel == DSSCL_WRITEPRIMARY)
     {
         TRACE(PREFIX "Nuking mWriteEmu");
-        mPrimaryBuffer.getWriteEmuRef() = nullptr;
+        mPrimaryBuffer.destroyWriteEmu();
     }
     if(SUCCEEDED(hr))
         mPrioLevel = level;
@@ -875,9 +875,6 @@ void DSound8OAL::dispose(Buffer *buffer) noexcept
             return;
         }
     }
-
-    /* If the buffer wasn't in any of the groups, it's free-standing. */
-    delete buffer;
 }
 #undef CLASS_PREFIX
 

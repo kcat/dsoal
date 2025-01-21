@@ -1228,7 +1228,7 @@ HRESULT STDMETHODCALLTYPE Buffer::Restore() noexcept
 
     std::unique_lock lock{mMutex};
     if(mParent.getPriorityLevel() == DSSCL_WRITEPRIMARY
-        && as<IDirectSoundBuffer*>() != mParent.getPrimary().getWriteEmu())
+        && this != mParent.getPrimary().getWriteEmu())
         return DSERR_BUFFERLOST;
 
     mBufferLost = false;
