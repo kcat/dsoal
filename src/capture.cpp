@@ -355,6 +355,12 @@ HRESULT STDMETHODCALLTYPE DSCBuffer::Initialize(LPDIRECTSOUNDCAPTURE lpDSC,
     auto *format = lpcDSCBDesc->lpwfxFormat;
     if(format->wFormatTag == WAVE_FORMAT_EXTENSIBLE)
     {
+        if(format->cbSize < sizeof(WAVEFORMATEXTENSIBLE)-sizeof(WAVEFORMATEX))
+            return DSERR_INVALIDPARAM;
+        if(format->cbSize > sizeof(WAVEFORMATEXTENSIBLE)-sizeof(WAVEFORMATEX)
+            && format->cbSize != sizeof(WAVEFORMATEXTENSIBLE))
+            return DSERR_CONTROLUNAVAIL;
+
         auto *wfe = CONTAINING_RECORD(format, const WAVEFORMATEXTENSIBLE, Format);
         /* NOLINTBEGIN(cppcoreguidelines-pro-type-union-access) */
         TRACE(PREFIX "Requested capture format:\n"
@@ -456,12 +462,6 @@ HRESULT STDMETHODCALLTYPE DSCBuffer::Initialize(LPDIRECTSOUNDCAPTURE lpDSC,
     }
     else if(format->wFormatTag == WAVE_FORMAT_EXTENSIBLE)
     {
-        if(format->cbSize < sizeof(WAVEFORMATEXTENSIBLE)-sizeof(WAVEFORMATEX))
-            return DSERR_INVALIDPARAM;
-        if(format->cbSize > sizeof(WAVEFORMATEXTENSIBLE)-sizeof(WAVEFORMATEX)
-            && format->cbSize != sizeof(WAVEFORMATEXTENSIBLE))
-            return DSERR_CONTROLUNAVAIL;
-
         /* NOLINTBEGIN(cppcoreguidelines-pro-type-union-access) */
         auto *wfe = CONTAINING_RECORD(format, const WAVEFORMATEXTENSIBLE, Format);
         if(wfe->SubFormat != KSDATAFORMAT_SUBTYPE_PCM)
