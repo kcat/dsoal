@@ -163,11 +163,11 @@ auto sizei(const std::basic_string_view<T,Traits> str) noexcept -> int
 HRESULT WINAPI GetDeviceID(const GUID &guidSrc, GUID &guidDst) noexcept;
 
 [[nodiscard]]
-inline float mB_to_gain(float millibels)
+inline float mB_to_gain(LONG millibels)
 {
     if(millibels <= DSBVOLUME_MIN)
         return 0.0f;
-    return std::pow(10.0f, millibels / 2'000.0f);
+    return std::pow(10.0f, static_cast<float>(millibels) / 2'000.0f);
 }
 
 

@@ -537,7 +537,7 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::SetVolume(LONG volume) noexcept
         return DSERR_CONTROLUNAVAIL;
 
     mVolume = volume;
-    alListenerfDirect(mContext, AL_GAIN, mB_to_gain(static_cast<float>(volume)));
+    alListenerfDirect(mContext, AL_GAIN, mB_to_gain(volume));
 
     return DS_OK;
 }

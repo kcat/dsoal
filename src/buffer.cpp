@@ -521,7 +521,7 @@ HRESULT Buffer::setLocation(LocStatus locStatus) noexcept
     }
 
     alGenSourcesDirect(mContext, 1, &mSource);
-    alSourcefDirect(mContext, mSource, AL_GAIN, mB_to_gain(static_cast<float>(mVolume)));
+    alSourcefDirect(mContext, mSource, AL_GAIN, mB_to_gain(mVolume));
     alSourcefDirect(mContext, mSource, AL_PITCH, (mFrequency == 0) ? 1.0f :
         static_cast<float>(mFrequency)/static_cast<float>(mBuffer->mWfxFormat.Format.nSamplesPerSec));
 
@@ -552,7 +552,7 @@ HRESULT Buffer::setLocation(LocStatus locStatus) noexcept
         alSourcefDirect(mContext, mSource, AL_CONE_OUTER_ANGLE,
             static_cast<float>(mImmediate.dwOutsideConeAngle));
         alSourcefDirect(mContext, mSource, AL_CONE_OUTER_GAIN,
-            mB_to_gain(static_cast<float>(mImmediate.lConeOutsideVolume)));
+            mB_to_gain(mImmediate.lConeOutsideVolume));
         alSourcefDirect(mContext, mSource, AL_REFERENCE_DISTANCE, mImmediate.flMinDistance);
         alSourcefDirect(mContext, mSource, AL_MAX_DISTANCE, mImmediate.flMaxDistance);
     }
@@ -568,8 +568,7 @@ HRESULT Buffer::setLocation(LocStatus locStatus) noexcept
              */
             alSourceiDirect(mContext, mSource, AL_PANNING_ENABLED_SOFT, AL_TRUE);
 
-            const auto panf = (mPan <= 0) ? (mB_to_gain(static_cast<float>(mPan)) - 1.0f)
-                : (1.0f - mB_to_gain(static_cast<float>(-mPan)));
+            const auto panf = (mPan <= 0) ? (mB_to_gain(mPan)-1.0f) : (1.0f-mB_to_gain(-mPan));
             alSourcefDirect(mContext, mSource, AL_PAN_SOFT, panf);
         }
         if(mParent.haveExtension(EXT_EAX))
@@ -1109,7 +1108,7 @@ HRESULT STDMETHODCALLTYPE Buffer::SetVolume(LONG volume) noexcept
     std::unique_lock lock{mMutex};
     mVolume = volume;
     if(mSource != 0) LIKELY
-        alSourcefDirect(mContext, mSource, AL_GAIN, mB_to_gain(static_cast<float>(volume)));
+        alSourcefDirect(mContext, mSource, AL_GAIN, mB_to_gain(volume));
 
     return DS_OK;
 }
@@ -1135,8 +1134,7 @@ HRESULT STDMETHODCALLTYPE Buffer::SetPan(LONG pan) noexcept
     {
         if(mParent.haveExtension(SOFT_SOURCE_PANNING))
         {
-            const auto panf = (mPan < 0) ? (mB_to_gain(static_cast<float>(mPan)) - 1.0f)
-                : (1.0f - mB_to_gain(static_cast<float>(-mPan)));
+            const auto panf = (mPan <= 0) ? (mB_to_gain(pan)-1.0f) : (1.0f-mB_to_gain(-pan));
             alSourcefDirect(mContext, mSource, AL_PAN_SOFT, panf);
         }
     }
@@ -1407,7 +1405,7 @@ void Buffer::setParams(const DS3DBUFFER &params, const std::bitset<FlagCount> fl
     }
     if(flags.test(ConeVolume))
         alSourcefDirect(mContext, mSource, AL_CONE_OUTER_GAIN,
-            mB_to_gain(static_cast<float>(params.lConeOutsideVolume)));
+            mB_to_gain(params.lConeOutsideVolume));
     if(flags.test(MinDistance))
         alSourcefDirect(mContext, mSource, AL_REFERENCE_DISTANCE, params.flMinDistance);
     if(flags.test(MaxDistance))
@@ -1772,7 +1770,7 @@ HRESULT STDMETHODCALLTYPE Buffer::Buffer3D::SetConeOutsideVolume(LONG coneOutsid
 
         if(self->mSource != 0)
             alSourcefDirect(self->mContext, self->mSource, AL_CONE_OUTER_GAIN,
-                mB_to_gain(static_cast<float>(coneOutsideVolume)));
+                mB_to_gain(coneOutsideVolume));
     }
 
     return DS_OK;
