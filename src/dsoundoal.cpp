@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <functional>
 #include <memory>
 #include <optional>
 
@@ -27,6 +28,13 @@ using cvoidp = const void*;
 
 using SubListAllocator = std::allocator<std::array<Buffer,64>>;
 
+
+template<typename T>
+struct CoTaskMemDeleter {
+    void operator()(T *mem) const { CoTaskMemFree(mem); }
+};
+template<typename T>
+using CoTaskMemPtr = std::unique_ptr<T,CoTaskMemDeleter<T>>;
 
 struct ALCdeviceDeleter {
     void operator()(ALCdevice *device) { alcCloseDevice(device); }
@@ -122,31 +130,37 @@ ds::expected<std::unique_ptr<SharedDevice>,HRESULT> CreateDeviceShare(const GUID
         speakerconf = *config;
     device = nullptr;
 
-    auto drv_name = std::string{};
+    const auto drv_name = std::invoke([&guid]() -> std::string
     {
-        LPOLESTR guid_str{};
-        HRESULT hr{StringFromCLSID(guid, &guid_str)};
-        if(FAILED(hr))
-        {
-            ERR(PREFIX "Failed to convert GUID to string\n");
-            return ds::unexpected(hr);
+        try {
+            auto guid_str = CoTaskMemPtr<OLECHAR>{};
+            const auto hr = StringFromCLSID(guid, ds::out_ptr(guid_str));
+            if(SUCCEEDED(hr)) return wstr_to_utf8(guid_str.get());
+
+            ERR(PREFIX "StringFromCLSID failed: {:#x}", hr);
         }
-        drv_name = wstr_to_utf8(guid_str);
-        CoTaskMemFree(guid_str);
-        guid_str = nullptr;
-    }
+        catch(std::exception &e) {
+            ERR(PREFIX "Exception converting GUID to string: {}", e.what());
+        }
+        return std::string{};
+    });
+    if(drv_name.empty())
+        return ds::unexpected(DSERR_OUTOFMEMORY);
 
     ALCdevicePtr aldev{alcOpenDevice(drv_name.c_str())};
     if(!aldev)
     {
-        WARN(PREFIX "Couldn't open device \"{}\", 0x{:04x}", drv_name,
-            alcGetError(nullptr));
+        WARN(PREFIX "Couldn't open device \"{}\", 0x{:04x}", drv_name, alcGetError(nullptr));
         return ds::unexpected(DSERR_NODRIVER);
     }
-    TRACE(PREFIX "Opened AL device: {}",
-        alcIsExtensionPresent(aldev.get(), "ALC_ENUMERATE_ALL_EXT") ?
-        alcGetString(aldev.get(), ALC_ALL_DEVICES_SPECIFIER) :
-        alcGetString(aldev.get(), ALC_DEVICE_SPECIFIER));
+
+    auto get_name = [&aldev]() -> const char*
+    {
+        if(alcIsExtensionPresent(aldev.get(), "ALC_ENUMERATE_ALL_EXT"))
+            return alcGetString(aldev.get(), ALC_ALL_DEVICES_SPECIFIER);
+        return alcGetString(aldev.get(), ALC_DEVICE_SPECIFIER);
+    };
+    TRACE(PREFIX "Opened AL device: {}", get_name());
 
     const std::array attrs{
         ALint{ALC_MONO_SOURCES}, ALint{MaxSources},
