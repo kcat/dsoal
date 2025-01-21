@@ -890,15 +890,6 @@ HRESULT STDMETHODCALLTYPE Buffer::Initialize(IDirectSound *directSound, const DS
                 ERR(PREFIX "Multi-channel 3D sounds are not spatialized");
             }
         }
-        if((dsBufferDesc->dwFlags&DSBCAPS_CTRLPAN) && dsBufferDesc->lpwfxFormat->nChannels != 1)
-        {
-            static bool once{false};
-            if(!once)
-            {
-                once = true;
-                ERR(PREFIX "Panning for multi-channel buffers is not supported");
-            }
-        }
 
         auto shared = SharedBuffer::Create(mContext, *dsBufferDesc, mParent.getExtensions());
         if(!shared) return shared.error();
