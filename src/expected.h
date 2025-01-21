@@ -7,9 +7,6 @@
 
 namespace ds {
 
-#define REQUIRES(...) std::enable_if_t<(__VA_ARGS__), bool> = true
-
-
 template<typename E>
 class unexpected {
     E mError;
@@ -17,17 +14,17 @@ class unexpected {
 public:
     constexpr unexpected(const unexpected&) = default;
     constexpr unexpected(unexpected&&) = default;
-    template<typename E2=E, REQUIRES(!std::is_same_v<std::remove_cvref_t<E2>, unexpected>
+    template<typename E2=E> requires(!std::is_same_v<std::remove_cvref_t<E2>, unexpected>
         && !std::is_same_v<std::remove_cvref_t<E2>, std::in_place_t>
-        && std::is_constructible_v<E, E2>)>
+        && std::is_constructible_v<E, E2>)
     constexpr explicit unexpected(E2&& rhs) : mError{std::forward<E2>(rhs)}
     { }
-    template<typename ...Args, REQUIRES(std::is_constructible_v<E, Args...>)>
+    template<typename ...Args> requires(std::is_constructible_v<E, Args...>)
     constexpr explicit unexpected(std::in_place_t, Args&& ...args)
         : mError{std::forward<Args>(args)...}
     { }
-    template<typename U, typename ...Args,
-        REQUIRES(std::is_constructible_v<E, std::initializer_list<U>&, Args...>)>
+    template<typename U, typename ...Args>
+        requires(std::is_constructible_v<E, std::initializer_list<U>&, Args...>)
     constexpr explicit unexpected(std::in_place_t, std::initializer_list<U> il, Args&& ...args)
         : mError{il, std::forward<Args>(args)...}
     { }
@@ -64,39 +61,21 @@ public:
     constexpr expected(expected&& rhs) noexcept(std::is_nothrow_move_constructible_v<variant_type>) = default;
 
     /* Value constructors */
-    template<typename U=S, REQUIRES(!std::is_same_v<std::remove_cvref_t<U>, std::in_place_t>
+    template<typename U=S> requires(!std::is_same_v<std::remove_cvref_t<U>, std::in_place_t>
         && !std::is_same_v<expected, std::remove_cvref_t<U>>
-        && std::is_constructible_v<S, U>
-        && !std::is_convertible_v<U, S>)>
-    constexpr explicit expected(U&& v) : mValues{std::in_place_index_t<0>{}, std::forward<U>(v)}
-    { }
-    template<typename U=S, REQUIRES(!std::is_same_v<std::remove_cvref_t<U>, std::in_place_t>
-        && !std::is_same_v<expected, std::remove_cvref_t<U>>
-        && std::is_constructible_v<S, U>
-        && std::is_convertible_v<U, S>)>
-    constexpr expected(U&& v) : mValues{std::in_place_index_t<0>{}, std::forward<U>(v)} /* NOLINT(google-explicit-constructor) */
+        && std::is_constructible_v<S, U>)
+    constexpr explicit(!std::is_convertible_v<U, S>) expected(U&& v)
+        : mValues{std::in_place_index_t<0>{}, std::forward<U>(v)}
     { }
 
     /* Error constructors */
-    template<typename T, REQUIRES(std::is_constructible_v<F, const T&>
-        && !std::is_convertible_v<const T&, F>)>
-    constexpr explicit expected(const unexpected<T> &rhs)
-        : mValues{variant_type{std::in_place_index<1>, rhs.error()}}
-    { }
-    template<typename T, REQUIRES(std::is_constructible_v<F, const T&>
-        && std::is_convertible_v<const T&, F>)>
-    constexpr expected(const unexpected<T> &rhs) /* NOLINT(google-explicit-constructor) */
+    template<typename T> requires(std::is_constructible_v<F, const T&>)
+    constexpr explicit(!std::is_convertible_v<const T&, F>) expected(const unexpected<T> &rhs)
         : mValues{variant_type{std::in_place_index<1>, rhs.error()}}
     { }
 
-    template<typename T, REQUIRES(std::is_constructible_v<F, T>
-        && !std::is_convertible_v<T, F>)>
-    constexpr explicit expected(unexpected<T>&& rhs)
-        : mValues{variant_type{std::in_place_index<1>, std::move(rhs.error())}}
-    { }
-    template<typename T, REQUIRES(std::is_constructible_v<F, T>
-        && std::is_convertible_v<T, F>)>
-    constexpr expected(unexpected<T>&& rhs) /* NOLINT(google-explicit-constructor) */
+    template<typename T> requires(std::is_constructible_v<F, T>)
+    constexpr explicit(!std::is_convertible_v<T, F>) expected(unexpected<T>&& rhs)
         : mValues{variant_type{std::in_place_index<1>, std::move(rhs.error())}}
     { }
 
@@ -127,8 +106,6 @@ public:
     constexpr F&& error() && { return std::move(std::get<1>(mValues)); }
     constexpr const F&& error() const&& { return std::move(std::get<1>(mValues)); }
 };
-
-#undef REQUIRES
 
 } // namespace ds
 
