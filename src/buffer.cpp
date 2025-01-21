@@ -411,11 +411,11 @@ Buffer::Buffer(DSound8OAL &parent, bool is8, IDirectSoundBuffer *original) noexc
 
 Buffer::~Buffer()
 {
-    if(mSource != 0)
+    if(const auto srcid = std::exchange(mSource, 0))
     {
-        alDeleteSourcesDirect(mContext, 1, &mSource);
+        alDeleteSourcesDirect(mContext, 1, &srcid);
         alGetErrorDirect(mContext);
-        mSource = 0;
+
         if(mLocStatus == LocStatus::Hardware)
             mParent.getShared().decHwSources();
         else if(mLocStatus == LocStatus::Software)
@@ -487,10 +487,9 @@ HRESULT Buffer::setLocation(LocStatus locStatus) noexcept
     /* If we have a source, we're changing location, so return the source we
      * have to get a new one.
      */
-    if(mSource != 0)
+    if(const auto srcid = std::exchange(mSource, 0))
     {
-        alDeleteSourcesDirect(mContext, 1, &mSource);
-        mSource = 0;
+        alDeleteSourcesDirect(mContext, 1, &srcid);
         alGetErrorDirect(mContext);
 
         if(mLocStatus == LocStatus::Hardware)
