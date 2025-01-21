@@ -615,21 +615,22 @@ HRESULT STDMETHODCALLTYPE DSCBuffer::Stop() noexcept
 {
     TRACE(PREFIX "({})->()", voidp{this});
 
+    auto lock = mParent.getUniqueLock();
     if(mCapturing)
     {
         alcCaptureStop(mDevice);
-        std::ignore = mParent.getLockGuard();
-        mQuitNow = true;
+        lock.unlock();
+        mQuitNow.store(true, std::memory_order_release);
         mCaptureThread.join();
-        mCapturing = false;
+        lock.lock();
 
         static constexpr auto trigger_notify = [](const DSBPOSITIONNOTIFY &notify)
         {
             if(notify.dwOffset == static_cast<DWORD>(DSCBPN_OFFSET_STOP))
                 SetEvent(notify.hEventNotify);
         };
-        auto lock = mParent.getLockGuard();
         std::for_each(mNotifies.cbegin(), mNotifies.cend(), trigger_notify);
+        mCapturing = false;
     }
 
     return DS_OK;
