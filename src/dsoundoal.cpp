@@ -169,7 +169,8 @@ ds::expected<std::unique_ptr<SharedDevice>,HRESULT> CreateDeviceShare(const GUID
         ExtensionEntry{"ALC_EXT_EFX", EXT_EFX},
         ExtensionEntry{"AL_EXT_FLOAT32", EXT_FLOAT32},
         ExtensionEntry{"AL_EXT_MCFORMATS", EXT_MCFORMATS},
-        ExtensionEntry{"AL_EXT_STATIC_BUFFER", EXT_STATIC_BUFFER}
+        ExtensionEntry{"AL_EXT_STATIC_BUFFER", EXT_STATIC_BUFFER},
+        ExtensionEntry{"AL_SOFTX_source_panning", SOFT_SOURCE_PANNING},
     };
 
     std::bitset<ExtensionCount> extensions{};

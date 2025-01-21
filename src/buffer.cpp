@@ -18,6 +18,12 @@
 #include "vmanager.h"
 
 
+#ifndef AL_SOFT_source_panning
+#define AL_SOFT_source_panning
+#define AL_PANNING_ENABLED_SOFT                  0x19EC
+#define AL_PAN_SOFT                              0x19ED
+#endif
+
 namespace {
 
 using voidp = void*;
@@ -523,8 +529,7 @@ HRESULT Buffer::setLocation(LocStatus locStatus) noexcept
     {
         if(mImmediate.dwMode == DS3DMODE_DISABLE)
         {
-            const float x{static_cast<float>(mPan-DSBPAN_LEFT)/(DSBPAN_RIGHT-DSBPAN_LEFT) - 0.5f};
-            alSource3fDirect(mContext, mSource, AL_POSITION, x, 0.0f, -std::sqrt(1.0f - x*x));
+            alSource3fDirect(mContext, mSource, AL_POSITION, 0.0f, 0.0f, -1.0f);
             alSource3fDirect(mContext, mSource, AL_VELOCITY, 0.0f, 0.0f, 0.0f);
             alSource3fDirect(mContext, mSource, AL_DIRECTION, 0.0f, 0.0f, 0.0f);
             alSourcefDirect(mContext, mSource, AL_ROLLOFF_FACTOR, 0.0f);
@@ -553,11 +558,20 @@ HRESULT Buffer::setLocation(LocStatus locStatus) noexcept
     }
     else
     {
-        const ALfloat x{static_cast<ALfloat>(mPan-DSBPAN_LEFT)/(DSBPAN_RIGHT-DSBPAN_LEFT) - 0.5f};
-
-        alSource3fDirect(mContext, mSource, AL_POSITION, x, 0.0f, -std::sqrt(1.0f - x*x));
         alSourcefDirect(mContext, mSource, AL_ROLLOFF_FACTOR, 0.0f);
         alSourceiDirect(mContext, mSource, AL_SOURCE_RELATIVE, AL_TRUE);
+        if(mParent.haveExtension(SOFT_SOURCE_PANNING))
+        {
+            /* Always enable panning for non-3D buffers. This won't have any
+             * effect if mPan is never changed, except for mono buffers that
+             * get split into stereo (which is similar behavior to native).
+             */
+            alSourceiDirect(mContext, mSource, AL_PANNING_ENABLED_SOFT, AL_TRUE);
+
+            const auto panf = (mPan <= 0) ? (mB_to_gain(static_cast<float>(mPan)) - 1.0f)
+                : (1.0f - mB_to_gain(static_cast<float>(-mPan)));
+            alSourcefDirect(mContext, mSource, AL_PAN_SOFT, panf);
+        }
         if(mParent.haveExtension(EXT_EAX))
         {
             static std::array<GUID,EAX40_MAX_ACTIVE_FXSLOTS> NullSlots{};
@@ -1117,15 +1131,14 @@ HRESULT STDMETHODCALLTYPE Buffer::SetPan(LONG pan) noexcept
 
     std::unique_lock lock{mMutex};
     mPan = pan;
-    if((!(mBuffer->mFlags&DSBCAPS_CTRL3D) || mImmediate.dwMode == DS3DMODE_DISABLE)
-        && mSource != 0) LIKELY
+    if(!(mBuffer->mFlags&DSBCAPS_CTRL3D) && mSource != 0) LIKELY
     {
-        /* NOTE: Strict movement along the X plane can cause the sound to jump
-         * between left and right sharply. Using a curved path helps smooth it
-         * out.
-         */
-        const float x{static_cast<float>(pan-DSBPAN_LEFT)/(DSBPAN_RIGHT-DSBPAN_LEFT) - 0.5f};
-        alSource3fDirect(mContext, mSource, AL_POSITION, x, 0.0f, -std::sqrt(1.0f - x*x));
+        if(mParent.haveExtension(SOFT_SOURCE_PANNING))
+        {
+            const auto panf = (mPan < 0) ? (mB_to_gain(static_cast<float>(mPan)) - 1.0f)
+                : (1.0f - mB_to_gain(static_cast<float>(-mPan)));
+            alSourcefDirect(mContext, mSource, AL_PAN_SOFT, panf);
+        }
     }
 
     return DS_OK;
@@ -1403,8 +1416,7 @@ void Buffer::setParams(const DS3DBUFFER &params, const std::bitset<FlagCount> fl
     {
         if(params.dwMode == DS3DMODE_DISABLE)
         {
-            const float x{static_cast<float>(mPan-DSBPAN_LEFT)/(DSBPAN_RIGHT-DSBPAN_LEFT) - 0.5f};
-            alSource3fDirect(mContext, mSource, AL_POSITION, x, 0.0f, -std::sqrt(1.0f - x*x));
+            alSource3fDirect(mContext, mSource, AL_POSITION, 0.0f, 0.0f, -1.0f);
             alSource3fDirect(mContext, mSource, AL_VELOCITY, 0.0f, 0.0f, 0.0f);
             alSource3fDirect(mContext, mSource, AL_DIRECTION, 0.0f, 0.0f, 0.0f);
             alSourcefDirect(mContext, mSource, AL_ROLLOFF_FACTOR, 0.0f);
@@ -1847,11 +1859,7 @@ HRESULT STDMETHODCALLTYPE Buffer::Buffer3D::SetMode(DWORD mode, DWORD apply) noe
         {
             if(mode == DS3DMODE_DISABLE)
             {
-                const float pandiff{static_cast<float>(self->mPan - DSBPAN_LEFT)};
-                const float x{pandiff/(DSBPAN_RIGHT-DSBPAN_LEFT) - 0.5f};
-
-                alSource3fDirect(self->mContext, self->mSource, AL_POSITION, x, 0.0f,
-                    -std::sqrt(1.0f - x*x));
+                alSource3fDirect(self->mContext, self->mSource, AL_POSITION, 0.0f, 0.0f, -1.0f);
                 alSource3fDirect(self->mContext, self->mSource, AL_VELOCITY, 0.0f, 0.0f, 0.0f);
                 alSource3fDirect(self->mContext, self->mSource, AL_DIRECTION, 0.0f, 0.0f, 0.0f);
                 alSourcefDirect(self->mContext, self->mSource, AL_ROLLOFF_FACTOR, 0.0f);

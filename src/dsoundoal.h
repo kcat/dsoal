@@ -29,6 +29,7 @@ enum Extensions : uint8_t {
     EXT_FLOAT32,
     EXT_MCFORMATS,
     EXT_STATIC_BUFFER,
+    SOFT_SOURCE_PANNING,
 
     ExtensionCount
 };
