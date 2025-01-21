@@ -1125,7 +1125,7 @@ HRESULT STDMETHODCALLTYPE Buffer::SetPan(LONG pan) noexcept
     {
         if(mParent.haveExtension(SOFT_SOURCE_PANNING))
         {
-            const auto panf = (mPan <= 0) ? (mB_to_gain(pan)-1.0f) : (1.0f-mB_to_gain(-pan));
+            const auto panf = (pan <= 0) ? (mB_to_gain(pan)-1.0f) : (1.0f-mB_to_gain(-pan));
             alSourcefDirect(mContext, mSource, AL_PAN_SOFT, panf);
         }
     }
