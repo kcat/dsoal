@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <span>
 #include <thread>
 #include <utility>
@@ -20,6 +21,14 @@ using cvoidp = const void*;
 #ifndef DSCBPN_OFFSET_STOP
 #define DSCBPN_OFFSET_STOP          0xffffffff
 #endif
+
+template<typename T>
+struct CoTaskMemDeleter {
+    void operator()(T *mem) const { CoTaskMemFree(mem); }
+};
+template<typename T>
+using CoTaskMemPtr = std::unique_ptr<T,CoTaskMemDeleter<T>>;
+
 
 class DSCBuffer final : IDirectSoundCaptureBuffer8 {
     explicit DSCBuffer(DSCapture &parent, bool is8) : mIs8{is8}, mParent{parent} { }
@@ -924,21 +933,25 @@ HRESULT STDMETHODCALLTYPE DSCapture::Initialize(const GUID *guid) noexcept
         return DSERR_NODRIVER;
 
     auto devguid = GUID{};
-    auto hr = GetDeviceID(*guid, devguid);
-    if(FAILED(hr)) return hr;
+    if(const auto hr = GetDeviceID(*guid, devguid); FAILED(hr))
+        return hr;
 
+    mDeviceName = std::invoke([guid]() -> std::string
     {
-        auto guid_str = LPOLESTR{};
-        hr = StringFromCLSID(devguid, &guid_str);
-        if(FAILED(hr))
-        {
-            ERR(PREFIX "Failed to convert GUID to string\n");
-            return hr;
+        try {
+            auto guid_str = CoTaskMemPtr<OLECHAR>{};
+            const auto hr = StringFromCLSID(*guid, ds::out_ptr(guid_str));
+            if(SUCCEEDED(hr)) return wstr_to_utf8(guid_str.get());
+
+            ERR(PREFIX "StringFromCLSID failed: {:#x}", hr);
         }
-        mDeviceName = wstr_to_utf8(guid_str);
-        CoTaskMemFree(guid_str);
-        guid_str = nullptr;
-    }
+        catch(std::exception &e) {
+            ERR(PREFIX "Exception converting GUID to string: {}", e.what());
+        }
+        return std::string{};
+    });
+    if(mDeviceName.empty())
+        return DSERR_OUTOFMEMORY;
 
     return DS_OK;
 }
