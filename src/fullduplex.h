@@ -2,10 +2,14 @@
 #define DSFULLDUPLEX_H
 
 #include <atomic>
+#include <bit>
 
 #include <dsound.h>
 
 #include "comptr.h"
+
+class DSound8OAL;
+class DSCapture;
 
 
 class DSFullDuplex final : IDirectSoundFullDuplex {
@@ -118,8 +122,8 @@ class DSFullDuplex final : IDirectSoundFullDuplex {
 
     std::atomic<ULONG> mTotalRef{1u}, mFdRef{1u}, mDS8Ref{0u}, mDSCRef{0u}, mUnkRef{0u};
 
-    ComPtr<IDirectSound8> mDS8Handle;
-    ComPtr<IDirectSoundCapture8> mDSCHandle;
+    ComPtr<DSound8OAL> mDS8Handle;
+    ComPtr<DSCapture> mDSCHandle;
 
 public:
     ~DSFullDuplex();

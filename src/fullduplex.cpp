@@ -106,13 +106,8 @@ HRESULT STDMETHODCALLTYPE DSFullDuplex::Initialize(const GUID *captureGuid, cons
     }
 
     try {
-        auto hr = DSound8OAL::Create(true)->QueryInterface(IID_IDirectSound8,
-            ds::out_ptr(mDS8Handle));
-        if(FAILED(hr))
-            return hr;
-
-        hr = mDS8Handle->Initialize(renderGuid);
-        if(FAILED(hr))
+        mDS8Handle = DSound8OAL::Create(true);
+        if(const auto hr = mDS8Handle->Initialize(renderGuid); FAILED(hr))
         {
             mDS8Handle = nullptr;
             return hr;
@@ -135,13 +130,8 @@ HRESULT STDMETHODCALLTYPE DSFullDuplex::Initialize(const GUID *captureGuid, cons
     }
 
     try {
-        auto hr = DSCapture::Create(true)->QueryInterface(IID_IDirectSoundCapture8,
-            ds::out_ptr(mDSCHandle));
-        if(FAILED(hr))
-            return hr;
-
-        hr = mDSCHandle->Initialize(captureGuid);
-        if(FAILED(hr))
+        mDSCHandle = DSCapture::Create(true);
+        if(const auto hr = mDSCHandle->Initialize(captureGuid); FAILED(hr))
         {
             mDS8Handle = nullptr;
             mDSCHandle = nullptr;

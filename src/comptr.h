@@ -1,8 +1,6 @@
 #ifndef COMPTR_H
 #define COMPTR_H
 
-#include <cstddef>
-#include <memory>
 #include <type_traits>
 #include <utility>
 #include <variant>
@@ -11,11 +9,8 @@ template<typename T>
 struct ComPtr {
     using element_type = T;
 
-    static constexpr bool RefIsNoexcept{noexcept(std::declval<T&>().AddRef())
-        && noexcept(std::declval<T&>().Release())};
-
     ComPtr() noexcept = default;
-    ComPtr(const ComPtr &rhs) noexcept(RefIsNoexcept) : mPtr{rhs.mPtr}
+    ComPtr(const ComPtr &rhs) noexcept(noexcept(mPtr->AddRef())) : mPtr{rhs.mPtr}
     { if(mPtr) mPtr->AddRef(); }
     ComPtr(ComPtr&& rhs) noexcept : mPtr{rhs.mPtr} { rhs.mPtr = nullptr; }
     ComPtr(std::nullptr_t) noexcept { } /* NOLINT(google-explicit-constructor) */
@@ -23,9 +18,10 @@ struct ComPtr {
     ~ComPtr() { if(mPtr) mPtr->Release(); }
 
     /* NOLINTNEXTLINE(bugprone-unhandled-self-assignment) Yes it is. */
-    ComPtr& operator=(const ComPtr &rhs) noexcept(RefIsNoexcept)
+    ComPtr& operator=(const ComPtr &rhs)
+        noexcept(noexcept(rhs.mPtr->AddRef()) && noexcept(mPtr->Release()))
     {
-        if constexpr(RefIsNoexcept)
+        if constexpr(noexcept(rhs.mPtr->AddRef()) && noexcept(mPtr->Release()))
         {
             if(rhs.mPtr) rhs.mPtr->AddRef();
             if(mPtr) mPtr->Release();
@@ -40,7 +36,7 @@ struct ComPtr {
             return *this;
         }
     }
-    ComPtr& operator=(ComPtr&& rhs) noexcept(RefIsNoexcept)
+    ComPtr& operator=(ComPtr&& rhs) noexcept(noexcept(mPtr->Release()))
     {
         if(&rhs != this)
         {
@@ -50,7 +46,7 @@ struct ComPtr {
         return *this;
     }
 
-    void reset(T *ptr=nullptr) noexcept(RefIsNoexcept)
+    void reset(T *ptr=nullptr) noexcept(noexcept(mPtr->Release()))
     {
         if(mPtr) mPtr->Release();
         mPtr = ptr;

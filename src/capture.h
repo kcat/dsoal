@@ -3,6 +3,7 @@
 
 #include <atomic>
 #include <mutex>
+#include <string>
 
 #include <dsound.h>
 
