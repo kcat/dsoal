@@ -565,6 +565,12 @@ HRESULT STDMETHODCALLTYPE DSCBuffer::Lock(DWORD dwReadCusor, DWORD dwReadBytes,
         return DSERR_INVALIDPARAM;
     }
 
+    if(dwReadCusor > mBuffer.size())
+    {
+        WARN(PREFIX "Invalid read pos: {} > {}", dwReadCusor, mBuffer.size());
+        return DSERR_INVALIDPARAM;
+    }
+
     if((dwFlags&DSCBLOCK_ENTIREBUFFER))
         dwReadBytes = static_cast<DWORD>(mBuffer.size());
     else if(dwReadBytes > mBuffer.size())
@@ -587,7 +593,7 @@ HRESULT STDMETHODCALLTYPE DSCBuffer::Lock(DWORD dwReadCusor, DWORD dwReadBytes,
     }
     else
         *lpdwAudioBytes1 = dwReadBytes;
-    *lplpvAudioPtr1 = &mBuffer[dwReadCusor];
+    *lplpvAudioPtr1 = std::to_address(mBuffer.begin() + ptrdiff_t(dwReadCusor));
 
     if(lplpvAudioPtr2 && lpdwAudioBytes2 && remain)
     {
