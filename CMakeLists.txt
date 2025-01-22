@@ -9,6 +9,8 @@ add_subdirectory(fmt-11.1.1)
 
 include(CheckCXXCompilerFlag)
 
+set(VERSION 0.9)
+
 set(DSOAL_CPPDEFS )
 set(DSOAL_CFLAGS )
 set(DSOAL_LINK_FLAGS )
@@ -79,11 +81,29 @@ set(SRC_OBJS
     src/propset.h
     src/vmanager.h)
 
-add_library(dsound SHARED ${SRC_OBJS} version.rc ${DEF_FILE})
+set(TXT_FILES
+    LICENSE
+    README.md)
+
+add_library(dsound SHARED ${SRC_OBJS} version.rc ${DEF_FILE} ${TXT_FILES})
 set_target_properties(dsound PROPERTIES PREFIX "")
 target_link_libraries(dsound PRIVATE dsoal::fmt ${DSOAL_LINK_FLAGS})
 target_compile_definitions(dsound PRIVATE DSOAL_LIBRARY ${DSOAL_CPPDEFS})
 target_compile_options(dsound PRIVATE ${DSOAL_CFLAGS})
+
+install(TARGETS dsound
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
+if(EXISTS "${DSOAL_BINARY_DIR}/dsoal-aldrv.dll")
+    install(FILES
+        "${DSOAL_BINARY_DIR}/dsoal-aldrv.dll"
+        DESTINATION ${CMAKE_INSTALL_BINDIR})
+endif()
+
+target_sources(dsound PRIVATE ${TXT_FILES})
+install(FILES ${TXT_FILES} TYPE DATA)
+
 
 set(NEED_ANALYZE_SOURCE_FILES "")
 foreach(obj ${SRC_OBJS})
@@ -96,3 +116,13 @@ endif()
 add_custom_target(clang-tidy-check ${CLANG_TIDY_EXECUTABLE} -format-style=file
     -p ${CMAKE_BINARY_DIR}/compile_commands.json ${NEED_ANALYZE_SOURCE_FILES}
     DEPENDS ${NEED_ANALYZE_SOURCE_FILES} ${CMAKE_BINARY_DIR}/compile_commands.json)
+
+
+set(CPACK_GENERATOR "ZIP")
+set(CPACK_PACKAGE_VENDOR "Chris Robinson")
+set(CPACK_PACKAGE_VERSION ${VERSION})
+set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE")
+set(CPACK_STRIP_FILES TRUE)
+set(CPACK_OUTPUT_FILE_PREFIX packages)
+
+include(CPack)
