@@ -18,7 +18,9 @@ jobs:
         arch: [Win32, x64]
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: '0'
 
     - name: Configure CMake
       # Configure CMake in the 'build' subdirectory.
@@ -36,7 +38,7 @@ jobs:
 
     - name: Upload Archive
       # Upload package as an artifact of this workflow.
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v4
       with:
         name: dsoal-${{matrix.arch}}
         path: ${{github.workspace}}/build/packages/*
