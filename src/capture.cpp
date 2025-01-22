@@ -733,7 +733,7 @@ ULONG STDMETHODCALLTYPE DSCBuffer::Notify::AddRef() noexcept
 ULONG STDMETHODCALLTYPE DSCBuffer::Notify::Release() noexcept
 {
     auto *self = impl_from_base();
-    const auto ret = self->mDsRef.fetch_sub(1u, std::memory_order_relaxed) - 1;
+    const auto ret = self->mNotRef.fetch_sub(1u, std::memory_order_relaxed) - 1;
     DEBUG(CLASS_PREFIX "Release ({}) ref {}", voidp{this}, ret);
     self->finalize();
     return ret;
