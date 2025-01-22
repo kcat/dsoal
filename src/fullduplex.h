@@ -72,7 +72,18 @@ class DSFullDuplex final : IDirectSoundFullDuplex {
         DS8& operator=(const DS8&) = delete;
 
         template<typename T>
-        T as() noexcept { return static_cast<T>(this); }
+        T as() noexcept
+        {
+            /* MinGW headers do not have IDirectSound8 inherit from
+             * IDirectSound, which MSVC apparently does. IDirectSound is a
+             * strict subset of IDirectSound8, so the interface is ABI
+             * compatible.
+             */
+            if constexpr(std::is_same_v<T,IDirectSound*> && !std::is_base_of_v<IDirectSound,DS8>)
+                return std::bit_cast<T>(static_cast<IDirectSound8*>(this));
+            else
+                return static_cast<T>(this);
+        }
     };
     DS8 mDS8Iface;
 

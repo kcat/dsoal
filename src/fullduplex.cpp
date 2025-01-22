@@ -47,6 +47,12 @@ HRESULT STDMETHODCALLTYPE DSFullDuplex::QueryInterface(REFIID riid, void **ppvOb
         *ppvObject = mDS8Iface.as<IDirectSound8*>();
         return S_OK;
     }
+    if(riid == IID_IDirectSound)
+    {
+        mDS8Iface.AddRef();
+        *ppvObject = mDS8Iface.as<IDirectSound*>();
+        return S_OK;
+    }
     if(riid == IID_IDirectSoundCapture)
     {
         mDSCIface.AddRef();
