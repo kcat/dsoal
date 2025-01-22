@@ -119,7 +119,11 @@ HRESULT STDMETHODCALLTYPE DSFullDuplex::Initialize(const GUID *captureGuid, cons
         return E_FAIL;
     }
 
-    mDS8Handle->SetCooperativeLevel(hwnd, level);
+    if(const auto hr = mDS8Handle->SetCooperativeLevel(hwnd, level); FAILED(hr))
+    {
+        mDS8Handle = nullptr;
+        return hr;
+    }
 
     auto dsbuf = ComPtr<IDirectSoundBuffer>{};
     if(auto hr = mDS8Handle->CreateSoundBuffer(dsBufferDesc, ds::out_ptr(dsbuf), nullptr);
@@ -154,16 +158,17 @@ HRESULT STDMETHODCALLTYPE DSFullDuplex::Initialize(const GUID *captureGuid, cons
         return hr;
     }
 
-    if(auto hr = dsbuf->QueryInterface(IID_IDirectSoundBuffer8,
-        reinterpret_cast<void**>(dsBuffer8)); FAILED(hr))
+    auto dsbuf8 = ComPtr<IDirectSoundBuffer8>{};
+    if(auto hr = dsbuf->QueryInterface(IID_IDirectSoundBuffer8, ds::out_ptr(dsbuf8)); FAILED(hr))
         return hr;
-    if(auto hr = dscbuf->QueryInterface(IID_IDirectSoundCaptureBuffer8,
-        reinterpret_cast<void**>(dsCaptureBuffer8)); FAILED(hr))
-    {
-        (*dsBuffer8)->Release();
-        *dsBuffer8 = nullptr;
+
+    auto dscbuf8 = ComPtr<IDirectSoundCaptureBuffer8>{};
+    if(auto hr = dscbuf->QueryInterface(IID_IDirectSoundCaptureBuffer8, ds::out_ptr(dscbuf8));
+        FAILED(hr))
         return hr;
-    }
+
+    *dsBuffer8 = dsbuf8.release();
+    *dsCaptureBuffer8 = dscbuf8.release();
 
     return DS_OK;
 }
