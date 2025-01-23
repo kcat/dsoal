@@ -37,6 +37,26 @@ else()
         -Wcast-align -Wpedantic
         $<$<COMPILE_LANGUAGE:CXX>:-Wold-style-cast -Wnon-virtual-dtor -Woverloaded-virtual>)
 
+    set(OLD_REQUIRED_FLAGS ${CMAKE_REQUIRED_FLAGS})
+    # Yes GCC, really don't accept command line options you don't support
+    set(CMAKE_REQUIRED_FLAGS "${OLD_REQUIRED_FLAGS} -Werror")
+    check_cxx_compiler_flag(-msse2 HAVE_MSSE2_SWITCH)
+    if(HAVE_MSSE2_SWITCH)
+        set(SSE2_SWITCH "-msse2")
+    endif()
+    set(CMAKE_REQUIRED_FLAGS ${OLD_REQUIRED_FLAGS})
+    unset(OLD_REQUIRED_FLAGS)
+
+    if(CMAKE_SIZEOF_VOID_P MATCHES "4" AND SSE2_SWITCH)
+        option(DSOAL_ENABLE_SSE2_CODEGEN "Enable SSE2 code generation instead of x87 for 32-bit targets." TRUE)
+        if(DSOAL_ENABLE_SSE2_CODEGEN)
+            check_cxx_compiler_flag("${SSE2_SWITCH} -mfpmath=sse" HAVE_MFPMATH_SSE_2)
+            if(HAVE_MFPMATH_SSE_2)
+                set(DSOAL_CFLAGS ${DSOAL_CFLAGS} ${SSE2_SWITCH} -mfpmath=sse)
+            endif()
+        endif()
+    endif()
+
     set(DSOAL_LINK_FLAGS ${DSOAL_LINK_FLAGS} -static-libgcc -static-libstdc++)
     set(DSOAL_LINK_FLAGS ${DSOAL_LINK_FLAGS} "-Wl,--push-state,-Bstatic,-lstdc++,-lwinpthread,--pop-state")
 endif(MSVC)
