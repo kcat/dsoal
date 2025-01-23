@@ -133,7 +133,16 @@ jobs:
         7z a DSOAL.zip      ./DSOAL/*
         7z a DSOAL+HRTF.zip ./DSOAL+HRTF/*
 
-    - name: GitHub pre-release
+    - name: GitHub pre-release - r${{needs.Build.outputs.DSOALCommitCount}} tag
+      uses: "slord399/action-automatic-releases@v1.0.1"
+      with:
+        repo_token: "${{secrets.GITHUB_TOKEN}}"
+        automatic_release_tag: "r${{needs.Build.outputs.DSOALCommitCount}}"
+        prerelease: true
+        title: "DSOAL r${{needs.Build.outputs.DSOALCommitCount}}@${{needs.Build.outputs.DSOALCommitHashShort}} + OpenAL Soft r${{needs.Build.outputs.OpenALSoftCommitCount}}@${{needs.Build.outputs.OpenALSoftCommitHashShort}}"
+        files: "Release/*"
+
+    - name: GitHub pre-release - latest tag
       uses: "slord399/action-automatic-releases@v1.0.1"
       with:
         repo_token: "${{secrets.GITHUB_TOKEN}}"
