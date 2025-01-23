@@ -1,0 +1,44 @@
+name: CMake Build
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+env:
+  # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
+  BUILD_TYPE: Release
+
+jobs:
+  build:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        arch: [Win32, x64]
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: '0'
+
+    - name: Configure CMake
+      # Configure CMake in the 'build' subdirectory.
+      run: cmake -B ${{github.workspace}}/build -A ${{matrix.arch}}
+
+    - name: Build
+      # Build the library with the given configuration
+      run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
+
+    - name: Create Archive
+      working-directory: ${{github.workspace}}/build
+      # Create package defined by the CMake configuration.
+      # See https://cmake.org/cmake/help/latest/module/CPack.html for more detail
+      run: cpack
+
+    - name: Upload Archive
+      # Upload package as an artifact of this workflow.
+      uses: actions/upload-artifact@v4
+      with:
+        name: dsoal-${{matrix.arch}}
+        path: ${{github.workspace}}/build/packages/*
