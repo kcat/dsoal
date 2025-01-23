@@ -25,6 +25,7 @@
 #include "fullduplex.h"
 #include "guidprinter.h"
 #include "logging.h"
+#include "version.h"
 
 
 namespace {
@@ -414,6 +415,8 @@ DSOAL_EXPORT BOOL WINAPI DllMain(HINSTANCE hInstDLL, DWORD reason, void *reserve
             }
         }
 
+        TRACE("DllMain Initializing library v{}-{} {}", DSOAL_VERSION, DSOAL_GIT_COMMIT_HASH,
+            DSOAL_GIT_BRANCH);
         if(!load_openal())
         {
             if(gLogFile)

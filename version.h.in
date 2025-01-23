@@ -1,0 +1,8 @@
+/* Define to the library version */
+#define DSOAL_VERSION "${LIB_VERSION}"
+
+/* Define the branch being built */
+#define DSOAL_GIT_BRANCH "${GIT_BRANCH}"
+
+/* Define the hash of the head commit */
+#define DSOAL_GIT_COMMIT_HASH "${GIT_COMMIT_HASH}"

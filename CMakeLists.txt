@@ -8,6 +8,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 add_subdirectory(fmt-11.1.1)
 
 include(CheckCXXCompilerFlag)
+include(GNUInstallDirs)
 
 set(VERSION 0.9)
 
@@ -61,6 +62,44 @@ else()
     set(DSOAL_LINK_FLAGS ${DSOAL_LINK_FLAGS} "-Wl,--push-state,-Bstatic,-lstdc++,-lwinpthread,--pop-state")
 endif(MSVC)
 
+
+find_package(Git)
+option(DSOAL_UPDATE_BUILD_VERSION "Update git build version info" ON)
+if(DSOAL_UPDATE_BUILD_VERSION AND GIT_FOUND AND EXISTS "${dsoal_SOURCE_DIR}/.git")
+    set(GIT_DIR "${dsoal_SOURCE_DIR}/.git")
+
+    # Check if this is a submodule, if it is then find the .git directory
+    if(NOT IS_DIRECTORY "${dsoal_SOURCE_DIR}/.git")
+        file(READ ${GIT_DIR} submodule)
+        string(REGEX REPLACE "gitdir: (.*)$" "\\1" GIT_DIR_RELATIVE ${submodule})
+        string(STRIP ${GIT_DIR_RELATIVE} GIT_DIR_RELATIVE)
+        get_filename_component(SUBMODULE_DIR ${GIT_DIR} PATH)
+        get_filename_component(GIT_DIR ${SUBMODULE_DIR}/${GIT_DIR_RELATIVE} ABSOLUTE)
+    endif()
+
+    # Get the current working branch and its latest abbreviated commit hash
+    add_custom_command(OUTPUT "${dsoal_BINARY_DIR}/version_witness.txt"
+        BYPRODUCTS "${dsoal_BINARY_DIR}/version.h"
+        COMMAND ${CMAKE_COMMAND} -D GIT_EXECUTABLE=${GIT_EXECUTABLE} -D LIB_VERSION=${VERSION}
+            -D SRC=${dsoal_SOURCE_DIR}/version.h.in -D DST=${dsoal_BINARY_DIR}/version.h
+            -P ${dsoal_SOURCE_DIR}/version.cmake
+        COMMAND ${CMAKE_COMMAND} -E touch "${dsoal_BINARY_DIR}/version_witness.txt"
+        WORKING_DIRECTORY "${dsoal_SOURCE_DIR}"
+        MAIN_DEPENDENCY "${dsoal_SOURCE_DIR}/version.h.in"
+        DEPENDS "${GIT_DIR}/index" "${dsoal_SOURCE_DIR}/version.cmake"
+        VERBATIM
+    )
+
+    add_custom_target(dsoal.build_version DEPENDS "${dsoal_BINARY_DIR}/version_witness.txt")
+else()
+    set(GIT_BRANCH "UNKNOWN")
+    set(GIT_COMMIT_HASH "unknown")
+    configure_file(
+        "${dsoal_SOURCE_DIR}/version.h.in"
+        "${dsoal_BINARY_DIR}/version.h")
+endif()
+
+
 if(MINGW)
     set(CMAKE_RC_COMPILER_INIT windres)
     set(CMAKE_RC_COMPILE_OBJECT
@@ -108,16 +147,20 @@ set(TXT_FILES
 add_library(dsound SHARED ${SRC_OBJS} version.rc ${DEF_FILE} ${TXT_FILES})
 set_target_properties(dsound PROPERTIES PREFIX "")
 target_link_libraries(dsound PRIVATE dsoal::fmt ${DSOAL_LINK_FLAGS})
+target_include_directories(dsound PRIVATE ${dsoal_BINARY_DIR})
 target_compile_definitions(dsound PRIVATE DSOAL_LIBRARY ${DSOAL_CPPDEFS})
 target_compile_options(dsound PRIVATE ${DSOAL_CFLAGS})
+if(TARGET dsoal.build_version)
+    add_dependencies(dsound dsoal.build_version)
+endif()
 
 install(TARGETS dsound
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
-if(EXISTS "${DSOAL_BINARY_DIR}/dsoal-aldrv.dll")
+if(EXISTS "${dsoal_BINARY_DIR}/dsoal-aldrv.dll")
     install(FILES
-        "${DSOAL_BINARY_DIR}/dsoal-aldrv.dll"
+        "${dsoal_BINARY_DIR}/dsoal-aldrv.dll"
         DESTINATION ${CMAKE_INSTALL_BINDIR})
 endif()
 
