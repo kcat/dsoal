@@ -175,43 +175,43 @@ public:
 
 class IidPrinter : public GuidPrinter {
 public:
-    template<typename T, std::enable_if_t<!std::is_same_v<std::remove_cvref_t<T>,IidPrinter>,bool> = true>
+    template<typename T> requires(!std::is_same_v<std::remove_cvref_t<T>,IidPrinter>)
     explicit IidPrinter(T&& guid) : GuidPrinter{IidTag{}, std::forward<T>(guid)} { }
 };
 
 class ClsidPrinter : public GuidPrinter {
 public:
-    template<typename T, std::enable_if_t<!std::is_same_v<std::remove_cvref_t<T>,ClsidPrinter>,bool> = true>
+    template<typename T> requires(!std::is_same_v<std::remove_cvref_t<T>,ClsidPrinter>)
     explicit ClsidPrinter(T&& guid) : GuidPrinter{ClsidTag{}, std::forward<T>(guid)} { }
 };
 
 class PropidPrinter : public GuidPrinter {
 public:
-    template<typename T, std::enable_if_t<!std::is_same_v<std::remove_cvref_t<T>,PropidPrinter>,bool> = true>
+    template<typename T> requires(!std::is_same_v<std::remove_cvref_t<T>,PropidPrinter>)
     explicit PropidPrinter(T&& guid) : GuidPrinter{PropidTag{}, std::forward<T>(guid)} { }
 };
 
 class DevidPrinter : public GuidPrinter {
 public:
-    template<typename T, std::enable_if_t<!std::is_same_v<std::remove_cvref_t<T>,DevidPrinter>,bool> = true>
+    template<typename T> requires(!std::is_same_v<std::remove_cvref_t<T>,DevidPrinter>)
     explicit DevidPrinter(T&& guid) : GuidPrinter{DevidTag{}, std::forward<T>(guid)} { }
 };
 
 class Ds3dalgPrinter : public GuidPrinter {
 public:
-    template<typename T, std::enable_if_t<!std::is_same_v<std::remove_cvref_t<T>,Ds3dalgPrinter>,bool> = true>
+    template<typename T> requires(!std::is_same_v<std::remove_cvref_t<T>,Ds3dalgPrinter>)
     explicit Ds3dalgPrinter(T&& guid) : GuidPrinter{Ds3dalgTag{}, std::forward<T>(guid)} { }
 };
 
 class FmtidPrinter : public GuidPrinter {
 public:
-    template<typename T, std::enable_if_t<!std::is_same_v<std::remove_cvref_t<T>,FmtidPrinter>,bool> = true>
+    template<typename T> requires(!std::is_same_v<std::remove_cvref_t<T>,FmtidPrinter>)
     explicit FmtidPrinter(T&& guid) : GuidPrinter{FmtidTag{}, std::forward<T>(guid)} { }
 };
 
 class DsfxPrinter : public GuidPrinter {
 public:
-    template<typename T, std::enable_if_t<!std::is_same_v<std::remove_cvref_t<T>,DsfxPrinter>,bool> = true>
+    template<typename T> requires(!std::is_same_v<std::remove_cvref_t<T>,DsfxPrinter>)
     explicit DsfxPrinter(T&& guid) : GuidPrinter{DsfxTag{}, std::forward<T>(guid)} { }
 };
 

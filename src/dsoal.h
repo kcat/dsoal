@@ -25,7 +25,7 @@ template<typename T> using owner = T;
 constexpr int64_t operator "" _i64(unsigned long long int n) noexcept { return static_cast<int64_t>(n); }
 constexpr uint64_t operator "" _u64(unsigned long long int n) noexcept { return static_cast<uint64_t>(n); }
 
-template<typename T, std::enable_if_t<std::is_integral_v<T>,bool> = true>
+template<typename T> requires(std::is_integral_v<T>)
 constexpr auto as_unsigned(T value) noexcept
 {
     using UT = std::make_unsigned_t<T>;
@@ -56,14 +56,12 @@ namespace detail_ {
     inline int countr_zero(unsigned int val) noexcept { return __builtin_ctz(val); }
 } // namespace detail_
 
-template<typename T>
-inline std::enable_if_t<std::is_integral<T>::value && std::is_unsigned<T>::value,
-int> popcount(T v) noexcept { return detail_::popcount(v); }
+template<typename T> requires(std::is_integral<T>::value && std::is_unsigned<T>::value)
+inline auto popcount(T v) noexcept -> int { return detail_::popcount(v); }
 
-template<typename T>
-inline std::enable_if_t<std::is_integral<T>::value && std::is_unsigned<T>::value,
-int> countr_zero(T val) noexcept
-{ return val ? detail_::countr_zero(val) : std::numeric_limits<T>::digits; }
+template<typename T> requires(std::is_integral<T>::value && std::is_unsigned<T>::value)
+inline auto countr_zero(T val) noexcept -> int
+{ return val ? detail_::countr_zero(val) : int{std::numeric_limits<T>::digits}; }
 
 #else
 
@@ -96,9 +94,8 @@ namespace detail_ {
     }
 } // namespace detail_
 
-template<typename T>
-constexpr std::enable_if_t<std::is_integral<T>::value && std::is_unsigned<T>::value,
-int> popcount(T val) noexcept
+template<typename T> requires(std::is_integral<T>::value && std::is_unsigned<T>::value)
+constexpr auto popcount(T val) noexcept -> int
 {
     using fast_type = typename detail_::fast_utype<T>::type;
     constexpr fast_type b01010101{detail_::repbits<fast_type>(0x55)};
@@ -114,20 +111,18 @@ int> popcount(T val) noexcept
 
 #ifdef _WIN32
 
-template<typename T>
-inline std::enable_if_t<std::is_integral<T>::value && std::is_unsigned<T>::value
-    && std::numeric_limits<T>::digits <= 32,
-int> countr_zero(T v)
+template<typename T> requires(std::is_integral<T>::value && std::is_unsigned<T>::value
+    && std::numeric_limits<T>::digits <= 32)
+inline auto countr_zero(T v) -> int
 {
     unsigned long idx{std::numeric_limits<T>::digits};
     _BitScanForward(&idx, static_cast<uint32_t>(v));
     return static_cast<int>(idx);
 }
 
-template<typename T>
-inline std::enable_if_t<std::is_integral<T>::value && std::is_unsigned<T>::value
-    && 32 < std::numeric_limits<T>::digits && std::numeric_limits<T>::digits <= 64,
-int> countr_zero(T v)
+template<typename T> requires(std::is_integral<T>::value && std::is_unsigned<T>::value
+    && 32 < std::numeric_limits<T>::digits && std::numeric_limits<T>::digits <= 64)
+inline auto countr_zero(T v) -> int
 {
     unsigned long idx{std::numeric_limits<T>::digits};
 #ifdef _WIN64
@@ -144,9 +139,8 @@ int> countr_zero(T v)
 
 #else
 
-template<typename T>
-constexpr std::enable_if_t<std::is_integral<T>::value && std::is_unsigned<T>::value,
-int> countr_zero(T value)
+template<typename T> requires(std::is_integral<T>::value && std::is_unsigned<T>::value)
+constexpr auto countr_zero(T value) -> int
 { return popcount(static_cast<T>(~value & (value - 1))); }
 
 #endif
