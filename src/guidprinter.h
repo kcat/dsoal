@@ -4,7 +4,6 @@
 #include <array>
 #include <cstdio>
 #include <cstring>
-#include <iterator>
 
 #include <dsound.h>
 #include <dsconf.h>
