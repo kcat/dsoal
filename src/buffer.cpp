@@ -832,20 +832,27 @@ HRESULT STDMETHODCALLTYPE Buffer::GetStatus(DWORD *status) noexcept
         return DSERR_INVALIDPARAM;
     *status = 0;
 
-    ALint state{AL_INITIAL};
-    ALint looping{AL_FALSE};
-    if(mSource != 0)
+    auto res = DWORD{};
+    if(mBufferLost) [[unlikely]]
+        res = DSBSTATUS_BUFFERLOST;
+    else
     {
-        alGetSourceiDirect(mContext, mSource, AL_SOURCE_STATE, &state);
-        alGetSourceiDirect(mContext, mSource, AL_LOOPING, &looping);
-        alGetErrorDirect(mContext);
+        auto state = ALint{AL_INITIAL};
+        auto looping = ALint{AL_FALSE};
+        if(mSource != 0)
+        {
+            alGetSourceiDirect(mContext, mSource, AL_SOURCE_STATE, &state);
+            alGetSourceiDirect(mContext, mSource, AL_LOOPING, &looping);
+            alGetErrorDirect(mContext);
+        }
+
+        if((mBuffer->mFlags&DSBCAPS_LOCDEFER))
+            res |= ds::to_underlying(mLocStatus);
+        if(state == AL_PLAYING)
+            res |= DSBSTATUS_PLAYING | (looping ? DSBSTATUS_LOOPING : 0);
     }
 
-    if((mBuffer->mFlags&DSBCAPS_LOCDEFER))
-        *status |= ds::to_underlying(mLocStatus);
-    if(state == AL_PLAYING)
-        *status |= DSBSTATUS_PLAYING | (looping ? DSBSTATUS_LOOPING : 0);
-
+    *status = res;
     DEBUG(PREFIX " status = 0x{:08x}", *status);
     return S_OK;
 }
