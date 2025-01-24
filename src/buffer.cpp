@@ -842,11 +842,11 @@ HRESULT STDMETHODCALLTYPE Buffer::GetStatus(DWORD *status) noexcept
     }
 
     if((mBuffer->mFlags&DSBCAPS_LOCDEFER))
-        *status |= static_cast<DWORD>(mLocStatus);
+        *status |= ds::to_underlying(mLocStatus);
     if(state == AL_PLAYING)
         *status |= DSBSTATUS_PLAYING | (looping ? DSBSTATUS_LOOPING : 0);
 
-    DEBUG(PREFIX "status = 0x{:08x}", *status);
+    DEBUG(PREFIX " status = 0x{:08x}", *status);
     return S_OK;
 }
 #undef PREFIX
