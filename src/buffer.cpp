@@ -989,8 +989,6 @@ HRESULT STDMETHODCALLTYPE Buffer::Play(DWORD reserved1, DWORD priority, DWORD fl
 
     if((mBuffer->mFlags&DSBCAPS_LOCDEFER))
     {
-        LocStatus loc{LocStatus::Any};
-
         static constexpr DWORD LocFlags{DSBPLAY_LOCSOFTWARE | DSBPLAY_LOCHARDWARE};
         if((flags&LocFlags) == LocFlags)
         {
@@ -998,6 +996,7 @@ HRESULT STDMETHODCALLTYPE Buffer::Play(DWORD reserved1, DWORD priority, DWORD fl
             return DSERR_INVALIDPARAM;
         }
 
+        auto loc = LocStatus::Any;
         if((flags&DSBPLAY_LOCHARDWARE)) loc = LocStatus::Hardware;
         else if((flags&DSBPLAY_LOCSOFTWARE)) loc = LocStatus::Software;
 
@@ -1014,8 +1013,8 @@ HRESULT STDMETHODCALLTYPE Buffer::Play(DWORD reserved1, DWORD priority, DWORD fl
             }
         }
 
-        HRESULT hr{setLocation(loc)};
-        if(FAILED(hr)) return hr;
+        if(const auto hr = setLocation(loc); FAILED(hr))
+            return hr;
     }
     else if(priority != 0)
     {
