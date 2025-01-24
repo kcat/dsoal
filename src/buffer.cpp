@@ -882,8 +882,7 @@ HRESULT STDMETHODCALLTYPE Buffer::Initialize(IDirectSound *directSound, const DS
                 return DSERR_INVALIDPARAM;
             }
 
-            static bool once{};
-            if(!once)
+            if(static bool once{false}; !once)
             {
                 once = true;
                 ERR(PREFIX "Multi-channel 3D sounds are not spatialized");

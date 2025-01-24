@@ -522,19 +522,19 @@ HRESULT STDMETHODCALLTYPE DSound8OAL::CreateSoundBuffer(const DSBUFFERDESC *buff
     if(bufdesc.dwSize >= sizeof(DSBUFFERDESC))
     {
         TRACE(PREFIX "Requested buffer:\n"
-              "    Size        = {}\n"
-              "    Flags       = 0x{:08x}\n"
-              "    BufferBytes = {}\n"
-              "    3DAlgorithm = {}",
+            "    Size        = {}\n"
+            "    Flags       = 0x{:08x}\n"
+            "    BufferBytes = {}\n"
+            "    3DAlgorithm = {}",
             bufdesc.dwSize, bufdesc.dwFlags, bufdesc.dwBufferBytes,
             Ds3dalgPrinter{bufdesc.guid3DAlgorithm}.c_str());
     }
     else
     {
         TRACE(PREFIX "Requested buffer:\n"
-              "    Size        = {}\n"
-              "    Flags       = 0x{:08x}\n"
-              "    BufferBytes = {}",
+            "    Size        = {}\n"
+            "    Flags       = 0x{:08x}\n"
+            "    BufferBytes = {}",
             bufdesc.dwSize, bufdesc.dwFlags, bufdesc.dwBufferBytes);
     }
 
@@ -549,10 +549,9 @@ HRESULT STDMETHODCALLTYPE DSound8OAL::CreateSoundBuffer(const DSBUFFERDESC *buff
         }
 
         /* DS7 does, though. No idea what it expects to happen. */
-        static int once{0};
-        if(!once)
+        if(static bool once{false}; !once)
         {
-            ++once;
+            once = true;
             FIXME(PREFIX "Buffers with 3D and pan control ignore panning");
         }
     }
