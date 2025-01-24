@@ -74,22 +74,22 @@ std::optional<DWORD> GetSpeakerConfig(IMMDevice *device)
     }
 
     const auto phys_speakers = pv.value<ULONG>();
-    pv.clear();
+    auto match_speakers = [phys_speakers](const ULONG speakers) noexcept
+    { return (phys_speakers&speakers) == speakers; };
 
-#define BIT_MATCH(v, b) (((v)&(b)) == (b))
-    if(BIT_MATCH(phys_speakers, KSAUDIO_SPEAKER_7POINT1))
+    if(match_speakers(KSAUDIO_SPEAKER_7POINT1))
         speakerconf = DSSPEAKER_7POINT1;
-    else if(BIT_MATCH(phys_speakers, KSAUDIO_SPEAKER_7POINT1_SURROUND))
+    else if(match_speakers(KSAUDIO_SPEAKER_7POINT1_SURROUND))
         speakerconf = DSSPEAKER_7POINT1_SURROUND;
-    else if(BIT_MATCH(phys_speakers, KSAUDIO_SPEAKER_5POINT1))
+    else if(match_speakers(KSAUDIO_SPEAKER_5POINT1))
         speakerconf = DSSPEAKER_5POINT1_BACK;
-    else if(BIT_MATCH(phys_speakers, KSAUDIO_SPEAKER_5POINT1_SURROUND))
+    else if(match_speakers(KSAUDIO_SPEAKER_5POINT1_SURROUND))
         speakerconf = DSSPEAKER_5POINT1_SURROUND;
-    else if(BIT_MATCH(phys_speakers, KSAUDIO_SPEAKER_QUAD))
+    else if(match_speakers(KSAUDIO_SPEAKER_QUAD))
         speakerconf = DSSPEAKER_QUAD;
-    else if(BIT_MATCH(phys_speakers, KSAUDIO_SPEAKER_STEREO))
+    else if(match_speakers(KSAUDIO_SPEAKER_STEREO))
         speakerconf = DSSPEAKER_COMBINED(DSSPEAKER_STEREO, DSSPEAKER_GEOMETRY_WIDE);
-    else if(BIT_MATCH(phys_speakers, KSAUDIO_SPEAKER_MONO))
+    else if(match_speakers(KSAUDIO_SPEAKER_MONO))
         speakerconf = DSSPEAKER_MONO;
     else
     {
@@ -97,10 +97,10 @@ std::optional<DWORD> GetSpeakerConfig(IMMDevice *device)
             phys_speakers);
         return speakerconf;
     }
-#undef BIT_MATCH
 
     if(DSSPEAKER_CONFIG(speakerconf) == DSSPEAKER_STEREO)
     {
+        pv.clear();
         hr = ps->GetValue(PKEY_AudioEndpoint_FormFactor, pv.get());
         if(FAILED(hr))
             WARN("GetSpeakerConfig IPropertyStore::GetValue(FormFactor) failed: {:08x}",
