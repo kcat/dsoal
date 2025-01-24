@@ -29,10 +29,11 @@ namespace {
 using voidp = void*;
 using cvoidp = const void*;
 
+#define PREFIX "ConvertFormat "
 ALenum ConvertFormat(WAVEFORMATEXTENSIBLE &dst, const WAVEFORMATEX &src,
     const std::bitset<ExtensionCount> exts) noexcept
 {
-    TRACE("ConvertFormat Requested buffer format:\n"
+    TRACE(PREFIX "Requested buffer format:\n"
           "    FormatTag      = 0x{:04x}\n"
           "    Channels       = {}\n"
           "    SamplesPerSec  = {}\n"
@@ -56,8 +57,7 @@ ALenum ConvertFormat(WAVEFORMATEXTENSIBLE &dst, const WAVEFORMATEX &src,
         case 8: sampleType = UInt8; break;
         case 16: sampleType = Int16; break;
         default:
-            FIXME("ConvertFormat {}-bit integer samples not supported",
-                dst.Format.wBitsPerSample);
+            FIXME(PREFIX "{}-bit integer samples not supported", dst.Format.wBitsPerSample);
             return AL_NONE;
         }
         break;
@@ -66,13 +66,12 @@ ALenum ConvertFormat(WAVEFORMATEXTENSIBLE &dst, const WAVEFORMATEX &src,
             sampleType = Float32;
         else
         {
-            FIXME("ConvertFormat {}-bit floating point samples not supported",
-                dst.Format.wBitsPerSample);
+            FIXME(PREFIX "{}-bit floating point samples not supported", dst.Format.wBitsPerSample);
             return AL_NONE;
         }
         break;
     default:
-        FIXME("ConvertFormat Format 0x{:04x} samples not supported", dst.Format.wFormatTag);
+        FIXME(PREFIX "Format 0x{:04x} samples not supported", dst.Format.wFormatTag);
         return AL_NONE;
     }
 
@@ -101,7 +100,7 @@ ALenum ConvertFormat(WAVEFORMATEXTENSIBLE &dst, const WAVEFORMATEX &src,
         break;
     }
 
-    FIXME("ConvertFormat Could not get OpenAL format (0x{:04x}, {}-bit, {} channels)",
+    FIXME(PREFIX "Could not get OpenAL format (0x{:04x}, {}-bit, {} channels)",
         dst.Format.wFormatTag, dst.Format.wBitsPerSample, dst.Format.nChannels);
     return AL_NONE;
 }
@@ -110,7 +109,7 @@ ALenum ConvertFormat(WAVEFORMATEXTENSIBLE &dst, const WAVEFORMATEXTENSIBLE &src,
     const std::bitset<ExtensionCount> exts) noexcept
 {
     /* NOLINTBEGIN(cppcoreguidelines-pro-type-union-access) */
-    TRACE("ConvertFormat Requested buffer format:\n"
+    TRACE(PREFIX "Requested buffer format:\n"
           "    FormatTag          = 0x{:04x}\n"
           "    Channels           = {}\n"
           "    SamplesPerSec      = {}\n"
@@ -133,7 +132,7 @@ ALenum ConvertFormat(WAVEFORMATEXTENSIBLE &dst, const WAVEFORMATEXTENSIBLE &src,
         dst.Samples.wValidBitsPerSample = dst.Format.wBitsPerSample;
     else if(dst.Samples.wValidBitsPerSample != dst.Format.wBitsPerSample)
     {
-        WARN("ConvertFormat Padded sample formats not supported ({}-bit total, {}-bit valid)",
+        WARN(PREFIX "Padded sample formats not supported ({}-bit total, {}-bit valid)",
             dst.Format.wBitsPerSample, dst.Samples.wValidBitsPerSample);
         return AL_NONE;
     }
@@ -141,7 +140,7 @@ ALenum ConvertFormat(WAVEFORMATEXTENSIBLE &dst, const WAVEFORMATEXTENSIBLE &src,
 
     auto unsupported_format = [dst]
     {
-        FIXME("ConvertFormat Unsupported channel configuration ({} channels, 0x{:08x})",
+        FIXME(PREFIX "Unsupported channel configuration ({} channels, 0x{:08x})",
             dst.Format.nChannels, dst.dwChannelMask);
         return AL_NONE;
     };
@@ -188,8 +187,7 @@ ALenum ConvertFormat(WAVEFORMATEXTENSIBLE &dst, const WAVEFORMATEXTENSIBLE &src,
         case 8: sampleType = UInt8; break;
         case 16: sampleType = Int16; break;
         default:
-            FIXME("ConvertFormat {}-bit integer samples not supported",
-                dst.Format.wBitsPerSample);
+            FIXME(PREFIX "{}-bit integer samples not supported", dst.Format.wBitsPerSample);
             return AL_NONE;
         }
     }
@@ -199,15 +197,13 @@ ALenum ConvertFormat(WAVEFORMATEXTENSIBLE &dst, const WAVEFORMATEXTENSIBLE &src,
             sampleType = Float32;
         else
         {
-            FIXME("ConvertFormat {}-bit floating point samples not supported",
-                dst.Format.wBitsPerSample);
+            FIXME(PREFIX "{}-bit floating point samples not supported", dst.Format.wBitsPerSample);
             return AL_NONE;
         }
     }
     else
     {
-        FIXME("ConvertFormat Unsupported sample subformat {}",
-            FmtidPrinter{dst.SubFormat}.c_str());
+        FIXME(PREFIX "Unsupported sample subformat {}", FmtidPrinter{dst.SubFormat}.c_str());
         return AL_NONE;
     }
 
@@ -248,20 +244,22 @@ ALenum ConvertFormat(WAVEFORMATEXTENSIBLE &dst, const WAVEFORMATEXTENSIBLE &src,
         break;
     }
 
-    FIXME("ConvertFormat Could not get OpenAL format ({}-bit, {} channels, {})",
+    FIXME(PREFIX "Could not get OpenAL format ({}-bit, {} channels, {})",
         dst.Format.wBitsPerSample, dst.Format.nChannels, FmtidPrinter{dst.SubFormat}.c_str());
     return AL_NONE;
 }
+#undef PREFIX
 
 } // namespace
 
-#define PREFIX "SharedBuffer::"
+#define CLASS_PREFIX "SharedBuffer::"
 SharedBuffer::~SharedBuffer()
 {
     if(mAlBuffer != 0)
         alDeleteBuffersDirect(mContext, 1, &mAlBuffer);
 }
 
+#define PREFIX CLASS_PREFIX "Create "
 auto SharedBuffer::Create(ALCcontext *context, const DSBUFFERDESC &bufferDesc,
     const std::bitset<ExtensionCount> exts) noexcept -> ds::expected<ComPtr<SharedBuffer>,HRESULT>
 {
@@ -269,29 +267,28 @@ auto SharedBuffer::Create(ALCcontext *context, const DSBUFFERDESC &bufferDesc,
 
     if(format->nChannels <= 0)
     {
-        WARN(PREFIX "Create Invalid Channels {}", format->nChannels);
+        WARN(PREFIX "Invalid Channels {}", format->nChannels);
         return ds::unexpected(DSERR_INVALIDPARAM);
     }
     if(format->nSamplesPerSec < DSBFREQUENCY_MIN || format->nSamplesPerSec > DSBFREQUENCY_MAX)
     {
-        WARN(PREFIX "Create Invalid SamplesPerSec {}", format->nSamplesPerSec);
+        WARN(PREFIX "Invalid SamplesPerSec {}", format->nSamplesPerSec);
         return ds::unexpected(DSERR_INVALIDPARAM);
     }
     if(format->nBlockAlign <= 0)
     {
-        WARN(PREFIX "Create Invalid BlockAlign {}", format->nBlockAlign);
+        WARN(PREFIX "Invalid BlockAlign {}", format->nBlockAlign);
         return ds::unexpected(DSERR_INVALIDPARAM);
     }
     if(format->wBitsPerSample == 0 || (format->wBitsPerSample%8) != 0)
     {
-        WARN(PREFIX "Create Invalid BitsPerSample {}", format->wBitsPerSample);
+        WARN(PREFIX "Invalid BitsPerSample {}", format->wBitsPerSample);
         return ds::unexpected(DSERR_INVALIDPARAM);
     }
     if(format->nBlockAlign != format->nChannels*format->wBitsPerSample/8)
     {
-        WARN(PREFIX "Create Invalid BlockAlign {} (expected {} = {}*{}/8)",
-             format->nBlockAlign, format->nChannels*format->wBitsPerSample/8,
-             format->nChannels, format->wBitsPerSample);
+        WARN(PREFIX "Invalid BlockAlign {} (expected {} = {}*{}/8)", format->nBlockAlign,
+            format->nChannels*format->wBitsPerSample/8, format->nChannels, format->wBitsPerSample);
         return ds::unexpected(DSERR_INVALIDPARAM);
     }
     /* HACK: Some games provide an incorrect value here and expect to work.
@@ -300,20 +297,20 @@ auto SharedBuffer::Create(ALCcontext *context, const DSBUFFERDESC &bufferDesc,
      */
     if(format->nAvgBytesPerSec == 0)
     {
-        WARN(PREFIX "Create Invalid AvgBytesPerSec {} (expected {} = {}*{})",
-            format->nAvgBytesPerSec, format->nSamplesPerSec*format->nBlockAlign,
-            format->nSamplesPerSec, format->nBlockAlign);
+        WARN(PREFIX "Invalid AvgBytesPerSec {} (expected {} = {}*{})", format->nAvgBytesPerSec,
+            format->nSamplesPerSec*format->nBlockAlign, format->nSamplesPerSec,
+            format->nBlockAlign);
         return ds::unexpected(DSERR_INVALIDPARAM);
     }
     if(format->nAvgBytesPerSec != format->nBlockAlign*format->nSamplesPerSec)
-        WARN(PREFIX "Create Unexpected AvgBytesPerSec {} (expected {} = {}*{})",
-            format->nAvgBytesPerSec, format->nSamplesPerSec*format->nBlockAlign,
-            format->nSamplesPerSec, format->nBlockAlign);
+        WARN(PREFIX "Unexpected AvgBytesPerSec {} (expected {} = {}*{})", format->nAvgBytesPerSec,
+            format->nSamplesPerSec*format->nBlockAlign, format->nSamplesPerSec,
+            format->nBlockAlign);
 
     static constexpr DWORD LocFlags{DSBCAPS_LOCSOFTWARE | DSBCAPS_LOCHARDWARE};
     if((bufferDesc.dwFlags&LocFlags) == LocFlags)
     {
-        WARN(PREFIX "Create Hardware and software location requested");
+        WARN(PREFIX "Hardware and software location requested");
         return ds::unexpected(DSERR_INVALIDPARAM);
     }
 
@@ -339,7 +336,7 @@ auto SharedBuffer::Create(ALCcontext *context, const DSBUFFERDESC &bufferDesc,
         static constexpr WORD ExtExtraSize{sizeof(WAVEFORMATEXTENSIBLE) - sizeof(WAVEFORMATEX)};
         if(format->cbSize < ExtExtraSize)
         {
-            WARN(PREFIX "Create EXTENSIBLE size too small ({}, expected {})", format->cbSize,
+            WARN(PREFIX "EXTENSIBLE size too small ({}, expected {})", format->cbSize,
                 ExtExtraSize);
             return ds::unexpected(DSERR_INVALIDPARAM);
         }
@@ -360,6 +357,7 @@ auto SharedBuffer::Create(ALCcontext *context, const DSBUFFERDESC &bufferDesc,
     return shared;
 }
 #undef PREFIX
+#undef CLASS_PREFIX
 
 #define CLASS_PREFIX "Buffer::"
 Buffer::Buffer(DSound8OAL &parent, bool is8, IDirectSoundBuffer *original) noexcept
