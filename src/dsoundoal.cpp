@@ -42,10 +42,10 @@ constexpr auto CapNames = std::array{
     "DSBCAPS_CTRLVOLUME"sv,         // 0x00000080
     "DSBCAPS_CTRLPOSITIONNOTIFY"sv, // 0x00000100
     "DSBCAPS_CTRLFX"sv,             // 0x00000200
-    ""sv,                           // 0x00000400
-    ""sv,                           // 0x00000800
-    ""sv,                           // 0x00001000
-    ""sv,                           // 0x00002000
+    "0x400"sv,                      // 0x00000400
+    "0x800"sv,                      // 0x00000800
+    "0x1000"sv,                     // 0x00001000
+    "0x2000"sv,                     // 0x00002000
     "DSBCAPS_STICKYFOCUS"sv,        // 0x00004000
     "DSBCAPS_GLOBALFOCUS"sv,        // 0x00008000
     "DSBCAPS_GETCURRENTPOSITION2"sv,// 0x00010000
