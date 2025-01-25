@@ -5,6 +5,7 @@
 #include <functional>
 #include <memory>
 #include <optional>
+#include <string_view>
 
 #include <ks.h>
 #include <ksmedia.h>
@@ -27,6 +28,62 @@ using voidp = void*;
 using cvoidp = const void*;
 
 using SubListAllocator = std::allocator<std::array<Buffer,64>>;
+
+using namespace std::string_view_literals;
+
+constexpr auto CapNames = std::array{
+    "DSBCAPS_PRIMARYBUFFER"sv,      // 0x00000001
+    "DSBCAPS_STATIC"sv,             // 0x00000002
+    "DSBCAPS_LOCHARDWARE"sv,        // 0x00000004
+    "DSBCAPS_LOCSOFTWARE"sv,        // 0x00000008
+    "DSBCAPS_CTRL3D"sv,             // 0x00000010
+    "DSBCAPS_CTRLFREQUENCY"sv,      // 0x00000020
+    "DSBCAPS_CTRLPAN"sv,            // 0x00000040
+    "DSBCAPS_CTRLVOLUME"sv,         // 0x00000080
+    "DSBCAPS_CTRLPOSITIONNOTIFY"sv, // 0x00000100
+    "DSBCAPS_CTRLFX"sv,             // 0x00000200
+    ""sv,                           // 0x00000400
+    ""sv,                           // 0x00000800
+    ""sv,                           // 0x00001000
+    ""sv,                           // 0x00002000
+    "DSBCAPS_STICKYFOCUS"sv,        // 0x00004000
+    "DSBCAPS_GLOBALFOCUS"sv,        // 0x00008000
+    "DSBCAPS_GETCURRENTPOSITION2"sv,// 0x00010000
+    "DSBCAPS_MUTE3DATMAXDISTANCE"sv,// 0x00020000
+    "DSBCAPS_LOCDEFER"sv,           // 0x00040000
+};
+
+auto GetDSBCapsString(DWORD flags) -> std::string
+{
+    auto ret = std::string{};
+    ret.reserve(256);
+
+    auto first = true;
+    for(size_t idx{0};idx < CapNames.size();++idx)
+    {
+        const auto flag = DWORD{1} << idx;
+        if(flag > flags)
+            break;
+        if(!(flags&flag))
+            continue;
+        flags &= ~flag;
+
+        if(first)
+            first = false;
+        else
+            ret += " | ";
+        ret += CapNames[idx];
+    }
+
+    if(ret.empty() || flags != 0)
+    {
+        if(!ret.empty())
+            ret += " | ";
+        ret += fmt::format("{:#x}", flags);
+    }
+
+    return ret;
+}
 
 
 template<typename T>
@@ -523,19 +580,19 @@ HRESULT STDMETHODCALLTYPE DSound8OAL::CreateSoundBuffer(const DSBUFFERDESC *buff
     {
         TRACE(PREFIX "Requested buffer:\n"
             "    Size        = {}\n"
-            "    Flags       = 0x{:08x}\n"
+            "    Flags       = {}\n"
             "    BufferBytes = {}\n"
             "    3DAlgorithm = {}",
-            bufdesc.dwSize, bufdesc.dwFlags, bufdesc.dwBufferBytes,
+            bufdesc.dwSize, GetDSBCapsString(bufdesc.dwFlags), bufdesc.dwBufferBytes,
             Ds3dalgPrinter{bufdesc.guid3DAlgorithm}.c_str());
     }
     else
     {
         TRACE(PREFIX "Requested buffer:\n"
             "    Size        = {}\n"
-            "    Flags       = 0x{:08x}\n"
+            "    Flags       = {}\n"
             "    BufferBytes = {}",
-            bufdesc.dwSize, bufdesc.dwFlags, bufdesc.dwBufferBytes);
+            bufdesc.dwSize, GetDSBCapsString(bufdesc.dwFlags), bufdesc.dwBufferBytes);
     }
 
     /* OpenAL doesn't support playing with 3d and panning at same time. */
