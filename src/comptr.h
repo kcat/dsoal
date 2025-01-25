@@ -89,10 +89,10 @@ public:
 
     out_ptr_t& operator=(const out_ptr_t&) = delete;
 
-    operator PT*() noexcept /* NOLINT(google-explicit-constructor) */
+    operator PT*() && noexcept /* NOLINT(google-explicit-constructor) */
     { return &std::get<PT>(mPtr); }
 
-    operator void**() noexcept /* NOLINT(google-explicit-constructor) */
+    operator void**() && noexcept /* NOLINT(google-explicit-constructor) */
     {
         mPtr.template emplace<void*>();
         return &std::get<void*>(mPtr);
