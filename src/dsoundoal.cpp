@@ -369,7 +369,7 @@ BufferSubList::~BufferSubList()
     uint64_t usemask{~mFreeMask};
     while(usemask)
     {
-        auto idx = int{ds::countr_zero(usemask)};
+        auto idx = ds::countr_zero(usemask);
         std::destroy_at(std::to_address(mBuffers->begin() + idx));
         usemask &= ~(1_u64 << idx);
     }
