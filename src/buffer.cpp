@@ -138,7 +138,7 @@ ALenum ConvertFormat(WAVEFORMATEXTENSIBLE &dst, const WAVEFORMATEXTENSIBLE &src,
     }
     /* NOLINTEND(cppcoreguidelines-pro-type-union-access) */
 
-    auto unsupported_format = [dst]
+    auto unsupported_format = [&dst]
     {
         FIXME(PREFIX "Unsupported channel configuration ({} channels, 0x{:08x})",
             dst.Format.nChannels, dst.dwChannelMask);
