@@ -148,31 +148,49 @@ ALenum ConvertFormat(WAVEFORMATEXTENSIBLE &dst, const WAVEFORMATEXTENSIBLE &src,
     switch(dst.dwChannelMask)
     {
     case KSAUDIO_SPEAKER_MONO:
-        if(dst.Format.nChannels == 1) channelConfig = Mono;
-        else return unsupported_format();
+        switch(dst.Format.nChannels)
+        {
+        case 1: channelConfig = Mono; break;
+        default: return unsupported_format();
+        }
         break;
     case KSAUDIO_SPEAKER_STEREO:
-        if(dst.Format.nChannels == 2) channelConfig = Stereo;
-        else return unsupported_format();
+        switch(dst.Format.nChannels)
+        {
+        case 2: channelConfig = Stereo; break;
+        default: return unsupported_format();
+        }
         break;
     case KSAUDIO_SPEAKER_QUAD:
-        if(dst.Format.nChannels == 4) channelConfig = Quad;
-        else return unsupported_format();
+        switch(dst.Format.nChannels)
+        {
+        case 4: channelConfig = Quad; break;
+        default: return unsupported_format();
+        }
         break;
     case KSAUDIO_SPEAKER_5POINT1_BACK:
     case KSAUDIO_SPEAKER_5POINT1_SURROUND:
-        if(dst.Format.nChannels == 6) channelConfig = X51;
-        else return unsupported_format();
+        switch(dst.Format.nChannels)
+        {
+        case 6: channelConfig = X51; break;
+        default: return unsupported_format();
+        }
         break;
     case KSAUDIO_SPEAKER_7POINT1_SURROUND:
-        if(dst.Format.nChannels == 8) channelConfig = X71;
-        else return unsupported_format();
+        switch(dst.Format.nChannels)
+        {
+        case 8: channelConfig = X71; break;
+        default: return unsupported_format();
+        }
         break;
 
     case 0:
-        if(dst.Format.nChannels == 1) channelConfig = Mono;
-        else if(dst.Format.nChannels == 2) channelConfig = Stereo;
-        else return unsupported_format();
+        switch(dst.Format.nChannels)
+        {
+        case 1: channelConfig = Mono; break;
+        case 2: channelConfig = Stereo; break;
+        default: return unsupported_format();
+        }
         break;
 
     default:
@@ -214,9 +232,18 @@ ALenum ConvertFormat(WAVEFORMATEXTENSIBLE &dst, const WAVEFORMATEXTENSIBLE &src,
         {
         case Mono: return AL_FORMAT_MONO8;
         case Stereo: return AL_FORMAT_STEREO8;
-        case Quad: if(exts.test(EXT_MCFORMATS)) return AL_FORMAT_QUAD8; break;
-        case X51: if(exts.test(EXT_MCFORMATS)) return AL_FORMAT_51CHN8; break;
-        case X71: if(exts.test(EXT_MCFORMATS)) return AL_FORMAT_71CHN8; break;
+        case Quad:
+            if(exts.test(EXT_MCFORMATS))
+                return AL_FORMAT_QUAD8;
+            break;
+        case X51:
+            if(exts.test(EXT_MCFORMATS))
+                return AL_FORMAT_51CHN8;
+            break;
+        case X71:
+            if(exts.test(EXT_MCFORMATS))
+                return AL_FORMAT_71CHN8;
+            break;
         }
         break;
     case Int16:
@@ -224,9 +251,18 @@ ALenum ConvertFormat(WAVEFORMATEXTENSIBLE &dst, const WAVEFORMATEXTENSIBLE &src,
         {
         case Mono: return AL_FORMAT_MONO16;
         case Stereo: return AL_FORMAT_STEREO16;
-        case Quad: if(exts.test(EXT_MCFORMATS)) return AL_FORMAT_QUAD16; break;
-        case X51: if(exts.test(EXT_MCFORMATS)) return AL_FORMAT_51CHN16; break;
-        case X71: if(exts.test(EXT_MCFORMATS)) return AL_FORMAT_71CHN16; break;
+        case Quad:
+            if(exts.test(EXT_MCFORMATS))
+                return AL_FORMAT_QUAD16;
+            break;
+        case X51:
+            if(exts.test(EXT_MCFORMATS))
+                return AL_FORMAT_51CHN16;
+            break;
+        case X71:
+            if(exts.test(EXT_MCFORMATS))
+                return AL_FORMAT_71CHN16;
+            break;
         }
         break;
     case Float32:
@@ -236,9 +272,18 @@ ALenum ConvertFormat(WAVEFORMATEXTENSIBLE &dst, const WAVEFORMATEXTENSIBLE &src,
             {
             case Mono: return AL_FORMAT_MONO_FLOAT32;
             case Stereo: return AL_FORMAT_STEREO_FLOAT32;
-            case Quad: if(exts.test(EXT_MCFORMATS)) return AL_FORMAT_QUAD32; break;
-            case X51: if(exts.test(EXT_MCFORMATS)) return AL_FORMAT_51CHN32; break;
-            case X71: if(exts.test(EXT_MCFORMATS)) return AL_FORMAT_71CHN32; break;
+            case Quad:
+                if(exts.test(EXT_MCFORMATS))
+                    return AL_FORMAT_QUAD32;
+                break;
+            case X51:
+                if(exts.test(EXT_MCFORMATS))
+                    return AL_FORMAT_51CHN32;
+                break;
+            case X71:
+                if(exts.test(EXT_MCFORMATS))
+                    return AL_FORMAT_71CHN32;
+                break;
             }
         }
         break;
