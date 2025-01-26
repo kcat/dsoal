@@ -93,10 +93,7 @@ public:
     { return &std::get<PT>(mPtr); }
 
     operator void**() && noexcept /* NOLINT(google-explicit-constructor) */
-    {
-        mPtr.template emplace<void*>();
-        return &std::get<void*>(mPtr);
-    }
+    { return &mPtr.template emplace<void*>(); }
 };
 
 template<typename T=void, typename SP, typename ...Args>
