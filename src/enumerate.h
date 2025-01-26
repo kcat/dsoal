@@ -21,7 +21,7 @@ inline constexpr WCHAR primary_desc[] = L"Primary Sound Driver"; /* NOLINT(*-avo
 ComPtr<IMMDevice> GetMMDevice(ComWrapper&, EDataFlow flow, const GUID &id);
 
 template<typename T>
-HRESULT enumerate_mmdev(const EDataFlow flow, std::deque<GUID> &devlist, T cb)
+HRESULT enumerate_mmdev(const EDataFlow flow, std::deque<GUID> &devlist, T&& cb)
 {
     ComWrapper com;
 
