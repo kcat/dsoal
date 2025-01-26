@@ -214,21 +214,25 @@ HRESULT STDMETHODCALLTYPE DSCBuffer::QueryInterface(REFIID riid, void **ppvObjec
 }
 #undef PREFIX
 
+#define PREFIX CLASS_PREFIX "AddRef "
 ULONG STDMETHODCALLTYPE DSCBuffer::AddRef() noexcept
 {
     mTotalRef.fetch_add(1u, std::memory_order_relaxed);
     const auto ret = mDsRef.fetch_add(1u, std::memory_order_relaxed) + 1;
-    DEBUG(CLASS_PREFIX "AddRef ({}) ref {}", voidp{this}, ret);
+    DEBUG(PREFIX "({}) ref {}", voidp{this}, ret);
     return ret;
 }
+#undef PREFIX
 
+#define PREFIX CLASS_PREFIX "Release "
 ULONG STDMETHODCALLTYPE DSCBuffer::Release() noexcept
 {
     const auto ret = mDsRef.fetch_sub(1u, std::memory_order_relaxed) - 1;
-    DEBUG(CLASS_PREFIX "Release ({}) ref {}", voidp{this}, ret);
+    DEBUG(PREFIX "({}) ref {}", voidp{this}, ret);
     finalize();
     return ret;
 }
+#undef PREFIX
 
 #define PREFIX CLASS_PREFIX "GetCaps "
 HRESULT STDMETHODCALLTYPE DSCBuffer::GetCaps(LPDSCBCAPS lpDSCBCaps) noexcept
@@ -506,7 +510,7 @@ HRESULT STDMETHODCALLTYPE DSCBuffer::Initialize(LPDIRECTSOUNDCAPTURE lpDSC,
     }
     else
     {
-        WARN("Unhandled formattag %x\n", format->wFormatTag);
+        WARN(PREFIX "Unhandled formattag %x\n", format->wFormatTag);
         return DSERR_BADFORMAT;
     }
 
@@ -520,7 +524,7 @@ HRESULT STDMETHODCALLTYPE DSCBuffer::Initialize(LPDIRECTSOUNDCAPTURE lpDSC,
         || lpcDSCBDesc->dwBufferBytes > DWORD{std::numeric_limits<ALCsizei>::max()}
         || (lpcDSCBDesc->dwBufferBytes%mWaveFmt.Format.nBlockAlign) != 0)
     {
-        WARN("Invalid BufferBytes ({} % {})", lpcDSCBDesc->dwBufferBytes,
+        WARN(PREFIX "Invalid BufferBytes ({} % {})", lpcDSCBDesc->dwBufferBytes,
              mWaveFmt.Format.nBlockAlign);
         return DSERR_INVALIDPARAM;
     }
@@ -721,23 +725,27 @@ HRESULT STDMETHODCALLTYPE DSCBuffer::GetFXStatus(DWORD dwFXCount, LPDWORD pdwFXS
 HRESULT STDMETHODCALLTYPE DSCBuffer::Notify::QueryInterface(REFIID riid, void** ppvObject) noexcept
 { return impl_from_base()->QueryInterface(riid, ppvObject); }
 
+#define PREFIX CLASS_PREFIX "AddRef "
 ULONG STDMETHODCALLTYPE DSCBuffer::Notify::AddRef() noexcept
 {
     auto *self = impl_from_base();
     self->mTotalRef.fetch_add(1u, std::memory_order_relaxed);
     const auto ret = self->mNotRef.fetch_add(1u, std::memory_order_relaxed) + 1;
-    DEBUG(CLASS_PREFIX "AddRef ({}) ref {}", voidp{this}, ret);
+    DEBUG(PREFIX "({}) ref {}", voidp{this}, ret);
     return ret;
 }
+#undef PREFIX
 
+#define PREFIX CLASS_PREFIX "Release "
 ULONG STDMETHODCALLTYPE DSCBuffer::Notify::Release() noexcept
 {
     auto *self = impl_from_base();
     const auto ret = self->mNotRef.fetch_sub(1u, std::memory_order_relaxed) - 1;
-    DEBUG(CLASS_PREFIX "Release ({}) ref {}", voidp{this}, ret);
+    DEBUG(PREFIX "({}) ref {}", voidp{this}, ret);
     self->finalize();
     return ret;
 }
+#undef PREFIX
 
 #define PREFIX CLASS_PREFIX "SetNotificationPositions "
 HRESULT STDMETHODCALLTYPE DSCBuffer::Notify::SetNotificationPositions(DWORD numNotifies,
