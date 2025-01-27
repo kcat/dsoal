@@ -20,6 +20,7 @@ inline constexpr WCHAR primary_desc[] = L"Primary Sound Driver"; /* NOLINT(*-avo
 
 ComPtr<IMMDevice> GetMMDevice(ComWrapper&, EDataFlow flow, const GUID &id);
 
+#define PREFIX "enumerate_mmdev "
 template<typename T>
 HRESULT enumerate_mmdev(const EDataFlow flow, std::deque<GUID> &devlist, T&& cb)
 {
@@ -30,7 +31,7 @@ HRESULT enumerate_mmdev(const EDataFlow flow, std::deque<GUID> &devlist, T&& cb)
         IID_IMMDeviceEnumerator, ds::out_ptr(devenum))};
     if(FAILED(hr))
     {
-        ERR("enumerate_mmdev CoCreateInstance failed: {:08x}", as_unsigned(hr));
+        ERR(PREFIX "CoCreateInstance failed: {:08x}", as_unsigned(hr));
         return hr;
     }
 
@@ -38,8 +39,7 @@ HRESULT enumerate_mmdev(const EDataFlow flow, std::deque<GUID> &devlist, T&& cb)
     hr = devenum->EnumAudioEndpoints(flow, DEVICE_STATE_ACTIVE, ds::out_ptr(coll));
     if(FAILED(hr))
     {
-        WARN("enumerate_mmdev IMMDeviceEnumerator::EnumAudioEndpoints failed: {:08x}",
-            as_unsigned(hr));
+        WARN(PREFIX "IMMDeviceEnumerator::EnumAudioEndpoints failed: {:08x}", as_unsigned(hr));
         return DS_OK;
     }
 
@@ -47,7 +47,7 @@ HRESULT enumerate_mmdev(const EDataFlow flow, std::deque<GUID> &devlist, T&& cb)
     hr = coll->GetCount(&count);
     if(FAILED(hr))
     {
-        WARN("enumerate_mmdev IMMDeviceCollection::GetCount failed: {:08x}", as_unsigned(hr));
+        WARN(PREFIX "IMMDeviceCollection::GetCount failed: {:08x}", as_unsigned(hr));
         return DS_OK;
     }
 
@@ -56,8 +56,8 @@ HRESULT enumerate_mmdev(const EDataFlow flow, std::deque<GUID> &devlist, T&& cb)
 
     std::deque<GUID>{}.swap(devlist);
 
-    TRACE("enumerate_mmdev Calling back with NULL ({})", wstr_to_utf8(std::data(primary_desc)));
-    bool keep_going{cb(nullptr, primary_desc, L"")};
+    TRACE(PREFIX "Calling back with NULL ({})", wstr_to_utf8(std::data(primary_desc)));
+    auto keep_going = bool{cb(nullptr, primary_desc, L"")};
 
     auto send_device = [&devlist,&cb,&keep_going](IMMDevice *device)
     {
@@ -65,7 +65,7 @@ HRESULT enumerate_mmdev(const EDataFlow flow, std::deque<GUID> &devlist, T&& cb)
         HRESULT hr2{device->OpenPropertyStore(STGM_READ, ds::out_ptr(ps))};
         if(FAILED(hr2))
         {
-            WARN("send_device IMMDevice::OpenPropertyStore failed: {:08x}", as_unsigned(hr2));
+            WARN(PREFIX "IMMDevice::OpenPropertyStore failed: {:08x}", as_unsigned(hr2));
             return;
         }
 
@@ -73,7 +73,7 @@ HRESULT enumerate_mmdev(const EDataFlow flow, std::deque<GUID> &devlist, T&& cb)
         hr2 = ps->GetValue(PKEY_AudioEndpoint_GUID, pv.get());
         if(FAILED(hr2) || pv.type() != VT_LPWSTR)
         {
-            WARN("send_device IPropertyStore::GetValue(GUID) failed: {:08x}", as_unsigned(hr2));
+            WARN(PREFIX "IPropertyStore::GetValue(GUID) failed: {:08x}", as_unsigned(hr2));
             return;
         }
 
@@ -90,12 +90,11 @@ HRESULT enumerate_mmdev(const EDataFlow flow, std::deque<GUID> &devlist, T&& cb)
         hr2 = ps->GetValue(std::bit_cast<PROPERTYKEY>(DEVPKEY_Device_FriendlyName), pv.get());
         if(FAILED(hr2))
         {
-            WARN("send_device IPropertyStore::GetValue(FriendlyName) failed: {:08x}",
-                as_unsigned(hr2));
+            WARN(PREFIX "IPropertyStore::GetValue(FriendlyName) failed: {:08x}", as_unsigned(hr2));
             return;
         }
 
-        TRACE("send_device Calling back with {} - {}", GuidPrinter{devlist.back()}.c_str(),
+        TRACE(PREFIX "Calling back with {} - {}", GuidPrinter{devlist.back()}.c_str(),
             wstr_to_utf8(pv.value<const WCHAR*>()));
         keep_going = cb(&devlist.back(), pv.value<const WCHAR*>(), std::data(aldriver_name));
     };
@@ -110,7 +109,7 @@ HRESULT enumerate_mmdev(const EDataFlow flow, std::deque<GUID> &devlist, T&& cb)
         hr = coll->Item(i, ds::out_ptr(device));
         if(FAILED(hr))
         {
-            WARN("enumerate_mmdev IMMDeviceCollection::Item failed: {:08x}", as_unsigned(hr));
+            WARN(PREFIX "IMMDeviceCollection::Item failed: {:08x}", as_unsigned(hr));
             continue;
         }
 
@@ -119,5 +118,6 @@ HRESULT enumerate_mmdev(const EDataFlow flow, std::deque<GUID> &devlist, T&& cb)
 
     return keep_going ? S_OK : S_FALSE;
 }
+#undef PREFIX
 
 #endif // ENUMERATE_H
