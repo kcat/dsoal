@@ -189,6 +189,9 @@ ALenum ConvertFormat(WAVEFORMATEXTENSIBLE &dst, const WAVEFORMATEXTENSIBLE &src,
         {
         case 1: channelConfig = Mono; break;
         case 2: channelConfig = Stereo; break;
+        case 4: channelConfig = Quad; break;
+        case 6: channelConfig = X51; break;
+        case 8: channelConfig = X71; break;
         default: return unsupported_format();
         }
         break;
