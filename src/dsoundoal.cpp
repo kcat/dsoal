@@ -595,27 +595,14 @@ HRESULT STDMETHODCALLTYPE DSound8OAL::CreateSoundBuffer(const DSBUFFERDESC *buff
             bufdesc.dwSize, GetDSBCapsString(bufdesc.dwFlags), bufdesc.dwBufferBytes);
     }
 
-    /* OpenAL doesn't support playing with 3d and panning at same time. */
-    if((bufdesc.dwFlags&(DSBCAPS_CTRL3D|DSBCAPS_CTRLPAN)) == (DSBCAPS_CTRL3D|DSBCAPS_CTRLPAN))
-    {
-        /* Neither does DirectSound 8. */
-        if(mIs8)
-        {
-            WARN(PREFIX "Cannot create buffers with 3D and pan control");
-            return DSERR_INVALIDPARAM;
-        }
-
-        /* DS7 does, though. No idea what it expects to happen. */
-        if(static bool once{false}; !once)
-        {
-            once = true;
-            FIXME(PREFIX "Buffers with 3D and pan control ignore panning");
-        }
-    }
-
     HRESULT hr{E_FAIL};
     if((bufdesc.dwFlags&DSBCAPS_PRIMARYBUFFER))
     {
+        /* NOTE: Primary buffers seem to allow simultaneous 3D and panning
+         * control. Presumably because it's not a positional playback buffer
+         * itself (outside of WRITEPRIMARY) and just modifies secondary buffers
+         * as appropriate.
+         */
         hr = DS_OK;
         if(mPrimaryBuffer.AddRef() == 1)
         {
@@ -628,8 +615,25 @@ HRESULT STDMETHODCALLTYPE DSound8OAL::CreateSoundBuffer(const DSBUFFERDESC *buff
     }
     else
     {
-        ComPtr<Buffer> buffer{createSecondaryBuffer()};
+        /* OpenAL doesn't support playing with 3D and panning at same time. */
+        if((bufdesc.dwFlags&(DSBCAPS_CTRL3D|DSBCAPS_CTRLPAN)) == (DSBCAPS_CTRL3D|DSBCAPS_CTRLPAN))
+        {
+            /* Neither does DirectSound 8. */
+            if(mIs8)
+            {
+                WARN(PREFIX "Cannot create secondary buffers with 3D and pan control");
+                return DSERR_INVALIDPARAM;
+            }
 
+            /* DS7 does, though. No idea what it expects to happen. */
+            if(static bool once{false}; !once)
+            {
+                once = true;
+                FIXME(PREFIX "Secondary buffers with 3D and pan control ignore panning");
+            }
+        }
+
+        ComPtr<Buffer> buffer{createSecondaryBuffer()};
         hr = buffer->Initialize(as<IDirectSound*>(), &bufdesc);
         if(SUCCEEDED(hr))
             *dsBuffer = buffer.release()->as<IDirectSoundBuffer*>();
