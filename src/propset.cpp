@@ -31,6 +31,24 @@ WCHAR *strdupW(const std::wstring_view str)
     return static_cast<WCHAR*>(ret);
 }
 
+void DSPROPERTY_descWto1(const DSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_W_DATA *dataW,
+    DSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_1_DATA *data1)
+{
+    data1->DeviceId = dataW->DeviceId;
+    lstrcpynW(std::data(data1->ModuleW), dataW->Module, std::size(data1->ModuleW));
+    lstrcpynW(std::data(data1->DescriptionW), dataW->Description, std::size(data1->DescriptionW));
+    WideCharToMultiByte(CP_ACP, 0, std::data(data1->DescriptionW), -1,
+        std::data(data1->DescriptionA), sizeof(data1->DescriptionA)-1, nullptr, nullptr);
+    WideCharToMultiByte(CP_ACP, 0, std::data(data1->ModuleW), -1, std::data(data1->ModuleA),
+        sizeof(data1->ModuleA)-1, nullptr, nullptr);
+    data1->DescriptionA[sizeof(data1->DescriptionA)-1] = 0;
+    data1->ModuleA[sizeof(data1->ModuleA)-1] = 0;
+    data1->Type = dataW->Type;
+    data1->DataFlow = dataW->DataFlow;
+    data1->WaveDeviceId = dataW->WaveDeviceId;
+    data1->Devnode = dataW->WaveDeviceId;
+}
+
 
 #define PREFIX "DSPROPERTY_WaveDeviceMappingW "
 HRESULT DSPROPERTY_WaveDeviceMappingW(void *pPropData, ULONG cbPropData, ULONG *pcbReturned)
@@ -137,8 +155,38 @@ HRESULT DSPROPERTY_DescriptionW(void *pPropData, ULONG cbPropData, ULONG *pcbRet
 }
 #undef PREFIX
 
+auto DSPROPERTY_Description1(void *pPropData, ULONG cbPropData, ULONG *pcbReturned) -> HRESULT
+{
+    if(cbPropData < sizeof(DSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_1_DATA))
+        return E_INVALIDARG;
+
+    if(!pPropData)
+    {
+        *pcbReturned = 0;
+        return S_OK;
+    }
+
+    auto *ppd = static_cast<DSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_1_DATA*>(pPropData);
+    auto data = DSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_W_DATA{};
+    auto retsize = ULONG{};
+
+    data.DeviceId = ppd->DeviceId;
+    data.DataFlow = ppd->DataFlow;
+    const auto hr = DSPROPERTY_DescriptionW(&data, sizeof(data), &retsize);
+    if(FAILED(hr)) return hr;
+
+    DSPROPERTY_descWto1(&data, ppd);
+    HeapFree(GetProcessHeap(), 0, data.Description);
+    HeapFree(GetProcessHeap(), 0, data.Module);
+    HeapFree(GetProcessHeap(), 0, data.Interface);
+
+    *pcbReturned = sizeof(*ppd);
+    return hr;
+}
+
+
 #define PREFIX "DSPROPERTY_EnumerateW "
-HRESULT DSPROPERTY_EnumerateW(void *pPropData, ULONG cbPropData, ULONG*)
+HRESULT DSPROPERTY_EnumerateW(void *pPropData, ULONG cbPropData, ULONG *pcbReturned)
 {
     auto ppd = static_cast<DSPROPERTY_DIRECTSOUNDDEVICE_ENUMERATE_W_DATA*>(pPropData);
 
@@ -148,6 +196,8 @@ HRESULT DSPROPERTY_EnumerateW(void *pPropData, ULONG cbPropData, ULONG*)
         WARN(PREFIX "Invalid ppd {}, {}", voidp{ppd}, cbPropData);
         return E_PROP_ID_UNSUPPORTED;
     }
+
+    *pcbReturned = 0;
 
     auto enum_render = [ppd](const GUID *guid, const WCHAR *devname, const WCHAR *drvname) -> bool
     {
@@ -280,8 +330,6 @@ HRESULT STDMETHODCALLTYPE DSPrivatePropertySet::Get(REFGUID guidPropSet, ULONG d
 #if 0
         case DSPROPERTY_DIRECTSOUNDDEVICE_WAVEDEVICEMAPPING_A:
             return DSPROPERTY_WaveDeviceMappingA(pPropData, cbPropData, pcbReturned);
-        case DSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_1:
-            return DSPROPERTY_Description1(pPropData, cbPropData, pcbReturned);
         case DSPROPERTY_DIRECTSOUNDDEVICE_ENUMERATE_1:
             return DSPROPERTY_Enumerate1(pPropData, cbPropData, pcbReturned);
         case DSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_A:
@@ -289,6 +337,8 @@ HRESULT STDMETHODCALLTYPE DSPrivatePropertySet::Get(REFGUID guidPropSet, ULONG d
         case DSPROPERTY_DIRECTSOUNDDEVICE_ENUMERATE_A:
             return DSPROPERTY_EnumerateA(pPropData, cbPropData, pcbReturned);
 #endif
+        case DSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_1:
+            return DSPROPERTY_Description1(pPropData, cbPropData, pcbReturned);
         case DSPROPERTY_DIRECTSOUNDDEVICE_WAVEDEVICEMAPPING_W:
             return DSPROPERTY_WaveDeviceMappingW(pPropData, cbPropData, pcbReturned);
         case DSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_W:
@@ -335,11 +385,11 @@ HRESULT STDMETHODCALLTYPE DSPrivatePropertySet::QuerySupport(REFGUID guidPropSet
         {
 #if 0
         case DSPROPERTY_DIRECTSOUNDDEVICE_WAVEDEVICEMAPPING_A:
-        case DSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_1:
         case DSPROPERTY_DIRECTSOUNDDEVICE_ENUMERATE_1:
         case DSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_A:
         case DSPROPERTY_DIRECTSOUNDDEVICE_ENUMERATE_A:
 #endif
+        case DSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_1:
         case DSPROPERTY_DIRECTSOUNDDEVICE_WAVEDEVICEMAPPING_W:
         case DSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_W:
         case DSPROPERTY_DIRECTSOUNDDEVICE_ENUMERATE_W:
