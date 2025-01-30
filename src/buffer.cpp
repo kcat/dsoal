@@ -532,18 +532,24 @@ HRESULT Buffer::setLocation(LocStatus locStatus) noexcept
 
     /* If we have a source, we're changing location, so return the source we
      * have to get a new one.
+     *
+     * HACK: If we have a source and don't have a location marked, we got an
+     * unmarked one and just need to set the location and initialize it.
      */
-    if(const auto srcid = std::exchange(mSource, 0))
+    if(mLocStatus != LocStatus::None)
     {
-        alDeleteSourcesDirect(mContext, 1, &srcid);
-        alGetErrorDirect(mContext);
+        if(const auto srcid = std::exchange(mSource, 0))
+        {
+            alDeleteSourcesDirect(mContext, 1, &srcid);
+            alGetErrorDirect(mContext);
 
-        if(mLocStatus == LocStatus::Hardware)
-            mParent.getShared().decHwSources();
-        else
-            mParent.getShared().decSwSources();
+            if(mLocStatus == LocStatus::Hardware)
+                mParent.getShared().decHwSources();
+            else if(mLocStatus == LocStatus::Software)
+                mParent.getShared().decSwSources();
+        }
+        mLocStatus = LocStatus::None;
     }
-    mLocStatus = LocStatus::None;
 
     bool ok{false};
     if(locStatus != LocStatus::Software)
@@ -565,7 +571,8 @@ HRESULT Buffer::setLocation(LocStatus locStatus) noexcept
         return DSERR_ALLOCATED;
     }
 
-    alGenSourcesDirect(mContext, 1, &mSource);
+    if(mSource == 0)
+        alGenSourcesDirect(mContext, 1, &mSource);
     alSourcefDirect(mContext, mSource, AL_GAIN, mB_to_gain(mVolume));
     alSourcefDirect(mContext, mSource, AL_PITCH, (mFrequency == 0) ? 1.0f :
         static_cast<float>(mFrequency)/static_cast<float>(mBuffer->mWfxFormat.Format.nSamplesPerSec));
@@ -2126,15 +2133,51 @@ HRESULT STDMETHODCALLTYPE Buffer::Prop::Set(REFGUID guidPropSet, ULONG dwPropID,
     if(guidPropSet == EAXPROPERTYID_EAX40_Source
         || guidPropSet == DSPROPSETID_EAX30_BufferProperties
         || guidPropSet == DSPROPSETID_EAX20_BufferProperties
-        || guidPropSet == EAXPROPERTYID_EAX40_FXSlot0
+        || guidPropSet == DSPROPSETID_EAX10_BufferProperties)
+    {
+        if(self->mParent.haveExtension(EXT_EAX))
+        {
+            const bool immediate{!(dwPropID&0x80000000u)};
+
+            /* HACK: Get a source ID if we don't have one. This is necessary
+             * since an app can apparently set EAX buffer/source properties on
+             * a LOCDEFER buffer prior to calling AcquireResources or Play.
+             * Rather than duplicating the storage and logic to manage and
+             * track EAX properties, let OpenAL do it.
+             */
+            if(self->mSource == 0) [[unlikely]]
+            {
+                alGenSourcesDirect(self->mContext, 1, &self->mSource);
+                alGetErrorDirect(self->mContext);
+            }
+
+            if(immediate)
+                alcSuspendContext(self->mContext);
+
+            const auto err = EAXSetDirect(self->mContext, &guidPropSet, dwPropID, self->mSource,
+                pPropData, cbPropData);
+            if(immediate)
+            {
+                /* FIXME: Commit DSound settings regardless? alcProcessContext
+                 * will commit deferred EAX settings, which we can't avoid.
+                 */
+                if(err == AL_NO_ERROR)
+                    self->mParent.getPrimary().commit();
+                alcProcessContext(self->mContext);
+            }
+            if(err != AL_NO_ERROR)
+                return E_FAIL;
+            return DS_OK;
+        }
+    }
+    else if(guidPropSet == EAXPROPERTYID_EAX40_FXSlot0
         || guidPropSet == EAXPROPERTYID_EAX40_FXSlot1
         || guidPropSet == EAXPROPERTYID_EAX40_FXSlot2
         || guidPropSet == EAXPROPERTYID_EAX40_FXSlot3
         || guidPropSet == DSPROPSETID_EAX30_ListenerProperties
         || guidPropSet == DSPROPSETID_EAX20_ListenerProperties
         || guidPropSet == EAXPROPERTYID_EAX40_Context
-        || guidPropSet == DSPROPSETID_EAX10_ListenerProperties
-        || guidPropSet == DSPROPSETID_EAX10_BufferProperties)
+        || guidPropSet == DSPROPSETID_EAX10_ListenerProperties)
     {
         if(self->mParent.haveExtension(EXT_EAX))
         {
@@ -2143,13 +2186,10 @@ HRESULT STDMETHODCALLTYPE Buffer::Prop::Set(REFGUID guidPropSet, ULONG dwPropID,
             if(immediate)
                 alcSuspendContext(self->mContext);
 
-            const ALenum err{EAXSetDirect(self->mContext, &guidPropSet, dwPropID, self->mSource,
-                pPropData, cbPropData)};
+            const auto err = EAXSetDirect(self->mContext, &guidPropSet, dwPropID, self->mSource,
+                pPropData, cbPropData);
             if(immediate)
             {
-                /* FIXME: Commit DSound settings regardless? alcProcessContext
-                 * will commit deferred EAX settings, which we can't avoid.
-                 */
                 if(err == AL_NO_ERROR)
                     self->mParent.getPrimary().commit();
                 alcProcessContext(self->mContext);
