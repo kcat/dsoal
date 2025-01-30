@@ -51,6 +51,7 @@ constexpr auto CapNames = std::array{
     "DSBCAPS_GETCURRENTPOSITION2"sv,// 0x00010000
     "DSBCAPS_MUTE3DATMAXDISTANCE"sv,// 0x00020000
     "DSBCAPS_LOCDEFER"sv,           // 0x00040000
+    "DSBCAPS_TRUEPLAYPOSITION"sv,   // 0x00080000
 };
 
 auto GetDSBCapsString(DWORD flags) -> std::string
