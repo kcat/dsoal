@@ -78,13 +78,18 @@ void DSPROPERTY_descWto1(const DSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_W_DATA *
 #define PREFIX "DSPROPERTY_WaveDeviceMappingW "
 HRESULT DSPROPERTY_WaveDeviceMappingW(void *pPropData, ULONG cbPropData, ULONG *pcbReturned)
 {
-    auto ppd = static_cast<DSPROPERTY_DIRECTSOUNDDEVICE_WAVEDEVICEMAPPING_W_DATA*>(pPropData);
-
-    if(!ppd || cbPropData < sizeof(DSPROPERTY_DIRECTSOUNDDEVICE_WAVEDEVICEMAPPING_W_DATA))
+    if(!pPropData || cbPropData < sizeof(DSPROPERTY_DIRECTSOUNDDEVICE_WAVEDEVICEMAPPING_W_DATA))
     {
-        WARN(PREFIX "Invalid ppd {}, {}", voidp{ppd}, cbPropData);
+        WARN(PREFIX "Invalid ppd {}, {}", pPropData, cbPropData);
         return DSERR_INVALIDPARAM;
     }
+
+    auto ppd = static_cast<DSPROPERTY_DIRECTSOUNDDEVICE_WAVEDEVICEMAPPING_W_DATA*>(pPropData);
+    auto flow = eRender;
+    if(ppd->DataFlow == DIRECTSOUNDDEVICE_DATAFLOW_CAPTURE)
+        flow = eCapture;
+    else if(ppd->DataFlow != DIRECTSOUNDDEVICE_DATAFLOW_RENDER)
+        return DSERR_INVALIDPARAM;
 
     auto find_target = [ppd](const GUID *guid, const WCHAR *devname, const WCHAR*) -> bool
     {
@@ -96,14 +101,8 @@ HRESULT DSPROPERTY_WaveDeviceMappingW(void *pPropData, ULONG cbPropData, ULONG *
         return true;
     };
 
-    std::deque<GUID> devlist;
-    HRESULT hr{};
-    if(ppd->DataFlow == DIRECTSOUNDDEVICE_DATAFLOW_RENDER)
-        hr = enumerate_mmdev(eRender, devlist, find_target);
-    else if(ppd->DataFlow == DIRECTSOUNDDEVICE_DATAFLOW_CAPTURE)
-        hr = enumerate_mmdev(eCapture, devlist, find_target);
-    else
-        return DSERR_INVALIDPARAM;
+    auto devlist = std::deque<GUID>{};
+    auto hr = enumerate_mmdev(flow, devlist, find_target);
 
     /* If the enumeration return value isn't S_FALSE, the device name wasn't
      * found.
@@ -111,7 +110,8 @@ HRESULT DSPROPERTY_WaveDeviceMappingW(void *pPropData, ULONG cbPropData, ULONG *
     if(hr != S_FALSE)
         return DSERR_INVALIDPARAM;
 
-    *pcbReturned = sizeof(*ppd);
+    if(pcbReturned)
+        *pcbReturned = sizeof(*ppd);
     return DS_OK;
 }
 #undef PREFIX
@@ -123,11 +123,12 @@ auto DSPROPERTY_WaveDeviceMappingA(void *pPropData, ULONG cbPropData, ULONG *pcb
     TRACE(PREFIX "(pPropData={}, cbPropData={}, pcbReturned={})", pPropData, cbPropData,
         voidp{pcbReturned});
 
-    if(!pPropData)
+    if(!pPropData || cbPropData < sizeof(DSPROPERTY_DIRECTSOUNDDEVICE_WAVEDEVICEMAPPING_A_DATA))
     {
-        WARN(PREFIX "Null pPropData");
+        WARN(PREFIX "Invalid ppd {}, {}", pPropData, cbPropData);
         return DSERR_INVALIDPARAM;
     }
+
     auto *ppd = static_cast<DSPROPERTY_DIRECTSOUNDDEVICE_WAVEDEVICEMAPPING_A_DATA*>(pPropData);
     if(!ppd->DeviceName)
     {
@@ -148,11 +149,12 @@ auto DSPROPERTY_WaveDeviceMappingA(void *pPropData, ULONG cbPropData, ULONG *pcb
     data.DeviceName = namestore.data();
     MultiByteToWideChar(CP_ACP, 0, ppd->DeviceName, -1, data.DeviceName, slen);
 
-    const auto hr = DSPROPERTY_WaveDeviceMappingW(&data, cbPropData, pcbReturned);
+    const auto hr = DSPROPERTY_WaveDeviceMappingW(&data, cbPropData, nullptr);
     if(SUCCEEDED(hr))
     {
         ppd->DeviceId = data.DeviceId;
-        *pcbReturned = sizeof(*ppd);
+        if(pcbReturned)
+            *pcbReturned = sizeof(*ppd);
     }
     return hr;
 }
@@ -164,7 +166,7 @@ HRESULT DSPROPERTY_DescriptionW(void *pPropData, ULONG cbPropData, ULONG *pcbRet
     if(!pPropData || cbPropData < sizeof(DSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_W_DATA))
     {
         WARN(PREFIX "Invalid ppd {}, {}", pPropData, cbPropData);
-        return E_PROP_ID_UNSUPPORTED;
+        return DSERR_INVALIDPARAM;
     }
 
     auto ppd = static_cast<DSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_W_DATA*>(pPropData);
@@ -213,22 +215,21 @@ HRESULT DSPROPERTY_DescriptionW(void *pPropData, ULONG cbPropData, ULONG *pcbRet
     ppd->Module = wcsdup(std::data(aldriver_name));
     ppd->Interface = wcsdup(L"Interface");
 
-    *pcbReturned = sizeof(*ppd);
+    if(pcbReturned)
+        *pcbReturned = sizeof(*ppd);
     return DS_OK;
 }
 #undef PREFIX
 
 auto DSPROPERTY_DescriptionA(void *pPropData, ULONG cbPropData, ULONG *pcbReturned) -> HRESULT
 {
+    if(pcbReturned)
+        *pcbReturned = sizeof(DSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_A_DATA);
+    if(!pPropData)
+        return S_OK;
+
     if(cbPropData < sizeof(DSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_A_DATA))
         return E_INVALIDARG;
-
-    if(!pPropData)
-    {
-        *pcbReturned = 0;
-        return S_OK;
-    }
-
     auto ppd = static_cast<DSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_A_DATA*>(pPropData);
 
     auto data = DSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_W_DATA{};
@@ -245,28 +246,24 @@ auto DSPROPERTY_DescriptionA(void *pPropData, ULONG cbPropData, ULONG *pcbReturn
     free(data.Interface);
     /* NOLINTEND(cppcoreguidelines-owning-memory,cppcoreguidelines-no-malloc) */
 
-    *pcbReturned = sizeof(*ppd);
     return hr;
 }
 
 auto DSPROPERTY_Description1(void *pPropData, ULONG cbPropData, ULONG *pcbReturned) -> HRESULT
 {
+    if(pcbReturned)
+        *pcbReturned = sizeof(DSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_1_DATA);
+    if(!pPropData)
+        return S_OK;
+
     if(cbPropData < sizeof(DSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_1_DATA))
         return E_INVALIDARG;
-
-    if(!pPropData)
-    {
-        *pcbReturned = 0;
-        return S_OK;
-    }
-
     auto *ppd = static_cast<DSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_1_DATA*>(pPropData);
     auto data = DSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_W_DATA{};
-    auto retsize = ULONG{};
 
     data.DeviceId = ppd->DeviceId;
     data.DataFlow = ppd->DataFlow;
-    const auto hr = DSPROPERTY_DescriptionW(&data, sizeof(data), &retsize);
+    const auto hr = DSPROPERTY_DescriptionW(&data, sizeof(data), nullptr);
     if(FAILED(hr)) return hr;
 
     DSPROPERTY_descWto1(&data, ppd);
@@ -276,24 +273,26 @@ auto DSPROPERTY_Description1(void *pPropData, ULONG cbPropData, ULONG *pcbReturn
     free(data.Interface);
     /* NOLINTEND(cppcoreguidelines-owning-memory,cppcoreguidelines-no-malloc) */
 
-    *pcbReturned = sizeof(*ppd);
     return hr;
 }
 
 
 #define PREFIX "DSPROPERTY_EnumerateW "
-HRESULT DSPROPERTY_EnumerateW(void *pPropData, ULONG cbPropData, ULONG *pcbReturned)
+auto DSPROPERTY_EnumerateW(void *pPropData, ULONG cbPropData, ULONG *pcbReturned [[maybe_unused]])
+    -> HRESULT
 {
-    auto ppd = static_cast<DSPROPERTY_DIRECTSOUNDDEVICE_ENUMERATE_W_DATA*>(pPropData);
-
-    if(!ppd || cbPropData < sizeof(DSPROPERTY_DIRECTSOUNDDEVICE_ENUMERATE_W_DATA)
-        || !ppd->Callback)
+    if(!pPropData || cbPropData < sizeof(DSPROPERTY_DIRECTSOUNDDEVICE_ENUMERATE_W_DATA))
     {
-        WARN(PREFIX "Invalid ppd {}, {}", voidp{ppd}, cbPropData);
+        WARN(PREFIX "Invalid ppd {}, {}", pPropData, cbPropData);
         return E_PROP_ID_UNSUPPORTED;
     }
 
-    *pcbReturned = 0;
+    auto ppd = static_cast<DSPROPERTY_DIRECTSOUNDDEVICE_ENUMERATE_W_DATA*>(pPropData);
+    if(!ppd->Callback)
+    {
+        WARN(PREFIX "Null callback");
+        return E_PROP_ID_UNSUPPORTED;
+    }
 
     auto enum_render = [ppd](const GUID *guid, const WCHAR *devname, const WCHAR *drvname) -> bool
     {
@@ -412,15 +411,8 @@ HRESULT STDMETHODCALLTYPE DSPrivatePropertySet::Get(REFGUID guidPropSet, ULONG d
         PropidPrinter{guidPropSet}.c_str(), dwPropID, pInstanceData, cbInstanceData, pPropData,
         cbPropData, voidp{pcbReturned});
 
-    if(!pcbReturned)
-        return E_POINTER;
-    *pcbReturned = 0;
-
-    if(cbPropData > 0 && !pPropData)
-    {
-        WARN(PREFIX "pPropData is null with cbPropData > 0");
-        return E_POINTER;
-    }
+    if(pcbReturned)
+        *pcbReturned = 0;
 
     if(guidPropSet == DSPROPSETID_DirectSoundDevice)
     {
