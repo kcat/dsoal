@@ -59,7 +59,10 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::QueryInterface(REFIID riid, void** ppvO
     DEBUG(PREFIX "QueryInterface ({})->({}, {})", voidp{this}, IidPrinter{riid}.c_str(),
         voidp{ppvObject});
 
+    if(!ppvObject)
+        return E_POINTER;
     *ppvObject = nullptr;
+
     if(riid == IID_IUnknown)
     {
         AddRef();

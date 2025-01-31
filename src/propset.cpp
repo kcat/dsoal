@@ -269,7 +269,10 @@ HRESULT STDMETHODCALLTYPE DSPrivatePropertySet::QueryInterface(REFIID riid, void
 {
     DEBUG(PREFIX "({})->({}, {})", voidp{this}, IidPrinter{riid}.c_str(), voidp{ppvObject});
 
+    if(!ppvObject)
+        return E_POINTER;
     *ppvObject = nullptr;
+
     if(riid == IID_IUnknown)
     {
         AddRef();

@@ -643,7 +643,10 @@ HRESULT STDMETHODCALLTYPE Buffer::QueryInterface(REFIID riid, void** ppvObject) 
 {
     DEBUG(PREFIX "({})->({}, {})", voidp{this}, IidPrinter{riid}.c_str(), voidp{ppvObject});
 
+    if(!ppvObject)
+        return E_POINTER;
     *ppvObject = nullptr;
+
     if(riid == IID_IUnknown)
     {
         mUnknownIface.AddRef();
