@@ -3,6 +3,7 @@
 
 #include <bit>
 #include <deque>
+#include <mutex>
 
 #include <dsound.h>
 #include <devpkey.h>
@@ -17,6 +18,10 @@
 
 inline constexpr WCHAR aldriver_name[] = L"dsoal-aldrv.dll"; /* NOLINT(*-avoid-c-arrays) */
 inline constexpr WCHAR primary_desc[] = L"Primary Sound Driver"; /* NOLINT(*-avoid-c-arrays) */
+
+inline std::mutex gDeviceListMutex;
+inline std::deque<GUID> gPlaybackDevices;
+inline std::deque<GUID> gCaptureDevices;
 
 ComPtr<IMMDevice> GetMMDevice(ComWrapper&, EDataFlow flow, const GUID &id);
 

@@ -33,10 +33,6 @@ namespace {
 using voidp = void*;
 using cvoidp = const void*;
 
-std::mutex gDeviceListMutex;
-std::deque<GUID> gPlaybackDevices;
-std::deque<GUID> gCaptureDevices;
-
 HMODULE gOpenalHandle{};
 
 

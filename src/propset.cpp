@@ -86,8 +86,12 @@ HRESULT DSPROPERTY_WaveDeviceMappingW(void *pPropData, ULONG cbPropData, ULONG *
 
     auto ppd = static_cast<DSPROPERTY_DIRECTSOUNDDEVICE_WAVEDEVICEMAPPING_W_DATA*>(pPropData);
     auto flow = eRender;
+    auto *devlist = &gPlaybackDevices;
     if(ppd->DataFlow == DIRECTSOUNDDEVICE_DATAFLOW_CAPTURE)
+    {
         flow = eCapture;
+        devlist = &gCaptureDevices;
+    }
     else if(ppd->DataFlow != DIRECTSOUNDDEVICE_DATAFLOW_RENDER)
         return DSERR_INVALIDPARAM;
 
@@ -101,14 +105,15 @@ HRESULT DSPROPERTY_WaveDeviceMappingW(void *pPropData, ULONG cbPropData, ULONG *
         return true;
     };
 
-    auto devlist = std::deque<GUID>{};
-    auto hr = enumerate_mmdev(flow, devlist, find_target);
-
-    /* If the enumeration return value isn't S_FALSE, the device name wasn't
-     * found.
-     */
+    auto listlock = std::lock_guard{gDeviceListMutex};
+    const auto hr = enumerate_mmdev(flow, *devlist, find_target);
     if(hr != S_FALSE)
+    {
+        /* If the enumeration return value isn't S_FALSE, the device name
+         * wasn't found.
+         */
         return DSERR_INVALIDPARAM;
+    }
 
     if(pcbReturned)
         *pcbReturned = sizeof(*ppd);
@@ -140,7 +145,7 @@ auto DSPROPERTY_WaveDeviceMappingA(void *pPropData, ULONG cbPropData, ULONG *pcb
     if(slen < 0)
     {
         WARN(PREFIX "Failed to convert device name");
-        return E_FAIL;
+        return DSERR_INVALIDPARAM;
     }
 
     auto namestore = std::vector<WCHAR>(static_cast<size_t>(slen));
@@ -257,7 +262,7 @@ auto DSPROPERTY_Description1(void *pPropData, ULONG cbPropData, ULONG *pcbReturn
         return S_OK;
 
     if(cbPropData < sizeof(DSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_1_DATA))
-        return E_INVALIDARG;
+        return DSERR_INVALIDPARAM;
     auto *ppd = static_cast<DSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_1_DATA*>(pPropData);
     auto data = DSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_W_DATA{};
 
@@ -313,12 +318,10 @@ auto DSPROPERTY_EnumerateW(void *pPropData, ULONG cbPropData, ULONG *pcbReturned
         return ppd->Callback(&data, ppd->Context) != FALSE;
     };
 
-    std::deque<GUID> devlist;
-    HRESULT hr{enumerate_mmdev(eRender, devlist, enum_render)};
+    auto listlock = std::lock_guard{gDeviceListMutex};
+    auto hr = enumerate_mmdev(eRender, gPlaybackDevices, enum_render);
     if(hr == S_OK)
     {
-        devlist.clear();
-
         auto enum_capture = [ppd](const GUID *guid, const WCHAR *devname, const WCHAR *drvname)
             -> bool
         {
@@ -338,7 +341,7 @@ auto DSPROPERTY_EnumerateW(void *pPropData, ULONG cbPropData, ULONG *pcbReturned
 
             return ppd->Callback(&data, ppd->Context) != FALSE;
         };
-        hr = enumerate_mmdev(eCapture, devlist, enum_capture);
+        hr = enumerate_mmdev(eCapture, gCaptureDevices, enum_capture);
     }
 
     return SUCCEEDED(hr) ? DS_OK : hr;
