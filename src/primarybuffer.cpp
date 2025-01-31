@@ -108,7 +108,7 @@ ULONG STDMETHODCALLTYPE PrimaryBuffer::Release() noexcept
      */
     ULONG ret{mDsRef.load(std::memory_order_relaxed)};
     do {
-        if(ret == 0) UNLIKELY
+        if(ret == 0) [[unlikely]]
         {
             WARN(PREFIX "Release ({}) ref already {}", voidp{this}, ret);
             return ret;

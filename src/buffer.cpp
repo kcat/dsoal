@@ -1046,7 +1046,7 @@ HRESULT STDMETHODCALLTYPE Buffer::Play(DWORD reserved1, DWORD priority, DWORD fl
     DEBUG(PREFIX "({})->({}, {}, {})", voidp{this}, reserved1, priority, flags);
 
     std::unique_lock lock{mMutex};
-    if(mBufferLost) UNLIKELY
+    if(mBufferLost) [[unlikely]]
     {
         WARN(PREFIX "Buffer lost");
         return DSERR_BUFFERLOST;
@@ -1160,7 +1160,7 @@ HRESULT STDMETHODCALLTYPE Buffer::SetVolume(LONG volume) noexcept
 
     std::unique_lock lock{mMutex};
     mVolume = volume;
-    if(mSource != 0) LIKELY
+    if(mSource != 0) [[likely]]
         alSourcefDirect(mContext, mSource, AL_GAIN, mB_to_gain(volume));
 
     return DS_OK;
@@ -1183,7 +1183,7 @@ HRESULT STDMETHODCALLTYPE Buffer::SetPan(LONG pan) noexcept
 
     std::unique_lock lock{mMutex};
     mPan = pan;
-    if(!(mBuffer->mFlags&DSBCAPS_CTRL3D) && mSource != 0) LIKELY
+    if(!(mBuffer->mFlags&DSBCAPS_CTRL3D) && mSource != 0) [[likely]]
     {
         if(mParent.haveExtension(SOFT_SOURCE_PANNING))
         {
@@ -1229,7 +1229,7 @@ HRESULT STDMETHODCALLTYPE Buffer::Stop() noexcept
     DEBUG(PREFIX "({})->()", voidp{this});
 
     std::unique_lock lock{mMutex};
-    if(mSource == 0) UNLIKELY
+    if(mSource == 0) [[unlikely]]
         return DS_OK;
 
     auto ofs = ALint{};
@@ -1354,7 +1354,7 @@ HRESULT STDMETHODCALLTYPE Buffer::AcquireResources(DWORD flags, DWORD effectsCou
     DEBUG(PREFIX "({})->({}, {}, {})", voidp{this}, flags, effectsCount, voidp{resultCodes});
 
     std::unique_lock lock{mMutex};
-    if(mBufferLost) UNLIKELY
+    if(mBufferLost) [[unlikely]]
     {
         WARN(PREFIX "Buffer lost");
         return DSERR_BUFFERLOST;
@@ -1435,7 +1435,7 @@ void Buffer::setParams(const DS3DBUFFER &params, const std::bitset<FlagCount> fl
         mImmediate.dwMode = params.dwMode;
 
     /* Now apply what's changed to OpenAL. */
-    if(!mSource) UNLIKELY return;
+    if(!mSource) [[unlikely]] return;
 
     if(mImmediate.dwMode != DS3DMODE_DISABLE)
     {
@@ -1509,7 +1509,7 @@ ULONG STDMETHODCALLTYPE Buffer::Buffer3D::Release() noexcept
     auto self = impl_from_base();
     const auto ret = self->mDs3dRef.fetch_sub(1u, std::memory_order_relaxed) - 1;
     DEBUG(PREFIX "Release ({}) ref {}", voidp{this}, ret);
-    if(self->mTotalRef.fetch_sub(1u, std::memory_order_relaxed) == 1u) UNLIKELY
+    if(self->mTotalRef.fetch_sub(1u, std::memory_order_relaxed) == 1u) [[unlikely]]
         self->mParent.dispose(self);
     return ret;
 }
@@ -2017,7 +2017,7 @@ ULONG STDMETHODCALLTYPE Buffer::Prop::Release() noexcept
     auto self = impl_from_base();
     const auto ret = self->mPropRef.fetch_sub(1u, std::memory_order_relaxed) - 1;
     DEBUG(PREFIX "Release ({}) ref {}", voidp{this}, ret);
-    if(self->mTotalRef.fetch_sub(1u, std::memory_order_relaxed) == 1u) UNLIKELY
+    if(self->mTotalRef.fetch_sub(1u, std::memory_order_relaxed) == 1u) [[unlikely]]
         self->mParent.dispose(self);
     return ret;
 }
@@ -2331,7 +2331,7 @@ ULONG STDMETHODCALLTYPE Buffer::Notify::Release() noexcept
     auto self = impl_from_base();
     const auto ret = self->mNotRef.fetch_sub(1u, std::memory_order_relaxed) - 1;
     DEBUG(PREFIX "Release ({}) ref {}", voidp{this}, ret);
-    if(self->mTotalRef.fetch_sub(1u, std::memory_order_relaxed) == 1u) UNLIKELY
+    if(self->mTotalRef.fetch_sub(1u, std::memory_order_relaxed) == 1u) [[unlikely]]
         self->mParent.dispose(self);
     return ret;
 }
@@ -2364,7 +2364,7 @@ HRESULT STDMETHODCALLTYPE Buffer::Notify::SetNotificationPositions(DWORD numNoti
          * pending, it *just* stopped on its own. Trigger notifications and
          * remove it so we can replace the notifications.
          */
-        if(self->mParent.isPendingNotify(self)) UNLIKELY
+        if(self->mParent.isPendingNotify(self)) [[unlikely]]
         {
             self->mParent.triggerNotifies();
             self->mParent.removeNotifyBuffer(self);
@@ -2415,7 +2415,7 @@ ULONG STDMETHODCALLTYPE Buffer::Unknown::Release() noexcept
     auto self = impl_from_base();
     const auto ret = self->mUnkRef.fetch_sub(1u, std::memory_order_relaxed) - 1;
     DEBUG("Buffer::Unknown::Release ({}) ref {}", voidp{this}, ret);
-    if(self->mTotalRef.fetch_sub(1u, std::memory_order_relaxed) == 1u) UNLIKELY
+    if(self->mTotalRef.fetch_sub(1u, std::memory_order_relaxed) == 1u) [[unlikely]]
         self->mParent.dispose(self);
     return ret;
 }

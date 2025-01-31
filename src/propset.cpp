@@ -400,7 +400,7 @@ ULONG STDMETHODCALLTYPE DSPrivatePropertySet::Release() noexcept
 {
     const auto ret = mRef.fetch_sub(1u, std::memory_order_relaxed) - 1;
     DEBUG(CLASS_PREFIX "Release ({}) ref {}", voidp{this}, ret);
-    if(ret == 0) UNLIKELY delete this;
+    if(ret == 0) [[unlikely]] delete this;
     return ret;
 }
 

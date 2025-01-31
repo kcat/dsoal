@@ -115,7 +115,7 @@ ULONG STDMETHODCALLTYPE Factory::Release() noexcept
      */
     ULONG ret{mRef.load(std::memory_order_relaxed)};
     do {
-        if(ret == 0) UNLIKELY
+        if(ret == 0) [[unlikely]]
         {
             WARN(PREFIX "Release ({}) ref already {}", voidp{this}, ret);
             return ret;

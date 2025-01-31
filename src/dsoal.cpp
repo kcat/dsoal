@@ -40,7 +40,7 @@ template<typename T>
 bool load_function(T &func, const char *name)
 {
     func = std::bit_cast<T>(GetProcAddress(gOpenalHandle, name));
-    if(!func) UNLIKELY
+    if(!func) [[unlikely]]
     {
         ERR("load_function Couldn't find {} in {}", name, wstr_to_utf8(std::data(aldriver_name)));
         return false;

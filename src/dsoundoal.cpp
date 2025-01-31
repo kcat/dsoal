@@ -416,7 +416,7 @@ ComPtr<Buffer> DSound8OAL::createSecondaryBuffer(IDirectSoundBuffer *original)
             break;
         }
     }
-    if(!sublist) UNLIKELY
+    if(!sublist) [[unlikely]]
     {
         /* If none are available, make another group. */
         BufferSubList group;
@@ -481,7 +481,7 @@ void DSound8OAL::addNotifyBuffer(Buffer *buffer)
     if(std::find(mNotifyBuffers.cbegin(), mNotifyBuffers.cend(), buffer) == mNotifyBuffers.cend())
     {
         mNotifyBuffers.emplace_back(buffer);
-        if(!mNotifyThread.joinable()) UNLIKELY
+        if(!mNotifyThread.joinable()) [[unlikely]]
             mNotifyThread = std::thread{&DSound8OAL::notifyThread, this};
         else if(mNotifyBuffers.size() == 1)
             mNotifyCond.notify_all();
@@ -506,7 +506,7 @@ HRESULT STDMETHODCALLTYPE DSound8OAL::QueryInterface(REFIID riid, void** ppvObje
     }
     if(riid == IID_IDirectSound8)
     {
-        if(!mIs8) UNLIKELY
+        if(!mIs8) [[unlikely]]
         {
             WARN(PREFIX "Requesting IDirectSound8 iface for non-DS8 object");
             return E_NOINTERFACE;

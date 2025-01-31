@@ -12,14 +12,6 @@
 #define HAS_ATTRIBUTE(...) (0)
 #endif
 
-#if HAS_ATTRIBUTE(likely)
-#define LIKELY [[likely]]
-#define UNLIKELY [[unlikely]]
-#else
-#define LIKELY
-#define UNLIKELY
-#endif
-
 namespace ds {
 
 template<typename T>
@@ -50,27 +42,27 @@ try {
 
 
 #define DEBUG(...) do {                                                       \
-    if(gLogLevel >= LogLevel::Debug) UNLIKELY                                 \
+    if(gLogLevel >= LogLevel::Debug) [[unlikely]]                             \
         dsoal_print(LogLevel::Debug, __VA_ARGS__);                            \
 } while(0)
 
 #define TRACE(...) do {                                                       \
-    if(gLogLevel >= LogLevel::Trace) UNLIKELY                                 \
+    if(gLogLevel >= LogLevel::Trace) [[unlikely]]                             \
         dsoal_print(LogLevel::Trace, __VA_ARGS__);                            \
 } while(0)
 
 #define WARN(...) do {                                                        \
-    if(gLogLevel >= LogLevel::Warning) UNLIKELY                               \
+    if(gLogLevel >= LogLevel::Warning) [[unlikely]]                           \
         dsoal_print(LogLevel::Warning, __VA_ARGS__);                          \
 } while(0)
 
 #define FIXME(...) do {                                                       \
-    if(gLogLevel >= LogLevel::Fixme) UNLIKELY                                 \
+    if(gLogLevel >= LogLevel::Fixme) [[unlikely]]                             \
         dsoal_print(LogLevel::Fixme, __VA_ARGS__);                            \
 } while(0)
 
 #define ERR(...) do {                                                         \
-    if(gLogLevel >= LogLevel::Error) UNLIKELY                                 \
+    if(gLogLevel >= LogLevel::Error) [[unlikely]]                             \
         dsoal_print(LogLevel::Error, __VA_ARGS__);                            \
 } while(0)
 
