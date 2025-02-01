@@ -181,29 +181,29 @@ HRESULT DSPROPERTY_DescriptionW(void *pPropData, ULONG cbPropData, ULONG *pcbRet
     }
 
     auto ppd = static_cast<DSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_W_DATA*>(pPropData);
-    auto flow = eRender;
-    if(ppd->DataFlow == DIRECTSOUNDDEVICE_DATAFLOW_CAPTURE)
-        flow = eCapture;
-    else if(ppd->DataFlow != DIRECTSOUNDDEVICE_DATAFLOW_RENDER)
-    {
-        WARN(PREFIX "Unhandled data flow: {}", ds::to_underlying(ppd->DataFlow));
-        return E_PROP_ID_UNSUPPORTED;
-    }
-
     if(ppd->DeviceId == GUID_NULL)
     {
-        if(flow == eRender)
+        if(ppd->DataFlow == DIRECTSOUNDDEVICE_DATAFLOW_RENDER)
             ppd->DeviceId = DSDEVID_DefaultPlayback;
-        else
+        else if(ppd->DataFlow == DIRECTSOUNDDEVICE_DATAFLOW_CAPTURE)
             ppd->DeviceId = DSDEVID_DefaultCapture;
+        else
+        {
+            WARN(PREFIX "Unhandled data flow: {}", ds::to_underlying(ppd->DataFlow));
+            return E_PROP_ID_UNSUPPORTED;
+        }
     }
 
-    GUID devid{};
+    auto com = ComWrapper{};
+    auto devid = GUID{};
     GetDeviceID(ppd->DeviceId, devid);
 
-    ComWrapper com;
-    auto device = GetMMDevice(com, flow, devid);
-    if(!device) return DSERR_INVALIDPARAM;
+    auto device = GetMMDevice(com, eRender, devid);
+    if(!device)
+    {
+        device = GetMMDevice(com, eCapture, devid);
+        if(!device) return DSERR_INVALIDPARAM;
+    }
 
     ComPtr<IPropertyStore> ps;
     HRESULT hr{device->OpenPropertyStore(STGM_READ, ds::out_ptr(ps))};
