@@ -38,6 +38,11 @@ else()
         -Wcast-align -Wpedantic
         $<$<COMPILE_LANGUAGE:CXX>:-Wold-style-cast -Wnon-virtual-dtor -Woverloaded-virtual>)
 
+    check_cxx_compiler_flag(-ftrivial-auto-var-init=pattern HAVE_FTRIVIAL_AUTO_VAR_INIT)
+    if(HAVE_FTRIVIAL_AUTO_VAR_INIT)
+        set(DSOAL_CFLAGS ${DSOAL_CFLAGS} -ftrivial-auto-var-init=pattern)
+    endif()
+
     set(OLD_REQUIRED_FLAGS ${CMAKE_REQUIRED_FLAGS})
     # Yes GCC, really don't accept command line options you don't support
     set(CMAKE_REQUIRED_FLAGS "${OLD_REQUIRED_FLAGS} -Werror")
