@@ -2239,7 +2239,7 @@ HRESULT STDMETHODCALLTYPE Buffer::Prop::Set(REFGUID guidPropSet, ULONG dwPropID,
 HRESULT STDMETHODCALLTYPE Buffer::Prop::QuerySupport(REFGUID guidPropSet, ULONG dwPropID,
     ULONG *pTypeSupport) noexcept
 {
-    DEBUG(PREFIX "QuerySupport ({})->({}, 0x{:x}, {})", voidp{this},
+    TRACE(PREFIX "QuerySupport ({})->({}, 0x{:x}, {})", voidp{this},
         PropidPrinter{guidPropSet}.c_str(), dwPropID, voidp{pTypeSupport});
 
     if(!pTypeSupport)

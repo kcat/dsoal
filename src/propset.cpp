@@ -78,6 +78,9 @@ void DSPROPERTY_descWto1(const DSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_W_DATA *
 #define PREFIX "DSPROPERTY_WaveDeviceMappingW "
 HRESULT DSPROPERTY_WaveDeviceMappingW(void *pPropData, ULONG cbPropData, ULONG *pcbReturned)
 {
+    TRACE(PREFIX "(pPropData={}, cbPropData={}, pcbReturned={})", pPropData, cbPropData,
+        voidp{pcbReturned});
+
     if(!pPropData || cbPropData < sizeof(DSPROPERTY_DIRECTSOUNDDEVICE_WAVEDEVICEMAPPING_W_DATA))
     {
         WARN(PREFIX "Invalid ppd {}, {}", pPropData, cbPropData);
@@ -168,6 +171,9 @@ auto DSPROPERTY_WaveDeviceMappingA(void *pPropData, ULONG cbPropData, ULONG *pcb
 #define PREFIX "DSPROPERTY_DescriptionW "
 HRESULT DSPROPERTY_DescriptionW(void *pPropData, ULONG cbPropData, ULONG *pcbReturned)
 {
+    TRACE(PREFIX "(pPropData={}, cbPropData={}, pcbReturned={})", pPropData, cbPropData,
+        voidp{pcbReturned});
+
     if(!pPropData || cbPropData < sizeof(DSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_W_DATA))
     {
         WARN(PREFIX "Invalid ppd {}, {}", pPropData, cbPropData);
@@ -226,8 +232,12 @@ HRESULT DSPROPERTY_DescriptionW(void *pPropData, ULONG cbPropData, ULONG *pcbRet
 }
 #undef PREFIX
 
+#define PREFIX "DSPROPERTY_DescriptionA "
 auto DSPROPERTY_DescriptionA(void *pPropData, ULONG cbPropData, ULONG *pcbReturned) -> HRESULT
 {
+    TRACE(PREFIX "(pPropData={}, cbPropData={}, pcbReturned={})", pPropData, cbPropData,
+        voidp{pcbReturned});
+
     if(pcbReturned)
         *pcbReturned = sizeof(DSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_A_DATA);
     if(!pPropData)
@@ -253,9 +263,14 @@ auto DSPROPERTY_DescriptionA(void *pPropData, ULONG cbPropData, ULONG *pcbReturn
 
     return hr;
 }
+#undef PREFIX
 
+#define PREFIX "DSPROPERTY_Description1 "
 auto DSPROPERTY_Description1(void *pPropData, ULONG cbPropData, ULONG *pcbReturned) -> HRESULT
 {
+    TRACE(PREFIX "(pPropData={}, cbPropData={}, pcbReturned={})", pPropData, cbPropData,
+        voidp{pcbReturned});
+
     if(pcbReturned)
         *pcbReturned = sizeof(DSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_1_DATA);
     if(!pPropData)
@@ -264,8 +279,8 @@ auto DSPROPERTY_Description1(void *pPropData, ULONG cbPropData, ULONG *pcbReturn
     if(cbPropData < sizeof(DSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_1_DATA))
         return DSERR_INVALIDPARAM;
     auto *ppd = static_cast<DSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_1_DATA*>(pPropData);
-    auto data = DSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_W_DATA{};
 
+    auto data = DSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_W_DATA{};
     data.DeviceId = ppd->DeviceId;
     data.DataFlow = ppd->DataFlow;
     const auto hr = DSPROPERTY_DescriptionW(&data, sizeof(data), nullptr);
@@ -280,12 +295,14 @@ auto DSPROPERTY_Description1(void *pPropData, ULONG cbPropData, ULONG *pcbReturn
 
     return hr;
 }
-
+#undef PREFIX
 
 #define PREFIX "DSPROPERTY_EnumerateW "
-auto DSPROPERTY_EnumerateW(void *pPropData, ULONG cbPropData, ULONG *pcbReturned [[maybe_unused]])
-    -> HRESULT
+auto DSPROPERTY_EnumerateW(void *pPropData, ULONG cbPropData, ULONG *pcbReturned) -> HRESULT
 {
+    TRACE(PREFIX "(pPropData={}, cbPropData={}, pcbReturned={})", pPropData, cbPropData,
+        voidp{pcbReturned});
+
     if(!pPropData || cbPropData < sizeof(DSPROPERTY_DIRECTSOUNDDEVICE_ENUMERATE_W_DATA))
     {
         WARN(PREFIX "Invalid ppd {}, {}", pPropData, cbPropData);
@@ -410,7 +427,7 @@ HRESULT STDMETHODCALLTYPE DSPrivatePropertySet::Get(REFGUID guidPropSet, ULONG d
     void *pInstanceData, ULONG cbInstanceData, void *pPropData, ULONG cbPropData,
     ULONG *pcbReturned) noexcept
 {
-    DEBUG(PREFIX "({})->({}, {:#x}, {}, {}, {}, {}, {})", voidp{this},
+    TRACE(PREFIX "({})->({}, {:#x}, {}, {}, {}, {}, {})", voidp{this},
         PropidPrinter{guidPropSet}.c_str(), dwPropID, pInstanceData, cbInstanceData, pPropData,
         cbPropData, voidp{pcbReturned});
 
@@ -455,7 +472,7 @@ HRESULT STDMETHODCALLTYPE DSPrivatePropertySet::Get(REFGUID guidPropSet, ULONG d
 HRESULT STDMETHODCALLTYPE DSPrivatePropertySet::Set(REFGUID guidPropSet, ULONG dwPropID,
     void *pInstanceData, ULONG cbInstanceData, void *pPropData, ULONG cbPropData) noexcept
 {
-    DEBUG(PREFIX "({})->({}, {:#x}, {}, {}, {}, {})", voidp{this},
+    TRACE(PREFIX "({})->({}, {:#x}, {}, {}, {}, {})", voidp{this},
         PropidPrinter{guidPropSet}.c_str(), dwPropID, pInstanceData, cbInstanceData, pPropData,
         cbPropData);
     return E_PROP_ID_UNSUPPORTED;
@@ -466,7 +483,7 @@ HRESULT STDMETHODCALLTYPE DSPrivatePropertySet::Set(REFGUID guidPropSet, ULONG d
 HRESULT STDMETHODCALLTYPE DSPrivatePropertySet::QuerySupport(REFGUID guidPropSet, ULONG dwPropID,
     ULONG *pTypeSupport) noexcept
 {
-    FIXME(PREFIX "({})->({}, {:#x}, {})", voidp{this}, PropidPrinter{guidPropSet}.c_str(),
+    TRACE(PREFIX "({})->({}, {:#x}, {})", voidp{this}, PropidPrinter{guidPropSet}.c_str(),
         dwPropID, voidp{pTypeSupport});
 
     if(!pTypeSupport)
@@ -495,6 +512,8 @@ HRESULT STDMETHODCALLTYPE DSPrivatePropertySet::QuerySupport(REFGUID guidPropSet
         }
     }
 
+    FIXME(PREFIX "Unhandled propset: {} (propid: {})", PropidPrinter{guidPropSet}.c_str(),
+        dwPropID);
     return E_PROP_ID_UNSUPPORTED;
 }
 #undef PREFIX

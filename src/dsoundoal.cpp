@@ -650,7 +650,7 @@ HRESULT STDMETHODCALLTYPE DSound8OAL::CreateSoundBuffer(const DSBUFFERDESC *buff
 #define PREFIX CLASS_PREFIX "GetCaps "
 HRESULT STDMETHODCALLTYPE DSound8OAL::GetCaps(DSCAPS *dsCaps) noexcept
 {
-    DEBUG(PREFIX "({})->({})", voidp{this}, voidp{dsCaps});
+    TRACE(PREFIX "({})->({})", voidp{this}, voidp{dsCaps});
 
     if(!mShared)
     {
@@ -744,7 +744,7 @@ HRESULT STDMETHODCALLTYPE DSound8OAL::DuplicateSoundBuffer(IDirectSoundBuffer *o
 #define PREFIX CLASS_PREFIX "SetCooperativeLevel "
 HRESULT STDMETHODCALLTYPE DSound8OAL::SetCooperativeLevel(HWND hwnd, DWORD level) noexcept
 {
-    DEBUG(PREFIX "({})->({}, {})", voidp{this}, voidp{hwnd}, level);
+    TRACE(PREFIX "({})->({}, {})", voidp{this}, voidp{hwnd}, level);
 
     if(!mShared)
     {
@@ -823,7 +823,7 @@ HRESULT STDMETHODCALLTYPE DSound8OAL::Compact() noexcept
 #define PREFIX CLASS_PREFIX "GetSpeakerConfig "
 HRESULT STDMETHODCALLTYPE DSound8OAL::GetSpeakerConfig(DWORD *speakerConfig) noexcept
 {
-    DEBUG(PREFIX "({})->({})", voidp{this}, voidp{speakerConfig});
+    TRACE(PREFIX "({})->({})", voidp{this}, voidp{speakerConfig});
 
     if(!speakerConfig)
         return DSERR_INVALIDPARAM;
@@ -844,7 +844,7 @@ HRESULT STDMETHODCALLTYPE DSound8OAL::GetSpeakerConfig(DWORD *speakerConfig) noe
 #define PREFIX CLASS_PREFIX "SetSpeakerConfig "
 HRESULT STDMETHODCALLTYPE DSound8OAL::SetSpeakerConfig(DWORD speakerConfig) noexcept
 {
-    DEBUG(PREFIX "({})->(0x{:08x})", voidp{this}, speakerConfig);
+    TRACE(PREFIX "({})->(0x{:08x})", voidp{this}, speakerConfig);
 
     if(!mShared)
     {
@@ -874,7 +874,7 @@ HRESULT STDMETHODCALLTYPE DSound8OAL::SetSpeakerConfig(DWORD speakerConfig) noex
 #define PREFIX CLASS_PREFIX "Initialize "
 HRESULT STDMETHODCALLTYPE DSound8OAL::Initialize(const GUID *deviceId) noexcept
 {
-    DEBUG(PREFIX "({})->({})", voidp{this}, DevidPrinter{deviceId}.c_str());
+    TRACE(PREFIX "({})->({})", voidp{this}, DevidPrinter{deviceId}.c_str());
 
     if(mShared)
     {
