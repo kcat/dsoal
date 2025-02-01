@@ -461,12 +461,12 @@ Buffer::~Buffer()
     {
         alDeleteSourcesDirect(mContext, 1, &srcid);
         alGetErrorDirect(mContext);
-
-        if(mLocStatus == LocStatus::Hardware)
-            mParent.getShared().decHwSources();
-        else if(mLocStatus == LocStatus::Software)
-            mParent.getShared().decSwSources();
     }
+    if(mLocStatus == LocStatus::Hardware)
+        mParent.getShared().decHwSources();
+    else if(mLocStatus == LocStatus::Software)
+        mParent.getShared().decSwSources();
+    mLocStatus = LocStatus::None;
 
     if(mBuffer)
     {
@@ -542,12 +542,12 @@ HRESULT Buffer::setLocation(LocStatus locStatus) noexcept
         {
             alDeleteSourcesDirect(mContext, 1, &srcid);
             alGetErrorDirect(mContext);
-
-            if(mLocStatus == LocStatus::Hardware)
-                mParent.getShared().decHwSources();
-            else if(mLocStatus == LocStatus::Software)
-                mParent.getShared().decSwSources();
         }
+
+        if(mLocStatus == LocStatus::Hardware)
+            mParent.getShared().decHwSources();
+        else if(mLocStatus == LocStatus::Software)
+            mParent.getShared().decSwSources();
         mLocStatus = LocStatus::None;
     }
 
