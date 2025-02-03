@@ -771,6 +771,7 @@ HRESULT STDMETHODCALLTYPE Buffer::GetCurrentPosition(DWORD *playCursor, DWORD *w
     {
         pos = static_cast<ALuint>(ofs);
         writecursor = format.nSamplesPerSec / mParent.getRefresh() * format.nBlockAlign;
+        writecursor += pos;
     }
     else
     {
@@ -788,7 +789,7 @@ HRESULT STDMETHODCALLTYPE Buffer::GetCurrentPosition(DWORD *playCursor, DWORD *w
         case AL_INITIAL: pos = mLastPos; break;
         default: pos = 0;
         }
-        writecursor = 0;
+        writecursor = pos;
     }
 
     /* FIXME: AFAIK, a non-looping buffer that stops on its own should have the
@@ -798,12 +799,8 @@ HRESULT STDMETHODCALLTYPE Buffer::GetCurrentPosition(DWORD *playCursor, DWORD *w
      * Some testing should be done to see what happens. Wine always wraps the
      * play cursor, so just do that for now.
      */
-    if(pos >= mBuffer->mData.size())
-    {
-        ERR(PREFIX "playpos > buf_size");
-        pos %= mBuffer->mData.size();
-    }
-    writecursor = (writecursor+pos) % mBuffer->mData.size();
+    pos %= mBuffer->mData.size();
+    writecursor %= mBuffer->mData.size();
 
     DEBUG(PREFIX " pos = {}, write pos = {}", pos, writecursor);
 
