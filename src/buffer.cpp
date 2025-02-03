@@ -791,14 +791,21 @@ HRESULT STDMETHODCALLTYPE Buffer::GetCurrentPosition(DWORD *playCursor, DWORD *w
         writecursor = 0;
     }
 
-    if(pos > mBuffer->mData.size())
+    /* FIXME: AFAIK, a non-looping buffer that stops on its own should have the
+     * play cursor at the buffer size, but the write cursor should probably not
+     * be outside the [0,size) range. However, a stopped source should also
+     * have play cursor == write cursor, which makes one of those incorrect.
+     * Some testing should be done to see what happens. Wine always wraps the
+     * play cursor, so just do that for now.
+     */
+    if(pos >= mBuffer->mData.size())
     {
         ERR(PREFIX "playpos > buf_size");
         pos %= mBuffer->mData.size();
     }
     writecursor = (writecursor+pos) % mBuffer->mData.size();
 
-    DEBUG(PREFIX "pos = {}, write pos = {}", pos, writecursor);
+    DEBUG(PREFIX " pos = {}, write pos = {}", pos, writecursor);
 
     if(playCursor) *playCursor = pos;
     if(writeCursor)  *writeCursor = writecursor;
