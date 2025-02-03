@@ -2318,7 +2318,7 @@ HRESULT STDMETHODCALLTYPE Buffer::Prop::QuerySupport(REFGUID guidPropSet, ULONG 
 
 
 /*** IDirectSoundNotify interface wrapper. ***/
-#define PREFIX "BufferNotify::"
+#define CLASS_PREFIX "BufferNotify::"
 HRESULT STDMETHODCALLTYPE Buffer::Notify::QueryInterface(REFIID riid, void **ppvObject) noexcept
 { return impl_from_base()->QueryInterface(riid, ppvObject); }
 
@@ -2327,7 +2327,7 @@ ULONG STDMETHODCALLTYPE Buffer::Notify::AddRef() noexcept
     auto self = impl_from_base();
     self->mTotalRef.fetch_add(1u, std::memory_order_relaxed);
     const auto ret = self->mNotRef.fetch_add(1u, std::memory_order_relaxed) + 1;
-    DEBUG(PREFIX "AddRef ({}) ref {}", voidp{this}, ret);
+    DEBUG(CLASS_PREFIX "AddRef ({}) ref {}", voidp{this}, ret);
     return ret;
 }
 
@@ -2335,22 +2335,21 @@ ULONG STDMETHODCALLTYPE Buffer::Notify::Release() noexcept
 {
     auto self = impl_from_base();
     const auto ret = self->mNotRef.fetch_sub(1u, std::memory_order_relaxed) - 1;
-    DEBUG(PREFIX "Release ({}) ref {}", voidp{this}, ret);
+    DEBUG(CLASS_PREFIX "Release ({}) ref {}", voidp{this}, ret);
     if(self->mTotalRef.fetch_sub(1u, std::memory_order_relaxed) == 1u) [[unlikely]]
         self->mParent.dispose(self);
     return ret;
 }
 
-
+#define PREFIX CLASS_PREFIX "SetNotificationPositions "
 HRESULT STDMETHODCALLTYPE Buffer::Notify::SetNotificationPositions(DWORD numNotifies,
     const DSBPOSITIONNOTIFY *notifies) noexcept
 {
-    DEBUG(PREFIX "SetNotificationPositions ({})->({}, {})", voidp{this}, numNotifies,
-        cvoidp{notifies});
+    DEBUG(PREFIX "({})->({}, {})", voidp{this}, numNotifies, cvoidp{notifies});
 
     if(numNotifies > 0 && !notifies)
     {
-        WARN(PREFIX "SetNotificationPositions Null pointer with non-0 count");
+        WARN(PREFIX "Null pointer with {} count", numNotifies);
         return DSERR_INVALIDPARAM;
     }
 
@@ -2362,7 +2361,7 @@ HRESULT STDMETHODCALLTYPE Buffer::Notify::SetNotificationPositions(DWORD numNoti
         alGetSourceiDirect(self->mContext, self->mSource, AL_SOURCE_STATE, &state);
         if(state == AL_PLAYING)
         {
-            WARN(PREFIX "SetNotificationPositions Source playing");
+            WARN(PREFIX "Source playing");
             return DSERR_INVALIDCALL;
         }
         /* If the source isn't playing and still has a notification check
@@ -2383,12 +2382,14 @@ HRESULT STDMETHODCALLTYPE Buffer::Notify::SetNotificationPositions(DWORD numNoti
         auto invalidNotify = std::find_if_not(notifyspan.begin(), notifyspan.end(),
             [self](const DSBPOSITIONNOTIFY &notify) noexcept -> bool
             {
+                DEBUG(PREFIX " offset = {}, event = {}", notify.dwOffset,
+                    voidp{notify.hEventNotify});
                 return notify.dwOffset < self->mBuffer->mData.size() ||
                     notify.dwOffset == static_cast<DWORD>(DSBPN_OFFSETSTOP);
             });
         if(invalidNotify != notifyspan.end())
         {
-            WARN(PREFIX "SetNotificationPositions Out of range ({}: {} >= {})",
+            WARN(PREFIX "Out of range ({}: {} >= {})",
                 std::distance(notifyspan.begin(), invalidNotify), invalidNotify->dwOffset,
                 self->mBuffer->mData.size());
             return DSERR_INVALIDPARAM;
@@ -2405,6 +2406,7 @@ HRESULT STDMETHODCALLTYPE Buffer::Notify::SetNotificationPositions(DWORD numNoti
     return DS_OK;
 }
 #undef PREFIX
+#undef CLASS_PREFIX
 
 
 /*** IUnknown interface wrapper. ***/
