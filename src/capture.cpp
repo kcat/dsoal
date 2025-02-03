@@ -788,6 +788,11 @@ HRESULT STDMETHODCALLTYPE DSCBuffer::Notify::SetNotificationPositions(DWORD numN
             return DSERR_INVALIDPARAM;
         }
         newnots.assign(notifyspan.begin(), notifyspan.end());
+
+        static constexpr auto sort_dsbpn = [](const DSBPOSITIONNOTIFY &lhs,
+            const DSBPOSITIONNOTIFY &rhs) noexcept -> bool
+        { return lhs.dwOffset < rhs.dwOffset; };
+        std::stable_sort(newnots.begin(), newnots.end(), sort_dsbpn);
     }
     std::swap(self->mNotifies, newnots);
 

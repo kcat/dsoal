@@ -1,5 +1,6 @@
 #include "buffer.h"
 
+#include <algorithm>
 #include <bit>
 #include <functional>
 #include <optional>
@@ -2393,6 +2394,11 @@ HRESULT STDMETHODCALLTYPE Buffer::Notify::SetNotificationPositions(DWORD numNoti
             return DSERR_INVALIDPARAM;
         }
         newNots.assign(notifyspan.begin(), notifyspan.end());
+
+        static constexpr auto sort_dsbpn = [](const DSBPOSITIONNOTIFY &lhs,
+            const DSBPOSITIONNOTIFY &rhs) noexcept -> bool
+        { return lhs.dwOffset < rhs.dwOffset; };
+        std::stable_sort(newNots.begin(), newNots.end(), sort_dsbpn);
     }
     newNots.swap(self->mNotifies);
 
