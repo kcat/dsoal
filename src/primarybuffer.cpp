@@ -17,7 +17,7 @@ constexpr size_t PrimaryBufSize{32768};
 
 } // namespace
 
-#define PREFIX "Primary::"
+#define CLASS_PREFIX "Primary::"
 PrimaryBuffer::PrimaryBuffer(DSound8OAL &parent) : mParent{parent}, mMutex{parent.getMutex()}
 {
     /* Make sure the format is valid, store 16-bit stereo 44.1khz by default. */
@@ -54,10 +54,10 @@ void PrimaryBuffer::destroyWriteEmu() noexcept
 { mWriteEmu = nullptr; }
 
 
+#define PREFIX CLASS_PREFIX "QueryInterface "
 HRESULT STDMETHODCALLTYPE PrimaryBuffer::QueryInterface(REFIID riid, void** ppvObject) noexcept
 {
-    DEBUG(PREFIX "QueryInterface ({})->({}, {})", voidp{this}, IidPrinter{riid}.c_str(),
-        voidp{ppvObject});
+    DEBUG("({})->({}, {})", voidp{this}, IidPrinter{riid}.c_str(), voidp{ppvObject});
 
     if(!ppvObject)
         return E_POINTER;
@@ -82,15 +82,17 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::QueryInterface(REFIID riid, void** ppvO
         return S_OK;
     }
 
-    FIXME(PREFIX "QueryInterface Unhandled GUID: {}", IidPrinter{riid}.c_str());
+    FIXME("Unhandled GUID: {}", IidPrinter{riid}.c_str());
     return E_NOINTERFACE;
 }
+#undef PREFIX
 
+#define PREFIX CLASS_PREFIX "AddRef "
 ULONG STDMETHODCALLTYPE PrimaryBuffer::AddRef() noexcept
 {
     const auto prev = mTotalRef.fetch_add(1u, std::memory_order_relaxed);
     const auto ret = mDsRef.fetch_add(1u, std::memory_order_relaxed) + 1;
-    DEBUG(PREFIX "AddRef ({}) ref {}", voidp{this}, ret);
+    DEBUG("({}) ref {}", voidp{this}, ret);
 
     /* Clear the flags when getting the first reference, so it can be
      * reinitialized.
@@ -100,7 +102,9 @@ ULONG STDMETHODCALLTYPE PrimaryBuffer::AddRef() noexcept
 
     return ret;
 }
+#undef PREFIX
 
+#define PREFIX CLASS_PREFIX "Release "
 ULONG STDMETHODCALLTYPE PrimaryBuffer::Release() noexcept
 {
     /* NOTE: Some buggy apps try to release after hitting 0 references, so
@@ -110,27 +114,27 @@ ULONG STDMETHODCALLTYPE PrimaryBuffer::Release() noexcept
     do {
         if(ret == 0) [[unlikely]]
         {
-            WARN(PREFIX "Release ({}) ref already {}", voidp{this}, ret);
+            WARN("({}) ref already {}", voidp{this}, ret);
             return ret;
         }
     } while(!mDsRef.compare_exchange_weak(ret, ret-1, std::memory_order_relaxed));
     ret -= 1;
-    DEBUG(PREFIX "Release ({}) ref {}", voidp{this}, ret);
+    DEBUG("({}) ref {}", voidp{this}, ret);
 
     /* The primary buffer is a static object and should not be deleted. */
     mTotalRef.fetch_sub(1u, std::memory_order_relaxed);
     return ret;
 }
+#undef PREFIX
 
-
+#define PREFIX CLASS_PREFIX "GetCaps "
 HRESULT STDMETHODCALLTYPE PrimaryBuffer::GetCaps(DSBCAPS *bufferCaps) noexcept
 {
-    DEBUG(PREFIX "GetCaps ({})->({})", voidp{this}, voidp{bufferCaps});
+    DEBUG("({})->({})", voidp{this}, voidp{bufferCaps});
 
     if(!bufferCaps || bufferCaps->dwSize < sizeof(*bufferCaps))
     {
-        WARN(PREFIX "Invalid DSBCAPS ({}, {})", voidp{bufferCaps},
-            bufferCaps ? bufferCaps->dwSize : 0lu);
+        WARN("Invalid DSBCAPS ({}, {})", voidp{bufferCaps}, bufferCaps ? bufferCaps->dwSize : 0lu);
         return DSERR_INVALIDPARAM;
     }
 
@@ -141,26 +145,28 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::GetCaps(DSBCAPS *bufferCaps) noexcept
 
     return DS_OK;
 }
+#undef PREFIX
 
+#define PREFIX CLASS_PREFIX "GetCurrentPosition "
 HRESULT STDMETHODCALLTYPE PrimaryBuffer::GetCurrentPosition(DWORD *playCursor, DWORD *writeCursor) noexcept
 {
-    DEBUG(PREFIX "GetCurrentPosition ({})->({}, {})", voidp{this}, voidp{playCursor},
-        voidp{writeCursor});
+    DEBUG("({})->({}, {})", voidp{this}, voidp{playCursor}, voidp{writeCursor});
 
     std::lock_guard lock{mMutex};
     if(mWriteEmu)
         return mWriteEmu->GetCurrentPosition(playCursor, writeCursor);
     return DSERR_PRIOLEVELNEEDED;
 }
+#undef PREFIX
 
+#define PREFIX CLASS_PREFIX "GetFormat "
 HRESULT STDMETHODCALLTYPE PrimaryBuffer::GetFormat(WAVEFORMATEX *wfx, DWORD sizeAllocated, DWORD *sizeWritten) noexcept
 {
-    DEBUG(PREFIX "GetFormat ({})->({}, {}, {})", voidp{this}, voidp{wfx}, sizeAllocated,
-        voidp{sizeWritten});
+    DEBUG("({})->({}, {}, {})", voidp{this}, voidp{wfx}, sizeAllocated, voidp{sizeWritten});
 
     if(!wfx && !sizeWritten)
     {
-        WARN(PREFIX "GetFormat Cannot report format or format size");
+        WARN("Cannot report format or format size");
         return DSERR_INVALIDPARAM;
     }
 
@@ -177,10 +183,12 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::GetFormat(WAVEFORMATEX *wfx, DWORD size
 
     return DS_OK;
 }
+#undef PREFIX
 
+#define PREFIX CLASS_PREFIX "GetVolume "
 HRESULT STDMETHODCALLTYPE PrimaryBuffer::GetVolume(LONG *volume) noexcept
 {
-    DEBUG(PREFIX "GetVolume ({})->({})", voidp{this}, voidp{volume});
+    DEBUG("({})->({})", voidp{this}, voidp{volume});
 
     if(!volume)
         return DSERR_INVALIDPARAM;
@@ -192,10 +200,12 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::GetVolume(LONG *volume) noexcept
     *volume = mVolume;
     return DS_OK;
 }
+#undef PREFIX
 
+#define PREFIX CLASS_PREFIX "GetPan "
 HRESULT STDMETHODCALLTYPE PrimaryBuffer::GetPan(LONG *pan) noexcept
 {
-    DEBUG(PREFIX "GetPan ({})->({})", voidp{this}, voidp{pan});
+    DEBUG("({})->({})", voidp{this}, voidp{pan});
 
     if(!pan)
         return DSERR_INVALIDPARAM;
@@ -207,10 +217,12 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::GetPan(LONG *pan) noexcept
     *pan = mPan;
     return DS_OK;
 }
+#undef PREFIX
 
+#define PREFIX CLASS_PREFIX "GetFrequency "
 HRESULT STDMETHODCALLTYPE PrimaryBuffer::GetFrequency(DWORD *frequency) noexcept
 {
-    DEBUG(PREFIX "GetFrequency ({})->({})", voidp{this}, voidp{frequency});
+    DEBUG("({})->({})", voidp{this}, voidp{frequency});
 
     if(!frequency)
         return DSERR_INVALIDPARAM;
@@ -222,10 +234,12 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::GetFrequency(DWORD *frequency) noexcept
     *frequency = mFormat.Format.nSamplesPerSec;
     return DS_OK;
 }
+#undef PREFIX
 
+#define PREFIX CLASS_PREFIX "GetStatus "
 HRESULT STDMETHODCALLTYPE PrimaryBuffer::GetStatus(DWORD *status) noexcept
 {
-    DEBUG(PREFIX "GetStatus ({})->({})", voidp{this}, voidp{status});
+    DEBUG("({})->({})", voidp{this}, voidp{status});
 
     if(!status)
         return DSERR_INVALIDPARAM;
@@ -267,15 +281,16 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::GetStatus(DWORD *status) noexcept
 
     return DS_OK;
 }
+#undef PREFIX
 
+#define PREFIX CLASS_PREFIX "Initialize "
 HRESULT STDMETHODCALLTYPE PrimaryBuffer::Initialize(IDirectSound *directSound, const DSBUFFERDESC *dsBufferDesc) noexcept
 {
-    DEBUG(PREFIX "Initialize ({})->({}, {})", voidp{this}, voidp{directSound},
-        cvoidp{dsBufferDesc});
+    DEBUG("({})->({}, {})", voidp{this}, voidp{directSound}, cvoidp{dsBufferDesc});
 
     if(!dsBufferDesc || dsBufferDesc->lpwfxFormat || dsBufferDesc->dwBufferBytes)
     {
-        WARN(PREFIX "Initialize Bad DSBUFFERDESC");
+        WARN("Bad DSBUFFERDESC");
         return DSERR_INVALIDPARAM;
     }
 
@@ -283,7 +298,7 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::Initialize(IDirectSound *directSound, c
         | DSBCAPS_LOCSOFTWARE};
     if((dsBufferDesc->dwFlags&BadFlags))
     {
-        WARN(PREFIX "Bad dwFlags {:08x}", dsBufferDesc->dwFlags);
+        WARN("Bad dwFlags {:08x}", dsBufferDesc->dwFlags);
         return DSERR_INVALIDPARAM;
     }
 
@@ -323,25 +338,29 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::Initialize(IDirectSound *directSound, c
 
     return DS_OK;
 }
+#undef PREFIX
 
+#define PREFIX CLASS_PREFIX "Lock "
 HRESULT STDMETHODCALLTYPE PrimaryBuffer::Lock(DWORD offset, DWORD bytes, void **audioPtr1, DWORD *audioBytes1, void **audioPtr2, DWORD *audioBytes2, DWORD flags) noexcept
 {
-    DEBUG(PREFIX "Lock ({})->({}, {}, {}, {}, {}, {}, {})", voidp{this}, offset, bytes,
-        voidp{audioPtr1}, voidp{audioBytes1}, voidp{audioPtr2}, voidp{audioBytes2}, flags);
+    DEBUG("({})->({}, {}, {}, {}, {}, {}, {})", voidp{this}, offset, bytes, voidp{audioPtr1},
+        voidp{audioBytes1}, voidp{audioPtr2}, voidp{audioBytes2}, flags);
 
     std::lock_guard lock{mMutex};
     if(mWriteEmu)
         return mWriteEmu->Lock(offset, bytes, audioPtr1, audioBytes1, audioPtr2, audioBytes2, flags);
     return DSERR_PRIOLEVELNEEDED;
 }
+#undef PREFIX
 
+#define PREFIX CLASS_PREFIX "Play "
 HRESULT STDMETHODCALLTYPE PrimaryBuffer::Play(DWORD reserved1, DWORD reserved2, DWORD flags) noexcept
 {
-    DEBUG(PREFIX "Play ({})->({}, {}, {})", voidp{this}, reserved1, reserved2, flags);
+    DEBUG("({})->({}, {}, {})", voidp{this}, reserved1, reserved2, flags);
 
     if(!(flags & DSBPLAY_LOOPING))
     {
-        WARN(PREFIX "Play Flags ({:08x}) not set to DSBPLAY_LOOPING", flags);
+        WARN("Flags ({:08x}) not set to DSBPLAY_LOOPING", flags);
         return DSERR_INVALIDPARAM;
     }
 
@@ -355,20 +374,24 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::Play(DWORD reserved1, DWORD reserved2, 
 
     return hr;
 }
+#undef PREFIX
 
+#define PREFIX CLASS_PREFIX "SetCurrentPosition "
 HRESULT STDMETHODCALLTYPE PrimaryBuffer::SetCurrentPosition(DWORD newPosition) noexcept
 {
-    FIXME(PREFIX "SetCurrentPosition ({})->({})", voidp{this}, newPosition);
+    FIXME("({})->({})", voidp{this}, newPosition);
     return DSERR_INVALIDCALL;
 }
+#undef PREFIX
 
+#define PREFIX CLASS_PREFIX "SetFormat "
 HRESULT STDMETHODCALLTYPE PrimaryBuffer::SetFormat(const WAVEFORMATEX *wfx) noexcept
 {
-    DEBUG(PREFIX "SetFormat ({})->({})", voidp{this}, cvoidp{wfx});
+    DEBUG("({})->({})", voidp{this}, cvoidp{wfx});
 
     if(!wfx)
     {
-        WARN(PREFIX "SetFormat Missing format");
+        WARN("Missing format");
         return DSERR_INVALIDPARAM;
     }
 
@@ -382,23 +405,23 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::SetFormat(const WAVEFORMATEX *wfx) noex
         /* Fail silently.. */
         if(wfx->cbSize < ExtExtraSize)
         {
-            WARN(PREFIX "SetFormat EXTENSIBLE size too small ({}, expected {}). Ignoring...",
-                wfx->cbSize, ExtExtraSize);
+            WARN("EXTENSIBLE size too small ({}, expected {}). Ignoring...", wfx->cbSize,
+                ExtExtraSize);
             return DS_OK;
         }
 
         /* NOLINTBEGIN(cppcoreguidelines-pro-type-union-access) */
         auto *wfe = CONTAINING_RECORD(wfx, const WAVEFORMATEXTENSIBLE, Format);
-        TRACE(PREFIX "SetFormat Requested primary format:\n"
-              "    FormatTag          = 0x{:04x}\n"
-              "    Channels           = {}\n"
-              "    SamplesPerSec      = {}\n"
-              "    AvgBytesPerSec     = {}\n"
-              "    BlockAlign         = {}\n"
-              "    BitsPerSample      = {}\n"
-              "    ValidBitsPerSample = {}\n"
-              "    ChannelMask        = 0x{:08x}\n"
-              "    SubFormat          = {}",
+        TRACE("Requested primary format:\n"
+            "    FormatTag          = 0x{:04x}\n"
+            "    Channels           = {}\n"
+            "    SamplesPerSec      = {}\n"
+            "    AvgBytesPerSec     = {}\n"
+            "    BlockAlign         = {}\n"
+            "    BitsPerSample      = {}\n"
+            "    ValidBitsPerSample = {}\n"
+            "    ChannelMask        = 0x{:08x}\n"
+            "    SubFormat          = {}",
             wfe->Format.wFormatTag, wfe->Format.nChannels, wfe->Format.nSamplesPerSec,
             wfe->Format.nAvgBytesPerSec, wfe->Format.nBlockAlign, wfe->Format.wBitsPerSample,
             wfe->Samples.wValidBitsPerSample, wfe->dwChannelMask,
@@ -407,13 +430,13 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::SetFormat(const WAVEFORMATEX *wfx) noex
     }
     else
     {
-        TRACE(PREFIX "SetFormat Requested primary format:\n"
-              "    FormatTag      = 0x{:04x}\n"
-              "    Channels       = {}\n"
-              "    SamplesPerSec  = {}\n"
-              "    AvgBytesPerSec = {}\n"
-              "    BlockAlign     = {}\n"
-              "    BitsPerSample  = {}",
+        TRACE("Requested primary format:\n"
+            "    FormatTag      = 0x{:04x}\n"
+            "    Channels       = {}\n"
+            "    SamplesPerSec  = {}\n"
+            "    AvgBytesPerSec = {}\n"
+            "    BlockAlign     = {}\n"
+            "    BitsPerSample  = {}",
             wfx->wFormatTag, wfx->nChannels, wfx->nSamplesPerSec, wfx->nAvgBytesPerSec,
             wfx->nBlockAlign, wfx->wBitsPerSample);
     }
@@ -422,36 +445,34 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::SetFormat(const WAVEFORMATEX *wfx) noex
     {
         if(wfx->nChannels <= 0)
         {
-            WARN("copy_format Invalid Channels {}", wfx->nChannels);
+            WARN("Invalid Channels {}", wfx->nChannels);
             return DSERR_INVALIDPARAM;
         }
         if(wfx->nSamplesPerSec < DSBFREQUENCY_MIN || wfx->nSamplesPerSec > DSBFREQUENCY_MAX)
         {
-            WARN("copy_format Invalid SamplesPerSec {}", wfx->nSamplesPerSec);
+            WARN("Invalid SamplesPerSec {}", wfx->nSamplesPerSec);
             return DSERR_INVALIDPARAM;
         }
         if(wfx->nBlockAlign <= 0)
         {
-            WARN("copy_format Invalid BlockAlign {}", wfx->nBlockAlign);
+            WARN("Invalid BlockAlign {}", wfx->nBlockAlign);
             return DSERR_INVALIDPARAM;
         }
         if(wfx->wBitsPerSample == 0 || (wfx->wBitsPerSample%8) != 0)
         {
-            WARN("copy_format Invalid BitsPerSample {}", wfx->wBitsPerSample);
+            WARN("Invalid BitsPerSample {}", wfx->wBitsPerSample);
             return DSERR_INVALIDPARAM;
         }
         if(wfx->nBlockAlign != wfx->nChannels*wfx->wBitsPerSample/8)
         {
-            WARN("copy_format Invalid BlockAlign {} (expected {} = {}*{}/8)",
-                 wfx->nBlockAlign, wfx->nChannels*wfx->wBitsPerSample/8,
-                 wfx->nChannels, wfx->wBitsPerSample);
+            WARN("Invalid BlockAlign {} (expected {} = {}*{}/8)", wfx->nBlockAlign,
+                wfx->nChannels*wfx->wBitsPerSample/8, wfx->nChannels, wfx->wBitsPerSample);
             return DSERR_INVALIDPARAM;
         }
         if(wfx->nAvgBytesPerSec != wfx->nBlockAlign*wfx->nSamplesPerSec)
         {
-            WARN("copy_format Invalid AvgBytesPerSec {} (expected {} = {}*{})",
-                 wfx->nAvgBytesPerSec, wfx->nSamplesPerSec*wfx->nBlockAlign,
-                 wfx->nSamplesPerSec, wfx->nBlockAlign);
+            WARN("Invalid AvgBytesPerSec {} (expected {} = {}*{})", wfx->nAvgBytesPerSec,
+                wfx->nSamplesPerSec*wfx->nBlockAlign, wfx->nSamplesPerSec, wfx->nBlockAlign);
             return DSERR_INVALIDPARAM;
         }
 
@@ -487,8 +508,7 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::SetFormat(const WAVEFORMATEX *wfx) noex
             }
             else
             {
-                FIXME("copy_format Unhandled extensible format: {}",
-                    GuidPrinter{fromx->SubFormat}.c_str());
+                FIXME("Unhandled extensible format: {}", GuidPrinter{fromx->SubFormat}.c_str());
                 return DSERR_INVALIDPARAM;
             }
 
@@ -503,7 +523,7 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::SetFormat(const WAVEFORMATEX *wfx) noex
         }
         else
         {
-            FIXME("copy_format Unhandled format tag {:04x}", wfx->wFormatTag);
+            FIXME("Unhandled format tag {:04x}", wfx->wFormatTag);
             return DSERR_INVALIDPARAM;
         }
 
@@ -524,14 +544,16 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::SetFormat(const WAVEFORMATEX *wfx) noex
     }
     return hr;
 }
+#undef PREFIX
 
+#define PREFIX CLASS_PREFIX "SetVolume "
 HRESULT STDMETHODCALLTYPE PrimaryBuffer::SetVolume(LONG volume) noexcept
 {
-    FIXME(PREFIX "SetVolume ({})->({})", voidp{this}, volume);
+    FIXME("({})->({})", voidp{this}, volume);
 
     if(volume > DSBVOLUME_MAX || volume < DSBVOLUME_MIN)
     {
-        WARN(PREFIX "Invalid volume ({})", volume);
+        WARN("Invalid volume ({})", volume);
         return DSERR_INVALIDPARAM;
     }
 
@@ -544,14 +566,16 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::SetVolume(LONG volume) noexcept
 
     return DS_OK;
 }
+#undef PREFIX
 
+#define PREFIX CLASS_PREFIX "SetPan "
 HRESULT STDMETHODCALLTYPE PrimaryBuffer::SetPan(LONG pan) noexcept
 {
-    FIXME(PREFIX "SetPan ({})->({}): stub", voidp{this}, pan);
+    FIXME("({})->({}): stub", voidp{this}, pan);
 
     if(pan < DSBPAN_LEFT || pan > DSBPAN_RIGHT)
     {
-        WARN(PREFIX "Invalid pan ({})", pan);
+        WARN("Invalid pan ({})", pan);
         return DSERR_INVALIDPARAM;
     }
 
@@ -567,16 +591,20 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::SetPan(LONG pan) noexcept
 
     return hr;
 }
+#undef PREFIX
 
+#define PREFIX CLASS_PREFIX "SetFrequency "
 HRESULT STDMETHODCALLTYPE PrimaryBuffer::SetFrequency(DWORD frequency) noexcept
 {
-    FIXME(PREFIX "SetFrequency ({})->({})", voidp{this}, frequency);
+    FIXME("({})->({})", voidp{this}, frequency);
     return DSERR_CONTROLUNAVAIL;
 }
+#undef PREFIX
 
+#define PREFIX CLASS_PREFIX "Stop "
 HRESULT STDMETHODCALLTYPE PrimaryBuffer::Stop() noexcept
 {
-    DEBUG("PrimaryBuffer::Stop ({})->()", voidp{this});
+    DEBUG("({})->()", voidp{this});
 
     std::lock_guard lock{mMutex};
     auto hr = S_OK;
@@ -592,27 +620,31 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::Stop() noexcept
 
     return hr;
 }
+#undef PREFIX
 
+#define PREFIX CLASS_PREFIX "Unlock "
 HRESULT STDMETHODCALLTYPE PrimaryBuffer::Unlock(void *audioPtr1, DWORD audioBytes1, void *audioPtr2, DWORD audioBytes2) noexcept
 {
-    DEBUG(PREFIX "Unlock ({})->({}, {}, {}, {})", voidp{this}, audioPtr1, audioBytes1, audioPtr2,
-        audioBytes2);
+    DEBUG("({})->({}, {}, {}, {})", voidp{this}, audioPtr1, audioBytes1, audioPtr2, audioBytes2);
 
     std::lock_guard lock{mMutex};
     if(mWriteEmu)
         return mWriteEmu->Unlock(audioPtr1, audioBytes1, audioPtr2, audioBytes2);
     return DSERR_INVALIDCALL;
 }
+#undef PREFIX
 
+#define PREFIX CLASS_PREFIX "Restore "
 HRESULT STDMETHODCALLTYPE PrimaryBuffer::Restore() noexcept
 {
-    DEBUG(PREFIX "Restore ({})->()", voidp{this});
+    DEBUG("({})->()", voidp{this});
 
     std::lock_guard lock{mMutex};
     if(mWriteEmu)
         return mWriteEmu->Restore();
     return DS_OK;
 }
+#undef PREFIX
 
 
 void PrimaryBuffer::setParams(const DS3DLISTENER &params, const std::bitset<FlagCount> flags)
@@ -679,38 +711,42 @@ void PrimaryBuffer::commit() noexcept
         buffer->commit();
     alGetErrorDirect(mContext);
 }
-#undef PREFIX
+#undef CLASS_PREFIX
 
-#define PREFIX "Primary::Listener3D::"
+#define CLASS_PREFIX "Listener3D::"
 HRESULT STDMETHODCALLTYPE PrimaryBuffer::Listener3D::QueryInterface(REFIID riid, void** ppvObject) noexcept
 { return impl_from_base()->QueryInterface(riid, ppvObject); }
 
+#define PREFIX CLASS_PREFIX "AddRef "
 ULONG STDMETHODCALLTYPE PrimaryBuffer::Listener3D::AddRef() noexcept
 {
     auto self = impl_from_base();
     self->mTotalRef.fetch_add(1u, std::memory_order_relaxed);
     const auto ret = self->mDs3dRef.fetch_add(1u, std::memory_order_relaxed) + 1;
-    DEBUG(PREFIX "AddRef ({}) ref {}", voidp{this}, ret);
+    DEBUG("({}) ref {}", voidp{this}, ret);
     return ret;
 }
+#undef PREFIX
 
+#define PREFIX CLASS_PREFIX "Release "
 ULONG STDMETHODCALLTYPE PrimaryBuffer::Listener3D::Release() noexcept
 {
     auto self = impl_from_base();
     const auto ret = self->mDs3dRef.fetch_sub(1u, std::memory_order_relaxed) - 1;
-    DEBUG(PREFIX "Release ({}) ref {}", voidp{this}, ret);
+    DEBUG("({}) ref {}", voidp{this}, ret);
     self->mTotalRef.fetch_sub(1u, std::memory_order_relaxed);
     return ret;
 }
+#undef PREFIX
 
+#define PREFIX CLASS_PREFIX "GetAllParameters "
 HRESULT STDMETHODCALLTYPE PrimaryBuffer::Listener3D::GetAllParameters(DS3DLISTENER *listener) noexcept
 {
-    DEBUG(PREFIX "GetAllParameters ({})->({})", voidp{this}, voidp{listener});
+    DEBUG("({})->({})", voidp{this}, voidp{listener});
 
     if(!listener || listener->dwSize < sizeof(*listener))
     {
-        WARN(PREFIX "Invalid DS3DLISTENER ({} {})", voidp{listener},
-            listener ? listener->dwSize : 0);
+        WARN("Invalid DS3DLISTENER ({} {})", voidp{listener}, listener ? listener->dwSize : 0);
         return DSERR_INVALIDPARAM;
     }
 
@@ -726,10 +762,12 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::Listener3D::GetAllParameters(DS3DLISTEN
 
     return DS_OK;
 }
+#undef PREFIX
 
+#define PREFIX CLASS_PREFIX "GetDistanceFactor "
 HRESULT STDMETHODCALLTYPE PrimaryBuffer::Listener3D::GetDistanceFactor(D3DVALUE *distanceFactor) noexcept
 {
-    DEBUG(PREFIX "GetDistanceFactor ({})->({})", voidp{this}, voidp{distanceFactor});
+    DEBUG("({})->({})", voidp{this}, voidp{distanceFactor});
 
     if(!distanceFactor)
         return DSERR_INVALIDPARAM;
@@ -739,10 +777,12 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::Listener3D::GetDistanceFactor(D3DVALUE 
 
     return DS_OK;
 }
+#undef PREFIX
 
+#define PREFIX CLASS_PREFIX "GetDopplerFactor "
 HRESULT STDMETHODCALLTYPE PrimaryBuffer::Listener3D::GetDopplerFactor(D3DVALUE *dopplerFactor) noexcept
 {
-    DEBUG(PREFIX "GetDoppleFactor ({})->({})", voidp{this}, voidp{dopplerFactor});
+    DEBUG("({})->({})", voidp{this}, voidp{dopplerFactor});
 
     if(!dopplerFactor)
         return DSERR_INVALIDPARAM;
@@ -752,11 +792,12 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::Listener3D::GetDopplerFactor(D3DVALUE *
 
     return DS_OK;
 }
+#undef PREFIX
 
+#define PREFIX CLASS_PREFIX "GetOrientation "
 HRESULT STDMETHODCALLTYPE PrimaryBuffer::Listener3D::GetOrientation(D3DVECTOR *orientFront, D3DVECTOR *orientTop) noexcept
 {
-    DEBUG(PREFIX "GetOrientation ({})->({}, {})", voidp{this}, voidp{orientFront},
-        voidp{orientTop});
+    DEBUG("({})->({}, {})", voidp{this}, voidp{orientFront}, voidp{orientTop});
 
     if(!orientFront || !orientTop)
         return DSERR_INVALIDPARAM;
@@ -768,10 +809,12 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::Listener3D::GetOrientation(D3DVECTOR *o
 
     return DS_OK;
 }
+#undef PREFIX
 
+#define PREFIX CLASS_PREFIX "GetPosition "
 HRESULT STDMETHODCALLTYPE PrimaryBuffer::Listener3D::GetPosition(D3DVECTOR *position) noexcept
 {
-    DEBUG(PREFIX "GetPosition ({})->({})", voidp{this}, voidp{position});
+    DEBUG("({})->({})", voidp{this}, voidp{position});
 
     if(!position)
         return DSERR_INVALIDPARAM;
@@ -782,10 +825,12 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::Listener3D::GetPosition(D3DVECTOR *posi
 
     return DS_OK;
 }
+#undef PREFIX
 
+#define PREFIX CLASS_PREFIX "GetRolloffFactor "
 HRESULT STDMETHODCALLTYPE PrimaryBuffer::Listener3D::GetRolloffFactor(D3DVALUE *rolloffFactor) noexcept
 {
-    DEBUG(PREFIX "GetRolloffFactor ({})->({})", voidp{this}, voidp{rolloffFactor});
+    DEBUG("({})->({})", voidp{this}, voidp{rolloffFactor});
 
     if(!rolloffFactor)
         return DSERR_INVALIDPARAM;
@@ -795,10 +840,12 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::Listener3D::GetRolloffFactor(D3DVALUE *
 
     return DS_OK;
 }
+#undef PREFIX
 
+#define PREFIX CLASS_PREFIX "GetVelocity "
 HRESULT STDMETHODCALLTYPE PrimaryBuffer::Listener3D::GetVelocity(D3DVECTOR *velocity) noexcept
 {
-    DEBUG(PREFIX "GetVelocity ({})->({})", voidp{this}, voidp{velocity});
+    DEBUG("({})->({})", voidp{this}, voidp{velocity});
 
     if(!velocity)
         return DSERR_INVALIDPARAM;
@@ -809,37 +856,37 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::Listener3D::GetVelocity(D3DVECTOR *velo
 
     return DS_OK;
 }
+#undef PREFIX
 
-
+#define PREFIX CLASS_PREFIX "SetAllParameters "
 HRESULT STDMETHODCALLTYPE PrimaryBuffer::Listener3D::SetAllParameters(const DS3DLISTENER *listener, DWORD apply) noexcept
 {
-    DEBUG(PREFIX "SetAllParameters ({})->({}, {})", voidp{this}, cvoidp{listener}, apply);
+    DEBUG("({})->({}, {})", voidp{this}, cvoidp{listener}, apply);
 
     if(!listener || listener->dwSize < sizeof(*listener))
     {
-        WARN(PREFIX "Invalid parameter ({} {})", cvoidp{listener},
-            listener ? listener->dwSize : 0);
+        WARN("Invalid parameter ({} {})", cvoidp{listener}, listener ? listener->dwSize : 0);
         return DSERR_INVALIDPARAM;
     }
 
     if(listener->flDistanceFactor > DS3D_MAXDISTANCEFACTOR
         || listener->flDistanceFactor < DS3D_MINDISTANCEFACTOR)
     {
-        WARN(PREFIX "Invalid distance factor ({:f})", listener->flDistanceFactor);
+        WARN("Invalid distance factor ({:f})", listener->flDistanceFactor);
         return DSERR_INVALIDPARAM;
     }
 
     if(listener->flDopplerFactor > DS3D_MAXDOPPLERFACTOR
         || listener->flDopplerFactor < DS3D_MINDOPPLERFACTOR)
     {
-        WARN(PREFIX "Invalid doppler factor ({:f})", listener->flDopplerFactor);
+        WARN("Invalid doppler factor ({:f})", listener->flDopplerFactor);
         return DSERR_INVALIDPARAM;
     }
 
     if(listener->flRolloffFactor < DS3D_MINROLLOFFFACTOR
         || listener->flRolloffFactor > DS3D_MAXROLLOFFFACTOR)
     {
-        WARN(PREFIX "Invalid rolloff factor ({:f})", listener->flRolloffFactor);
+        WARN("Invalid rolloff factor ({:f})", listener->flRolloffFactor);
         return DSERR_INVALIDPARAM;
     }
 
@@ -860,14 +907,16 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::Listener3D::SetAllParameters(const DS3D
 
     return E_NOTIMPL;
 }
+#undef PREFIX
 
+#define PREFIX CLASS_PREFIX "SetDistanceFactor "
 HRESULT STDMETHODCALLTYPE PrimaryBuffer::Listener3D::SetDistanceFactor(D3DVALUE distanceFactor, DWORD apply) noexcept
 {
-    DEBUG(PREFIX "SetDistanceFactor ({})->({:f}, {})", voidp{this}, distanceFactor, apply);
+    DEBUG("({})->({:f}, {})", voidp{this}, distanceFactor, apply);
 
     if(distanceFactor < DS3D_MINDISTANCEFACTOR || distanceFactor > DS3D_MAXDISTANCEFACTOR)
     {
-        WARN(PREFIX "Invalid parameter {:f}", distanceFactor);
+        WARN("Invalid parameter {:f}", distanceFactor);
         return DSERR_INVALIDPARAM;
     }
 
@@ -891,14 +940,16 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::Listener3D::SetDistanceFactor(D3DVALUE 
 
     return S_OK;
 }
+#undef PREFIX
 
+#define PREFIX CLASS_PREFIX "SetDopplerFactor "
 HRESULT STDMETHODCALLTYPE PrimaryBuffer::Listener3D::SetDopplerFactor(D3DVALUE dopplerFactor, DWORD apply) noexcept
 {
-    DEBUG(PREFIX "SetDopplerFactor ({})->({:f}, {})", voidp{this}, dopplerFactor, apply);
+    DEBUG("({})->({:f}, {})", voidp{this}, dopplerFactor, apply);
 
     if(dopplerFactor < DS3D_MINDOPPLERFACTOR || dopplerFactor > DS3D_MAXDOPPLERFACTOR)
     {
-        WARN(PREFIX "Invalid parameter {:f}", dopplerFactor);
+        WARN("Invalid parameter {:f}", dopplerFactor);
         return DSERR_INVALIDPARAM;
     }
 
@@ -918,11 +969,13 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::Listener3D::SetDopplerFactor(D3DVALUE d
 
     return S_OK;
 }
+#undef PREFIX
 
+#define PREFIX CLASS_PREFIX "SetOrientation "
 HRESULT STDMETHODCALLTYPE PrimaryBuffer::Listener3D::SetOrientation(D3DVALUE xFront, D3DVALUE yFront, D3DVALUE zFront, D3DVALUE xTop, D3DVALUE yTop, D3DVALUE zTop, DWORD apply) noexcept
 {
-    DEBUG(PREFIX "SetOrientation ({})->({:f}, {:f}, {:f}, {:f}, {:f}, {:f}, {})", voidp{this},
-        xFront, yFront, zFront, xTop, yTop, zTop, apply);
+    DEBUG("({})->({:f}, {:f}, {:f}, {:f}, {:f}, {:f}, {})", voidp{this}, xFront, yFront, zFront,
+        xTop, yTop, zTop, apply);
 
     auto self = impl_from_base();
     std::lock_guard lock{self->mMutex};
@@ -952,10 +1005,12 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::Listener3D::SetOrientation(D3DVALUE xFr
 
     return S_OK;
 }
+#undef PREFIX
 
+#define PREFIX CLASS_PREFIX "SetPosition "
 HRESULT STDMETHODCALLTYPE PrimaryBuffer::Listener3D::SetPosition(D3DVALUE x, D3DVALUE y, D3DVALUE z, DWORD apply) noexcept
 {
-    DEBUG(PREFIX "SetPosition ({})->({:f}, {:f}, {:f}, {})", voidp{this}, x, y, z, apply);
+    DEBUG("({})->({:f}, {:f}, {:f}, {})", voidp{this}, x, y, z, apply);
 
     auto self = impl_from_base();
     std::lock_guard lock{self->mMutex};
@@ -978,14 +1033,16 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::Listener3D::SetPosition(D3DVALUE x, D3D
 
     return S_OK;
 }
+#undef PREFIX
 
+#define PREFIX CLASS_PREFIX "SetRolloffFactor "
 HRESULT STDMETHODCALLTYPE PrimaryBuffer::Listener3D::SetRolloffFactor(D3DVALUE rolloffFactor, DWORD apply) noexcept
 {
-    DEBUG(PREFIX "SetRolloffFactor ({})->({:f}, {})", voidp{this}, rolloffFactor, apply);
+    DEBUG("({})->({:f}, {})", voidp{this}, rolloffFactor, apply);
 
     if(rolloffFactor < DS3D_MINROLLOFFFACTOR || rolloffFactor > DS3D_MAXROLLOFFFACTOR)
     {
-        WARN(PREFIX "Invalid parameter {:f}", rolloffFactor);
+        WARN("Invalid parameter {:f}", rolloffFactor);
         return DSERR_INVALIDPARAM;
     }
 
@@ -1015,10 +1072,12 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::Listener3D::SetRolloffFactor(D3DVALUE r
 
     return S_OK;
 }
+#undef PREFIX
 
+#define PREFIX CLASS_PREFIX "SetVelocity "
 HRESULT STDMETHODCALLTYPE PrimaryBuffer::Listener3D::SetVelocity(D3DVALUE x, D3DVALUE y, D3DVALUE z, DWORD apply) noexcept
 {
-    DEBUG(PREFIX "SetVelocity ({})->({:f}, {:f}, {:f}, {})", voidp{this}, x, y, z, apply);
+    DEBUG("({})->({:f}, {:f}, {:f}, {})", voidp{this}, x, y, z, apply);
 
     auto self = impl_from_base();
     std::lock_guard lock{self->mMutex};
@@ -1041,10 +1100,12 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::Listener3D::SetVelocity(D3DVALUE x, D3D
 
     return S_OK;
 }
+#undef PREFIX
 
+#define PREFIX CLASS_PREFIX "CommitDeferredSettings "
 HRESULT STDMETHODCALLTYPE PrimaryBuffer::Listener3D::CommitDeferredSettings() noexcept
 {
-    DEBUG(PREFIX "CommitDeferredSettings ({})->()", voidp{this});
+    DEBUG("({})->()", voidp{this});
 
     auto self = impl_from_base();
     std::lock_guard lock{self->mMutex};
@@ -1056,3 +1117,4 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::Listener3D::CommitDeferredSettings() no
     return DS_OK;
 }
 #undef PREFIX
+#undef CLASS_PREFIX

@@ -43,27 +43,27 @@ try {
 
 #define DEBUG(...) do {                                                       \
     if(gLogLevel >= LogLevel::Debug) [[unlikely]]                             \
-        dsoal_print(LogLevel::Debug, __VA_ARGS__);                            \
+        dsoal_print(LogLevel::Debug, PREFIX __VA_ARGS__);                     \
 } while(0)
 
 #define TRACE(...) do {                                                       \
     if(gLogLevel >= LogLevel::Trace) [[unlikely]]                             \
-        dsoal_print(LogLevel::Trace, __VA_ARGS__);                            \
+        dsoal_print(LogLevel::Trace, PREFIX __VA_ARGS__);                     \
 } while(0)
 
 #define WARN(...) do {                                                        \
     if(gLogLevel >= LogLevel::Warning) [[unlikely]]                           \
-        dsoal_print(LogLevel::Warning, __VA_ARGS__);                          \
+        dsoal_print(LogLevel::Warning, PREFIX __VA_ARGS__);                   \
 } while(0)
 
 #define FIXME(...) do {                                                       \
     if(gLogLevel >= LogLevel::Fixme) [[unlikely]]                             \
-        dsoal_print(LogLevel::Fixme, __VA_ARGS__);                            \
+        dsoal_print(LogLevel::Fixme, PREFIX __VA_ARGS__);                     \
 } while(0)
 
 #define ERR(...) do {                                                         \
     if(gLogLevel >= LogLevel::Error) [[unlikely]]                             \
-        dsoal_print(LogLevel::Error, __VA_ARGS__);                            \
+        dsoal_print(LogLevel::Error, PREFIX __VA_ARGS__);                     \
 } while(0)
 
 #endif // LOGGING_H

@@ -133,6 +133,7 @@ constexpr DWORD DSPROPERTY_EAX20BUFFER_DEFERRED{0x80000000u};
  * EAX 4 stuff
  ******************/
 
+#define PREFIX "EAX4Context_Query "
 DWORD EAX4Context_Query(DWORD propid)
 {
     switch((propid&~EAXCONTEXT_PARAMETER_DEFERRED))
@@ -146,10 +147,12 @@ DWORD EAX4Context_Query(DWORD propid)
     case EAXCONTEXT_LASTERROR:
         return KSPROPERTY_SUPPORT_GET | KSPROPERTY_SUPPORT_SET;
     }
-    FIXME("EAX4Context_Query Unhandled propid: 0x{:08x}", propid);
+    FIXME("Unhandled propid: 0x{:08x}", propid);
     return 0;
 }
+#undef PREFIX
 
+#define PREFIX "EAX4Slot_Query "
 DWORD EAX4Slot_Query(DWORD propid)
 {
     switch((propid&~EAXFXSLOT_PARAMETER_DEFERRED))
@@ -167,10 +170,12 @@ DWORD EAX4Slot_Query(DWORD propid)
      */
     if((propid&~EAXFXSLOT_PARAMETER_DEFERRED) <= EAXREVERB_FLAGS)
         return KSPROPERTY_SUPPORT_GET | KSPROPERTY_SUPPORT_SET;
-    FIXME("EAX4Slot_Query Unhandled propid: 0x{:08x}", propid);
+    FIXME("Unhandled propid: 0x{:08x}", propid);
     return 0;
 }
+#undef PREFIX
 
+#define PREFIX "EAX4Source_Query "
 DWORD EAX4Source_Query(DWORD propid)
 {
     switch((propid&~EAXSOURCE_PARAMETER_DEFERRED))
@@ -205,15 +210,17 @@ DWORD EAX4Source_Query(DWORD propid)
     case EAXSOURCE_ACTIVEFXSLOTID:
         return KSPROPERTY_SUPPORT_GET | KSPROPERTY_SUPPORT_SET;
     }
-    FIXME("EAX4Source_Query Unhandled propid: 0x{:08x}", propid);
+    FIXME("Unhandled propid: 0x{:08x}", propid);
     return 0;
 }
+#undef PREFIX
 
 
 /*******************
  * EAX 3 stuff
  ******************/
 
+#define PREFIX "EAX3_Query "
 DWORD EAX3_Query(DWORD propid)
 {
     switch((propid&~EAX30LISTENER_DEFERRED))
@@ -246,10 +253,12 @@ DWORD EAX3_Query(DWORD propid)
     case EAXREVERB_FLAGS:
         return KSPROPERTY_SUPPORT_GET | KSPROPERTY_SUPPORT_SET;
     }
-    FIXME("EAX3_Query Unhandled propid: 0x{:08x}", propid);
+    FIXME("Unhandled propid: 0x{:08x}", propid);
     return 0;
 }
+#undef PREFIX
 
+#define PREFIX "EAX3Buffer_Query "
 DWORD EAX3Buffer_Query(DWORD propid)
 {
     switch((propid&~EAX30BUFFER_DEFERRED))
@@ -279,15 +288,17 @@ DWORD EAX3Buffer_Query(DWORD propid)
     case EAXSOURCE_FLAGS:
         return KSPROPERTY_SUPPORT_GET | KSPROPERTY_SUPPORT_SET;
     }
-    FIXME("EAX3Buffer_Query Unhandled propid: 0x{:08x}", propid);
+    FIXME("Unhandled propid: 0x{:08x}", propid);
     return 0;
 }
+#undef PREFIX
 
 
 /*******************
  * EAX 2 stuff
  ******************/
 
+#define PREFIX "EAX2_Query "
 DWORD EAX2_Query(DWORD propid)
 {
     switch((propid&~DSPROPERTY_EAX20LISTENER_DEFERRED))
@@ -310,10 +321,12 @@ DWORD EAX2_Query(DWORD propid)
     case DSPROPERTY_EAX20LISTENER_FLAGS:
         return KSPROPERTY_SUPPORT_GET | KSPROPERTY_SUPPORT_SET;
     }
-    FIXME("EAX2_Query Unhandled propid: 0x{:08x}", propid);
+    FIXME("Unhandled propid: 0x{:08x}", propid);
     return 0;
 }
+#undef PREFIX
 
+#define PREFIX "EAX2Buffer_Query "
 DWORD EAX2Buffer_Query(DWORD propid)
 {
     switch((propid&~DSPROPERTY_EAX20BUFFER_DEFERRED))
@@ -335,15 +348,17 @@ DWORD EAX2Buffer_Query(DWORD propid)
     case DSPROPERTY_EAX20BUFFER_FLAGS:
         return KSPROPERTY_SUPPORT_GET | KSPROPERTY_SUPPORT_SET;
     }
-    FIXME("EAX2Buffer_Query Unhandled propid: 0x{:08x}", propid);
+    FIXME("Unhandled propid: 0x{:08x}", propid);
     return 0;
 }
+#undef PREFIX
 
 
 /*******************
  * EAX 1 stuff
  ******************/
 
+#define PREFIX "EAX1_Query "
 DWORD EAX1_Query(DWORD propid)
 {
     switch(propid)
@@ -355,10 +370,12 @@ DWORD EAX1_Query(DWORD propid)
     case DSPROPERTY_EAX10REVERB_DAMPING:
         return KSPROPERTY_SUPPORT_GET | KSPROPERTY_SUPPORT_SET;
     }
-    FIXME("EAX1_Query Unhandled propid: 0x{:08x}", propid);
+    FIXME("Unhandled propid: 0x{:08x}", propid);
     return 0;
 }
+#undef PREFIX
 
+#define PREFIX "EAX1Buffer_Query "
 DWORD EAX1Buffer_Query(DWORD propid)
 {
     switch(propid)
@@ -367,6 +384,7 @@ DWORD EAX1Buffer_Query(DWORD propid)
     case DSPROPERTY_EAX10BUFFER_REVERBMIX:
         return KSPROPERTY_SUPPORT_GET | KSPROPERTY_SUPPORT_SET;
     }
-    FIXME("EAX1Buffer_Query Unhandled propid: 0x{:08x}", propid);
+    FIXME("Unhandled propid: 0x{:08x}", propid);
     return 0;
 }
+#undef PREFIX

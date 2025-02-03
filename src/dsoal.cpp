@@ -35,30 +35,31 @@ using cvoidp = const void*;
 
 HMODULE gOpenalHandle{};
 
-
+#define PREFIX "load_function "
 template<typename T>
 bool load_function(T &func, const char *name)
 {
     func = std::bit_cast<T>(GetProcAddress(gOpenalHandle, name));
     if(!func) [[unlikely]]
     {
-        ERR("load_function Couldn't find {} in {}", name, wstr_to_utf8(std::data(aldriver_name)));
+        ERR("Couldn't find {} in {}", name, wstr_to_utf8(std::data(aldriver_name)));
         return false;
     }
     return true;
 }
+#undef PREFIX
 
 template<typename T>
 void load_alcfunction(T &func, const char *name)
 { func = std::bit_cast<T>(alcGetProcAddress(nullptr, name)); }
 
+#define PREFIX "load_openal "
 bool load_openal()
 {
     gOpenalHandle = LoadLibraryW(std::data(aldriver_name));
     if(!gOpenalHandle)
     {
-        ERR("load_openal Couldn't load {}: {}", wstr_to_utf8(std::data(aldriver_name)),
-            GetLastError());
+        ERR("Couldn't load {}: {}", wstr_to_utf8(std::data(aldriver_name)), GetLastError());
         return false;
     }
 
@@ -188,6 +189,7 @@ bool load_openal()
 
     return true;
 }
+#undef PREFIX
 
 } // namespace
 
@@ -226,6 +228,7 @@ auto utf8_to_wstr(std::string_view str) -> std::wstring
 }
 
 
+#define PREFIX "GetMMDevice "
 ComPtr<IMMDevice> GetMMDevice(ComWrapper&, EDataFlow flow, const GUID &id)
 {
     ComPtr<IMMDeviceEnumerator> devenum;
@@ -233,7 +236,7 @@ ComPtr<IMMDevice> GetMMDevice(ComWrapper&, EDataFlow flow, const GUID &id)
         IID_IMMDeviceEnumerator, ds::out_ptr(devenum))};
     if(FAILED(hr))
     {
-        ERR("GetMMDevice CoCreateInstance failed: {:08x}", as_unsigned(hr));
+        ERR("CoCreateInstance failed: {:08x}", as_unsigned(hr));
         return {};
     }
 
@@ -241,7 +244,7 @@ ComPtr<IMMDevice> GetMMDevice(ComWrapper&, EDataFlow flow, const GUID &id)
     hr = devenum->EnumAudioEndpoints(flow, DEVICE_STATE_ACTIVE, ds::out_ptr(coll));
     if(FAILED(hr))
     {
-        WARN("GetMMDevice IMMDeviceEnumerator::EnumAudioEndpoints failed: {:08x}", as_unsigned(hr));
+        WARN("IMMDeviceEnumerator::EnumAudioEndpoints failed: {:08x}", as_unsigned(hr));
         return {};
     }
 
@@ -286,8 +289,9 @@ ComPtr<IMMDevice> GetMMDevice(ComWrapper&, EDataFlow flow, const GUID &id)
 
     return {};
 }
+#undef PREFIX
 
-
+#define PREFIX "GetDeviceID "
 HRESULT WINAPI GetDeviceID(const GUID &guidSrc, GUID &guidDst) noexcept
 {
     ERole role{};
@@ -316,7 +320,7 @@ HRESULT WINAPI GetDeviceID(const GUID &guidSrc, GUID &guidDst) noexcept
         IID_IMMDeviceEnumerator, ds::out_ptr(devenum))};
     if(FAILED(hr))
     {
-        ERR("GetDeviceID CoCreateInstance failed: {:08x}", as_unsigned(hr));
+        ERR("CoCreateInstance failed: {:08x}", as_unsigned(hr));
         return hr;
     }
 
@@ -324,8 +328,7 @@ HRESULT WINAPI GetDeviceID(const GUID &guidSrc, GUID &guidDst) noexcept
     hr = devenum->GetDefaultAudioEndpoint(flow, role, ds::out_ptr(device));
     if(FAILED(hr))
     {
-        WARN("GetDeviceID IMMDeviceEnumerator::GetDefaultAudioEndpoint failed: {:08x}",
-            as_unsigned(hr));
+        WARN("IMMDeviceEnumerator::GetDefaultAudioEndpoint failed: {:08x}", as_unsigned(hr));
         return DSERR_NODRIVER;
     }
 
@@ -333,7 +336,7 @@ HRESULT WINAPI GetDeviceID(const GUID &guidSrc, GUID &guidDst) noexcept
     hr = device->OpenPropertyStore(STGM_READ, ds::out_ptr(ps));
     if(FAILED(hr))
     {
-        WARN("GetDeviceID IMMDevice::OpenPropertyStore failed: {:08x}", as_unsigned(hr));
+        WARN("IMMDevice::OpenPropertyStore failed: {:08x}", as_unsigned(hr));
         return hr;
     }
 
@@ -341,7 +344,7 @@ HRESULT WINAPI GetDeviceID(const GUID &guidSrc, GUID &guidDst) noexcept
     hr = ps->GetValue(PKEY_AudioEndpoint_GUID, pv.get());
     if(FAILED(hr) || pv.type() != VT_LPWSTR)
     {
-        WARN("GetDeviceID IPropertyStore::GetValue(GUID) failed: {:08x}", as_unsigned(hr));
+        WARN("IPropertyStore::GetValue(GUID) failed: {:08x}", as_unsigned(hr));
         return hr;
     }
 
@@ -349,7 +352,7 @@ HRESULT WINAPI GetDeviceID(const GUID &guidSrc, GUID &guidDst) noexcept
 
     return DS_OK;
 }
-
+#undef PREFIX
 
 extern "C" {
 
@@ -380,9 +383,10 @@ const GUID KSDATAFORMAT_SUBTYPE_IEEE_FLOAT{
 };
 #endif
 
+#define PREFIX "DllMain "
 DSOAL_EXPORT BOOL WINAPI DllMain(HINSTANCE hInstDLL, DWORD reason, void *reserved)
 {
-    DEBUG("DllMain ({}, {}, {})", voidp{hInstDLL}, reason, reserved);
+    DEBUG("({}, {}, {})", voidp{hInstDLL}, reason, reserved);
 
     switch(reason)
     {
@@ -411,7 +415,7 @@ DSOAL_EXPORT BOOL WINAPI DllMain(HINSTANCE hInstDLL, DWORD reason, void *reserve
             }
         }
 
-        TRACE("DllMain Initializing library v{}-{} {}", DSOAL_VERSION, DSOAL_GIT_COMMIT_HASH,
+        TRACE("Initializing library v{}-{} {}", DSOAL_VERSION, DSOAL_GIT_COMMIT_HASH,
             DSOAL_GIT_BRANCH);
         if(!load_openal())
         {
@@ -435,23 +439,23 @@ DSOAL_EXPORT BOOL WINAPI DllMain(HINSTANCE hInstDLL, DWORD reason, void *reserve
 
     return TRUE;
 }
+#undef PREFIX
 
-
+#define PREFIX "DirectSoundCreate "
 HRESULT WINAPI DSOAL_DirectSoundCreate(const GUID *deviceId, IDirectSound **ds, IUnknown *outer) noexcept
 {
-    TRACE("DirectSoundCreate ({}, {}, {})", GuidPrinter{deviceId}.c_str(), voidp{ds},
-        voidp{outer});
+    TRACE("({}, {}, {})", GuidPrinter{deviceId}.c_str(), voidp{ds}, voidp{outer});
 
     if(!ds)
     {
-        WARN("DirectSoundCreate invalid parameter: ppDS == NULL");
+        WARN("invalid parameter: ppDS == NULL");
         return DSERR_INVALIDPARAM;
     }
     *ds = nullptr;
 
     if(outer)
     {
-        WARN("DirectSoundCreate invalid parameter: pUnkOuter != NULL");
+        WARN("invalid parameter: pUnkOuter != NULL");
         return DSERR_INVALIDPARAM;
     }
 
@@ -466,28 +470,29 @@ HRESULT WINAPI DSOAL_DirectSoundCreate(const GUID *deviceId, IDirectSound **ds, 
         }
     }
     catch(std::bad_alloc &e) {
-        ERR("DirectSoundCreate Caught exception: {}", e.what());
+        ERR("Caught exception: {}", e.what());
         hr = DSERR_OUTOFMEMORY;
     }
 
     return hr;
 }
+#undef PREFIX
 
+#define PREFIX "DirectSoundCreate8 "
 HRESULT WINAPI DSOAL_DirectSoundCreate8(const GUID *deviceId, IDirectSound8 **ds, IUnknown *outer) noexcept
 {
-    TRACE("DirectSoundCreate8 ({}, {}, {})", DevidPrinter{deviceId}.c_str(), voidp{ds},
-        voidp{outer});
+    TRACE("({}, {}, {})", DevidPrinter{deviceId}.c_str(), voidp{ds}, voidp{outer});
 
     if(!ds)
     {
-        WARN("DirectSoundCreate8 invalid parameter: ppDS == NULL");
+        WARN("invalid parameter: ppDS == NULL");
         return DSERR_INVALIDPARAM;
     }
     *ds = nullptr;
 
     if(outer)
     {
-        WARN("DirectSoundCreate8 invalid parameter: pUnkOuter != NULL");
+        WARN("invalid parameter: pUnkOuter != NULL");
         return DSERR_INVALIDPARAM;
     }
 
@@ -502,29 +507,30 @@ HRESULT WINAPI DSOAL_DirectSoundCreate8(const GUID *deviceId, IDirectSound8 **ds
         }
     }
     catch(std::bad_alloc &e) {
-        ERR("DirectSoundCreate8 Caught exception: {}", e.what());
+        ERR("Caught exception: {}", e.what());
         hr = DSERR_OUTOFMEMORY;
     }
 
     return hr;
 }
+#undef PREFIX
 
+#define PREFIX "DirectSoundCaptureCreate "
 HRESULT WINAPI DSOAL_DirectSoundCaptureCreate(const GUID *deviceId, IDirectSoundCapture **ds,
     IUnknown *outer) noexcept
 {
-    TRACE("DirectSoundCaptureCreate ({}, {}, {})", DevidPrinter{deviceId}.c_str(), voidp{ds},
-        voidp{outer});
+    TRACE("({}, {}, {})", DevidPrinter{deviceId}.c_str(), voidp{ds}, voidp{outer});
 
     if(!ds)
     {
-        WARN("DirectSoundCaptureCreate invalid parameter: ppDS == NULL");
+        WARN("invalid parameter: ppDS == NULL");
         return DSERR_INVALIDPARAM;
     }
     *ds = nullptr;
 
     if(outer)
     {
-        WARN("DirectSoundCaptureCreate invalid parameter: pUnkOuter != NULL");
+        WARN("invalid parameter: pUnkOuter != NULL");
         return DSERR_INVALIDPARAM;
     }
 
@@ -539,29 +545,30 @@ HRESULT WINAPI DSOAL_DirectSoundCaptureCreate(const GUID *deviceId, IDirectSound
         }
     }
     catch(std::bad_alloc &e) {
-        ERR("DirectSoundCaptureCreate Caught exception: {}", e.what());
+        ERR("Caught exception: {}", e.what());
         hr = DSERR_OUTOFMEMORY;
     }
 
     return hr;
 }
+#undef PREFIX
 
+#define PREFIX "DirectSoundCaptureCreate8 "
 HRESULT WINAPI DSOAL_DirectSoundCaptureCreate8(const GUID *deviceId, IDirectSoundCapture8 **ds,
     IUnknown *outer) noexcept
 {
-    TRACE("DirectSoundCaptureCreate8 ({}, {}, {})", DevidPrinter{deviceId}.c_str(), voidp{ds},
-        voidp{outer});
+    TRACE("({}, {}, {})", DevidPrinter{deviceId}.c_str(), voidp{ds}, voidp{outer});
 
     if(!ds)
     {
-        WARN("DirectSoundCaptureCreate8 invalid parameter: ppDS == NULL");
+        WARN("invalid parameter: ppDS == NULL");
         return DSERR_INVALIDPARAM;
     }
     *ds = nullptr;
 
     if(outer)
     {
-        WARN("DirectSoundCaptureCreate8 invalid parameter: pUnkOuter != NULL");
+        WARN("invalid parameter: pUnkOuter != NULL");
         return DSERR_INVALIDPARAM;
     }
 
@@ -576,36 +583,38 @@ HRESULT WINAPI DSOAL_DirectSoundCaptureCreate8(const GUID *deviceId, IDirectSoun
         }
     }
     catch(std::bad_alloc &e) {
-        ERR("DirectSoundCaptureCreate8 Caught exception: {}", e.what());
+        ERR("Caught exception: {}", e.what());
         hr = DSERR_OUTOFMEMORY;
     }
 
     return hr;
 }
+#undef PREFIX
 
+#define PREFIX "DirectSoundFullDuplexCreate "
 HRESULT WINAPI DSOAL_DirectSoundFullDuplexCreate(const GUID *captureDevice,
     const GUID *renderDevice, const DSCBUFFERDESC *captureBufferDesc,
     const DSBUFFERDESC *renderBufferDesc, HWND hWnd, DWORD coopLevel,
     IDirectSoundFullDuplex **fullDuplex, IDirectSoundCaptureBuffer8 **captureBuffer8,
     IDirectSoundBuffer8 **renderBuffer8, IUnknown *outer) noexcept
 {
-    TRACE("DirectSoundFullDuplexCreate ({}, {}, {}, {}, {}, {}, {}, {}, {}, {})",
-        DevidPrinter{captureDevice}.c_str(), DevidPrinter{renderDevice}.c_str(),
-        cvoidp{captureBufferDesc}, cvoidp{renderBufferDesc}, voidp{hWnd}, coopLevel,
-        voidp{fullDuplex}, voidp{captureBuffer8}, voidp{renderBuffer8}, voidp{outer});
+    TRACE("({}, {}, {}, {}, {}, {}, {}, {}, {}, {})", DevidPrinter{captureDevice}.c_str(),
+        DevidPrinter{renderDevice}.c_str(), cvoidp{captureBufferDesc}, cvoidp{renderBufferDesc},
+        voidp{hWnd}, coopLevel, voidp{fullDuplex}, voidp{captureBuffer8}, voidp{renderBuffer8},
+        voidp{outer});
 
     if(renderBuffer8) *renderBuffer8 = nullptr;
     if(captureBuffer8) *captureBuffer8 = nullptr;
     if(!fullDuplex)
     {
-        WARN("DirectSoundFullDuplexCreate invalid out parameter: {}", voidp{fullDuplex});
+        WARN("invalid out parameter: {}", voidp{fullDuplex});
         return DSERR_INVALIDPARAM;
     }
     *fullDuplex = nullptr;
 
     if(outer)
     {
-        WARN("DirectSoundFullDuplexCreate invalid parameter: pUnkOuter != NULL");
+        WARN("invalid parameter: pUnkOuter != NULL");
         return DSERR_INVALIDPARAM;
     }
 
@@ -621,17 +630,18 @@ HRESULT WINAPI DSOAL_DirectSoundFullDuplexCreate(const GUID *captureDevice,
         }
     }
     catch(std::bad_alloc &e) {
-        ERR("DirectSoundFullDuplexCreate Caught exception: {}", e.what());
+        ERR("Caught exception: {}", e.what());
         hr = DSERR_OUTOFMEMORY;
     }
 
     return hr;
 }
+#undef PREFIX
 
-
+#define PREFIX "DirectSoundEnumerateA "
 HRESULT WINAPI DSOAL_DirectSoundEnumerateA(LPDSENUMCALLBACKA callback, void *userPtr) noexcept
 {
-    TRACE("DirectSoundEnumerateA ({}, {})", reinterpret_cast<void*>(callback), userPtr);
+    TRACE("({}, {})", reinterpret_cast<void*>(callback), userPtr);
 
     auto do_enum = [callback,userPtr](GUID *guid, const WCHAR *drvname, const WCHAR *devname)
     {
@@ -652,9 +662,12 @@ HRESULT WINAPI DSOAL_DirectSoundEnumerateA(LPDSENUMCALLBACKA callback, void *use
     std::lock_guard listlock{gDeviceListMutex};
     return enumerate_mmdev(eRender, gPlaybackDevices, do_enum);
 }
+#undef PREFIX
+
+#define PREFIX "DirectSoundEnumerateW "
 HRESULT WINAPI DSOAL_DirectSoundEnumerateW(LPDSENUMCALLBACKW callback, void *userPtr) noexcept
 {
-    TRACE("DirectSoundEnumerateW ({}, {})", reinterpret_cast<void*>(callback), userPtr);
+    TRACE("({}, {})", reinterpret_cast<void*>(callback), userPtr);
 
     auto do_enum = [callback,userPtr](GUID *guid, const WCHAR *drvname, const WCHAR *devname)
     { return callback(guid, drvname, devname, userPtr) != FALSE; };
@@ -662,10 +675,12 @@ HRESULT WINAPI DSOAL_DirectSoundEnumerateW(LPDSENUMCALLBACKW callback, void *use
     std::lock_guard listlock{gDeviceListMutex};
     return enumerate_mmdev(eRender, gPlaybackDevices, do_enum);
 }
+#undef PREFIX
 
+#define PREFIX "DirectSoundCaptureenumerateA "
 HRESULT WINAPI DSOAL_DirectSoundCaptureEnumerateA(LPDSENUMCALLBACKA callback, void *userPtr) noexcept
 {
-    TRACE("DirectSoundCaptureEnumerateA ({}, {})", reinterpret_cast<void*>(callback), userPtr);
+    TRACE("({}, {})", reinterpret_cast<void*>(callback), userPtr);
 
     auto do_enum = [callback,userPtr](GUID *guid, const WCHAR *drvname, const WCHAR *devname)
     {
@@ -686,9 +701,12 @@ HRESULT WINAPI DSOAL_DirectSoundCaptureEnumerateA(LPDSENUMCALLBACKA callback, vo
     std::lock_guard listlock{gDeviceListMutex};
     return enumerate_mmdev(eCapture, gCaptureDevices, do_enum);
 }
+#undef PREFIX
+
+#define PREFIX "DirectSoundEnumerateW "
 HRESULT WINAPI DSOAL_DirectSoundCaptureEnumerateW(LPDSENUMCALLBACKW callback, void *userPtr) noexcept
 {
-    TRACE("DirectSoundCaptureEnumerateW ({}, {})", reinterpret_cast<void*>(callback), userPtr);
+    TRACE("({}, {})", reinterpret_cast<void*>(callback), userPtr);
 
     auto do_enum = [callback,userPtr](GUID *guid, const WCHAR *drvname, const WCHAR *devname)
     { return callback(guid, drvname, devname, userPtr) != FALSE; };
@@ -696,37 +714,42 @@ HRESULT WINAPI DSOAL_DirectSoundCaptureEnumerateW(LPDSENUMCALLBACKW callback, vo
     std::lock_guard listlock{gDeviceListMutex};
     return enumerate_mmdev(eCapture, gCaptureDevices, do_enum);
 }
+#undef PREFIX
 
-
+#define PREFIX "DllCanUnloadNow "
 HRESULT WINAPI DSOAL_DllCanUnloadNow() noexcept
 {
-    TRACE("DllCanUnloadNow");
+    TRACE("(): stub");
     return S_FALSE;
 }
+#undef PREFIX
 
+#define PREFIX "DllGetClassObject "
 HRESULT WINAPI DSOAL_DllGetClassObject(REFCLSID rclsid, REFIID riid, void **ppv) noexcept
 {
-    TRACE("DllGetClassObject ({}, {}, {})", ClsidPrinter{rclsid}.c_str(), IidPrinter{riid}.c_str(),
-        voidp{ppv});
+    TRACE("({}, {}, {})", ClsidPrinter{rclsid}.c_str(), IidPrinter{riid}.c_str(), voidp{ppv});
 
     if(!ppv)
     {
-        WARN("DllGetClassObject NULL out pointer");
+        WARN("NULL out pointer");
         return E_INVALIDARG;
     }
     *ppv = nullptr;
 
     return Factory::GetFactory(rclsid, riid, ppv);
 }
+#undef PREFIX
 
+#define PREFIX "GetDeviceID "
 HRESULT WINAPI DSOAL_GetDeviceID(const GUID *guidSrc, GUID *guidDst) noexcept
 {
-    TRACE("GetDeviceID ({}, {})", DevidPrinter{guidSrc}.c_str(), voidp{guidDst});
+    TRACE("({}, {})", DevidPrinter{guidSrc}.c_str(), voidp{guidDst});
 
     if(!guidSrc || !guidDst)
         return DSERR_INVALIDPARAM;
 
     return GetDeviceID(*guidSrc, *guidDst);
 }
+#undef PREFIX
 
 } // extern "C"

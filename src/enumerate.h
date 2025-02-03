@@ -36,7 +36,7 @@ HRESULT enumerate_mmdev(const EDataFlow flow, std::deque<GUID> &devlist, T&& cb)
         IID_IMMDeviceEnumerator, ds::out_ptr(devenum))};
     if(FAILED(hr))
     {
-        ERR(PREFIX "CoCreateInstance failed: {:08x}", as_unsigned(hr));
+        ERR("CoCreateInstance failed: {:08x}", as_unsigned(hr));
         return hr;
     }
 
@@ -44,7 +44,7 @@ HRESULT enumerate_mmdev(const EDataFlow flow, std::deque<GUID> &devlist, T&& cb)
     hr = devenum->EnumAudioEndpoints(flow, DEVICE_STATE_ACTIVE, ds::out_ptr(coll));
     if(FAILED(hr))
     {
-        WARN(PREFIX "IMMDeviceEnumerator::EnumAudioEndpoints failed: {:08x}", as_unsigned(hr));
+        WARN("IMMDeviceEnumerator::EnumAudioEndpoints failed: {:08x}", as_unsigned(hr));
         return DS_OK;
     }
 
@@ -52,7 +52,7 @@ HRESULT enumerate_mmdev(const EDataFlow flow, std::deque<GUID> &devlist, T&& cb)
     hr = coll->GetCount(&count);
     if(FAILED(hr))
     {
-        WARN(PREFIX "IMMDeviceCollection::GetCount failed: {:08x}", as_unsigned(hr));
+        WARN("IMMDeviceCollection::GetCount failed: {:08x}", as_unsigned(hr));
         return DS_OK;
     }
 
@@ -61,7 +61,7 @@ HRESULT enumerate_mmdev(const EDataFlow flow, std::deque<GUID> &devlist, T&& cb)
 
     std::deque<GUID>{}.swap(devlist);
 
-    TRACE(PREFIX "Calling back with NULL ({})", wstr_to_utf8(std::data(primary_desc)));
+    TRACE("Calling back with NULL ({})", wstr_to_utf8(std::data(primary_desc)));
     auto keep_going = bool{cb(nullptr, primary_desc, L"")};
 
     auto send_device = [&devlist,&cb,&keep_going](IMMDevice *device)
@@ -70,7 +70,7 @@ HRESULT enumerate_mmdev(const EDataFlow flow, std::deque<GUID> &devlist, T&& cb)
         HRESULT hr2{device->OpenPropertyStore(STGM_READ, ds::out_ptr(ps))};
         if(FAILED(hr2))
         {
-            WARN(PREFIX "IMMDevice::OpenPropertyStore failed: {:08x}", as_unsigned(hr2));
+            WARN("IMMDevice::OpenPropertyStore failed: {:08x}", as_unsigned(hr2));
             return;
         }
 
@@ -78,7 +78,7 @@ HRESULT enumerate_mmdev(const EDataFlow flow, std::deque<GUID> &devlist, T&& cb)
         hr2 = ps->GetValue(PKEY_AudioEndpoint_GUID, pv.get());
         if(FAILED(hr2) || pv.type() != VT_LPWSTR)
         {
-            WARN(PREFIX "IPropertyStore::GetValue(GUID) failed: {:08x}", as_unsigned(hr2));
+            WARN("IPropertyStore::GetValue(GUID) failed: {:08x}", as_unsigned(hr2));
             return;
         }
 
@@ -95,11 +95,11 @@ HRESULT enumerate_mmdev(const EDataFlow flow, std::deque<GUID> &devlist, T&& cb)
         hr2 = ps->GetValue(std::bit_cast<PROPERTYKEY>(DEVPKEY_Device_FriendlyName), pv.get());
         if(FAILED(hr2))
         {
-            WARN(PREFIX "IPropertyStore::GetValue(FriendlyName) failed: {:08x}", as_unsigned(hr2));
+            WARN("IPropertyStore::GetValue(FriendlyName) failed: {:08x}", as_unsigned(hr2));
             return;
         }
 
-        TRACE(PREFIX "Calling back with {} - {}", GuidPrinter{devlist.back()}.c_str(),
+        TRACE("Calling back with {} - {}", GuidPrinter{devlist.back()}.c_str(),
             wstr_to_utf8(pv.value<const WCHAR*>()));
         keep_going = cb(&devlist.back(), pv.value<const WCHAR*>(), std::data(aldriver_name));
     };
@@ -114,7 +114,7 @@ HRESULT enumerate_mmdev(const EDataFlow flow, std::deque<GUID> &devlist, T&& cb)
         hr = coll->Item(i, ds::out_ptr(device));
         if(FAILED(hr))
         {
-            WARN(PREFIX "IMMDeviceCollection::Item failed: {:08x}", as_unsigned(hr));
+            WARN("IMMDeviceCollection::Item failed: {:08x}", as_unsigned(hr));
             continue;
         }
 

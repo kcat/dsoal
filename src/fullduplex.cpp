@@ -26,7 +26,7 @@ ComPtr<DSFullDuplex> DSFullDuplex::Create()
 #define PREFIX CLASS_PREFIX "QueryInterface "
 HRESULT STDMETHODCALLTYPE DSFullDuplex::QueryInterface(REFIID riid, void **ppvObject) noexcept
 {
-    DEBUG(PREFIX "({})->({}, {})", voidp{this}, IidPrinter{riid}.c_str(), voidp{ppvObject});
+    DEBUG("({})->({}, {})", voidp{this}, IidPrinter{riid}.c_str(), voidp{ppvObject});
 
     if(!ppvObject)
         return E_POINTER;
@@ -63,48 +63,52 @@ HRESULT STDMETHODCALLTYPE DSFullDuplex::QueryInterface(REFIID riid, void **ppvOb
         return S_OK;
     }
 
-    FIXME(PREFIX "Unhandled GUID: {}", IidPrinter{riid}.c_str());
+    FIXME("Unhandled GUID: {}", IidPrinter{riid}.c_str());
     return E_NOINTERFACE;
 }
 #undef PREFIX
 
+#define PREFIX CLASS_PREFIX "AddRef "
 ULONG STDMETHODCALLTYPE DSFullDuplex::AddRef() noexcept
 {
     mTotalRef.fetch_add(1u, std::memory_order_relaxed);
     const auto ret = mFdRef.fetch_add(1u, std::memory_order_relaxed) + 1;
-    DEBUG(CLASS_PREFIX "AddRef ({}) ref {}", voidp{this}, ret);
+    DEBUG("({}) ref {}", voidp{this}, ret);
     return ret;
 }
+#undef PREFIX
 
+#define PREFIX CLASS_PREFIX "Release "
 ULONG STDMETHODCALLTYPE DSFullDuplex::Release() noexcept
 {
     const auto ret = mFdRef.fetch_sub(1u, std::memory_order_relaxed) - 1;
-    DEBUG(CLASS_PREFIX "Release ({}) ref {}", voidp{this}, ret);
+    DEBUG("({}) ref {}", voidp{this}, ret);
     finalize();
     return ret;
 }
+#undef PREFIX
 
 #define PREFIX CLASS_PREFIX "Initialize "
 HRESULT STDMETHODCALLTYPE DSFullDuplex::Initialize(const GUID *captureGuid, const GUID *renderGuid,
     const DSCBUFFERDESC *dscBufferDesc, const DSBUFFERDESC *dsBufferDesc, HWND hwnd, DWORD level,
     IDirectSoundCaptureBuffer8 **dsCaptureBuffer8, IDirectSoundBuffer8 **dsBuffer8) noexcept
 {
-    DEBUG(PREFIX "({})->({}, {}, {}, {}, {}, {}, {}, {})", voidp{this},
-        DevidPrinter{captureGuid}.c_str(), DevidPrinter{renderGuid}.c_str(), cvoidp{dscBufferDesc},
-        cvoidp{dsBufferDesc}, voidp{hwnd}, level, voidp{dsCaptureBuffer8}, voidp{dsBuffer8});
+    DEBUG("({})->({}, {}, {}, {}, {}, {}, {}, {})", voidp{this}, DevidPrinter{captureGuid}.c_str(),
+        DevidPrinter{renderGuid}.c_str(), cvoidp{dscBufferDesc}, cvoidp{dsBufferDesc}, voidp{hwnd},
+        level, voidp{dsCaptureBuffer8}, voidp{dsBuffer8});
 
     if(dsCaptureBuffer8) *dsCaptureBuffer8 = nullptr;
     if(dsBuffer8) *dsBuffer8 = nullptr;
 
     if(!dsCaptureBuffer8 || !dsBuffer8)
     {
-        WARN(PREFIX "Null output pointers");
+        WARN("Null output pointers");
         return DSERR_INVALIDPARAM;
     }
 
     if(mDS8Handle || mDSCHandle)
     {
-        WARN(PREFIX "Already initialized");
+        WARN("Already initialized");
         return DSERR_ALREADYINITIALIZED;
     }
 
@@ -117,7 +121,7 @@ HRESULT STDMETHODCALLTYPE DSFullDuplex::Initialize(const GUID *captureGuid, cons
         }
     }
     catch(std::exception &e) {
-        ERR(PREFIX "Exception creating IDirectSound8: {}", e.what());
+        ERR("Exception creating IDirectSound8: {}", e.what());
         mDS8Handle = nullptr;
         return E_FAIL;
     }
@@ -146,7 +150,7 @@ HRESULT STDMETHODCALLTYPE DSFullDuplex::Initialize(const GUID *captureGuid, cons
         }
     }
     catch(std::exception &e) {
-        ERR(PREFIX "Exception creating IDirectSoundCapture8: {}", e.what());
+        ERR("Exception creating IDirectSoundCapture8: {}", e.what());
         mDS8Handle = nullptr;
         mDSCHandle = nullptr;
         return E_FAIL;
@@ -182,23 +186,27 @@ HRESULT STDMETHODCALLTYPE DSFullDuplex::Initialize(const GUID *captureGuid, cons
 HRESULT STDMETHODCALLTYPE DSFullDuplex::DS8::QueryInterface(REFIID riid, void **ppvObject) noexcept
 { return impl_from_base()->QueryInterface(riid, ppvObject); }
 
+#define PREFIX CLASS_PREFIX "AddRef "
 ULONG STDMETHODCALLTYPE DSFullDuplex::DS8::AddRef() noexcept
 {
     auto self = impl_from_base();
     self->mTotalRef.fetch_add(1u, std::memory_order_relaxed);
     const auto ret = self->mDS8Ref.fetch_add(1u, std::memory_order_relaxed) + 1;
-    DEBUG(CLASS_PREFIX "AddRef ({}) ref {}", voidp{this}, ret);
+    DEBUG("({}) ref {}", voidp{this}, ret);
     return ret;
 }
+#undef PREFIX
 
+#define PREFIX CLASS_PREFIX "Release "
 ULONG STDMETHODCALLTYPE DSFullDuplex::DS8::Release() noexcept
 {
     auto self = impl_from_base();
     const auto ret = self->mDS8Ref.fetch_sub(1u, std::memory_order_relaxed) - 1;
-    DEBUG(CLASS_PREFIX "Release ({}) ref {}", voidp{this}, ret);
+    DEBUG("({}) ref {}", voidp{this}, ret);
     self->finalize();
     return ret;
 }
+#undef PREFIX
 
 HRESULT STDMETHODCALLTYPE DSFullDuplex::DS8::CreateSoundBuffer(const DSBUFFERDESC *bufferDesc, IDirectSoundBuffer **dsBuffer, IUnknown *outer) noexcept
 { return impl_from_base()->mDS8Handle->CreateSoundBuffer(bufferDesc, dsBuffer, outer); }
@@ -232,23 +240,27 @@ HRESULT STDMETHODCALLTYPE DSFullDuplex::DS8::VerifyCertification(DWORD *certifie
 HRESULT STDMETHODCALLTYPE DSFullDuplex::DSC::QueryInterface(REFIID riid, void **ppvObject) noexcept
 { return impl_from_base()->QueryInterface(riid, ppvObject); }
 
+#define PREFIX CLASS_PREFIX "AddRef "
 ULONG STDMETHODCALLTYPE DSFullDuplex::DSC::AddRef() noexcept
 {
     auto self = impl_from_base();
     self->mTotalRef.fetch_add(1u, std::memory_order_relaxed);
     const auto ret = self->mDSCRef.fetch_add(1u, std::memory_order_relaxed) + 1;
-    DEBUG(CLASS_PREFIX "AddRef ({}) ref {}", voidp{this}, ret);
+    DEBUG("({}) ref {}", voidp{this}, ret);
     return ret;
 }
+#undef PREFIX
 
+#define PREFIX CLASS_PREFIX "Release "
 ULONG STDMETHODCALLTYPE DSFullDuplex::DSC::Release() noexcept
 {
     auto self = impl_from_base();
     const auto ret = self->mDSCRef.fetch_sub(1u, std::memory_order_relaxed) - 1;
-    DEBUG(CLASS_PREFIX "Release ({}) ref {}", voidp{this}, ret);
+    DEBUG("({}) ref {}", voidp{this}, ret);
     self->finalize();
     return ret;
 }
+#undef PREFIX
 
 HRESULT STDMETHODCALLTYPE DSFullDuplex::DSC::CreateCaptureBuffer(const DSCBUFFERDESC *dscBufferDesc, IDirectSoundCaptureBuffer **dsCaptureBuffer, IUnknown *unk) noexcept
 { return impl_from_base()->mDSCHandle->CreateCaptureBuffer(dscBufferDesc, dsCaptureBuffer, unk); }
@@ -264,21 +276,25 @@ HRESULT STDMETHODCALLTYPE DSFullDuplex::DSC::Initialize(const GUID *guid) noexce
 HRESULT STDMETHODCALLTYPE DSFullDuplex::Unknown::QueryInterface(REFIID riid, void **ppvObject) noexcept
 { return impl_from_base()->QueryInterface(riid, ppvObject); }
 
+#define PREFIX CLASS_PREFIX "AddRef "
 ULONG STDMETHODCALLTYPE DSFullDuplex::Unknown::AddRef() noexcept
 {
     auto self = impl_from_base();
     self->mTotalRef.fetch_add(1u, std::memory_order_relaxed);
     const auto ret = self->mUnkRef.fetch_add(1u, std::memory_order_relaxed) + 1;
-    DEBUG(CLASS_PREFIX "AddRef ({}) ref {}", voidp{this}, ret);
+    DEBUG("({}) ref {}", voidp{this}, ret);
     return ret;
 }
+#undef PREFIX
 
+#define PREFIX CLASS_PREFIX "Release "
 ULONG STDMETHODCALLTYPE DSFullDuplex::Unknown::Release() noexcept
 {
     auto self = impl_from_base();
     const auto ret = self->mUnkRef.fetch_sub(1u, std::memory_order_relaxed) - 1;
-    DEBUG(CLASS_PREFIX "Release ({}) ref {}", voidp{this}, ret);
+    DEBUG("({}) ref {}", voidp{this}, ret);
     self->finalize();
     return ret;
 }
+#undef PREFIX
 #undef CLASS_PREFIX

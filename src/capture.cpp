@@ -135,7 +135,7 @@ void DSCBuffer::captureThread()
         alcGetIntegerv(mDevice, ALC_CAPTURE_SAMPLES, 1, &avails);
         if(avails < 0)
         {
-            ERR(PREFIX "Invalid capture sample count: {}", avails);
+            ERR("Invalid capture sample count: {}", avails);
             continue;
         }
 
@@ -176,7 +176,7 @@ void DSCBuffer::captureThread()
 #define PREFIX CLASS_PREFIX "QueryInterface "
 HRESULT STDMETHODCALLTYPE DSCBuffer::QueryInterface(REFIID riid, void **ppvObject) noexcept
 {
-    DEBUG(PREFIX "({})->({}, {})", voidp{this}, IidPrinter{riid}.c_str(), voidp{ppvObject});
+    DEBUG("({})->({}, {})", voidp{this}, IidPrinter{riid}.c_str(), voidp{ppvObject});
 
     if(!ppvObject)
         return E_POINTER;
@@ -198,7 +198,7 @@ HRESULT STDMETHODCALLTYPE DSCBuffer::QueryInterface(REFIID riid, void **ppvObjec
     {
         if(!mIs8)
         {
-            WARN(PREFIX "Requesting IDirectSoundCaptureBuffer8 iface for non-DS8 object");
+            WARN("Requesting IDirectSoundCaptureBuffer8 iface for non-DS8 object");
             return E_NOINTERFACE;
         }
         AddRef();
@@ -212,7 +212,7 @@ HRESULT STDMETHODCALLTYPE DSCBuffer::QueryInterface(REFIID riid, void **ppvObjec
         return S_OK;
     }
 
-    FIXME(PREFIX "Unhandled GUID: {}", IidPrinter{riid}.c_str());
+    FIXME("Unhandled GUID: {}", IidPrinter{riid}.c_str());
     return E_NOINTERFACE;
 }
 #undef PREFIX
@@ -222,7 +222,7 @@ ULONG STDMETHODCALLTYPE DSCBuffer::AddRef() noexcept
 {
     mTotalRef.fetch_add(1u, std::memory_order_relaxed);
     const auto ret = mDsRef.fetch_add(1u, std::memory_order_relaxed) + 1;
-    DEBUG(PREFIX "({}) ref {}", voidp{this}, ret);
+    DEBUG("({}) ref {}", voidp{this}, ret);
     return ret;
 }
 #undef PREFIX
@@ -231,7 +231,7 @@ ULONG STDMETHODCALLTYPE DSCBuffer::AddRef() noexcept
 ULONG STDMETHODCALLTYPE DSCBuffer::Release() noexcept
 {
     const auto ret = mDsRef.fetch_sub(1u, std::memory_order_relaxed) - 1;
-    DEBUG(PREFIX "({}) ref {}", voidp{this}, ret);
+    DEBUG("({}) ref {}", voidp{this}, ret);
     finalize();
     return ret;
 }
@@ -240,11 +240,11 @@ ULONG STDMETHODCALLTYPE DSCBuffer::Release() noexcept
 #define PREFIX CLASS_PREFIX "GetCaps "
 HRESULT STDMETHODCALLTYPE DSCBuffer::GetCaps(LPDSCBCAPS lpDSCBCaps) noexcept
 {
-    TRACE(PREFIX "({})->({})", voidp{this}, voidp{lpDSCBCaps});
+    TRACE("({})->({})", voidp{this}, voidp{lpDSCBCaps});
 
     if(!lpDSCBCaps || lpDSCBCaps->dwSize < sizeof(*lpDSCBCaps))
     {
-        WARN(PREFIX "Bad caps: {}, {}", voidp{lpDSCBCaps}, lpDSCBCaps ? lpDSCBCaps->dwSize : 0ul);
+        WARN("Bad caps: {}, {}", voidp{lpDSCBCaps}, lpDSCBCaps ? lpDSCBCaps->dwSize : 0ul);
         return DSERR_INVALIDPARAM;
     }
 
@@ -259,8 +259,7 @@ HRESULT STDMETHODCALLTYPE DSCBuffer::GetCaps(LPDSCBCAPS lpDSCBCaps) noexcept
 HRESULT STDMETHODCALLTYPE DSCBuffer::GetCurrentPosition(LPDWORD lpdwCapturePosition,
     LPDWORD lpdwReadPosition) noexcept
 {
-    DEBUG(PREFIX "({})->({}, {})", voidp{this}, voidp{lpdwCapturePosition},
-        voidp{lpdwReadPosition});
+    DEBUG("({})->({}, {})", voidp{this}, voidp{lpdwCapturePosition}, voidp{lpdwReadPosition});
 
     auto cappos = mWritePos.load(std::memory_order_acquire);
     const auto readpos = cappos;
@@ -273,7 +272,7 @@ HRESULT STDMETHODCALLTYPE DSCBuffer::GetCurrentPosition(LPDWORD lpdwCapturePosit
         cappos %= mBuffer.size();
     }
 
-    DEBUG(PREFIX " pos = {}, read pos = {}", cappos, readpos);
+    DEBUG(" pos = {}, read pos = {}", cappos, readpos);
     if(lpdwCapturePosition) *lpdwCapturePosition = cappos;
     if(lpdwReadPosition) *lpdwReadPosition = readpos;
 
@@ -285,12 +284,12 @@ HRESULT STDMETHODCALLTYPE DSCBuffer::GetCurrentPosition(LPDWORD lpdwCapturePosit
 HRESULT STDMETHODCALLTYPE DSCBuffer::GetFormat(LPWAVEFORMATEX lpwfxFormat, DWORD dwSizeAllocated,
     LPDWORD lpdwSizeWritten) noexcept
 {
-    TRACE(PREFIX "({})->({}, {}, {})", voidp{this}, voidp{lpwfxFormat}, dwSizeAllocated,
+    TRACE("({})->({}, {}, {})", voidp{this}, voidp{lpwfxFormat}, dwSizeAllocated,
         voidp{lpdwSizeWritten});
 
     if(!lpwfxFormat && !lpdwSizeWritten)
     {
-        WARN(PREFIX "Cannot report format of format size");
+        WARN("Cannot report format of format size");
         return DSERR_INVALIDPARAM;
     }
 
@@ -311,11 +310,11 @@ HRESULT STDMETHODCALLTYPE DSCBuffer::GetFormat(LPWAVEFORMATEX lpwfxFormat, DWORD
 #define PREFIX CLASS_PREFIX "GetStatus "
 HRESULT STDMETHODCALLTYPE DSCBuffer::GetStatus(LPDWORD lpdwStatus) noexcept
 {
-    TRACE(PREFIX "({})->({})", voidp{this}, voidp{lpdwStatus});
+    TRACE("({})->({})", voidp{this}, voidp{lpdwStatus});
 
     if(!lpdwStatus)
     {
-        WARN(PREFIX "Null out pointer");
+        WARN("Null out pointer");
         return DSERR_INVALIDPARAM;
     }
 
@@ -332,9 +331,9 @@ HRESULT STDMETHODCALLTYPE DSCBuffer::GetStatus(LPDWORD lpdwStatus) noexcept
 HRESULT STDMETHODCALLTYPE DSCBuffer::Initialize(LPDIRECTSOUNDCAPTURE lpDSC,
     LPCDSCBUFFERDESC lpcDSCBDesc) noexcept
 {
-    TRACE(PREFIX "({})->({}, {})", voidp{this}, voidp{lpDSC}, cvoidp{lpcDSCBDesc});
+    TRACE("({})->({}, {})", voidp{this}, voidp{lpDSC}, cvoidp{lpcDSCBDesc});
 
-    TRACE(PREFIX "Requested buffer:\n"
+    TRACE("Requested buffer:\n"
         "    Size        = {}\n"
         "    Flags       = 0x{:08x}\n"
         "    BufferBytes = {}\n"
@@ -352,7 +351,7 @@ HRESULT STDMETHODCALLTYPE DSCBuffer::Initialize(LPDIRECTSOUNDCAPTURE lpDSC,
 
     if(lpcDSCBDesc->dwFXCount > 0)
     {
-        WARN(PREFIX "Capture effects not supported");
+        WARN("Capture effects not supported");
         return DSERR_INVALIDPARAM;
     }
 
@@ -370,7 +369,7 @@ HRESULT STDMETHODCALLTYPE DSCBuffer::Initialize(LPDIRECTSOUNDCAPTURE lpDSC,
 
         auto *wfe = CONTAINING_RECORD(format, const WAVEFORMATEXTENSIBLE, Format);
         /* NOLINTBEGIN(cppcoreguidelines-pro-type-union-access) */
-        TRACE(PREFIX "Requested capture format:\n"
+        TRACE("Requested capture format:\n"
             "    FormatTag          = 0x{:04x}\n"
             "    Channels           = {}\n"
             "    SamplesPerSec      = {}\n"
@@ -389,7 +388,7 @@ HRESULT STDMETHODCALLTYPE DSCBuffer::Initialize(LPDIRECTSOUNDCAPTURE lpDSC,
     }
     else
     {
-        TRACE(PREFIX "Requested capture format:\n"
+        TRACE("Requested capture format:\n"
             "    FormatTag          = 0x{:04x}\n"
             "    Channels           = {}\n"
             "    SamplesPerSec      = {}\n"
@@ -404,31 +403,30 @@ HRESULT STDMETHODCALLTYPE DSCBuffer::Initialize(LPDIRECTSOUNDCAPTURE lpDSC,
 
     if(format->nChannels < 1 || format->nChannels > 2)
     {
-        WARN(PREFIX "Invalid Channels {}", format->nChannels);
+        WARN("Invalid Channels {}", format->nChannels);
         return DSERR_INVALIDPARAM;
     }
     if(format->wBitsPerSample <= 0 || (format->wBitsPerSample%8) != 0)
     {
-        WARN(PREFIX "Invalid BitsPerSample {}", format->wBitsPerSample);
+        WARN("Invalid BitsPerSample {}", format->wBitsPerSample);
         return DSERR_INVALIDPARAM;
     }
     if(format->nBlockAlign != format->nChannels*format->wBitsPerSample/8)
     {
-        WARN(PREFIX "Invalid BlockAlign {} (expected {} = {}*{}/8)",
-            format->nBlockAlign, format->nChannels*format->wBitsPerSample/8,
-            format->nChannels, format->wBitsPerSample);
+        WARN("Invalid BlockAlign {} (expected {} = {}*{}/8)", format->nBlockAlign,
+            format->nChannels*format->wBitsPerSample/8, format->nChannels, format->wBitsPerSample);
         return DSERR_INVALIDPARAM;
     }
     if(format->nSamplesPerSec < DSBFREQUENCY_MIN || format->nSamplesPerSec > DSBFREQUENCY_MAX)
     {
-        WARN(PREFIX "Invalid sample rate {}", format->nSamplesPerSec);
+        WARN("Invalid sample rate {}", format->nSamplesPerSec);
         return DSERR_INVALIDPARAM;
     }
     if(format->nAvgBytesPerSec != format->nSamplesPerSec*format->nBlockAlign)
     {
-        WARN(PREFIX "Invalid AvgBytesPerSec {} (expected {} = {}*{})",
-            format->nAvgBytesPerSec, format->nSamplesPerSec*format->nBlockAlign,
-            format->nSamplesPerSec, format->nBlockAlign);
+        WARN("Invalid AvgBytesPerSec {} (expected {} = {}*{})", format->nAvgBytesPerSec,
+            format->nSamplesPerSec*format->nBlockAlign, format->nSamplesPerSec,
+            format->nBlockAlign);
         return DSERR_INVALIDPARAM;
     }
 
@@ -442,7 +440,7 @@ HRESULT STDMETHODCALLTYPE DSCBuffer::Initialize(LPDIRECTSOUNDCAPTURE lpDSC,
             case 8: alformat = AL_FORMAT_MONO8; break;
             case 16: alformat = AL_FORMAT_MONO16; break;
             default:
-                WARN(PREFIX "Unsupported bpp {}", format->wBitsPerSample);
+                WARN("Unsupported bpp {}", format->wBitsPerSample);
                 return DSERR_BADFORMAT;
             }
         }
@@ -453,13 +451,13 @@ HRESULT STDMETHODCALLTYPE DSCBuffer::Initialize(LPDIRECTSOUNDCAPTURE lpDSC,
             case 8: alformat = AL_FORMAT_STEREO8; break;
             case 16: alformat = AL_FORMAT_STEREO16; break;
             default:
-                WARN(PREFIX "Unsupported bpp {}", format->wBitsPerSample);
+                WARN("Unsupported bpp {}", format->wBitsPerSample);
                 return DSERR_BADFORMAT;
             }
         }
         else
         {
-            WARN(PREFIX "Unsupported channels: {}", format->nChannels);
+            WARN("Unsupported channels: {}", format->nChannels);
             return DSERR_BADFORMAT;
         }
 
@@ -484,7 +482,7 @@ HRESULT STDMETHODCALLTYPE DSCBuffer::Initialize(LPDIRECTSOUNDCAPTURE lpDSC,
             case 8: alformat = AL_FORMAT_MONO8; break;
             case 16: alformat = AL_FORMAT_MONO16; break;
             default:
-                WARN(PREFIX "Unsupported bpp {}", wfe->Format.wBitsPerSample);
+                WARN("Unsupported bpp {}", wfe->Format.wBitsPerSample);
                 return DSERR_BADFORMAT;
             }
         }
@@ -495,14 +493,13 @@ HRESULT STDMETHODCALLTYPE DSCBuffer::Initialize(LPDIRECTSOUNDCAPTURE lpDSC,
             case 8: alformat = AL_FORMAT_STEREO8; break;
             case 16: alformat = AL_FORMAT_STEREO16; break;
             default:
-                WARN(PREFIX "Unsupported bpp {}", wfe->Format.wBitsPerSample);
+                WARN("Unsupported bpp {}", wfe->Format.wBitsPerSample);
                 return DSERR_BADFORMAT;
             }
         }
         else
         {
-            WARN(PREFIX "Unsupported channels: {} -- 0x{:08x}", wfe->Format.nChannels,
-                wfe->dwChannelMask);
+            WARN("Unsupported channels: {}, 0x{:08x}", wfe->Format.nChannels, wfe->dwChannelMask);
             return DSERR_BADFORMAT;
         }
 
@@ -513,13 +510,13 @@ HRESULT STDMETHODCALLTYPE DSCBuffer::Initialize(LPDIRECTSOUNDCAPTURE lpDSC,
     }
     else
     {
-        WARN(PREFIX "Unhandled formattag %x\n", format->wFormatTag);
+        WARN("Unhandled formattag %x\n", format->wFormatTag);
         return DSERR_BADFORMAT;
     }
 
     if(!alformat)
     {
-        WARN(PREFIX "Could not get OpenAL format");
+        WARN("Could not get OpenAL format");
         return DSERR_BADFORMAT;
     }
 
@@ -527,8 +524,8 @@ HRESULT STDMETHODCALLTYPE DSCBuffer::Initialize(LPDIRECTSOUNDCAPTURE lpDSC,
         || lpcDSCBDesc->dwBufferBytes > DWORD{std::numeric_limits<ALCsizei>::max()}
         || (lpcDSCBDesc->dwBufferBytes%mWaveFmt.Format.nBlockAlign) != 0)
     {
-        WARN(PREFIX "Invalid BufferBytes ({} % {})", lpcDSCBDesc->dwBufferBytes,
-             mWaveFmt.Format.nBlockAlign);
+        WARN("Invalid BufferBytes ({} % {})", lpcDSCBDesc->dwBufferBytes,
+            mWaveFmt.Format.nBlockAlign);
         return DSERR_INVALIDPARAM;
     }
 
@@ -536,7 +533,7 @@ HRESULT STDMETHODCALLTYPE DSCBuffer::Initialize(LPDIRECTSOUNDCAPTURE lpDSC,
         mBuffer.resize(lpcDSCBDesc->dwBufferBytes);
     }
     catch(std::exception &e) {
-        ERR(PREFIX "Exception creating buffer: {}", e.what());
+        ERR("Exception creating buffer: {}", e.what());
         return DSERR_OUTOFMEMORY;
     }
 
@@ -544,8 +541,8 @@ HRESULT STDMETHODCALLTYPE DSCBuffer::Initialize(LPDIRECTSOUNDCAPTURE lpDSC,
         alformat, static_cast<ALCsizei>(lpcDSCBDesc->dwBufferBytes/mWaveFmt.Format.nBlockAlign));
     if(!mDevice)
     {
-        ERR(PREFIX "Couldn't open device {} {:#x}@{}, reason: 0x{:04x}", mParent.getName(),
-            alformat, mWaveFmt.Format.nSamplesPerSec, alcGetError(nullptr));
+        ERR("Couldn't open device {} {:#x}@{}, reason: 0x{:04x}", mParent.getName(), alformat,
+            mWaveFmt.Format.nSamplesPerSec, alcGetError(nullptr));
         return DSERR_INVALIDPARAM;
     }
 
@@ -558,7 +555,7 @@ HRESULT STDMETHODCALLTYPE DSCBuffer::Lock(DWORD dwReadCusor, DWORD dwReadBytes,
     LPVOID *lplpvAudioPtr1, LPDWORD lpdwAudioBytes1, LPVOID *lplpvAudioPtr2,
     LPDWORD lpdwAudioBytes2, DWORD dwFlags) noexcept
 {
-    DEBUG(PREFIX "({})->({}, {}, {}, {}, {}, {}, {:#x})", voidp{this}, dwReadCusor, dwReadBytes,
+    DEBUG("({})->({}, {}, {}, {}, {}, {}, {:#x})", voidp{this}, dwReadCusor, dwReadBytes,
         voidp{lplpvAudioPtr1}, voidp{lpdwAudioBytes1}, voidp{lplpvAudioPtr2},
         voidp{lpdwAudioBytes2}, dwFlags);
 
@@ -568,13 +565,13 @@ HRESULT STDMETHODCALLTYPE DSCBuffer::Lock(DWORD dwReadCusor, DWORD dwReadBytes,
     if(lpdwAudioBytes2) *lpdwAudioBytes2 = 0;
     if(!lplpvAudioPtr1 || !lpdwAudioBytes1)
     {
-        WARN(PREFIX "Invalid pointer/len {} {}", voidp{lplpvAudioPtr1}, voidp{lpdwAudioBytes1});
+        WARN("Invalid pointer/len {} {}", voidp{lplpvAudioPtr1}, voidp{lpdwAudioBytes1});
         return DSERR_INVALIDPARAM;
     }
 
     if(dwReadCusor > mBuffer.size())
     {
-        WARN(PREFIX "Invalid read pos: {} > {}", dwReadCusor, mBuffer.size());
+        WARN("Invalid read pos: {} > {}", dwReadCusor, mBuffer.size());
         return DSERR_INVALIDPARAM;
     }
 
@@ -582,13 +579,13 @@ HRESULT STDMETHODCALLTYPE DSCBuffer::Lock(DWORD dwReadCusor, DWORD dwReadBytes,
         dwReadBytes = static_cast<DWORD>(mBuffer.size());
     else if(dwReadBytes > mBuffer.size())
     {
-        WARN(PREFIX "Invalid size: {} > {}", dwReadBytes, mBuffer.size());
+        WARN("Invalid size: {} > {}", dwReadBytes, mBuffer.size());
         return DSERR_INVALIDPARAM;
     }
 
     if(mLocked.exchange(true, std::memory_order_relaxed))
     {
-        WARN(PREFIX "Already locked");
+        WARN("Already locked");
         return DSERR_INVALIDPARAM;
     }
 
@@ -615,11 +612,11 @@ HRESULT STDMETHODCALLTYPE DSCBuffer::Lock(DWORD dwReadCusor, DWORD dwReadBytes,
 #define PREFIX CLASS_PREFIX "Start "
 HRESULT STDMETHODCALLTYPE DSCBuffer::Start(DWORD dwFlags) noexcept
 {
-    TRACE(PREFIX "({})->({:#x})", voidp{this}, dwFlags);
+    TRACE("({})->({:#x})", voidp{this}, dwFlags);
 
     if(!(dwFlags&DSCBSTART_LOOPING))
     {
-        FIXME(PREFIX "Non-looping capture not currently supported");
+        FIXME("Non-looping capture not currently supported");
         return DSERR_INVALIDPARAM;
     }
 
@@ -639,7 +636,7 @@ HRESULT STDMETHODCALLTYPE DSCBuffer::Start(DWORD dwFlags) noexcept
 #define PREFIX CLASS_PREFIX "Stop "
 HRESULT STDMETHODCALLTYPE DSCBuffer::Stop() noexcept
 {
-    TRACE(PREFIX "({})->()", voidp{this});
+    TRACE("({})->()", voidp{this});
 
     auto lock = mParent.getUniqueLock();
     if(mCapturing)
@@ -667,12 +664,12 @@ HRESULT STDMETHODCALLTYPE DSCBuffer::Stop() noexcept
 HRESULT STDMETHODCALLTYPE DSCBuffer::Unlock(LPVOID lpvAudioPtr1, DWORD dwAudioBytes1,
     LPVOID lpvAudioPtr2, DWORD dwAudioBytes2) noexcept
 {
-    DEBUG(PREFIX "({})->({}, {}, {}, {})", voidp{this}, voidp{lpvAudioPtr1}, dwAudioBytes1,
+    DEBUG("({})->({}, {}, {}, {})", voidp{this}, voidp{lpvAudioPtr1}, dwAudioBytes1,
         voidp{lpvAudioPtr2}, dwAudioBytes2);
 
     if(!mLocked.exchange(false, std::memory_order_relaxed))
     {
-        WARN(PREFIX "Not locked");
+        WARN("Not locked");
         return DSERR_INVALIDPARAM;
     }
 
@@ -696,7 +693,7 @@ HRESULT STDMETHODCALLTYPE DSCBuffer::Unlock(LPVOID lpvAudioPtr1, DWORD dwAudioBy
 HRESULT STDMETHODCALLTYPE DSCBuffer::GetObjectInPath(REFGUID rguidObject, DWORD dwIndex,
     REFGUID rguidInterface, LPVOID *ppObject) noexcept
 {
-    FIXME(PREFIX "({})->({}, {}, {}, {})", voidp{this}, GuidPrinter{rguidObject}.c_str(), dwIndex,
+    FIXME("({})->({}, {}, {}, {})", voidp{this}, GuidPrinter{rguidObject}.c_str(), dwIndex,
         GuidPrinter{rguidInterface}.c_str(), voidp{ppObject});
 
     if(!ppObject)
@@ -710,11 +707,11 @@ HRESULT STDMETHODCALLTYPE DSCBuffer::GetObjectInPath(REFGUID rguidObject, DWORD 
 #define PREFIX CLASS_PREFIX "GetFXStatus "
 HRESULT STDMETHODCALLTYPE DSCBuffer::GetFXStatus(DWORD dwFXCount, LPDWORD pdwFXStatus) noexcept
 {
-    TRACE(PREFIX "({})->({}, {})", voidp{this}, dwFXCount, voidp{pdwFXStatus});
+    TRACE("({})->({}, {})", voidp{this}, dwFXCount, voidp{pdwFXStatus});
 
     if(dwFXCount > 0)
     {
-        WARN(PREFIX "Querying too many effects");
+        WARN("Querying too many effects");
         return DSERR_INVALIDPARAM;
     }
 
@@ -734,7 +731,7 @@ ULONG STDMETHODCALLTYPE DSCBuffer::Notify::AddRef() noexcept
     auto *self = impl_from_base();
     self->mTotalRef.fetch_add(1u, std::memory_order_relaxed);
     const auto ret = self->mNotRef.fetch_add(1u, std::memory_order_relaxed) + 1;
-    DEBUG(PREFIX "({}) ref {}", voidp{this}, ret);
+    DEBUG("({}) ref {}", voidp{this}, ret);
     return ret;
 }
 #undef PREFIX
@@ -744,7 +741,7 @@ ULONG STDMETHODCALLTYPE DSCBuffer::Notify::Release() noexcept
 {
     auto *self = impl_from_base();
     const auto ret = self->mNotRef.fetch_sub(1u, std::memory_order_relaxed) - 1;
-    DEBUG(PREFIX "({}) ref {}", voidp{this}, ret);
+    DEBUG("({}) ref {}", voidp{this}, ret);
     self->finalize();
     return ret;
 }
@@ -754,7 +751,7 @@ ULONG STDMETHODCALLTYPE DSCBuffer::Notify::Release() noexcept
 HRESULT STDMETHODCALLTYPE DSCBuffer::Notify::SetNotificationPositions(DWORD numNotifies,
     const DSBPOSITIONNOTIFY *notifies) noexcept
 {
-    TRACE(PREFIX "({})->({}, {})", voidp{this}, numNotifies, cvoidp{notifies});
+    TRACE("({})->({}, {})", voidp{this}, numNotifies, cvoidp{notifies});
 
     if(!notifies && numNotifies > 0)
         return DSERR_INVALIDPARAM;
@@ -764,7 +761,7 @@ HRESULT STDMETHODCALLTYPE DSCBuffer::Notify::SetNotificationPositions(DWORD numN
 
     if(self->mCapturing)
     {
-        WARN(PREFIX "Setting notifications while capturing");
+        WARN("Setting notifications while capturing");
         return DSERR_INVALIDCALL;
     }
 
@@ -775,16 +772,14 @@ HRESULT STDMETHODCALLTYPE DSCBuffer::Notify::SetNotificationPositions(DWORD numN
         const auto invalidNotify = std::find_if_not(notifyspan.begin(), notifyspan.end(),
             [self](const DSBPOSITIONNOTIFY &notify) noexcept -> bool
             {
-                DEBUG(PREFIX " offset = {}, event = {}", notify.dwOffset,
-                    voidp{notify.hEventNotify});
+                DEBUG(" offset = {}, event = {}", notify.dwOffset, voidp{notify.hEventNotify});
                 return notify.dwOffset < self->mBuffer.size() ||
                     notify.dwOffset == static_cast<DWORD>(DSCBPN_OFFSET_STOP);
             });
         if(invalidNotify != notifyspan.end())
         {
-            WARN(PREFIX "Out of range ({}: {} >= {})",
-                std::distance(notifyspan.begin(), invalidNotify), invalidNotify->dwOffset,
-                self->mBuffer.size());
+            WARN("Out of range ({}: {} >= {})", std::distance(notifyspan.begin(), invalidNotify),
+                invalidNotify->dwOffset, self->mBuffer.size());
             return DSERR_INVALIDPARAM;
         }
         newnots.assign(notifyspan.begin(), notifyspan.end());
@@ -816,7 +811,7 @@ DSCapture::~DSCapture() = default;
 #define PREFIX CLASS_PREFIX "QueryInterface "
 HRESULT STDMETHODCALLTYPE DSCapture::QueryInterface(REFIID riid, void **ppvObject) noexcept
 {
-    DEBUG(PREFIX "({})->({}, {})", voidp{this}, IidPrinter{riid}.c_str(), voidp{ppvObject});
+    DEBUG("({})->({}, {})", voidp{this}, IidPrinter{riid}.c_str(), voidp{ppvObject});
 
     *ppvObject = nullptr;
     if(riid == IID_IUnknown)
@@ -832,7 +827,7 @@ HRESULT STDMETHODCALLTYPE DSCapture::QueryInterface(REFIID riid, void **ppvObjec
         return S_OK;
     }
 
-    FIXME(PREFIX "Unhandled GUID: {}", IidPrinter{riid}.c_str());
+    FIXME("Unhandled GUID: {}", IidPrinter{riid}.c_str());
     return E_NOINTERFACE;
 }
 #undef PREFIX
@@ -842,7 +837,7 @@ ULONG STDMETHODCALLTYPE DSCapture::AddRef() noexcept
 {
     mTotalRef.fetch_add(1u, std::memory_order_relaxed);
     const auto ret = mDsRef.fetch_add(1u, std::memory_order_relaxed) + 1;
-    DEBUG(PREFIX "({}) ref {}", voidp{this}, ret);
+    DEBUG("({}) ref {}", voidp{this}, ret);
     return ret;
 }
 #undef PREFIX
@@ -851,7 +846,7 @@ ULONG STDMETHODCALLTYPE DSCapture::AddRef() noexcept
 ULONG STDMETHODCALLTYPE DSCapture::Release() noexcept
 {
     const auto ret = mDsRef.fetch_sub(1u, std::memory_order_relaxed) - 1;
-    DEBUG(PREFIX "({}) ref {}", voidp{this}, ret);
+    DEBUG("({}) ref {}", voidp{this}, ret);
     finalize();
     return ret;
 }
@@ -861,24 +856,24 @@ ULONG STDMETHODCALLTYPE DSCapture::Release() noexcept
 HRESULT STDMETHODCALLTYPE DSCapture::CreateCaptureBuffer(const DSCBUFFERDESC *dscBufferDesc,
     IDirectSoundCaptureBuffer **dsCaptureBuffer, IUnknown *outer) noexcept
 {
-    TRACE(PREFIX "({})->({}, {}, {})", voidp{this}, cvoidp{dscBufferDesc},
-        voidp{dsCaptureBuffer}, voidp{outer});
+    TRACE("({})->({}, {}, {})", voidp{this}, cvoidp{dscBufferDesc}, voidp{dsCaptureBuffer},
+        voidp{outer});
 
     if(!dsCaptureBuffer)
     {
-        WARN(PREFIX "dsCaptureBuffer is null");
+        WARN("dsCaptureBuffer is null");
         return DSERR_INVALIDPARAM;
     }
     *dsCaptureBuffer = nullptr;
 
     if(outer)
     {
-        WARN(PREFIX "Aggregation isn't supported");
+        WARN("Aggregation isn't supported");
         return DSERR_NOAGGREGATION;
     }
     if(!dscBufferDesc || dscBufferDesc->dwSize < sizeof(DSCBUFFERDESC1))
     {
-        WARN(PREFIX "Invalid DSBUFFERDESC ({}, {})", cvoidp{dscBufferDesc},
+        WARN("Invalid DSBUFFERDESC ({}, {})", cvoidp{dscBufferDesc},
              dscBufferDesc ? dscBufferDesc->dwSize : 0);
         return DSERR_INVALIDPARAM;
     }
@@ -895,7 +890,7 @@ HRESULT STDMETHODCALLTYPE DSCapture::CreateCaptureBuffer(const DSCBUFFERDESC *ds
         *dsCaptureBuffer = dscbuf.release()->as<IDirectSoundCaptureBuffer*>();
     }
     catch(std::exception &e) {
-        ERR(PREFIX "Exception creating buffer: {}", e.what());
+        ERR("Exception creating buffer: {}", e.what());
         return E_FAIL;
     }
 
@@ -906,23 +901,23 @@ HRESULT STDMETHODCALLTYPE DSCapture::CreateCaptureBuffer(const DSCBUFFERDESC *ds
 #define PREFIX CLASS_PREFIX "GetCaps "
 HRESULT STDMETHODCALLTYPE DSCapture::GetCaps(DSCCAPS *dscCaps) noexcept
 {
-    TRACE(PREFIX "({})->({})", voidp{this}, voidp{dscCaps});
+    TRACE("({})->({})", voidp{this}, voidp{dscCaps});
 
     auto dlock = std::unique_lock{mMutex};
     if(mDeviceName.empty())
     {
-        WARN(PREFIX "Device not initialized");
+        WARN("Device not initialized");
         return DSERR_UNINITIALIZED;
     }
 
     if(!dscCaps)
     {
-        WARN(PREFIX "Caps is null");
+        WARN("Caps is null");
         return DSERR_INVALIDPARAM;
     }
     if(dscCaps->dwSize < sizeof(*dscCaps))
     {
-        WARN(PREFIX "Invalid size: {}", dscCaps->dwSize);
+        WARN("Invalid size: {}", dscCaps->dwSize);
         return DSERR_INVALIDPARAM;
     }
 
@@ -938,12 +933,12 @@ HRESULT STDMETHODCALLTYPE DSCapture::GetCaps(DSCCAPS *dscCaps) noexcept
 #define PREFIX CLASS_PREFIX "Initialize "
 HRESULT STDMETHODCALLTYPE DSCapture::Initialize(const GUID *guid) noexcept
 {
-    TRACE(PREFIX "({})->({})", voidp{this}, DevidPrinter{guid}.c_str());
+    TRACE("({})->({})", voidp{this}, DevidPrinter{guid}.c_str());
 
     auto dlock = std::unique_lock{mMutex};
     if(!mDeviceName.empty())
     {
-        WARN(PREFIX "Already initialized");
+        WARN("Already initialized");
         return DSERR_ALREADYINITIALIZED;
     }
 
@@ -963,10 +958,10 @@ HRESULT STDMETHODCALLTYPE DSCapture::Initialize(const GUID *guid) noexcept
             const auto hr = StringFromCLSID(*guid, ds::out_ptr(guid_str));
             if(SUCCEEDED(hr)) return wstr_to_utf8(guid_str.get());
 
-            ERR(PREFIX "StringFromCLSID failed: {:#x}", hr);
+            ERR("StringFromCLSID failed: {:#x}", as_unsigned(hr));
         }
         catch(std::exception &e) {
-            ERR(PREFIX "Exception converting GUID to string: {}", e.what());
+            ERR("Exception converting GUID to string: {}", e.what());
         }
         return std::string{};
     });
@@ -989,7 +984,7 @@ ULONG STDMETHODCALLTYPE DSCapture::Unknown::AddRef() noexcept
     auto self = impl_from_base();
     self->mTotalRef.fetch_add(1u, std::memory_order_relaxed);
     const auto ret = self->mUnkRef.fetch_add(1u, std::memory_order_relaxed) + 1;
-    DEBUG(PREFIX "({}) ref {}", voidp{this}, ret);
+    DEBUG("({}) ref {}", voidp{this}, ret);
     return ret;
 }
 #undef PREFIX
@@ -999,7 +994,7 @@ ULONG STDMETHODCALLTYPE DSCapture::Unknown::Release() noexcept
 {
     auto self = impl_from_base();
     const auto ret = self->mUnkRef.fetch_sub(1u, std::memory_order_relaxed) - 1;
-    DEBUG(PREFIX "({}) ref {}", voidp{this}, ret);
+    DEBUG("({}) ref {}", voidp{this}, ret);
     self->finalize();
     return ret;
 }
