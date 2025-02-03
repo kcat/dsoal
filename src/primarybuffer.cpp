@@ -581,7 +581,12 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::Stop() noexcept
     std::lock_guard lock{mMutex};
     auto hr = S_OK;
     if(mWriteEmu)
+    {
+        /* Stopping the primary buffer also resets its position to 0. */
         hr = mWriteEmu->Stop();
+        if(SUCCEEDED(hr))
+            mWriteEmu->SetCurrentPosition(0);
+    }
     if(SUCCEEDED(hr))
         mPlaying = false;
 
