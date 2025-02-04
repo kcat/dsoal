@@ -90,7 +90,7 @@ bool load_openal()
 
     if(!ok)
     {
-        WARN("load_openal Unloading {}", wstr_to_utf8(std::data(aldriver_name)));
+        WARN("Unloading {}", wstr_to_utf8(std::data(aldriver_name)));
         if(gOpenalHandle)
             FreeLibrary(gOpenalHandle);
         gOpenalHandle = nullptr;
@@ -101,7 +101,7 @@ bool load_openal()
 
     if(!alcIsExtensionPresent(nullptr, "ALC_EXT_direct_context"))
     {
-        ERR("load_openal Required ALC_EXT_direct_context not supported in {}",
+        ERR("Required ALC_EXT_direct_context not supported in {}",
             wstr_to_utf8(std::data(aldriver_name)));
         if(gOpenalHandle)
             FreeLibrary(gOpenalHandle);
@@ -252,7 +252,7 @@ ComPtr<IMMDevice> GetMMDevice(ComWrapper&, EDataFlow flow, const GUID &id)
     hr = coll->GetCount(&count);
     if(FAILED(hr))
     {
-        WARN("GetMMDevice IMMDeviceCollection::GetCount failed: {:08x}", as_unsigned(hr));
+        WARN("IMMDeviceCollection::GetCount failed: {:08x}", as_unsigned(hr));
         return {};
     }
 
@@ -262,7 +262,7 @@ ComPtr<IMMDevice> GetMMDevice(ComWrapper&, EDataFlow flow, const GUID &id)
         hr = coll->Item(i, ds::out_ptr(device));
         if(FAILED(hr))
         {
-            WARN("GetMMDevice IMMDeviceCollection::Item failed: {:08x}", as_unsigned(hr));
+            WARN("IMMDeviceCollection::Item failed: {:08x}", as_unsigned(hr));
             continue;
         }
 
@@ -270,7 +270,7 @@ ComPtr<IMMDevice> GetMMDevice(ComWrapper&, EDataFlow flow, const GUID &id)
         hr = device->OpenPropertyStore(STGM_READ, ds::out_ptr(ps));
         if(FAILED(hr))
         {
-            WARN("GetMMDevice IMMDevice::OpenPropertyStore failed: {:08x}", as_unsigned(hr));
+            WARN("IMMDevice::OpenPropertyStore failed: {:08x}", as_unsigned(hr));
             continue;
         }
 
@@ -278,7 +278,7 @@ ComPtr<IMMDevice> GetMMDevice(ComWrapper&, EDataFlow flow, const GUID &id)
         hr = ps->GetValue(PKEY_AudioEndpoint_GUID, pv.get());
         if(FAILED(hr) || pv.type() != VT_LPWSTR)
         {
-            WARN("GetMMDevice IPropertyStore::GetValue(GUID) failed: {:08x}", as_unsigned(hr));
+            WARN("IPropertyStore::GetValue(GUID) failed: {:08x}", as_unsigned(hr));
             continue;
         }
 
