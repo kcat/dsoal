@@ -6,11 +6,6 @@
 #include "dsoal.h"
 #include "fmt/core.h"
 
-#ifdef __has_cpp_attribute
-#define HAS_ATTRIBUTE __has_cpp_attribute
-#else
-#define HAS_ATTRIBUTE(...) (0)
-#endif
 
 namespace ds {
 
