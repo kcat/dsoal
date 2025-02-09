@@ -153,7 +153,7 @@ jobs:
 
     - name: Purge tag - latest-${{needs.Build.outputs.DSOALBranch}}
       run: |
-        gh release delete latest-${{needs.Build.outputs.DSOALBranch}} --repo ${{env.DSOALRepo}} --cleanup-tag -- || true
+        gh release delete latest-${{needs.Build.outputs.DSOALBranch}} --repo ${{env.DSOALRepo}} --cleanup-tag --yes || true
 
     - name: Release - r${{needs.Build.outputs.DSOALCommitCount}}
       run: |
