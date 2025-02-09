@@ -146,6 +146,7 @@ jobs:
       run: |
         7z a ./Release/DSOAL_r${{needs.Build.outputs.DSOALCommitCount}}.zip ./Release/DSOAL ./Release/DSOAL+HRTF -m0=Copy
         7z a DSOAL.zip ./Release/DSOAL_r${{needs.Build.outputs.DSOALCommitCount}}.zip -m0=lzma -mx=9
+        cp DSOAL.zip DSOAL_r${{needs.Build.outputs.DSOALCommitCount}}.zip
 
     - name: Purge tag - latest-${{needs.Build.outputs.DSOALBranch}}
       run: |
@@ -154,7 +155,7 @@ jobs:
     - name: Release - archive
       run: |
         gh release create archive --repo ${{env.DSOALRepo}} --target 98584ab11d231d36488bc055bdeb19b607706bc6 --latest=false --prerelease --title "DSOAL build archive" || true
-        gh release upload archive --repo ${{env.DSOALRepo}} --clobber DSOAL.zip#DSOAL_r${{needs.Build.outputs.DSOALCommitCount}}.zip
+        gh release upload archive --repo ${{env.DSOALRepo}} --clobber DSOAL_r${{needs.Build.outputs.DSOALCommitCount}}.zip
 
     - name: Release - latest-${{needs.Build.outputs.DSOALBranch}}
       run: |
