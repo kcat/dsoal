@@ -148,14 +148,12 @@ jobs:
         7z a DSOAL.zip ./Release/DSOAL_r${{needs.Build.outputs.DSOALCommitCount}}.zip -m0=lzma -mx=9
 
     - name: Purge tag - r${{needs.Build.outputs.DSOALCommitCount}}
-      continue-on-error: true
       run: |
-        gh release delete r${{needs.Build.outputs.DSOALCommitCount}}  --repo ${{env.DSOALRepo}} --cleanup-tag --yes
+        gh release delete r${{needs.Build.outputs.DSOALCommitCount}} --repo ${{env.DSOALRepo}} --cleanup-tag --yes || true
 
     - name: Purge tag - latest-${{needs.Build.outputs.DSOALBranch}}
-      continue-on-error: true
       run: |
-        gh release delete latest-${{needs.Build.outputs.DSOALBranch}} --repo ${{env.DSOALRepo}} --cleanup-tag --yes
+        gh release delete latest-${{needs.Build.outputs.DSOALBranch}} --repo ${{env.DSOALRepo}} --cleanup-tag -- || true
 
     - name: Release - r${{needs.Build.outputs.DSOALCommitCount}}
       run: |
