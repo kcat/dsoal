@@ -3,14 +3,14 @@ name: Untagged build
 on:
   push:
     branches:
-      - '*'
-    tags-ignore:
-      - '*.*.*'
+      - "**"
+    tags:
+      - "!**"
     paths-ignore:
       - '.github/workflows/Tagged.yaml'
+  workflow_dispatch:
   schedule:
   - cron: '0 0 * * *'
-  workflow_dispatch:
 
 env:
   Configuration: Release
@@ -18,6 +18,7 @@ env:
   DSOALBranch: ${{github.ref_name}}
   OpenALSoftRepo: kcat/openal-soft
   OpenALSoftBranch: master
+  GH_TOKEN: ${{github.token}}
 
 jobs:
   Build:
@@ -35,7 +36,7 @@ jobs:
             platform: "x64"
           }
     steps:
-    
+
     - name: Clone DSOAL
       run: |
         git clone --branch ${{env.DSOALBranch}} https://github.com/${{env.DSOALRepo}}.git .
@@ -46,13 +47,17 @@ jobs:
 
     - name: Get version details
       run: |
+        echo "DSOALCommitHash=$(git rev-parse HEAD)" >> $env:GITHUB_ENV
         echo "DSOALCommitHashShort=$(git rev-parse --short=8 HEAD)" >> $env:GITHUB_ENV
         echo "DSOALCommitDate=$(git show -s --date=iso-local --format=%cd)" >> $env:GITHUB_ENV
         echo "DSOALCommitCount=$(git rev-list --count HEAD)" >> $env:GITHUB_ENV
+        echo "DSOALCommitTitle=$(git show --pretty=format:%s -s HEAD)" >> $env:GITHUB_ENV
         cd "openal-soft"
+        echo "OpenALSoftCommitHash=$(git rev-parse HEAD)" >> $env:GITHUB_ENV
         echo "OpenALSoftCommitHashShort=$(git rev-parse --short=8 HEAD)" >> $env:GITHUB_ENV
         echo "OpenALSoftCommitDate=$(git show -s --date=iso-local --format=%cd)" >> $env:GITHUB_ENV
         echo "OpenALSoftCommitCount=$(git rev-list --count HEAD)" >> $env:GITHUB_ENV
+        echo "OpenALSoftCommitTitle=$(git show --pretty=format:%s -s HEAD)" >> $env:GITHUB_ENV
         cd "${{github.workspace}}"
 
     - name: Build DSOAL
@@ -75,47 +80,57 @@ jobs:
         copy "${{github.workspace}}/README.md"                                                                 "DSOAL/Documentation/DSOAL-ReadMe.txt"
         copy "${{github.workspace}}/LICENSE"                                                                   "DSOAL/Documentation/DSOAL-License.txt"
         echo "${{env.DSOALRepo}}" >>                                                                           "DSOAL/Documentation/DSOAL-Version.txt"
-        echo "r${{env.DSOALCommitCount}}@${{env.DSOALCommitHashShort}} ${{env.DSOALBranch}}" >>                "DSOAL/Documentation/DSOAL-Version.txt"
+        echo "${{env.DSOALBranch}}" >>                                                                         "DSOAL/Documentation/DSOAL-Version.txt"
+        echo "${{env.DSOALCommitHash}}" >>                                                                     "DSOAL/Documentation/DSOAL-Version.txt"
+        echo "r${{env.DSOALCommitCount}}" >>                                                                   "DSOAL/Documentation/DSOAL-Version.txt"
+        echo "${{env.DSOALCommitTitle}}" >>                                                                    "DSOAL/Documentation/DSOAL-Version.txt"
         echo "${{env.DSOALCommitDate}}" >>                                                                     "DSOAL/Documentation/DSOAL-Version.txt"
         copy "${{github.workspace}}/openal-soft/README.md"                                                     "DSOAL/Documentation/OpenALSoft-ReadMe.txt"
         copy "${{github.workspace}}/openal-soft/COPYING"                                                       "DSOAL/Documentation/OpenALSoft-License.txt"
         copy "${{github.workspace}}/openal-soft/BSD-3Clause"                                                   "DSOAL/Documentation/OpenALSoft-BSD-3Clause.txt"
         copy "${{github.workspace}}/openal-soft/ChangeLog"                                                     "DSOAL/Documentation/OpenALSoft-ChangeLog.txt"
         echo "${{env.OpenALSoftRepo}}" >>                                                                      "DSOAL/Documentation/OpenALSoft-Version.txt"
-        echo "r${{env.OpenALSoftCommitCount}}@${{env.OpenALSoftCommitHashShort}} ${{env.OpenALSoftBranch}}" >> "DSOAL/Documentation/OpenALSoft-Version.txt"
+        echo "${{env.OpenALSoftBranch}}" >>                                                                    "DSOAL/Documentation/OpenALSoft-Version.txt"
+        echo "${{env.OpenALSoftCommitHash}}" >>                                                                "DSOAL/Documentation/OpenALSoft-Version.txt"
+        echo "r${{env.OpenALSoftCommitCount}}" >>                                                              "DSOAL/Documentation/OpenALSoft-Version.txt"
+        echo "${{env.OpenALSoftCommitTitle}}" >>                                                               "DSOAL/Documentation/OpenALSoft-Version.txt"
         echo "${{env.OpenALSoftCommitDate}}" >>                                                                "DSOAL/Documentation/OpenALSoft-Version.txt"
 
     - name: Upload artifact to GitHub actions
       uses: actions/upload-artifact@v4
       with:
-        name: DSOAL_r${{env.DSOALCommitCount}}@${{env.DSOALCommitHashShort}}+OpenALSoft_r${{env.OpenALSoftCommitCount}}@${{env.OpenALSoftCommitHashShort}}-${{matrix.config.name}}
+        name: DSOAL_r${{env.DSOALCommitCount}}-${{env.DSOALCommitHashShort}}+OpenALSoft_r${{env.OpenALSoftCommitCount}}-${{env.OpenALSoftCommitHashShort}}-${{matrix.config.name}}
         path: DSOAL/
 
     outputs:
+      DSOALRepo: ${{env.DSOALRepo}}
       DSOALBranch: ${{env.DSOALBranch}}
+      DSOALCommitHash: ${{env.DSOALCommitHash}}
       DSOALCommitHashShort: ${{env.DSOALCommitHashShort}}
-      DSOALCommitDate: ${{env.DSOALCommitDate}}
       DSOALCommitCount: ${{env.DSOALCommitCount}}
+      DSOALCommitTitle: ${{env.DSOALCommitTitle}}
+      DSOALCommitDate: ${{env.DSOALCommitDate}}
       OpenALSoftRepo: ${{env.OpenALSoftRepo}}
       OpenALSoftBranch: ${{env.OpenALSoftBranch}}
+      OpenALSoftCommitHash: ${{env.OpenALSoftCommitHash}}
       OpenALSoftCommitHashShort: ${{env.OpenALSoftCommitHashShort}}
-      OpenALSoftCommitDate: ${{env.OpenALSoftCommitDate}}
       OpenALSoftCommitCount: ${{env.OpenALSoftCommitCount}}
+      OpenALSoftCommitTitle: ${{env.OpenALSoftCommitTitle}}
+      OpenALSoftCommitDate: ${{env.OpenALSoftCommitDate}}
 
   Release:
     needs: Build
     runs-on: ubuntu-latest
     steps:
 
-    - name: Download a Build Artifact
-      uses: actions/download-artifact@v4
-      with:
-        path: Release
+    - name: Download build artifacts
+      run: |
+        gh run download ${{github.run_id}} --repo ${{env.DSOALRepo}} --dir Release
 
     - name: Collect binaries
       run: |
-        mv "Release/DSOAL_r${{needs.Build.outputs.DSOALCommitCount}}@${{needs.Build.outputs.DSOALCommitHashShort}}+OpenALSoft_r${{needs.Build.outputs.OpenALSoftCommitCount}}@${{needs.Build.outputs.OpenALSoftCommitHashShort}}-Win32" "Release/Win32"
-        mv "Release/DSOAL_r${{needs.Build.outputs.DSOALCommitCount}}@${{needs.Build.outputs.DSOALCommitHashShort}}+OpenALSoft_r${{needs.Build.outputs.OpenALSoftCommitCount}}@${{needs.Build.outputs.OpenALSoftCommitHashShort}}-Win64" "Release/Win64"
+        mv "Release/DSOAL_r${{needs.Build.outputs.DSOALCommitCount}}-${{needs.Build.outputs.DSOALCommitHashShort}}+OpenALSoft_r${{needs.Build.outputs.OpenALSoftCommitCount}}-${{needs.Build.outputs.OpenALSoftCommitHashShort}}-Win32" "Release/Win32"
+        mv "Release/DSOAL_r${{needs.Build.outputs.DSOALCommitCount}}-${{needs.Build.outputs.DSOALCommitHashShort}}+OpenALSoft_r${{needs.Build.outputs.OpenALSoftCommitCount}}-${{needs.Build.outputs.OpenALSoftCommitHashShort}}-Win64" "Release/Win64"
         mkdir "Release/DSOAL"
         mv "Release/Win32" "Release/DSOAL/Win32"
         mv "Release/Win64" "Release/DSOAL/Win64"
@@ -129,24 +144,27 @@ jobs:
 
     - name: Compress artifacts
       run: |
-        cd Release
-        7z a DSOAL.zip      ./DSOAL/*
-        7z a DSOAL+HRTF.zip ./DSOAL+HRTF/*
+        7z a ./Release/DSOAL_r${{needs.Build.outputs.DSOALCommitCount}}.zip ./Release/DSOAL ./Release/DSOAL+HRTF -m0=Copy
+        7z a DSOAL.zip ./Release/DSOAL_r${{needs.Build.outputs.DSOALCommitCount}}.zip -m0=lzma -mx=9
 
-    - name: GitHub pre-release - r${{needs.Build.outputs.DSOALCommitCount}} tag
-      uses: "slord399/action-automatic-releases@v1.0.1"
-      with:
-        repo_token: "${{secrets.GITHUB_TOKEN}}"
-        automatic_release_tag: "r${{needs.Build.outputs.DSOALCommitCount}}"
-        prerelease: true
-        title: "DSOAL r${{needs.Build.outputs.DSOALCommitCount}}@${{needs.Build.outputs.DSOALCommitHashShort}} + OpenAL Soft r${{needs.Build.outputs.OpenALSoftCommitCount}}@${{needs.Build.outputs.OpenALSoftCommitHashShort}}"
-        files: "Release/*"
+    - name: Purge tag - r${{needs.Build.outputs.DSOALCommitCount}}
+      run: |
+        gh release delete r${{needs.Build.outputs.DSOALCommitCount}} --repo ${{env.DSOALRepo}} --cleanup-tag --yes || true
 
-    - name: GitHub pre-release - latest tag
-      uses: "slord399/action-automatic-releases@v1.0.1"
-      with:
-        repo_token: "${{secrets.GITHUB_TOKEN}}"
-        automatic_release_tag: "latest-${{needs.Build.outputs.DSOALBranch}}"
-        prerelease: true
-        title: "DSOAL r${{needs.Build.outputs.DSOALCommitCount}}@${{needs.Build.outputs.DSOALCommitHashShort}} + OpenAL Soft r${{needs.Build.outputs.OpenALSoftCommitCount}}@${{needs.Build.outputs.OpenALSoftCommitHashShort}}"
-        files: "Release/*"
+    - name: Purge tag - latest-${{needs.Build.outputs.DSOALBranch}}
+      run: |
+        gh release delete latest-${{needs.Build.outputs.DSOALBranch}} --repo ${{env.DSOALRepo}} --cleanup-tag --yes || true
+
+    - name: Release - r${{needs.Build.outputs.DSOALCommitCount}}
+      run: |
+        gh release create r${{needs.Build.outputs.DSOALCommitCount}} --repo ${{env.DSOALRepo}} --target ${{needs.Build.outputs.DSOALCommitHash}} --generate-notes --latest=false --prerelease --title "DSOAL r${{needs.Build.outputs.DSOALCommitCount}} + OpenAL Soft r${{needs.Build.outputs.OpenALSoftCommitCount}}" --notes "DSOAL r${{needs.Build.outputs.DSOALCommitCount}}-${{needs.Build.outputs.DSOALCommitHashShort}} ${{needs.Build.outputs.DSOALBranch}} - ${{needs.Build.outputs.DSOALCommitTitle}} [${{needs.Build.outputs.DSOALCommitDate}}]
+        OpenAL Soft r${{needs.Build.outputs.OpenALSoftCommitCount}}-${{needs.Build.outputs.OpenALSoftCommitHashShort}} ${{needs.Build.outputs.OpenALSoftBranch}} - ${{needs.Build.outputs.OpenALSoftCommitTitle}} [${{needs.Build.outputs.OpenALSoftCommitDate}}]
+        Build log: https://github.com/${{env.DSOALRepo}}/actions/runs/${{github.run_id}}"
+        gh release upload r${{needs.Build.outputs.DSOALCommitCount}} --repo ${{env.DSOALRepo}} --clobber DSOAL.zip
+
+    - name: Release - latest-${{needs.Build.outputs.DSOALBranch}}
+      run: |
+        gh release create latest-${{needs.Build.outputs.DSOALBranch}} --repo ${{env.DSOALRepo}} --target ${{needs.Build.outputs.DSOALCommitHash}} --generate-notes --latest=true --prerelease --title "DSOAL r${{needs.Build.outputs.DSOALCommitCount}} + OpenAL Soft r${{needs.Build.outputs.OpenALSoftCommitCount}}" --notes "DSOAL r${{needs.Build.outputs.DSOALCommitCount}}-${{needs.Build.outputs.DSOALCommitHashShort}} ${{needs.Build.outputs.DSOALBranch}} - ${{needs.Build.outputs.DSOALCommitTitle}} [${{needs.Build.outputs.DSOALCommitDate}}]
+        OpenAL Soft r${{needs.Build.outputs.OpenALSoftCommitCount}}-${{needs.Build.outputs.OpenALSoftCommitHashShort}} ${{needs.Build.outputs.OpenALSoftBranch}} - ${{needs.Build.outputs.OpenALSoftCommitTitle}} [${{needs.Build.outputs.OpenALSoftCommitDate}}]
+        Build log: https://github.com/${{env.DSOALRepo}}/actions/runs/${{github.run_id}}"
+        gh release upload latest-${{needs.Build.outputs.DSOALBranch}} --repo ${{env.DSOALRepo}} --clobber DSOAL.zip
