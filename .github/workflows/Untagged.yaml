@@ -146,21 +146,16 @@ jobs:
       run: |
         7z a ./Release/DSOAL_r${{needs.Build.outputs.DSOALCommitCount}}.zip ./Release/DSOAL ./Release/DSOAL+HRTF -m0=Copy
         7z a DSOAL.zip ./Release/DSOAL_r${{needs.Build.outputs.DSOALCommitCount}}.zip -m0=lzma -mx=9
-
-    - name: Purge tag - r${{needs.Build.outputs.DSOALCommitCount}}
-      run: |
-        gh release delete r${{needs.Build.outputs.DSOALCommitCount}} --repo ${{env.DSOALRepo}} --cleanup-tag --yes || true
+        cp DSOAL.zip DSOAL_r${{needs.Build.outputs.DSOALCommitCount}}.zip
 
     - name: Purge tag - latest-${{needs.Build.outputs.DSOALBranch}}
       run: |
         gh release delete latest-${{needs.Build.outputs.DSOALBranch}} --repo ${{env.DSOALRepo}} --cleanup-tag --yes || true
 
-    - name: Release - r${{needs.Build.outputs.DSOALCommitCount}}
+    - name: Release - archive
       run: |
-        gh release create r${{needs.Build.outputs.DSOALCommitCount}} --repo ${{env.DSOALRepo}} --target ${{needs.Build.outputs.DSOALCommitHash}} --generate-notes --latest=false --prerelease --title "DSOAL r${{needs.Build.outputs.DSOALCommitCount}} + OpenAL Soft r${{needs.Build.outputs.OpenALSoftCommitCount}}" --notes "DSOAL r${{needs.Build.outputs.DSOALCommitCount}}-${{needs.Build.outputs.DSOALCommitHashShort}} ${{needs.Build.outputs.DSOALBranch}} - ${{needs.Build.outputs.DSOALCommitTitle}} [${{needs.Build.outputs.DSOALCommitDate}}]
-        OpenAL Soft r${{needs.Build.outputs.OpenALSoftCommitCount}}-${{needs.Build.outputs.OpenALSoftCommitHashShort}} ${{needs.Build.outputs.OpenALSoftBranch}} - ${{needs.Build.outputs.OpenALSoftCommitTitle}} [${{needs.Build.outputs.OpenALSoftCommitDate}}]
-        Build log: https://github.com/${{env.DSOALRepo}}/actions/runs/${{github.run_id}}"
-        gh release upload r${{needs.Build.outputs.DSOALCommitCount}} --repo ${{env.DSOALRepo}} --clobber DSOAL.zip
+        gh release create archive --repo ${{env.DSOALRepo}} --target 98584ab11d231d36488bc055bdeb19b607706bc6 --latest=false --prerelease --title "DSOAL build archive" || true
+        gh release upload archive --repo ${{env.DSOALRepo}} --clobber DSOAL_r${{needs.Build.outputs.DSOALCommitCount}}.zip
 
     - name: Release - latest-${{needs.Build.outputs.DSOALBranch}}
       run: |
