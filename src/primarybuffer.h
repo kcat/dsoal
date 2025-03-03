@@ -58,7 +58,36 @@ class PrimaryBuffer final : IDirectSoundBuffer {
     };
     Listener3D mListener3D;
 
-    std::atomic<ULONG> mTotalRef{0u}, mDsRef{0u}, mDs3dRef{0u};
+    class Prop final : IKsPropertySet {
+        auto impl_from_base() noexcept
+        {
+#ifdef __GNUC__
+            _Pragma("GCC diagnostic push") _Pragma("GCC diagnostic ignored \"-Wcast-align\"")
+#endif
+            return CONTAINING_RECORD(this, PrimaryBuffer, mProp);
+#ifdef __GNUC__
+            _Pragma("GCC diagnostic pop")
+#endif
+        }
+
+    public:
+        HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void** ppvObject) noexcept override;
+        ULONG STDMETHODCALLTYPE AddRef() noexcept override;
+        ULONG STDMETHODCALLTYPE Release() noexcept override;
+        HRESULT STDMETHODCALLTYPE Get(REFGUID guidPropSet, ULONG dwPropID, void *pInstanceData, ULONG cbInstanceData, void *pPropData, ULONG cbPropData, ULONG *pcbReturned) noexcept override;
+        HRESULT STDMETHODCALLTYPE Set(REFGUID guidPropSet, ULONG dwPropID, void *pInstanceData, ULONG cbInstanceData, void *pPropData, ULONG cbPropData) noexcept override;
+        HRESULT STDMETHODCALLTYPE QuerySupport(REFGUID guidPropSet, ULONG dwPropID, ULONG *pTypeSupport) noexcept override;
+
+        Prop() = default;
+        Prop(const Prop&) = delete;
+        Prop& operator=(const Prop&) = delete;
+
+        template<typename T>
+        T as() noexcept { return static_cast<T>(this); }
+    };
+    Prop mProp;
+
+    std::atomic<ULONG> mTotalRef{0u}, mDsRef{0u}, mDs3dRef{0u}, mPropRef{0u};
 
     DWORD mFlags{0u};
 

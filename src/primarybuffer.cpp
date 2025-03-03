@@ -1,5 +1,7 @@
 #include "primarybuffer.h"
 
+#include <vfwmsgs.h>
+
 #include "buffer.h"
 #include "dsoal.h"
 #include "dsoundoal.h"
@@ -79,6 +81,12 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::QueryInterface(REFIID riid, void** ppvO
     {
         mListener3D.AddRef();
         *ppvObject = mListener3D.as<IDirectSound3DListener*>();
+        return S_OK;
+    }
+    if(riid == IID_IKsPropertySet)
+    {
+        mProp.AddRef();
+        *ppvObject = mProp.as<IKsPropertySet*>();
         return S_OK;
     }
 
@@ -1115,6 +1123,70 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::Listener3D::CommitDeferredSettings() no
     alcProcessContext(self->mContext);
 
     return DS_OK;
+}
+#undef PREFIX
+#undef CLASS_PREFIX
+
+/*** IKsPropertySet interface. ***/
+#define CLASS_PREFIX "PrimaryProp::"
+HRESULT STDMETHODCALLTYPE PrimaryBuffer::Prop::QueryInterface(REFIID riid, void **ppvObject) noexcept
+{ return impl_from_base()->QueryInterface(riid, ppvObject); }
+
+#define PREFIX CLASS_PREFIX "AddRef "
+ULONG STDMETHODCALLTYPE PrimaryBuffer::Prop::AddRef() noexcept
+{
+    auto self = impl_from_base();
+    self->mTotalRef.fetch_add(1u, std::memory_order_relaxed);
+    const auto ret = self->mPropRef.fetch_add(1u, std::memory_order_relaxed) + 1;
+    DEBUG("({}) ref {}", voidp{this}, ret);
+    return ret;
+}
+#undef PREFIX
+
+#define PREFIX CLASS_PREFIX "Release "
+ULONG STDMETHODCALLTYPE PrimaryBuffer::Prop::Release() noexcept
+{
+    auto self = impl_from_base();
+    const auto ret = self->mPropRef.fetch_sub(1u, std::memory_order_relaxed) - 1;
+    DEBUG("({}) ref {}", voidp{this}, ret);
+    self->mTotalRef.fetch_sub(1u, std::memory_order_relaxed);
+    return ret;
+}
+#undef PREFIX
+
+#define PREFIX CLASS_PREFIX "Get "
+HRESULT STDMETHODCALLTYPE PrimaryBuffer::Prop::Get(REFGUID guidPropSet, ULONG dwPropID,
+    void *pInstanceData, ULONG cbInstanceData, void *pPropData, ULONG cbPropData,
+    ULONG *pcbReturned) noexcept
+{
+    FIXME("({})->({}, 0x{:x}, {}, {}, {}, {}, {}): stub!", voidp{this},
+        PropidPrinter{guidPropSet}.c_str(), dwPropID, pInstanceData, cbInstanceData, pPropData,
+        cbPropData, voidp{pcbReturned});
+
+    return E_PROP_ID_UNSUPPORTED;
+}
+#undef PREFIX
+
+#define PREFIX CLASS_PREFIX "Set "
+HRESULT STDMETHODCALLTYPE PrimaryBuffer::Prop::Set(REFGUID guidPropSet, ULONG dwPropID,
+    void *pInstanceData, ULONG cbInstanceData, void *pPropData, ULONG cbPropData) noexcept
+{
+    FIXME("({})->({}, 0x{:x}, {}, {}, {}, {}): stub!", voidp{this},
+        PropidPrinter{guidPropSet}.c_str(), dwPropID, pInstanceData, cbInstanceData, pPropData,
+        cbPropData);
+
+    return E_PROP_ID_UNSUPPORTED;
+}
+#undef PREFIX
+
+#define PREFIX CLASS_PREFIX "QuerySupport "
+HRESULT STDMETHODCALLTYPE PrimaryBuffer::Prop::QuerySupport(REFGUID guidPropSet, ULONG dwPropID,
+    ULONG *pTypeSupport) noexcept
+{
+    FIXME("({})->({}, 0x{:x}, {}): stub!", voidp{this}, PropidPrinter{guidPropSet}.c_str(),
+        dwPropID, voidp{pTypeSupport});
+
+    return E_PROP_ID_UNSUPPORTED;
 }
 #undef PREFIX
 #undef CLASS_PREFIX
