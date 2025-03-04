@@ -16,6 +16,11 @@
 #include "vmanager.h"
 
 
+DEFINE_GUID(DSPROPSETID_ZOOMFX_BufferProperties, 0xcd5368e0, 0x3450, 0x11d3, 0x8b, 0x6e, 0x00, 0x10, 0x5a, 0x9b, 0x7b, 0xbc);
+DEFINE_GUID(DSPROPSETID_I3DL2_ListenerProperties, 0xda0f0520, 0x300a, 0x11d3, 0x8a, 0x2b, 0x00, 0x60, 0x97, 0x0d, 0xb0, 0x11);
+DEFINE_GUID(DSPROPSETID_I3DL2_BufferProperties, 0xda0f0521, 0x300a, 0x11d3, 0x8a, 0x2b, 0x00, 0x60, 0x97, 0x0d, 0xb0, 0x11);
+
+
 struct IidTag { };
 struct ClsidTag { };
 struct PropidTag { };
@@ -78,6 +83,9 @@ class GuidPrinter {
         CHECKID(EAXPROPERTYID_EAX40_Source)
         CHECKID(DSPROPSETID_VoiceManager)
         CHECKID(DSPROPSETID_DirectSoundDevice)
+        CHECKID(DSPROPSETID_ZOOMFX_BufferProperties)
+        CHECKID(DSPROPSETID_I3DL2_ListenerProperties)
+        CHECKID(DSPROPSETID_I3DL2_BufferProperties)
         if(mIdStr) return;
 
         store(guid);
