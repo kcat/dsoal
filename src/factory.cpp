@@ -15,47 +15,25 @@ namespace {
 using voidp = void*;
 using cvoidp = const void*;
 
-HRESULT CreateDS8(REFIID riid, void **ppvObject)
+template<typename T, bool is8>
+auto CreateObj(REFIID riid, void **ppvObject) -> HRESULT
 {
-    auto dsobj = DSound8OAL::Create(true);
-    return dsobj->QueryInterface(riid, ppvObject);
-}
-HRESULT CreateDS(REFIID riid, void **ppvObject)
-{
-    auto dsobj = DSound8OAL::Create(false);
-    return dsobj->QueryInterface(riid, ppvObject);
+    return T::Create(is8)->QueryInterface(riid, ppvObject);
 }
 
-HRESULT CreateDSCapture8(REFIID riid, void **ppvObject)
+template<typename T>
+auto CreateObj(REFIID riid, void **ppvObject) -> HRESULT
 {
-    auto dsobj = DSCapture::Create(true);
-    return dsobj->QueryInterface(riid, ppvObject);
-}
-HRESULT CreateDSCapture(REFIID riid, void **ppvObject)
-{
-    auto dsobj = DSCapture::Create(false);
-    return dsobj->QueryInterface(riid, ppvObject);
-}
-
-HRESULT CreateDSFullDuplex(REFIID riid, void **ppvObject)
-{
-    auto dsobj = DSFullDuplex::Create();
-    return dsobj->QueryInterface(riid, ppvObject);
-}
-
-HRESULT CreateDSPrivatePropSet(REFIID riid, void **ppvObject)
-{
-    auto dsobj = DSPrivatePropertySet::Create();
-    return dsobj->QueryInterface(riid, ppvObject);
+    return T::Create()->QueryInterface(riid, ppvObject);
 }
 
 std::array sFactories{
-    Factory{CLSID_DirectSound8, CreateDS8},
-    Factory{CLSID_DirectSound, CreateDS},
-    Factory{CLSID_DirectSoundCapture8, CreateDSCapture8},
-    Factory{CLSID_DirectSoundCapture, CreateDSCapture},
-    Factory{CLSID_DirectSoundFullDuplex, CreateDSFullDuplex},
-    Factory{CLSID_DirectSoundPrivate, CreateDSPrivatePropSet},
+    Factory{CLSID_DirectSound8, CreateObj<DSound8OAL, true>},
+    Factory{CLSID_DirectSound, CreateObj<DSound8OAL, false>},
+    Factory{CLSID_DirectSoundCapture8, CreateObj<DSCapture, true>},
+    Factory{CLSID_DirectSoundCapture, CreateObj<DSCapture, false>},
+    Factory{CLSID_DirectSoundFullDuplex, CreateObj<DSFullDuplex>},
+    Factory{CLSID_DirectSoundPrivate, CreateObj<DSPrivatePropertySet>},
 };
 
 } // namespace
