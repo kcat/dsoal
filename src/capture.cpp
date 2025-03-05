@@ -873,8 +873,8 @@ HRESULT STDMETHODCALLTYPE DSCapture::CreateCaptureBuffer(const DSCBUFFERDESC *ds
     }
     if(!dscBufferDesc || dscBufferDesc->dwSize < sizeof(DSCBUFFERDESC1))
     {
-        WARN("Invalid DSBUFFERDESC ({}, {})", cvoidp{dscBufferDesc},
-             dscBufferDesc ? dscBufferDesc->dwSize : 0);
+        WARN("Invalid DSCBUFFERDESC ({}, {})", cvoidp{dscBufferDesc},
+            dscBufferDesc ? dscBufferDesc->dwSize : 0);
         return DSERR_INVALIDPARAM;
     }
 
