@@ -15,16 +15,10 @@ namespace {
 using voidp = void*;
 using cvoidp = const void*;
 
-template<typename T, bool is8>
+template<typename T, auto ...Params>
 auto CreateObj(REFIID riid, void **ppvObject) -> HRESULT
 {
-    return T::Create(is8)->QueryInterface(riid, ppvObject);
-}
-
-template<typename T>
-auto CreateObj(REFIID riid, void **ppvObject) -> HRESULT
-{
-    return T::Create()->QueryInterface(riid, ppvObject);
+    return T::Create(Params...)->QueryInterface(riid, ppvObject);
 }
 
 std::array sFactories{
