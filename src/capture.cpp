@@ -951,11 +951,11 @@ HRESULT STDMETHODCALLTYPE DSCapture::Initialize(const GUID *guid) noexcept
     if(const auto hr = GetDeviceID(*guid, devguid); FAILED(hr))
         return hr;
 
-    mDeviceName = std::invoke([guid]() -> std::string
+    mDeviceName = std::invoke([&devguid]() -> std::string
     {
         try {
             auto guid_str = CoTaskMemPtr<OLECHAR>{};
-            const auto hr = StringFromCLSID(*guid, ds::out_ptr(guid_str));
+            const auto hr = StringFromCLSID(devguid, ds::out_ptr(guid_str));
             if(SUCCEEDED(hr)) return wstr_to_utf8(guid_str.get());
 
             ERR("StringFromCLSID failed: {:#x}", as_unsigned(hr));
