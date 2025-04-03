@@ -84,6 +84,7 @@ jobs:
         copy "${{github.workspace}}/openal-soft/alsoftrc.sample"                                               "DSOAL/alsoft.ini"
         copy "${{github.workspace}}/README.md"                                                                 "DSOAL/Documentation/DSOAL-ReadMe.txt"
         copy "${{github.workspace}}/LICENSE"                                                                   "DSOAL/Documentation/DSOAL-License.txt"
+        copy "${{github.workspace}}/fmt-11.1.1/LICENSE"                                                        "DSOAL/Documentation/DSOAL-License_fmt.txt"
         echo "${{env.DSOALRepo}}" >>                                                                           "DSOAL/Documentation/DSOAL-Version.txt"
         echo "${{env.DSOALBranch}}" >>                                                                         "DSOAL/Documentation/DSOAL-Version.txt"
         echo "${{env.DSOALCommitHash}}" >>                                                                     "DSOAL/Documentation/DSOAL-Version.txt"
