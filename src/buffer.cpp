@@ -630,7 +630,7 @@ HRESULT Buffer::setLocation(LocStatus locStatus) noexcept
 
             const auto slots = std::as_writable_bytes(std::span{NullSlots});
             EAXSetDirect(mContext, &EAXPROPERTYID_EAX40_Source, EAXSOURCE_ACTIVEFXSLOTID, mSource,
-                slots.data(), slots.size());
+                slots.data(), static_cast<ALuint>(slots.size()));
         }
     }
     alGetErrorDirect(mContext);

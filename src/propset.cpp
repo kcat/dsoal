@@ -222,9 +222,9 @@ HRESULT DSPROPERTY_DescriptionW(void *pPropData, ULONG cbPropData, ULONG *pcbRet
     }
 
     ppd->Type = DIRECTSOUNDDEVICE_TYPE_WDM;
-    ppd->Description = wcsdup(pv.value<const WCHAR*>());
-    ppd->Module = wcsdup(std::data(aldriver_name));
-    ppd->Interface = wcsdup(L"Interface");
+    ppd->Description = _wcsdup(pv.value<const WCHAR*>());
+    ppd->Module = _wcsdup(std::data(aldriver_name));
+    ppd->Interface = _wcsdup(L"Interface");
 
     if(pcbReturned)
         *pcbReturned = sizeof(*ppd);
