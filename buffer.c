@@ -223,6 +223,15 @@ static const char *get_fmtstr_EXT(const DSPrimary *prim, const WAVEFORMATEX *for
             case X5DOT1: return "AL_FORMAT_51CHN8";
             case X6DOT1: return "AL_FORMAT_61CHN8";
             case X7DOT1: return "AL_FORMAT_71CHN8";
+            case      0: switch (out->Format.nChannels)
+            {   
+                case 1: return "AL_FORMAT_MONO8";
+                case 2: return "AL_FORMAT_STEREO8";
+                case 4: return "AL_FORMAT_QUAD8";
+                case 6: return "AL_FORMAT_51CHN8";
+                case 7: return "AL_FORMAT_61CHN8";
+                case 8: return "AL_FORMAT_71CHN8";
+            }
             }
         }
         else if(out->Samples.wValidBitsPerSample == 16)
@@ -236,6 +245,15 @@ static const char *get_fmtstr_EXT(const DSPrimary *prim, const WAVEFORMATEX *for
             case X5DOT1: return "AL_FORMAT_51CHN16";
             case X6DOT1: return "AL_FORMAT_61CHN16";
             case X7DOT1: return "AL_FORMAT_71CHN16";
+            case      0: switch (out->Format.nChannels)
+            {   
+                case 1: return "AL_FORMAT_MONO16";
+                case 2: return "AL_FORMAT_STEREO16";
+                case 4: return "AL_FORMAT_QUAD16";
+                case 6: return "AL_FORMAT_51CHN16";
+                case 7: return "AL_FORMAT_61CHN16";
+                case 8: return "AL_FORMAT_71CHN16";
+            }
             }
         }
 
@@ -257,6 +275,15 @@ static const char *get_fmtstr_EXT(const DSPrimary *prim, const WAVEFORMATEX *for
             case X5DOT1: return "AL_FORMAT_51CHN32";
             case X6DOT1: return "AL_FORMAT_61CHN32";
             case X7DOT1: return "AL_FORMAT_71CHN32";
+            case      0: switch (out->Format.nChannels)
+            {
+                case 1: return "AL_FORMAT_MONO_FLOAT32";
+                case 2: return "AL_FORMAT_STEREO_FLOAT32";
+                case 4: return "AL_FORMAT_QUAD32";
+                case 6: return "AL_FORMAT_51CHN32";
+                case 7: return "AL_FORMAT_61CHN32";
+                case 8: return "AL_FORMAT_71CHN32";
+            }
             }
         }
         else
