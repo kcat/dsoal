@@ -152,7 +152,10 @@ jobs:
     - name: Compress artifacts
       run: |
         7z a ./Release/DSOAL_v${{needs.Build.outputs.DSOALCommitTag}}.zip ./Release/DSOAL ./Release/DSOAL+HRTF -m0=Copy
-        7z a DSOAL.zip ./Release/DSOAL_v${{needs.Build.outputs.DSOALCommitTag}}.zip -m0=lzma -mx=9
+        7z a DSOAL.zip ./Release/DSOAL_v${{needs.Build.outputs.DSOALCommitTag}}.zip -mx=9
+        7z a DSOAL.7z  ./Release/DSOAL_v${{needs.Build.outputs.DSOALCommitTag}}.zip -mx=9 -m0=lzma2
+        cp DSOAL.zip DSOAL_v${{needs.Build.outputs.DSOALCommitTag}}.zip
+        cp DSOAL.7z  DSOAL_v${{needs.Build.outputs.DSOALCommitTag}}.7z
 
     - name: Purge tag - ${{needs.Build.outputs.DSOALCommitTag}}
       run: |
@@ -163,4 +166,4 @@ jobs:
         gh release create ${{needs.Build.outputs.DSOALCommitTag}} --repo ${{env.DSOALRepo}} --target ${{needs.Build.outputs.DSOALCommitHash}} --generate-notes --latest=true --title "DSOAL v${{needs.Build.outputs.DSOALCommitTag}} + OpenAL Soft v${{needs.Build.outputs.OpenALSoftCommitTag}}" --notes "DSOAL v${{needs.Build.outputs.DSOALCommitTag}}-${{needs.Build.outputs.DSOALCommitHashShort}} ${{needs.Build.outputs.DSOALBranch}} - ${{needs.Build.outputs.DSOALCommitTitle}} [${{needs.Build.outputs.DSOALCommitDate}}]
         OpenAL Soft v${{needs.Build.outputs.OpenALSoftCommitTag}}-${{needs.Build.outputs.OpenALSoftCommitHashShort}} ${{needs.Build.outputs.OpenALSoftBranch}} - ${{needs.Build.outputs.OpenALSoftCommitTitle}} [${{needs.Build.outputs.OpenALSoftCommitDate}}]
         Build log: https://github.com/${{env.DSOALRepo}}/actions/runs/${{github.run_id}}"
-        gh release upload ${{needs.Build.outputs.DSOALCommitTag}} --repo ${{env.DSOALRepo}} --clobber DSOAL.zip
+        gh release upload ${{needs.Build.outputs.DSOALCommitTag}} --repo ${{env.DSOALRepo}} --clobber DSOAL.zip DSOAL.7z
