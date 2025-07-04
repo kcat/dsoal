@@ -153,7 +153,7 @@ jobs:
       run: |
         7z a ./Release/DSOAL_v${{needs.Build.outputs.DSOALCommitTag}}.zip ./Release/DSOAL ./Release/DSOAL+HRTF -m0=Copy
         7z a DSOAL.zip ./Release/DSOAL_v${{needs.Build.outputs.DSOALCommitTag}}.zip -mx=9
-        7z a DSOAL.7z  ./Release/DSOAL_v${{needs.Build.outputs.DSOALCommitTag}}.zip -mx=9 -m0=lzma2
+        7z a DSOAL.7z  ./Release/DSOAL ./Release/DSOAL+HRTF -mx=9 -m0=lzma2
         cp DSOAL.zip DSOAL_v${{needs.Build.outputs.DSOALCommitTag}}.zip
         cp DSOAL.7z  DSOAL_v${{needs.Build.outputs.DSOALCommitTag}}.7z
 
