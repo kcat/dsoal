@@ -30,6 +30,7 @@ enum Extensions : uint8_t {
     EXT_MCFORMATS,
     EXT_STATIC_BUFFER,
     SOFT_SOURCE_PANNING,
+    SOFT_SOURCE_SPATIALIZE,
 
     ExtensionCount
 };

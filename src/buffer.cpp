@@ -586,6 +586,8 @@ HRESULT Buffer::setLocation(LocStatus locStatus) noexcept
             alSource3fDirect(mContext, mSource, AL_VELOCITY, 0.0f, 0.0f, 0.0f);
             alSource3fDirect(mContext, mSource, AL_DIRECTION, 0.0f, 0.0f, 0.0f);
             alSourcefDirect(mContext, mSource, AL_ROLLOFF_FACTOR, 0.0f);
+            if(mParent.haveExtension(SOFT_SOURCE_SPATIALIZE))
+                alSourceiDirect(mContext, mSource, AL_SOURCE_SPATIALIZE_SOFT, AL_FALSE);
         }
         else
         {
@@ -597,6 +599,8 @@ HRESULT Buffer::setLocation(LocStatus locStatus) noexcept
                 mImmediate.vConeOrientation.y, -mImmediate.vConeOrientation.z);
             alSourcefDirect(mContext, mSource, AL_ROLLOFF_FACTOR,
                 mParent.getPrimary().getCurrentRolloffFactor());
+            if(mParent.haveExtension(SOFT_SOURCE_SPATIALIZE))
+                alSourceiDirect(mContext, mSource, AL_SOURCE_SPATIALIZE_SOFT, AL_TRUE);
         }
         alSourceiDirect(mContext, mSource, AL_SOURCE_RELATIVE,
             (mImmediate.dwMode!=DS3DMODE_NORMAL) ? AL_TRUE : AL_FALSE);
@@ -957,7 +961,7 @@ HRESULT STDMETHODCALLTYPE Buffer::Initialize(IDirectSound *directSound, const DS
             if(static bool once{false}; !once)
             {
                 once = true;
-                ERR("Multi-channel 3D sounds are not spatialized");
+                ERR("Multi-channel 3D sounds may not play correctly");
             }
         }
 
@@ -1475,6 +1479,8 @@ void Buffer::setParams(const DS3DBUFFER &params, const std::bitset<FlagCount> fl
             alSource3fDirect(mContext, mSource, AL_VELOCITY, 0.0f, 0.0f, 0.0f);
             alSource3fDirect(mContext, mSource, AL_DIRECTION, 0.0f, 0.0f, 0.0f);
             alSourcefDirect(mContext, mSource, AL_ROLLOFF_FACTOR, 0.0f);
+            if(mParent.haveExtension(SOFT_SOURCE_SPATIALIZE))
+                alSourceiDirect(mContext, mSource, AL_SOURCE_SPATIALIZE_SOFT, AL_FALSE);
         }
         else
         {
@@ -1486,6 +1492,8 @@ void Buffer::setParams(const DS3DBUFFER &params, const std::bitset<FlagCount> fl
                 mImmediate.vConeOrientation.y, -mImmediate.vConeOrientation.z);
             alSourcefDirect(mContext, mSource, AL_ROLLOFF_FACTOR,
                 mParent.getPrimary().getCurrentRolloffFactor());
+            if(mParent.haveExtension(SOFT_SOURCE_SPATIALIZE))
+                alSourceiDirect(mContext, mSource, AL_SOURCE_SPATIALIZE_SOFT, AL_TRUE);
         }
         alSourceiDirect(mContext, mSource, AL_SOURCE_RELATIVE,
             (params.dwMode!=DS3DMODE_NORMAL) ? AL_TRUE : AL_FALSE);
@@ -1947,6 +1955,9 @@ HRESULT STDMETHODCALLTYPE Buffer::Buffer3D::SetMode(DWORD mode, DWORD apply) noe
                 alSource3fDirect(self->mContext, self->mSource, AL_VELOCITY, 0.0f, 0.0f, 0.0f);
                 alSource3fDirect(self->mContext, self->mSource, AL_DIRECTION, 0.0f, 0.0f, 0.0f);
                 alSourcefDirect(self->mContext, self->mSource, AL_ROLLOFF_FACTOR, 0.0f);
+                if(self->mParent.haveExtension(SOFT_SOURCE_SPATIALIZE))
+                    alSourceiDirect(self->mContext, self->mSource, AL_SOURCE_SPATIALIZE_SOFT,
+                        AL_FALSE);
             }
             else
             {
@@ -1961,6 +1972,9 @@ HRESULT STDMETHODCALLTYPE Buffer::Buffer3D::SetMode(DWORD mode, DWORD apply) noe
                     -self->mImmediate.vConeOrientation.z);
                 alSourcefDirect(self->mContext, self->mSource, AL_ROLLOFF_FACTOR,
                     self->mParent.getPrimary().getCurrentRolloffFactor());
+                if(self->mParent.haveExtension(SOFT_SOURCE_SPATIALIZE))
+                    alSourceiDirect(self->mContext, self->mSource, AL_SOURCE_SPATIALIZE_SOFT,
+                        AL_TRUE);
             }
             alSourceiDirect(self->mContext, self->mSource, AL_SOURCE_RELATIVE,
                 (mode!=DS3DMODE_NORMAL) ? AL_TRUE : AL_FALSE);

@@ -88,21 +88,13 @@ auto GetDSBCapsString(DWORD flags) -> std::string
 
 
 template<typename T>
-struct CoTaskMemDeleter {
-    void operator()(T *mem) const { CoTaskMemFree(mem); }
-};
-template<typename T>
-using CoTaskMemPtr = std::unique_ptr<T,CoTaskMemDeleter<T>>;
+using CoTaskMemPtr = std::unique_ptr<T, decltype([](T *mem) { CoTaskMemFree(mem); })>;
 
-struct ALCdeviceDeleter {
-    void operator()(ALCdevice *device) { alcCloseDevice(device); }
-};
-using ALCdevicePtr = std::unique_ptr<ALCdevice,ALCdeviceDeleter>;
+using ALCdevicePtr = std::unique_ptr<ALCdevice, decltype([](ALCdevice *device)
+    { alcCloseDevice(device); })>;
 
-struct ALCcontextDeleter {
-    void operator()(ALCcontext *context) { alcDestroyContext(context); }
-};
-using ALCcontextPtr = std::unique_ptr<ALCcontext,ALCcontextDeleter>;
+using ALCcontextPtr = std::unique_ptr<ALCcontext, decltype([](ALCcontext *context)
+    { alcDestroyContext(context); })>;
 
 
 #define PREFIX "GetSpeakerConfig "
@@ -241,6 +233,7 @@ ds::expected<std::unique_ptr<SharedDevice>,HRESULT> CreateDeviceShare(const GUID
         ExtensionEntry{"AL_EXT_FLOAT32", EXT_FLOAT32},
         ExtensionEntry{"AL_EXT_MCFORMATS", EXT_MCFORMATS},
         ExtensionEntry{"AL_EXT_STATIC_BUFFER", EXT_STATIC_BUFFER},
+        ExtensionEntry{"AL_SOFT_source_spatialize", SOFT_SOURCE_SPATIALIZE},
         ExtensionEntry{"AL_SOFTX_source_panning", SOFT_SOURCE_PANNING},
     };
 
