@@ -98,14 +98,14 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::QueryInterface(REFIID riid, void** ppvO
 #define PREFIX CLASS_PREFIX "AddRef "
 ULONG STDMETHODCALLTYPE PrimaryBuffer::AddRef() noexcept
 {
-    const auto prev = mTotalRef.fetch_add(1u, std::memory_order_relaxed);
+    mTotalRef.fetch_add(1u, std::memory_order_relaxed);
     const auto ret = mDsRef.fetch_add(1u, std::memory_order_relaxed) + 1;
     DEBUG("({}) ref {}", voidp{this}, ret);
 
     /* Clear the flags when getting the first reference, so it can be
      * reinitialized.
      */
-    if(prev == 0)
+    if(ret == 1)
         mFlags = 0;
 
     return ret;
