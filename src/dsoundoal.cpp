@@ -598,7 +598,7 @@ HRESULT STDMETHODCALLTYPE DSound8OAL::CreateSoundBuffer(const DSBUFFERDESC *buff
          * as appropriate.
          */
         hr = DS_OK;
-        if(mPrimaryBuffer.AddRef() == 1)
+        if(mPrimaryBuffer.AddRef() == 1 && mPrimaryBuffer.getFlags() == 0)
         {
             hr = mPrimaryBuffer.Initialize(as<IDirectSound*>(), &bufdesc);
             if(FAILED(hr))
