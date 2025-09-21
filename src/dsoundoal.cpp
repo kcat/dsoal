@@ -1,6 +1,7 @@
 #include "dsoundoal.h"
 
 #include <algorithm>
+#include <bit>
 #include <chrono>
 #include <functional>
 #include <memory>
@@ -357,7 +358,7 @@ BufferSubList::~BufferSubList()
     uint64_t usemask{~mFreeMask};
     while(usemask)
     {
-        auto idx = ds::countr_zero(usemask);
+        auto idx = std::countr_zero(usemask);
         std::destroy_at(std::to_address(mBuffers->begin() + idx));
         usemask &= ~(1_u64 << idx);
     }
@@ -417,7 +418,7 @@ ComPtr<Buffer> DSound8OAL::createSecondaryBuffer(IDirectSoundBuffer *original)
     if(!sublist)
         return {};
 
-    auto idx = static_cast<unsigned int>(ds::countr_zero(sublist->mFreeMask));
+    auto idx = static_cast<unsigned int>(std::countr_zero(sublist->mFreeMask));
     ComPtr<Buffer> buffer{::new(&(*sublist->mBuffers)[idx]) Buffer{*this, mIs8, original}};
     sublist->mFreeMask &= ~(1_u64 << idx);
 
@@ -759,7 +760,7 @@ HRESULT STDMETHODCALLTYPE DSound8OAL::SetCooperativeLevel(HWND hwnd, DWORD level
             auto usemask = ~group.mFreeMask;
             while(usemask)
             {
-                auto idx = static_cast<unsigned int>(ds::countr_zero(usemask));
+                auto idx = static_cast<unsigned int>(std::countr_zero(usemask));
                 usemask &= ~(1_u64 << idx);
 
                 auto state = DWORD{};

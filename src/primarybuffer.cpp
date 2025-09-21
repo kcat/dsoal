@@ -1,5 +1,7 @@
 #include "primarybuffer.h"
 
+#include <bit>
+
 #include <vfwmsgs.h>
 
 #include "buffer.h"
@@ -261,7 +263,7 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::GetStatus(DWORD *status) noexcept
             uint64_t usemask{~group.mFreeMask};
             while(usemask)
             {
-                auto idx = static_cast<unsigned int>(ds::countr_zero(usemask));
+                auto idx = static_cast<unsigned int>(std::countr_zero(usemask));
                 usemask &= ~(1_u64 << idx);
                 Buffer &buffer = (*group.mBuffers)[idx];
 
