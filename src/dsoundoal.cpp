@@ -5,6 +5,7 @@
 #include <functional>
 #include <memory>
 #include <optional>
+#include <ranges>
 #include <string_view>
 
 #include <ks.h>
@@ -59,8 +60,7 @@ auto GetDSBCapsString(DWORD flags) -> std::string
     auto ret = std::string{};
     ret.reserve(256);
 
-    auto first = true;
-    for(size_t idx{0};idx < CapNames.size();++idx)
+    for(const auto idx : std::views::iota(size_t{0}, CapNames.size()))
     {
         const auto flag = DWORD{1} << idx;
         if(flag > flags)
@@ -69,9 +69,7 @@ auto GetDSBCapsString(DWORD flags) -> std::string
             continue;
         flags &= ~flag;
 
-        if(first)
-            first = false;
-        else
+        if(!ret.empty())
             ret += " | ";
         ret += CapNames[idx];
     }
@@ -311,11 +309,8 @@ std::vector<SharedDevice*> SharedDevice::sDeviceList;
 auto SharedDevice::GetById(const GUID &deviceId) noexcept
     -> ds::expected<ComPtr<SharedDevice>,HRESULT>
 {
-    auto find_id = [&deviceId](SharedDevice *device)
-    { return deviceId == device->mId; };
-
     std::unique_lock listlock{sDeviceListMutex};
-    auto sharediter = std::find_if(sDeviceList.begin(), sDeviceList.end(), find_id);
+    auto sharediter = std::ranges::find(sDeviceList, deviceId, &SharedDevice::mId);
     if(sharediter != sDeviceList.end())
     {
         (*sharediter)->AddRef();
@@ -343,7 +338,7 @@ void SharedDevice::dispose() noexcept
 {
     std::lock_guard listlock{sDeviceListMutex};
 
-    auto shared_iter = std::find(sDeviceList.begin(), sDeviceList.end(), this);
+    auto shared_iter = std::ranges::find(sDeviceList, this);
     if(shared_iter != sDeviceList.end())
     {
         std::unique_ptr<SharedDevice> device{*shared_iter};
@@ -452,9 +447,9 @@ void DSound8OAL::notifyThread() noexcept
             continue;
         }
 
-        auto enditer = std::remove_if(mNotifyBuffers.begin(), mNotifyBuffers.end(),
-            [](Buffer *buffer) noexcept { return !buffer->updateNotify(); });
-        mNotifyBuffers.erase(enditer, mNotifyBuffers.end());
+        auto enditer = std::ranges::remove_if(mNotifyBuffers, [](Buffer *buffer) noexcept
+        { return !buffer->updateNotify(); });
+        mNotifyBuffers.erase(enditer.begin(), enditer.end());
 
         mNotifyCond.wait_for(lock, waittime);
     }
@@ -463,14 +458,14 @@ void DSound8OAL::notifyThread() noexcept
 
 void DSound8OAL::triggerNotifies() noexcept
 {
-    auto enditer = std::remove_if(mNotifyBuffers.begin(), mNotifyBuffers.end(),
-        [](Buffer *buffer) noexcept { return !buffer->updateNotify(); });
-    mNotifyBuffers.erase(enditer, mNotifyBuffers.end());
+    auto enditer = std::ranges::remove_if(mNotifyBuffers, [](Buffer *buffer) noexcept
+    { return !buffer->updateNotify(); });
+    mNotifyBuffers.erase(enditer.begin(), enditer.end());
 }
 
 void DSound8OAL::addNotifyBuffer(Buffer *buffer)
 {
-    if(std::find(mNotifyBuffers.cbegin(), mNotifyBuffers.cend(), buffer) == mNotifyBuffers.cend())
+    if(std::ranges::find(mNotifyBuffers, buffer) == mNotifyBuffers.end())
     {
         mNotifyBuffers.emplace_back(buffer);
         if(!mNotifyThread.joinable()) [[unlikely]]
