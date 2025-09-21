@@ -1,16 +1,87 @@
-cmake_minimum_required(VERSION 3.14)
+cmake_minimum_required(VERSION 3.14...3.31)
 
-project(dsoal LANGUAGES CXX)
+project(dsoal VERSION 0.9 LANGUAGES CXX)
+
+include(CheckCXXCompilerFlag)
+include(CheckCXXSymbolExists)
+include(GNUInstallDirs)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-add_subdirectory(fmt-11.1.1)
 
-include(CheckCXXCompilerFlag)
-include(GNUInstallDirs)
+# Setting DSOAL_STL_HARDENING=None disables/minimizes STL hardening, doing only
+# checks required by the standard (or can't be disabled at all). Should really
+# only be used where maximum performance is critical and the extra safety can
+# be sacrificed.
+#
+# DSOAL_STL_HARDENING=Default enables some STL hardening, checking for more
+# significant issues that can also be done "fast", that's easier to optimize
+# away when unneeded and/or not become a bottleneck. This is generally
+# considered fine for production use, hence being the default here.
+#
+# DSOAL_STL_HARDENING=Debug enables even more STL hardening, which has a much
+# higher runtime cost for less benefit. It's not intended for production use.
+set(DSOAL_STL_HARDENING "Default" CACHE STRING
+    "Specifies the level of C++ STL hardening. None, Default, Debug")
 
-set(VERSION 0.9)
+set(HARDENING_LEVEL "None")
+check_cxx_symbol_exists(__GLIBCXX__ "version" HAVE_LIBSTDCXX)
+check_cxx_symbol_exists(_LIBCPP_VERSION "version" HAVE_LIBCXX)
+check_cxx_symbol_exists(_MSVC_STL_UPDATE "version" HAVE_MSSTL)
+if(HAVE_LIBSTDCXX)
+    if(DSOAL_STL_HARDENING STREQUAL "Debug")
+        add_compile_definitions("_GLIBCXX_DEBUG=1")
+        set(HARDENING_LEVEL "Debug")
+    elseif(DSOAL_STL_HARDENING STREQUAL "None")
+        # TODO: Not sure how to fully disable STL hardening with libstdc++,
+        # aside from not defining anything and using the compiler's default.
+        # _GLIBCXX_NO_ASSERTIONS can explicitly disable the hardening
+        # assertions, but not all STL debugging functionality.
+        add_compile_definitions("_GLIBCXX_NO_ASSERTIONS=1")
+        set(HARDENING_LEVEL "None")
+    else()
+        if(NOT (DSOAL_STL_HARDENING STREQUAL "Default"))
+            message(NOTICE "Unsupported STL hardening option \"${DSOAL_STL_HARDENING}\", using Default")
+        endif()
+        add_compile_definitions("_GLIBCXX_ASSERTIONS=1")
+        set(HARDENING_LEVEL "Default")
+    endif()
+elseif(HAVE_LIBCXX)
+    if(DSOAL_STL_HARDENING STREQUAL "Debug")
+        add_compile_definitions("_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_DEBUG")
+        set(HARDENING_LEVEL "Debug")
+    elseif(DSOAL_STL_HARDENING STREQUAL "None")
+        add_compile_definitions("_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_NONE")
+        set(HARDENING_LEVEL "None")
+    else()
+        if(NOT (DSOAL_STL_HARDENING STREQUAL "Default"))
+            message(NOTICE "Unsupported STL hardening option \"${DSOAL_STL_HARDENING}\", using Default")
+        endif()
+        add_compile_definitions("_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_FAST")
+        set(HARDENING_LEVEL "Default")
+    endif()
+elseif(HAVE_MSSTL)
+    if(DSOAL_STL_HARDENING STREQUAL "Debug")
+        # TODO: Is there anything more reasonable for heavier debugging (non-
+        # production use) checks, where performance is not so important?
+        add_compile_definitions("_MSVC_STL_HARDENING=1")
+        set(HARDENING_LEVEL "Default")
+    elseif(DSOAL_STL_HARDENING STREQUAL "None")
+        add_compile_definitions("_MSVC_STL_HARDENING=0")
+        set(HARDENING_LEVEL "None")
+    else()
+        if(NOT (DSOAL_STL_HARDENING STREQUAL "Default"))
+            message(NOTICE "Unsupported STL hardening option \"${DSOAL_STL_HARDENING}\", using Default")
+        endif()
+        add_compile_definitions("_MSVC_STL_HARDENING=1")
+        set(HARDENING_LEVEL "Default")
+    endif()
+endif()
+
+
+add_subdirectory(fmt-11.2.0)
+
 
 set(DSOAL_CPPDEFS )
 set(DSOAL_CFLAGS )
@@ -29,13 +100,14 @@ if(MSVC)
     if(HAVE_PERMISSIVE_SWITCH)
         set(DSOAL_CFLAGS ${DSOAL_CFLAGS} $<$<COMPILE_LANGUAGE:CXX>:/permissive->)
     endif()
-    set(DSOAL_CFLAGS ${DSOAL_CFLAGS} /W4 /w14640 /wd4065 /wd4127 /wd4268 /wd4324 /wd5030 /wd5051
-        $<$<COMPILE_LANGUAGE:CXX>:/EHsc>)
+    # C4127 - conditional expression is constant
+    # C4324 - structure was padded due to alignment specifier
+    set(DSOAL_CFLAGS ${DSOAL_CFLAGS} /W4 /wd4127 /wd4324 /utf-8 $<$<COMPILE_LANGUAGE:CXX>:/EHsc>)
 else()
     set(DEF_FILE mingw.def)
 
-    set(DSOAL_CFLAGS ${DSOAL_CFLAGS} -Winline -Wunused -Wall -Wextra -Wshadow -Wconversion
-        -Wcast-align -Wpedantic
+    set(DSOAL_CFLAGS ${DSOAL_CFLAGS} -Wunused -Wall -Wextra -Wshadow -Wconversion -Wcast-align
+        -Wpedantic
         $<$<COMPILE_LANGUAGE:CXX>:-Wold-style-cast -Wnon-virtual-dtor -Woverloaded-virtual>)
 
     check_cxx_compiler_flag(-ftrivial-auto-var-init=pattern HAVE_FTRIVIAL_AUTO_VAR_INIT)
@@ -65,7 +137,7 @@ else()
 
     set(DSOAL_LINK_FLAGS ${DSOAL_LINK_FLAGS} -static-libgcc -static-libstdc++)
     set(DSOAL_LINK_FLAGS ${DSOAL_LINK_FLAGS} "-Wl,--push-state,-Bstatic,-lstdc++,-lwinpthread,--pop-state")
-endif(MSVC)
+endif()
 
 
 find_package(Git)
@@ -85,7 +157,7 @@ if(DSOAL_UPDATE_BUILD_VERSION AND GIT_FOUND AND EXISTS "${dsoal_SOURCE_DIR}/.git
     # Get the current working branch and its latest abbreviated commit hash
     add_custom_command(OUTPUT "${dsoal_BINARY_DIR}/version_witness.txt"
         BYPRODUCTS "${dsoal_BINARY_DIR}/version.h"
-        COMMAND ${CMAKE_COMMAND} -D GIT_EXECUTABLE=${GIT_EXECUTABLE} -D LIB_VERSION=${VERSION}
+        COMMAND ${CMAKE_COMMAND} -D GIT_EXECUTABLE=${GIT_EXECUTABLE} -D LIB_VERSION=${dsoal_VERSION}
             -D SRC=${dsoal_SOURCE_DIR}/version.h.in -D DST=${dsoal_BINARY_DIR}/version.h
             -P ${dsoal_SOURCE_DIR}/version.cmake
         COMMAND ${CMAKE_COMMAND} -E touch "${dsoal_BINARY_DIR}/version_witness.txt"
@@ -158,6 +230,9 @@ target_compile_options(dsound PRIVATE ${DSOAL_CFLAGS})
 if(TARGET dsoal.build_version)
     add_dependencies(dsound dsoal.build_version)
 endif()
+message(STATUS "")
+message(STATUS "STL hardening level: ${HARDENING_LEVEL}")
+message(STATUS "")
 
 install(TARGETS dsound
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
@@ -188,7 +263,7 @@ add_custom_target(clang-tidy-check ${CLANG_TIDY_EXECUTABLE} -format-style=file
 
 set(CPACK_GENERATOR "ZIP")
 set(CPACK_PACKAGE_VENDOR "Chris Robinson")
-set(CPACK_PACKAGE_VERSION ${VERSION})
+set(CPACK_PACKAGE_VERSION ${dsoal_VERSION})
 set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE")
 set(CPACK_STRIP_FILES TRUE)
 set(CPACK_OUTPUT_FILE_PREFIX packages)
