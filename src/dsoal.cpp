@@ -393,9 +393,9 @@ DSOAL_EXPORT BOOL WINAPI DllMain(HINSTANCE hInstDLL, DWORD reason, void *reserve
     case DLL_PROCESS_ATTACH:
         if(const WCHAR *wstr{_wgetenv(L"DSOAL_LOGFILE")}; wstr && *wstr != 0)
         {
-            gsl::owner<FILE*> f{_wfopen(wstr, L"wt")};
-            if(!f) ERR("Failed to open log file {}", wstr_to_utf8(wstr));
-            else gLogFile = f;
+            gLogFile.open(wstr);
+            if(!gLogFile.is_open())
+                ERR("Failed to open log file {}", wstr_to_utf8(wstr));
         }
 
         if(const char *str{std::getenv("DSOAL_LOGLEVEL")}; str && *str != 0)
@@ -419,9 +419,7 @@ DSOAL_EXPORT BOOL WINAPI DllMain(HINSTANCE hInstDLL, DWORD reason, void *reserve
             DSOAL_GIT_BRANCH);
         if(!load_openal())
         {
-            if(gLogFile)
-                fclose(gLogFile);
-            gLogFile = nullptr;
+            gLogFile.close();
             return FALSE;
         }
 
@@ -431,9 +429,6 @@ DSOAL_EXPORT BOOL WINAPI DllMain(HINSTANCE hInstDLL, DWORD reason, void *reserve
         break;
 
     case DLL_PROCESS_DETACH:
-        if(gLogFile)
-            fclose(gLogFile);
-        gLogFile = nullptr;
         break;
     }
 

@@ -1,5 +1,6 @@
 #include "logging.h"
 
+#include <iostream>
 #include <mutex>
 #include <string_view>
 #include <utility>
@@ -8,12 +9,13 @@
 #include <windows.h>
 
 #include "fmt/core.h"
+#include "fmt/ostream.h"
 
 namespace {
 
 using namespace std::string_view_literals;
 
-std::mutex sLogMutex;
+auto sLogMutex = std::mutex{};
 
 } // namespace
 
@@ -33,7 +35,7 @@ void dsoal_print_impl(LogLevel level, const fmt::string_view fmt, fmt::format_ar
     }
 
     auto _ = std::lock_guard{sLogMutex};
-    auto *logfile = gLogFile ? gLogFile : stderr;
+    auto &logfile = gLogFile.is_open() ? gLogFile : std::cerr;
     fmt::println(logfile, "{:04x}:{}:dsound:{}", GetCurrentThreadId(), prefix, msg);
-    fflush(logfile);
+    logfile.flush();
 }

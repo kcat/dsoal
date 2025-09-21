@@ -1,6 +1,7 @@
 #ifndef LOGGING_H
 #define LOGGING_H
 
+#include <fstream>
 #include <type_traits>
 
 #include "dsoal.h"
@@ -23,9 +24,9 @@ enum class LogLevel {
     Trace,
     Debug
 };
-inline LogLevel gLogLevel{LogLevel::Error};
+inline auto gLogLevel = LogLevel::Error;
 
-inline gsl::owner<FILE*> gLogFile{};
+inline auto gLogFile = std::ofstream{};
 
 void dsoal_print_impl(LogLevel level, const fmt::string_view fmt, fmt::format_args args);
 
