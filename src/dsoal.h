@@ -32,20 +32,11 @@ constexpr auto as_unsigned(T value) noexcept
     return static_cast<UT>(value);
 }
 
-inline constexpr size_t MaxSources{1024};
-inline constexpr size_t MaxHwSources{128};
-
 auto wstr_to_utf8(std::wstring_view wstr) -> std::string;
 auto utf8_to_wstr(std::string_view str) -> std::wstring;
 
-namespace ds {
-
-template<typename T, typename Traits>
-[[nodiscard]] constexpr
-auto sizei(const std::basic_string_view<T,Traits> str) noexcept -> int
-{ return static_cast<int>(std::min<std::size_t>(str.size(), std::numeric_limits<int>::max())); }
-
-} // namespace ds
+inline constexpr size_t MaxSources{1024};
+inline constexpr size_t MaxHwSources{128};
 
 HRESULT WINAPI GetDeviceID(const GUID &guidSrc, GUID &guidDst) noexcept;
 
