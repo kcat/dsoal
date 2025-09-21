@@ -138,6 +138,8 @@ jobs:
         mv "Release/Win64" "Release/DSOAL/Win64"
         mv "Release/DSOAL/Win32/Documentation" "Release/DSOAL/Documentation"
         rm -r "Release/DSOAL/Win64/Documentation"
+        mkdir "Release/DSOAL/Tools"
+        curl "https://raw.githubusercontent.com/ThreeDeeJay/ALog/589fcceaf73aedde1c959abe5cf5c88a812a1dcf/Drop%20exe%20to%20run%20with%20logging.bat" -o "Release/DSOAL/Tools/Drop exe to run with logging.bat"
         cp -R "Release/DSOAL" "Release/DSOAL+HRTF"
         mv "Release/DSOAL+HRTF/Win32/alsoft.ini" "Release/DSOAL+HRTF/Documentation/alsoft.ini"
         rm "Release/DSOAL+HRTF/Win64/alsoft.ini"
