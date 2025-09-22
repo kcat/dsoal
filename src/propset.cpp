@@ -1,8 +1,10 @@
 #include "propset.h"
 
+#include <algorithm>
 #include <bit>
 #include <cstring>
 #include <deque>
+#include <ranges>
 #include <string_view>
 #include <vector>
 
@@ -60,16 +62,20 @@ void DSPROPERTY_descWto1(const DSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_W_DATA *
     DSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_1_DATA *data1)
 {
     data1->DeviceId = dataW->DeviceId;
-    lstrcpynW(std::data(data1->ModuleW), dataW->Module,
-        ds::saturate_cast<int>(std::size(data1->ModuleW)));
-    lstrcpynW(std::data(data1->DescriptionW), dataW->Description,
-        ds::saturate_cast<int>(std::size(data1->DescriptionW)));
+
+    std::ranges::fill(data1->DescriptionA, '\0');
+    std::ranges::fill(data1->DescriptionW, L'\0');
+    std::ranges::fill(data1->ModuleA, '\0');
+    std::ranges::fill(data1->ModuleW, L'\0');
+    std::ranges::copy(std::wstring_view{dataW->Description}
+        | std::views::take(std::size(data1->DescriptionW)-1), std::begin(data1->DescriptionW));
     WideCharToMultiByte(CP_ACP, 0, std::data(data1->DescriptionW), -1,
         std::data(data1->DescriptionA), sizeof(data1->DescriptionA)-1, nullptr, nullptr);
+    std::ranges::copy(std::wstring_view{dataW->Module}
+        | std::views::take(std::size(data1->ModuleW)-1), std::begin(data1->ModuleW));
     WideCharToMultiByte(CP_ACP, 0, std::data(data1->ModuleW), -1, std::data(data1->ModuleA),
         sizeof(data1->ModuleA)-1, nullptr, nullptr);
-    data1->DescriptionA[sizeof(data1->DescriptionA)-1] = 0;
-    data1->ModuleA[sizeof(data1->ModuleA)-1] = 0;
+
     data1->Type = dataW->Type;
     data1->DataFlow = dataW->DataFlow;
     data1->WaveDeviceId = dataW->WaveDeviceId;
