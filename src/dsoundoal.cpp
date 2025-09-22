@@ -936,8 +936,7 @@ void DSound8OAL::dispose(Buffer *buffer) noexcept
      */
     for(auto &group : mSecondaryBuffers)
     {
-        ptrdiff_t idx{buffer - group.mBuffers->data()};
-        if(static_cast<std::make_unsigned_t<ptrdiff_t>>(idx) < 64)
+        if(const auto idx = as_unsigned(buffer - group.mBuffers->data()); idx < 64)
         {
             std::destroy_at(buffer);
             group.mFreeMask |= 1_u64 << idx;
