@@ -33,11 +33,6 @@ namespace {
 using voidp = void*;
 using cvoidp = const void*;
 
-template<typename T, typename Traits>
-[[nodiscard]] constexpr
-auto sizei(const std::basic_string_view<T,Traits> str) noexcept -> int
-{ return static_cast<int>(std::min<std::size_t>(str.size(), std::numeric_limits<int>::max())); }
-
 
 HMODULE gOpenalHandle{};
 
@@ -203,14 +198,15 @@ auto wstr_to_utf8(std::wstring_view wstr) -> std::string
 {
     auto ret = std::string{};
 
+    const auto u16len = ds::saturate_cast<int>(wstr.size());
     /* NOLINTNEXTLINE(bugprone-suspicious-stringview-data-usage) */
-    const auto len = WideCharToMultiByte(CP_UTF8, 0, wstr.data(), sizei(wstr), nullptr, 0,
-        nullptr, nullptr);
-    if(len > 0)
+    const auto u8len = WideCharToMultiByte(CP_UTF8, 0, wstr.data(), u16len, nullptr, 0, nullptr,
+        nullptr);
+    if(u8len > 0)
     {
-        ret.resize(static_cast<size_t>(len));
+        ret.resize(static_cast<size_t>(u8len));
         /* NOLINTNEXTLINE(bugprone-suspicious-stringview-data-usage) */
-        WideCharToMultiByte(CP_UTF8, 0, wstr.data(), sizei(wstr), ret.data(), len, nullptr,
+        WideCharToMultiByte(CP_UTF8, 0, wstr.data(), u16len, ret.data(), u8len, nullptr,
             nullptr);
     }
 
@@ -221,13 +217,14 @@ auto utf8_to_wstr(std::string_view str) -> std::wstring
 {
     auto ret = std::wstring{};
 
+    const auto u8len = ds::saturate_cast<int>(str.size());
     /* NOLINTNEXTLINE(bugprone-suspicious-stringview-data-usage) */
-    const auto len = MultiByteToWideChar(CP_UTF8, 0, str.data(), sizei(str), nullptr, 0);
-    if(len > 0)
+    const auto u16len = MultiByteToWideChar(CP_UTF8, 0, str.data(), u8len, nullptr, 0);
+    if(u16len > 0)
     {
-        ret.resize(static_cast<size_t>(len));
+        ret.resize(static_cast<size_t>(u16len));
         /* NOLINTNEXTLINE(bugprone-suspicious-stringview-data-usage) */
-        MultiByteToWideChar(CP_UTF8, 0, str.data(), sizei(str), ret.data(), len);
+        MultiByteToWideChar(CP_UTF8, 0, str.data(), u8len, ret.data(), u16len);
     }
 
     return ret;

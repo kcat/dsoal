@@ -2,6 +2,7 @@
 #define DSOAL_H
 
 #include <cmath>
+#include <concepts>
 #include <cstdint>
 #include <cstring>
 #include <cwchar>
@@ -25,12 +26,37 @@ template<typename T> using owner = T;
 constexpr int64_t operator "" _i64(unsigned long long int n) noexcept { return static_cast<int64_t>(n); }
 constexpr uint64_t operator "" _u64(unsigned long long int n) noexcept { return static_cast<uint64_t>(n); }
 
-template<typename T> requires(std::is_integral_v<T>)
+template<std::integral T>
 constexpr auto as_unsigned(T value) noexcept
 {
     using UT = std::make_unsigned_t<T>;
     return static_cast<UT>(value);
 }
+
+namespace ds {
+
+template<std::integral R, std::integral T> [[nodiscard]]
+constexpr auto saturate_cast(T val) noexcept -> R
+{
+    if constexpr(std::numeric_limits<R>::digits < std::numeric_limits<T>::digits)
+    {
+        if constexpr(std::is_signed_v<R> && std::is_signed_v<T>)
+        {
+            if(val < std::numeric_limits<R>::min())
+                return std::numeric_limits<R>::min();
+        }
+        if(val > T{std::numeric_limits<R>::max()})
+            return std::numeric_limits<R>::max();
+    }
+    if constexpr(std::is_unsigned_v<R> && std::is_signed_v<T>)
+    {
+        if(val < 0)
+            return R{0};
+    }
+    return static_cast<R>(val);
+}
+
+} /* namespace ds */
 
 auto wstr_to_utf8(std::wstring_view wstr) -> std::string;
 auto utf8_to_wstr(std::string_view str) -> std::wstring;
