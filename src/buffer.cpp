@@ -376,7 +376,7 @@ auto SharedBuffer::Create(ALCcontext *context, const DSBUFFERDESC &bufferDesc,
     });
     if(!shared)
         return ds::unexpected(DSERR_OUTOFMEMORY);
-    /* NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic) */
+    /* NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic,cppcoreguidelines-pro-type-reinterpret-cast) */
     shared->mData = {reinterpret_cast<char*>(shared.get() + 1), bufSize};
     shared->mFlags = bufferDesc.dwFlags;
 

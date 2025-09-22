@@ -673,16 +673,12 @@ HRESULT STDMETHODCALLTYPE DSCBuffer::Unlock(LPVOID lpvAudioPtr1, DWORD dwAudioBy
         return DSERR_INVALIDPARAM;
     }
 
-    const auto boundary = reinterpret_cast<uintptr_t>(mBuffer.data());
-    auto ofs1 = reinterpret_cast<uintptr_t>(lpvAudioPtr1);
-    auto ofs2 = reinterpret_cast<uintptr_t>(lpvAudioPtr2);
-    if(ofs1 < boundary)
+    auto const ofs1 = static_cast<uintptr_t>(static_cast<std::byte*>(lpvAudioPtr1)-mBuffer.data());
+    auto const ofs2 = static_cast<uintptr_t>(lpvAudioPtr2
+        ? static_cast<std::byte*>(lpvAudioPtr2)-mBuffer.data() : 0);
+    if(ofs1 > mBuffer.size() || mBuffer.size()-ofs1 < dwAudioBytes1 || dwAudioBytes2 > ofs1)
         return DSERR_INVALIDPARAM;
-    if(ofs2 && ofs2 != boundary)
-        return DSERR_INVALIDPARAM;
-
-    ofs1 -= boundary;
-    if(mBuffer.size()-ofs1 < dwAudioBytes1 || dwAudioBytes2 > ofs1)
+    if(ofs2 != 0)
         return DSERR_INVALIDPARAM;
 
     return DS_OK;

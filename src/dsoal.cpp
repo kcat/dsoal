@@ -428,6 +428,7 @@ DSOAL_EXPORT BOOL WINAPI DllMain(HINSTANCE hInstDLL, DWORD reason, void *reserve
 
         /* Increase refcount on dsound by 1 */
         GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS,
+            /* NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast) */
             reinterpret_cast<LPCWSTR>(hInstDLL), &hInstDLL);
         break;
 
@@ -639,7 +640,7 @@ HRESULT WINAPI DSOAL_DirectSoundFullDuplexCreate(const GUID *captureDevice,
 #define PREFIX "DirectSoundEnumerateA "
 HRESULT WINAPI DSOAL_DirectSoundEnumerateA(LPDSENUMCALLBACKA callback, void *userPtr) noexcept
 {
-    TRACE("({}, {})", reinterpret_cast<void*>(callback), userPtr);
+    TRACE("({}, {})", std::bit_cast<void*>(callback), userPtr);
 
     auto do_enum = [callback,userPtr](GUID *guid, const WCHAR *drvname, const WCHAR *devname)
     {
@@ -665,7 +666,7 @@ HRESULT WINAPI DSOAL_DirectSoundEnumerateA(LPDSENUMCALLBACKA callback, void *use
 #define PREFIX "DirectSoundEnumerateW "
 HRESULT WINAPI DSOAL_DirectSoundEnumerateW(LPDSENUMCALLBACKW callback, void *userPtr) noexcept
 {
-    TRACE("({}, {})", reinterpret_cast<void*>(callback), userPtr);
+    TRACE("({}, {})", std::bit_cast<void*>(callback), userPtr);
 
     auto do_enum = [callback,userPtr](GUID *guid, const WCHAR *drvname, const WCHAR *devname)
     { return callback(guid, drvname, devname, userPtr) != FALSE; };
@@ -678,7 +679,7 @@ HRESULT WINAPI DSOAL_DirectSoundEnumerateW(LPDSENUMCALLBACKW callback, void *use
 #define PREFIX "DirectSoundCaptureenumerateA "
 HRESULT WINAPI DSOAL_DirectSoundCaptureEnumerateA(LPDSENUMCALLBACKA callback, void *userPtr) noexcept
 {
-    TRACE("({}, {})", reinterpret_cast<void*>(callback), userPtr);
+    TRACE("({}, {})", std::bit_cast<void*>(callback), userPtr);
 
     auto do_enum = [callback,userPtr](GUID *guid, const WCHAR *drvname, const WCHAR *devname)
     {
@@ -704,7 +705,7 @@ HRESULT WINAPI DSOAL_DirectSoundCaptureEnumerateA(LPDSENUMCALLBACKA callback, vo
 #define PREFIX "DirectSoundEnumerateW "
 HRESULT WINAPI DSOAL_DirectSoundCaptureEnumerateW(LPDSENUMCALLBACKW callback, void *userPtr) noexcept
 {
-    TRACE("({}, {})", reinterpret_cast<void*>(callback), userPtr);
+    TRACE("({}, {})", std::bit_cast<void*>(callback), userPtr);
 
     auto do_enum = [callback,userPtr](GUID *guid, const WCHAR *drvname, const WCHAR *devname)
     { return callback(guid, drvname, devname, userPtr) != FALSE; };
