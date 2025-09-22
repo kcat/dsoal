@@ -7,14 +7,12 @@
 #include <cstdlib>
 #include <deque>
 #include <mutex>
+#include <vector>
 
 #include <dsound.h>
 #include <mmdeviceapi.h>
 #include <mmreg.h>
 
-#include "AL/al.h"
-#include "AL/alc.h"
-#include "AL/alext.h"
 #include "capture.h"
 #include "comhelpers.h"
 #include "comptr.h"
@@ -642,20 +640,19 @@ HRESULT WINAPI DSOAL_DirectSoundEnumerateA(LPDSENUMCALLBACKA callback, void *use
 {
     TRACE("({}, {})", std::bit_cast<void*>(callback), userPtr);
 
-    auto do_enum = [callback,userPtr](GUID *guid, const WCHAR *drvname, const WCHAR *devname)
+    auto do_enum = [=](GUID *guid, const WCHAR *dname, const WCHAR *mname)
     {
-        const auto dlen = WideCharToMultiByte(CP_ACP, 0, drvname, -1, nullptr, 0, nullptr, nullptr);
-        const auto mlen = WideCharToMultiByte(CP_ACP, 0, devname, -1, nullptr, 0, nullptr, nullptr);
+        auto const dlen = WideCharToMultiByte(CP_ACP, 0, dname, -1, nullptr, 0, nullptr, nullptr);
+        auto const mlen = WideCharToMultiByte(CP_ACP, 0, mname, -1, nullptr, 0, nullptr, nullptr);
         if(dlen < 0 || mlen < 0) return false;
 
-        auto descA = std::make_unique<char[]>(static_cast<size_t>(dlen+mlen)+2);
-        if(!descA) return false;
-        char *modA = descA.get() + dlen+1;
+        auto descA = std::vector<char>(static_cast<size_t>(dlen+mlen)+2, '\0');
+        auto *modA = std::to_address(descA.begin() + dlen+1);
 
-        WideCharToMultiByte(CP_ACP, 0, drvname, -1, descA.get(), dlen, nullptr, nullptr);
-        WideCharToMultiByte(CP_ACP, 0, devname, -1, modA, mlen, nullptr, nullptr);
+        WideCharToMultiByte(CP_ACP, 0, dname, -1, descA.data(), dlen, nullptr, nullptr);
+        WideCharToMultiByte(CP_ACP, 0, mname, -1, modA, mlen, nullptr, nullptr);
 
-        return callback(guid, descA.get(), modA, userPtr) != FALSE;
+        return callback(guid, descA.data(), modA, userPtr) != FALSE;
     };
 
     std::lock_guard listlock{gDeviceListMutex};
@@ -668,8 +665,8 @@ HRESULT WINAPI DSOAL_DirectSoundEnumerateW(LPDSENUMCALLBACKW callback, void *use
 {
     TRACE("({}, {})", std::bit_cast<void*>(callback), userPtr);
 
-    auto do_enum = [callback,userPtr](GUID *guid, const WCHAR *drvname, const WCHAR *devname)
-    { return callback(guid, drvname, devname, userPtr) != FALSE; };
+    auto do_enum = [callback,userPtr](GUID *guid, const WCHAR *dname, const WCHAR *mname)
+    { return callback(guid, dname, mname, userPtr) != FALSE; };
 
     std::lock_guard listlock{gDeviceListMutex};
     return enumerate_mmdev(eRender, gPlaybackDevices, do_enum);
@@ -681,20 +678,19 @@ HRESULT WINAPI DSOAL_DirectSoundCaptureEnumerateA(LPDSENUMCALLBACKA callback, vo
 {
     TRACE("({}, {})", std::bit_cast<void*>(callback), userPtr);
 
-    auto do_enum = [callback,userPtr](GUID *guid, const WCHAR *drvname, const WCHAR *devname)
+    auto do_enum = [=](GUID *guid, const WCHAR *dname, const WCHAR *mname)
     {
-        const auto dlen = WideCharToMultiByte(CP_ACP, 0, drvname, -1, nullptr, 0, nullptr, nullptr);
-        const auto mlen = WideCharToMultiByte(CP_ACP, 0, devname, -1, nullptr, 0, nullptr, nullptr);
+        auto const dlen = WideCharToMultiByte(CP_ACP, 0, dname, -1, nullptr, 0, nullptr, nullptr);
+        auto const mlen = WideCharToMultiByte(CP_ACP, 0, mname, -1, nullptr, 0, nullptr, nullptr);
         if(dlen < 0 || mlen < 0) return false;
 
-        auto descA = std::make_unique<char[]>(static_cast<size_t>(dlen+mlen)+2);
-        if(!descA) return false;
-        char *modA = descA.get() + dlen+1;
+        auto descA = std::vector<char>(static_cast<size_t>(dlen+mlen)+2, '\0');
+        auto *modA = std::to_address(descA.begin() + dlen+1);
 
-        WideCharToMultiByte(CP_ACP, 0, drvname, -1, descA.get(), dlen, nullptr, nullptr);
-        WideCharToMultiByte(CP_ACP, 0, devname, -1, modA, mlen, nullptr, nullptr);
+        WideCharToMultiByte(CP_ACP, 0, dname, -1, descA.data(), dlen, nullptr, nullptr);
+        WideCharToMultiByte(CP_ACP, 0, mname, -1, modA, mlen, nullptr, nullptr);
 
-        return callback(guid, descA.get(), modA, userPtr) != FALSE;
+        return callback(guid, descA.data(), modA, userPtr) != FALSE;
     };
 
     std::lock_guard listlock{gDeviceListMutex};
@@ -707,8 +703,8 @@ HRESULT WINAPI DSOAL_DirectSoundCaptureEnumerateW(LPDSENUMCALLBACKW callback, vo
 {
     TRACE("({}, {})", std::bit_cast<void*>(callback), userPtr);
 
-    auto do_enum = [callback,userPtr](GUID *guid, const WCHAR *drvname, const WCHAR *devname)
-    { return callback(guid, drvname, devname, userPtr) != FALSE; };
+    auto do_enum = [callback,userPtr](GUID *guid, const WCHAR *dname, const WCHAR *mname)
+    { return callback(guid, dname, mname, userPtr) != FALSE; };
 
     std::lock_guard listlock{gDeviceListMutex};
     return enumerate_mmdev(eCapture, gCaptureDevices, do_enum);
