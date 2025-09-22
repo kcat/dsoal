@@ -304,12 +304,15 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::Initialize(IDirectSound *directSound, c
         return DSERR_INVALIDPARAM;
     }
 
-    static constexpr DWORD BadFlags{DSBCAPS_CTRLFX | DSBCAPS_CTRLPOSITIONNOTIFY
-        | DSBCAPS_LOCSOFTWARE};
+    static constexpr DWORD BadFlags{DSBCAPS_CTRLFX | DSBCAPS_CTRLPOSITIONNOTIFY};
     if((dsBufferDesc->dwFlags&BadFlags))
     {
         WARN("Bad dwFlags {:08x}", dsBufferDesc->dwFlags);
         return DSERR_INVALIDPARAM;
+    }
+
+    if((dsBufferDesc->dwFlags&DSBCAPS_LOCSOFTWARE)) {
+        WARN("Using DSBCAPS_LOCHARDWARE instead of DSBCAPS_LOCSOFTWARE");
     }
 
     std::lock_guard lock{mMutex};
@@ -323,7 +326,7 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::Initialize(IDirectSound *directSound, c
             return hr;
     }
 
-    mFlags = dsBufferDesc->dwFlags | DSBCAPS_LOCHARDWARE;
+    mFlags = (dsBufferDesc->dwFlags & ~DSBCAPS_LOCSOFTWARE) | DSBCAPS_LOCHARDWARE;
 
     mImmediate.dwSize = sizeof(mImmediate);
     mImmediate.vPosition.x = 0.0f;
