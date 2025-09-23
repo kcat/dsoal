@@ -918,7 +918,7 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::Listener3D::SetAllParameters(const DS3D
         alcProcessContext(self->mContext);
     }
 
-    return E_NOTIMPL;
+    return S_OK;
 }
 #undef PREFIX
 
