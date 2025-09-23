@@ -61,7 +61,6 @@ struct ComPtr {
     T* release() noexcept { return std::exchange(mPtr, nullptr); }
 
     void swap(ComPtr &rhs) noexcept { std::swap(mPtr, rhs.mPtr); }
-    void swap(ComPtr&& rhs) noexcept { std::swap(mPtr, rhs.mPtr); }
 
 private:
     T *mPtr{nullptr};
