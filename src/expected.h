@@ -49,6 +49,9 @@ template<typename E>
 unexpected(E) -> unexpected<E>;
 
 
+struct unexpect_t { explicit unexpect_t() = default; };
+inline constexpr auto unexpect = unexpect_t{};
+
 template<typename S, typename F>
 class expected {
     using variant_type = std::variant<S,F>;
@@ -67,17 +70,24 @@ public:
     constexpr explicit(!std::is_convertible_v<U, S>) expected(U&& v)
         : mValues{std::in_place_index_t<0>{}, std::forward<U>(v)}
     { }
+    template<typename ...Args>
+    constexpr explicit expected(std::in_place_t, Args&& ...args)
+        : mValues{variant_type{std::in_place_index<0>, std::forward<Args>(args)...}}
+    {  }
 
     /* Error constructors */
     template<typename T> requires(std::is_constructible_v<F, const T&>)
     constexpr explicit(!std::is_convertible_v<const T&, F>) expected(const unexpected<T> &rhs)
         : mValues{variant_type{std::in_place_index<1>, rhs.error()}}
     { }
-
     template<typename T> requires(std::is_constructible_v<F, T>)
     constexpr explicit(!std::is_convertible_v<T, F>) expected(unexpected<T>&& rhs)
-        : mValues{variant_type{std::in_place_index<1>, std::move(rhs.error())}}
+        : mValues{variant_type{std::in_place_index<1>, std::move(rhs).error()}}
     { }
+    template<typename ...Args>
+    constexpr explicit expected(ds::unexpect_t, Args&& ...args)
+        : mValues{variant_type{std::in_place_index<1>, std::forward<Args>(args)...}}
+    {  }
 
     [[nodiscard]]
     constexpr bool has_value() const noexcept { return mValues.index() == 0; }
