@@ -29,7 +29,7 @@ ComPtr<IMMDevice> GetMMDevice(ComWrapper&, EDataFlow flow, const GUID &id);
 template<typename T>
 HRESULT enumerate_mmdev(const EDataFlow flow, std::deque<GUID> &devlist, T&& cb)
 {
-    ComWrapper com;
+    auto const com = ComWrapper{};
 
     ComPtr<IMMDeviceEnumerator> devenum;
     HRESULT hr{CoCreateInstance(CLSID_MMDeviceEnumerator, nullptr, CLSCTX_INPROC_SERVER,

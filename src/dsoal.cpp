@@ -315,7 +315,7 @@ HRESULT WINAPI GetDeviceID(const GUID &guidSrc, GUID &guidDst) noexcept
         }
     }
 
-    ComWrapper com;
+    auto const com = ComWrapper{};
     ComPtr<IMMDeviceEnumerator> devenum;
     HRESULT hr{CoCreateInstance(CLSID_MMDeviceEnumerator, nullptr, CLSCTX_INPROC_SERVER,
         IID_IMMDeviceEnumerator, ds::out_ptr(devenum))};
@@ -655,7 +655,7 @@ HRESULT WINAPI DSOAL_DirectSoundEnumerateA(LPDSENUMCALLBACKA callback, void *use
         return callback(guid, descA.data(), modA, userPtr) != FALSE;
     };
 
-    std::lock_guard listlock{gDeviceListMutex};
+    auto const listlock = std::lock_guard{gDeviceListMutex};
     return enumerate_mmdev(eRender, gPlaybackDevices, do_enum);
 }
 #undef PREFIX
@@ -668,7 +668,7 @@ HRESULT WINAPI DSOAL_DirectSoundEnumerateW(LPDSENUMCALLBACKW callback, void *use
     auto do_enum = [callback,userPtr](GUID *guid, const WCHAR *dname, const WCHAR *mname)
     { return callback(guid, dname, mname, userPtr) != FALSE; };
 
-    std::lock_guard listlock{gDeviceListMutex};
+    auto const listlock = std::lock_guard{gDeviceListMutex};
     return enumerate_mmdev(eRender, gPlaybackDevices, do_enum);
 }
 #undef PREFIX
@@ -693,7 +693,7 @@ HRESULT WINAPI DSOAL_DirectSoundCaptureEnumerateA(LPDSENUMCALLBACKA callback, vo
         return callback(guid, descA.data(), modA, userPtr) != FALSE;
     };
 
-    std::lock_guard listlock{gDeviceListMutex};
+    auto const listlock = std::lock_guard{gDeviceListMutex};
     return enumerate_mmdev(eCapture, gCaptureDevices, do_enum);
 }
 #undef PREFIX
@@ -706,7 +706,7 @@ HRESULT WINAPI DSOAL_DirectSoundCaptureEnumerateW(LPDSENUMCALLBACKW callback, vo
     auto do_enum = [callback,userPtr](GUID *guid, const WCHAR *dname, const WCHAR *mname)
     { return callback(guid, dname, mname, userPtr) != FALSE; };
 
-    std::lock_guard listlock{gDeviceListMutex};
+    auto const listlock = std::lock_guard{gDeviceListMutex};
     return enumerate_mmdev(eCapture, gCaptureDevices, do_enum);
 }
 #undef PREFIX

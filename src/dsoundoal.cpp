@@ -310,7 +310,7 @@ std::vector<SharedDevice*> SharedDevice::sDeviceList;
 auto SharedDevice::GetById(const GUID &deviceId) noexcept
     -> ds::expected<ComPtr<SharedDevice>,HRESULT>
 {
-    std::unique_lock listlock{sDeviceListMutex};
+    auto const listlock = std::unique_lock{sDeviceListMutex};
     auto sharediter = std::ranges::find(sDeviceList, deviceId, &SharedDevice::mId);
     if(sharediter != sDeviceList.end())
     {
@@ -337,7 +337,7 @@ SharedDevice::~SharedDevice()
 #define PREFIX CLASS_PREFIX "dispose "
 void SharedDevice::dispose() noexcept
 {
-    std::lock_guard listlock{sDeviceListMutex};
+    auto const listlock = std::lock_guard{sDeviceListMutex};
 
     auto shared_iter = std::ranges::find(sDeviceList, this);
     if(shared_iter != sDeviceList.end())
@@ -384,7 +384,7 @@ DSound8OAL::~DSound8OAL()
         /* Temporarily lock the mutex to ensure we're not between checking
          * mQuitNotify and before waiting on mNotifyCond.
          */
-        { std::unique_lock _{mDsMutex}; }
+        { auto const _ = std::unique_lock{mDsMutex}; }
         mNotifyCond.notify_all();
         mNotifyThread.join();
     }
@@ -393,7 +393,7 @@ DSound8OAL::~DSound8OAL()
 
 ComPtr<Buffer> DSound8OAL::createSecondaryBuffer(IDirectSoundBuffer *original)
 {
-    std::unique_lock lock{mDsMutex};
+    auto const lock = std::lock_guard{mDsMutex};
     BufferSubList *sublist{nullptr};
     /* Find a group with an available buffer. */
     for(auto &group : mSecondaryBuffers)
@@ -749,7 +749,7 @@ HRESULT STDMETHODCALLTYPE DSound8OAL::SetCooperativeLevel(HWND hwnd, DWORD level
         return DSERR_INVALIDPARAM;
     }
 
-    std::lock_guard lock{mDsMutex};
+    auto const lock = std::lock_guard{mDsMutex};
     auto hr = S_OK;
     if(level == DSSCL_WRITEPRIMARY && mPrioLevel != DSSCL_WRITEPRIMARY)
     {
@@ -878,9 +878,9 @@ HRESULT STDMETHODCALLTYPE DSound8OAL::Initialize(const GUID *deviceId) noexcept
     else if(*deviceId == DSDEVID_DefaultCapture || *deviceId == DSDEVID_DefaultVoiceCapture)
         return DSERR_NODRIVER;
 
-    GUID devid{};
-    HRESULT hr{GetDeviceID(*deviceId, devid)};
-    if(FAILED(hr)) return hr;
+    auto devid = GUID{};
+    if(auto const hr = GetDeviceID(*deviceId, devid); FAILED(hr))
+        return hr;
 
     auto shared = SharedDevice::GetById(devid);
     if(!shared) return shared.error();
@@ -930,7 +930,7 @@ HRESULT STDMETHODCALLTYPE DSound8OAL::VerifyCertification(DWORD *certified) noex
 
 void DSound8OAL::dispose(Buffer *buffer) noexcept
 {
-    std::lock_guard lock{mDsMutex};
+    auto const lock = std::lock_guard{mDsMutex};
     /* Find the group the given buffer belongs in, then destruct it and mark it
      * as free.
      */
