@@ -181,7 +181,7 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::GetFormat(WAVEFORMATEX *wfx, DWORD size
     }
 
     std::lock_guard lock{mMutex};
-    const DWORD size{sizeof(mFormat.Format) + mFormat.Format.cbSize};
+    const DWORD size{static_cast<DWORD>(sizeof(mFormat.Format)) + mFormat.Format.cbSize};
     if(sizeWritten)
         *sizeWritten = size;
     if(wfx)
