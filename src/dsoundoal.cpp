@@ -277,7 +277,7 @@ ds::expected<std::unique_ptr<SharedDevice>,HRESULT> CreateDeviceShare(const GUID
         return ds::unexpected(DSERR_OUTOFMEMORY);
     }
 
-    const DWORD maxHw{totalSources > MaxHwSources*2 ? MaxHwSources : (MaxHwSources/2)};
+    const DWORD maxHw{static_cast<DWORD>(totalSources > MaxHwSources*2 ? MaxHwSources : (MaxHwSources/2))};
 
     auto refresh = ALCint{20};
     alcGetIntegerv(aldev.get(), ALC_REFRESH, 1, &refresh);

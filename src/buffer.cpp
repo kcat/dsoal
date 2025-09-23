@@ -830,7 +830,7 @@ HRESULT STDMETHODCALLTYPE Buffer::GetFormat(WAVEFORMATEX *wfx, DWORD sizeAllocat
         return DSERR_INVALIDPARAM;
     }
 
-    const DWORD size{sizeof(mBuffer->mWfxFormat.Format) + mBuffer->mWfxFormat.Format.cbSize};
+    const DWORD size{static_cast<DWORD>(sizeof(mBuffer->mWfxFormat.Format)) + mBuffer->mWfxFormat.Format.cbSize};
     if(sizeWritten)
         *sizeWritten = size;
     if(wfx)
