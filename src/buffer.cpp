@@ -479,7 +479,8 @@ Buffer::~Buffer()
 
 bool Buffer::updateNotify() noexcept
 {
-    ALint state{}, ioffset{};
+    auto state = ALint{};
+    auto ioffset = ALint{};
     alGetSourceiDirect(mContext, mSource, AL_BYTE_OFFSET, &ioffset);
     alGetSourceiDirect(mContext, mSource, AL_SOURCE_STATE, &state);
 
@@ -774,7 +775,8 @@ HRESULT STDMETHODCALLTYPE Buffer::GetCurrentPosition(DWORD *playCursor, DWORD *w
     }
 
     auto &format = mBuffer->mWfxFormat.Format;
-    DWORD pos, writecursor;
+    auto pos = DWORD{};
+    auto writecursor = DWORD{};
     if(status == AL_PLAYING)
     {
         pos = static_cast<ALuint>(ofs);

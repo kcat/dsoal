@@ -263,7 +263,8 @@ ds::expected<std::unique_ptr<SharedDevice>,HRESULT> CreateDeviceShare(const GUID
         return ds::unexpected(DSERR_NODRIVER);
     }
 
-    ALCint numMono{}, numStereo{};
+    auto numMono = ALCint{};
+    auto numStereo = ALCint{};
     alcGetIntegerv(aldev.get(), ALC_MONO_SOURCES, 1, &numMono);
     alcGetIntegerv(aldev.get(), ALC_STEREO_SOURCES, 1, &numStereo);
     alcGetError(aldev.get());
