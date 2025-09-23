@@ -61,8 +61,9 @@ constexpr auto saturate_cast(T val) noexcept -> R
 auto wstr_to_utf8(std::wstring_view wstr) -> std::string;
 auto utf8_to_wstr(std::string_view str) -> std::wstring;
 
-inline constexpr size_t MaxSources{1024};
-inline constexpr size_t MaxHwSources{128};
+inline constexpr auto MaxSources = DWORD{1024};
+/* Going higher than this causes some apps to fail using hardware mode. */
+inline constexpr auto MaxHwSources = DWORD{128};
 
 HRESULT WINAPI GetDeviceID(const GUID &guidSrc, GUID &guidDst) noexcept;
 

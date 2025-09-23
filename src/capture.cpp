@@ -139,7 +139,7 @@ void DSCBuffer::captureThread()
             continue;
         }
 
-        auto availframes = static_cast<ALCuint>(avails);
+        auto availframes = ds::saturate_cast<ALCuint>(avails);
         if(availframes == 0) continue;
 
         auto writepos = mWritePos.load(std::memory_order_relaxed);
@@ -149,14 +149,14 @@ void DSCBuffer::captureThread()
             const auto toread = std::min<size_t>(availframes,
                 (mBuffer.size() - writepos) / mWaveFmt.Format.nBlockAlign);
 
-            alcCaptureSamples(mDevice, &mBuffer[writepos], static_cast<ALCsizei>(toread));
+            alcCaptureSamples(mDevice, &mBuffer[writepos], ds::saturate_cast<ALCsizei>(toread));
 
-            availframes -= static_cast<ALCuint>(toread);
-            writepos += static_cast<DWORD>(toread) * mWaveFmt.Format.nBlockAlign;
+            availframes -= ds::saturate_cast<ALCuint>(toread);
+            writepos += ds::saturate_cast<DWORD>(toread) * mWaveFmt.Format.nBlockAlign;
             if(writepos == mBuffer.size()) writepos = 0;
         }
 
-        auto trigger_notify = [oldpos,writepos](const DSBPOSITIONNOTIFY &notify)
+        std::ranges::for_each(mNotifies, [oldpos,writepos](const DSBPOSITIONNOTIFY &notify)
         {
             if(oldpos > writepos)
             {
@@ -166,8 +166,7 @@ void DSCBuffer::captureThread()
             }
             else if(notify.dwOffset >= oldpos && notify.dwOffset < writepos)
                 SetEvent(notify.hEventNotify);
-        };
-        std::for_each(mNotifies.cbegin(), mNotifies.cend(), trigger_notify);
+        });
         mWritePos.store(writepos, std::memory_order_release);
     }
 }
@@ -250,7 +249,7 @@ HRESULT STDMETHODCALLTYPE DSCBuffer::GetCaps(LPDSCBCAPS lpDSCBCaps) noexcept
 
     lpDSCBCaps->dwSize = sizeof(*lpDSCBCaps);
     lpDSCBCaps->dwFlags = 0;
-    lpDSCBCaps->dwBufferBytes = static_cast<DWORD>(mBuffer.size());
+    lpDSCBCaps->dwBufferBytes = ds::saturate_cast<DWORD>(mBuffer.size());
     return DS_OK;
 }
 #undef PREFIX
@@ -576,7 +575,7 @@ HRESULT STDMETHODCALLTYPE DSCBuffer::Lock(DWORD dwReadCusor, DWORD dwReadBytes,
     }
 
     if((dwFlags&DSCBLOCK_ENTIREBUFFER))
-        dwReadBytes = static_cast<DWORD>(mBuffer.size());
+        dwReadBytes = ds::saturate_cast<DWORD>(mBuffer.size());
     else if(dwReadBytes > mBuffer.size())
     {
         WARN("Invalid size: {} > {}", dwReadBytes, mBuffer.size());
@@ -592,7 +591,7 @@ HRESULT STDMETHODCALLTYPE DSCBuffer::Lock(DWORD dwReadCusor, DWORD dwReadBytes,
     auto remain = DWORD{};
     if(dwReadCusor > mBuffer.size() - dwReadBytes)
     {
-        *lpdwAudioBytes1 = static_cast<DWORD>(mBuffer.size() - dwReadCusor);
+        *lpdwAudioBytes1 = ds::saturate_cast<DWORD>(mBuffer.size()) - dwReadCusor;
         remain = dwReadBytes - *lpdwAudioBytes1;
     }
     else
@@ -647,12 +646,11 @@ HRESULT STDMETHODCALLTYPE DSCBuffer::Stop() noexcept
         mCaptureThread.join();
         lock.lock();
 
-        static constexpr auto trigger_notify = [](const DSBPOSITIONNOTIFY &notify)
+        std::ranges::for_each(mNotifies, [](const DSBPOSITIONNOTIFY &notify)
         {
             if(notify.dwOffset == static_cast<DWORD>(DSCBPN_OFFSET_STOP))
                 SetEvent(notify.hEventNotify);
-        };
-        std::for_each(mNotifies.cbegin(), mNotifies.cend(), trigger_notify);
+        });
         mCapturing = false;
     }
 
@@ -765,13 +763,13 @@ HRESULT STDMETHODCALLTYPE DSCBuffer::Notify::SetNotificationPositions(DWORD numN
     const auto notifyspan = std::span{notifies, numNotifies};
     if(!notifyspan.empty())
     {
-        const auto invalidNotify = std::find_if_not(notifyspan.begin(), notifyspan.end(),
+        const auto invalidNotify = std::ranges::find_if_not(notifyspan,
             [self](const DSBPOSITIONNOTIFY &notify) noexcept -> bool
-            {
-                DEBUG(" offset = {}, event = {}", notify.dwOffset, voidp{notify.hEventNotify});
-                return notify.dwOffset < self->mBuffer.size() ||
-                    notify.dwOffset == static_cast<DWORD>(DSCBPN_OFFSET_STOP);
-            });
+        {
+            DEBUG(" offset = {}, event = {}", notify.dwOffset, voidp{notify.hEventNotify});
+            return notify.dwOffset < self->mBuffer.size()
+                || notify.dwOffset == static_cast<DWORD>(DSCBPN_OFFSET_STOP);
+        });
         if(invalidNotify != notifyspan.end())
         {
             WARN("Out of range ({}: {} >= {})", std::distance(notifyspan.begin(), invalidNotify),
@@ -780,10 +778,7 @@ HRESULT STDMETHODCALLTYPE DSCBuffer::Notify::SetNotificationPositions(DWORD numN
         }
         newnots.assign(notifyspan.begin(), notifyspan.end());
 
-        static constexpr auto sort_dsbpn = [](const DSBPOSITIONNOTIFY &lhs,
-            const DSBPOSITIONNOTIFY &rhs) noexcept -> bool
-        { return lhs.dwOffset < rhs.dwOffset; };
-        std::stable_sort(newnots.begin(), newnots.end(), sort_dsbpn);
+        std::ranges::stable_sort(newnots, std::less{}, &DSBPOSITIONNOTIFY::dwOffset);
     }
     std::swap(self->mNotifies, newnots);
 

@@ -271,20 +271,21 @@ ds::expected<std::unique_ptr<SharedDevice>,HRESULT> CreateDeviceShare(const GUID
 
     numMono = std::max(numMono, 0);
     numStereo = std::max(numStereo, 0);
-    const DWORD totalSources{static_cast<DWORD>(numMono) + static_cast<DWORD>(numStereo)};
+    auto const totalSources = ds::saturate_cast<DWORD>(numMono)
+        + ds::saturate_cast<DWORD>(numStereo);
     if(totalSources < 128)
     {
         ERR("Could only allocate {} sources (minimum 128 required)", totalSources);
         return ds::unexpected(DSERR_OUTOFMEMORY);
     }
 
-    const DWORD maxHw{static_cast<DWORD>(totalSources > MaxHwSources*2 ? MaxHwSources : (MaxHwSources/2))};
+    auto const maxHw = (totalSources > MaxHwSources*2) ? MaxHwSources : (MaxHwSources/2);
 
     auto refresh = ALCint{20};
     alcGetIntegerv(aldev.get(), ALC_REFRESH, 1, &refresh);
     alcGetError(aldev.get());
 
-    /* Restrict the update period to between 10ms and 50ms (100hz and 20hz
+    /* Restrict the update period to between 50ms and 10ms (20hz and 100hz
      * update rate).
      */
     refresh = std::clamp(refresh, 20, 100);
@@ -294,7 +295,7 @@ ds::expected<std::unique_ptr<SharedDevice>,HRESULT> CreateDeviceShare(const GUID
     shared->mMaxHwSources = maxHw;
     shared->mMaxSwSources = totalSources - maxHw;
     shared->mExtensions = extensions;
-    shared->mRefresh = static_cast<ALCuint>(refresh);
+    shared->mRefresh = ds::saturate_cast<ALCuint>(refresh);
     shared->mDevice = aldev.release();
     shared->mContext = alctx.release();
 

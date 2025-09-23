@@ -2442,11 +2442,11 @@ HRESULT STDMETHODCALLTYPE Buffer::Notify::SetNotificationPositions(DWORD numNoti
     {
         auto invalidNotify = std::find_if_not(notifyspan.begin(), notifyspan.end(),
             [self](const DSBPOSITIONNOTIFY &notify) noexcept -> bool
-            {
-                DEBUG(" offset = {}, event = {}", notify.dwOffset, voidp{notify.hEventNotify});
-                return notify.dwOffset < self->mBuffer->mData.size() ||
-                    notify.dwOffset == static_cast<DWORD>(DSBPN_OFFSETSTOP);
-            });
+        {
+            DEBUG(" offset = {}, event = {}", notify.dwOffset, voidp{notify.hEventNotify});
+            return notify.dwOffset < self->mBuffer->mData.size()
+                || notify.dwOffset == static_cast<DWORD>(DSBPN_OFFSETSTOP);
+        });
         if(invalidNotify != notifyspan.end())
         {
             WARN("Out of range ({}: {} >= {})", std::distance(notifyspan.begin(), invalidNotify),
@@ -2455,10 +2455,7 @@ HRESULT STDMETHODCALLTYPE Buffer::Notify::SetNotificationPositions(DWORD numNoti
         }
         newNots.assign(notifyspan.begin(), notifyspan.end());
 
-        static constexpr auto sort_dsbpn = [](const DSBPOSITIONNOTIFY &lhs,
-            const DSBPOSITIONNOTIFY &rhs) noexcept -> bool
-        { return lhs.dwOffset < rhs.dwOffset; };
-        std::stable_sort(newNots.begin(), newNots.end(), sort_dsbpn);
+        std::ranges::stable_sort(newNots, std::less{}, &DSBPOSITIONNOTIFY::dwOffset);
     }
     newNots.swap(self->mNotifies);
 

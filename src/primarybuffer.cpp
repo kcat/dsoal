@@ -181,7 +181,7 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::GetFormat(WAVEFORMATEX *wfx, DWORD size
     }
 
     auto const lock = std::lock_guard{mMutex};
-    const DWORD size{static_cast<DWORD>(sizeof(mFormat.Format)) + mFormat.Format.cbSize};
+    auto const size = DWORD{sizeof(mFormat.Format)} + mFormat.Format.cbSize;
     if(sizeWritten)
         *sizeWritten = size;
     if(wfx)
@@ -326,7 +326,7 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::Initialize(IDirectSound *directSound, c
             return hr;
     }
 
-    mFlags = (dsBufferDesc->dwFlags & ~DSBCAPS_LOCSOFTWARE) | DSBCAPS_LOCHARDWARE;
+    mFlags = (dsBufferDesc->dwFlags & ~DWORD{DSBCAPS_LOCSOFTWARE}) | DSBCAPS_LOCHARDWARE;
 
     mImmediate.dwSize = sizeof(mImmediate);
     mImmediate.vPosition.x = 0.0f;
