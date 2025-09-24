@@ -407,9 +407,9 @@ DSOAL_EXPORT BOOL WINAPI DllMain(HINSTANCE hInstDLL, DWORD reason, void *reserve
                 ERR("Invalid log level specified: \"{}\"", str);
             else
             {
-                if(level < static_cast<long>(LogLevel::Disable))
+                if(level < ds::to_underlying(LogLevel::Disable))
                     gLogLevel = LogLevel::Disable;
-                else if(level > static_cast<long>(LogLevel::Debug))
+                else if(level > ds::to_underlying(LogLevel::Debug))
                     gLogLevel = LogLevel::Debug;
                 else
                     gLogLevel = static_cast<LogLevel>(level);
