@@ -157,6 +157,7 @@ void DSCBuffer::captureThread()
             writepos += ds::saturate_cast<DWORD>(toread) * mWaveFmt.Format.nBlockAlign;
             if(writepos == mBuffer.size()) writepos = 0;
         }
+        mWritePos.store(writepos, std::memory_order_release);
 
         std::ranges::for_each(mNotifies, [oldpos,writepos](const DSBPOSITIONNOTIFY &notify)
         {
@@ -169,7 +170,6 @@ void DSCBuffer::captureThread()
             else if(notify.dwOffset >= oldpos && notify.dwOffset < writepos)
                 SetEvent(notify.hEventNotify);
         });
-        mWritePos.store(writepos, std::memory_order_release);
     }
 }
 #undef PREFIX
