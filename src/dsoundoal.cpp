@@ -104,7 +104,7 @@ std::optional<DWORD> GetSpeakerConfig(IMMDevice *device)
     HRESULT hr{device->OpenPropertyStore(STGM_READ, ds::out_ptr(ps))};
     if(FAILED(hr))
     {
-        WARN("IMMDevice::OpenPropertyStore failed: {:08x}", as_unsigned(hr));
+        WARN("IMMDevice::OpenPropertyStore failed: {:#x}", as_unsigned(hr));
         return std::nullopt;
     }
 
@@ -114,12 +114,12 @@ std::optional<DWORD> GetSpeakerConfig(IMMDevice *device)
     hr = ps->GetValue(PKEY_AudioEndpoint_PhysicalSpeakers, pv.get());
     if(FAILED(hr))
     {
-        WARN("IPropertyStore::GetValue(PhysicalSpeakers) failed: {:08x}", as_unsigned(hr));
+        WARN("IPropertyStore::GetValue(PhysicalSpeakers) failed: {:#x}", as_unsigned(hr));
         return speakerconf;
     }
     if(pv.type() != VT_UI4 && pv.type() != VT_UINT)
     {
-        WARN("PhysicalSpeakers is not a VT_UI4: 0x{:04x}", pv.type());
+        WARN("PhysicalSpeakers is not a VT_UI4: {:#06x}", pv.type());
         return speakerconf;
     }
 
@@ -143,7 +143,7 @@ std::optional<DWORD> GetSpeakerConfig(IMMDevice *device)
         speakerconf = DSSPEAKER_MONO;
     else
     {
-        FIXME("Unhandled physical speaker layout: 0x{:08x}", phys_speakers);
+        FIXME("Unhandled physical speaker layout: {:#010x}", phys_speakers);
         return speakerconf;
     }
 
@@ -152,14 +152,14 @@ std::optional<DWORD> GetSpeakerConfig(IMMDevice *device)
         pv.clear();
         hr = ps->GetValue(PKEY_AudioEndpoint_FormFactor, pv.get());
         if(FAILED(hr))
-            WARN("IPropertyStore::GetValue(FormFactor) failed: {:08x}", as_unsigned(hr));
+            WARN("IPropertyStore::GetValue(FormFactor) failed: {:#x}", as_unsigned(hr));
         else if(pv.type() != VT_UI4 && pv.type() != VT_UINT)
-            WARN("FormFactor is not a VT_UI4: 0x{:04x}", pv.type());
+            WARN("FormFactor is not a VT_UI4: {:#06x}", pv.type());
         else if(pv.value<UINT>() == Headphones || pv.value<UINT>() == Headset)
             speakerconf = DSSPEAKER_HEADPHONE;
     }
 
-    TRACE("Got config {}:{} from physical speakers 0x{:08x}", DSSPEAKER_GEOMETRY(speakerconf),
+    TRACE("Got config {}:{} from physical speakers {:#010x}", DSSPEAKER_GEOMETRY(speakerconf),
         DSSPEAKER_CONFIG(speakerconf), phys_speakers);
 
     return speakerconf;
@@ -199,7 +199,7 @@ ds::expected<std::unique_ptr<SharedDevice>,HRESULT> CreateDeviceShare(const GUID
     ALCdevicePtr aldev{alcOpenDevice(drv_name.c_str())};
     if(!aldev)
     {
-        WARN("Couldn't open device \"{}\", 0x{:04x}", drv_name, alcGetError(nullptr));
+        WARN("Couldn't open device \"{}\", {:#x}", drv_name, alcGetError(nullptr));
         return ds::unexpected(DSERR_NODRIVER);
     }
 
@@ -219,7 +219,7 @@ ds::expected<std::unique_ptr<SharedDevice>,HRESULT> CreateDeviceShare(const GUID
     ALCcontextPtr alctx{alcCreateContext(aldev.get(), attrs.data())};
     if(!alctx)
     {
-        WARN("Couldn't create context, 0x{:04x}", alcGetError(aldev.get()));
+        WARN("Couldn't create context, {:#x}", alcGetError(aldev.get()));
         return ds::unexpected(DSERR_NODRIVER);
     }
 
@@ -838,7 +838,7 @@ HRESULT STDMETHODCALLTYPE DSound8OAL::GetSpeakerConfig(DWORD *speakerConfig) noe
 #define PREFIX CLASS_PREFIX "SetSpeakerConfig "
 HRESULT STDMETHODCALLTYPE DSound8OAL::SetSpeakerConfig(DWORD speakerConfig) noexcept
 {
-    TRACE("({})->(0x{:08x})", voidp{this}, speakerConfig);
+    TRACE("({})->({:#010x})", voidp{this}, speakerConfig);
 
     if(!mShared)
     {

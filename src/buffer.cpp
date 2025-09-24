@@ -35,7 +35,7 @@ ALenum ConvertFormat(WAVEFORMATEXTENSIBLE &dst, const WAVEFORMATEX &src,
     const std::bitset<ExtensionCount> exts) noexcept
 {
     TRACE("Requested buffer format:\n"
-        "    FormatTag      = 0x{:04x}\n"
+        "    FormatTag      = {:#06x}\n"
         "    Channels       = {}\n"
         "    SamplesPerSec  = {}\n"
         "    AvgBytesPerSec = {}\n"
@@ -72,7 +72,7 @@ ALenum ConvertFormat(WAVEFORMATEXTENSIBLE &dst, const WAVEFORMATEX &src,
         }
         break;
     default:
-        FIXME("Format 0x{:04x} samples not supported", dst.Format.wFormatTag);
+        FIXME("Format {:#06x} samples not supported", dst.Format.wFormatTag);
         return AL_NONE;
     }
 
@@ -111,7 +111,7 @@ ALenum ConvertFormat(WAVEFORMATEXTENSIBLE &dst, const WAVEFORMATEXTENSIBLE &src,
 {
     /* NOLINTBEGIN(cppcoreguidelines-pro-type-union-access) */
     TRACE("Requested buffer format:\n"
-        "    FormatTag          = 0x{:04x}\n"
+        "    FormatTag          = {:#06x}\n"
         "    Channels           = {}\n"
         "    SamplesPerSec      = {}\n"
         "    AvgBytesPerSec     = {}\n"
@@ -119,7 +119,7 @@ ALenum ConvertFormat(WAVEFORMATEXTENSIBLE &dst, const WAVEFORMATEXTENSIBLE &src,
         "    BitsPerSample      = {}\n"
         "    Size               = {}\n"
         "    ValidBitsPerSample = {}\n"
-        "    ChannelMask        = 0x{:08x}\n"
+        "    ChannelMask        = {:#010x}\n"
         "    SubFormat          = {}",
         src.Format.wFormatTag, src.Format.nChannels, src.Format.nSamplesPerSec,
         src.Format.nAvgBytesPerSec, src.Format.nBlockAlign, src.Format.wBitsPerSample,
@@ -141,7 +141,7 @@ ALenum ConvertFormat(WAVEFORMATEXTENSIBLE &dst, const WAVEFORMATEXTENSIBLE &src,
 
     auto unsupported_format = [&dst]
     {
-        FIXME("Unsupported channel configuration ({} channels, 0x{:08x})", dst.Format.nChannels,
+        FIXME("Unsupported channel configuration ({} channels, {:#010x})", dst.Format.nChannels,
             dst.dwChannelMask);
         return AL_NONE;
     };
@@ -832,7 +832,7 @@ HRESULT STDMETHODCALLTYPE Buffer::GetFormat(WAVEFORMATEX *wfx, DWORD sizeAllocat
         return DSERR_INVALIDPARAM;
     }
 
-    const DWORD size{static_cast<DWORD>(sizeof(mBuffer->mWfxFormat.Format)) + mBuffer->mWfxFormat.Format.cbSize};
+    auto const size = DWORD{sizeof(mBuffer->mWfxFormat.Format)}+mBuffer->mWfxFormat.Format.cbSize;
     if(sizeWritten)
         *sizeWritten = size;
     if(wfx)
@@ -924,7 +924,7 @@ HRESULT STDMETHODCALLTYPE Buffer::GetStatus(DWORD *status) noexcept
     }
 
     *status = res;
-    DEBUG(" status = 0x{:08x}", *status);
+    DEBUG(" status = {:#010x}", res);
     return S_OK;
 }
 #undef PREFIX
@@ -995,7 +995,7 @@ HRESULT STDMETHODCALLTYPE Buffer::Initialize(IDirectSound *directSound, const DS
 #define PREFIX CLASS_PREFIX "Lock "
 HRESULT STDMETHODCALLTYPE Buffer::Lock(DWORD offset, DWORD bytes, void **audioPtr1, DWORD *audioBytes1, void **audioPtr2, DWORD *audioBytes2, DWORD flags) noexcept
 {
-    DEBUG("({})->({}, {}, {}, {}, {}, {}, {})", voidp{this}, offset, bytes, voidp{audioPtr1},
+    DEBUG("({})->({}, {}, {}, {}, {}, {}, {:#x})", voidp{this}, offset, bytes, voidp{audioPtr1},
         voidp{audioBytes1}, voidp{audioPtr2}, voidp{audioBytes2}, flags);
 
     if(!audioPtr1 || !audioBytes1)
@@ -1056,7 +1056,7 @@ HRESULT STDMETHODCALLTYPE Buffer::Lock(DWORD offset, DWORD bytes, void **audioPt
 #define PREFIX CLASS_PREFIX "Play "
 HRESULT STDMETHODCALLTYPE Buffer::Play(DWORD reserved1, DWORD priority, DWORD flags) noexcept
 {
-    DEBUG("({})->({}, {}, {})", voidp{this}, reserved1, priority, flags);
+    DEBUG("({})->({}, {}, {:#x})", voidp{this}, reserved1, priority, flags);
 
     auto const lock = std::lock_guard{mMutex};
     if(mBufferLost) [[unlikely]]
@@ -1350,7 +1350,7 @@ HRESULT STDMETHODCALLTYPE Buffer::SetFX(DWORD effectsCount, DSEFFECTDESC *dsFXDe
 
     std::ranges::for_each(fxdescs, [](const DSEFFECTDESC &desc)
     {
-        DEBUG("Unsupported effect: 0x{:x}, {}", desc.dwFlags,
+        DEBUG("Unsupported effect: {:#x}, {}", desc.dwFlags,
             DsfxPrinter{desc.guidDSFXClass}.c_str());
     });
 
@@ -2085,9 +2085,8 @@ HRESULT STDMETHODCALLTYPE Buffer::Prop::Get(REFGUID guidPropSet, ULONG dwPropID,
     void *pInstanceData, ULONG cbInstanceData, void *pPropData, ULONG cbPropData,
     ULONG *pcbReturned) noexcept
 {
-    DEBUG("({})->({}, 0x{:x}, {}, {}, {}, {}, {})", voidp{this},
-        PropidPrinter{guidPropSet}.c_str(), dwPropID, pInstanceData, cbInstanceData, pPropData,
-        cbPropData, voidp{pcbReturned});
+    DEBUG("({})->({}, {:#x}, {}, {}, {}, {}, {})", voidp{this}, PropidPrinter{guidPropSet}.c_str(),
+        dwPropID, pInstanceData, cbInstanceData, pPropData, cbPropData, voidp{pcbReturned});
 
     if(!pcbReturned)
         return E_POINTER;
@@ -2170,7 +2169,7 @@ HRESULT STDMETHODCALLTYPE Buffer::Prop::Get(REFGUID guidPropSet, ULONG dwPropID,
             return DSERR_INVALIDPARAM;
         }
 
-        FIXME("Unhandled VoiceManager propid: 0x{:08x}", dwPropID);
+        FIXME("Unhandled VoiceManager propid: {:#010x}", dwPropID);
         return E_PROP_ID_UNSUPPORTED;
     }
 
@@ -2182,9 +2181,8 @@ HRESULT STDMETHODCALLTYPE Buffer::Prop::Get(REFGUID guidPropSet, ULONG dwPropID,
 HRESULT STDMETHODCALLTYPE Buffer::Prop::Set(REFGUID guidPropSet, ULONG dwPropID,
     void *pInstanceData, ULONG cbInstanceData, void *pPropData, ULONG cbPropData) noexcept
 {
-    DEBUG("({})->({}, 0x{:x}, {}, {}, {}, {})", voidp{this},
-        PropidPrinter{guidPropSet}.c_str(), dwPropID, pInstanceData, cbInstanceData, pPropData,
-        cbPropData);
+    DEBUG("({})->({}, {:#x}, {}, {}, {}, {})", voidp{this}, PropidPrinter{guidPropSet}.c_str(),
+        dwPropID, pInstanceData, cbInstanceData, pPropData, cbPropData);
 
     if(cbPropData > 0 && !pPropData)
     {
@@ -2290,7 +2288,7 @@ HRESULT STDMETHODCALLTYPE Buffer::Prop::Set(REFGUID guidPropSet, ULONG dwPropID,
             return DSERR_INVALIDPARAM;
         }
 
-        FIXME("Unhandled VoiceManager propid: 0x{:08x}", dwPropID);
+        FIXME("Unhandled VoiceManager propid: {:#010x}", dwPropID);
         return E_PROP_ID_UNSUPPORTED;
     }
 
@@ -2302,8 +2300,8 @@ HRESULT STDMETHODCALLTYPE Buffer::Prop::Set(REFGUID guidPropSet, ULONG dwPropID,
 HRESULT STDMETHODCALLTYPE Buffer::Prop::QuerySupport(REFGUID guidPropSet, ULONG dwPropID,
     ULONG *pTypeSupport) noexcept
 {
-    TRACE("({})->({}, 0x{:x}, {})", voidp{this}, PropidPrinter{guidPropSet}.c_str(),
-        dwPropID, voidp{pTypeSupport});
+    TRACE("({})->({}, {:#x}, {})", voidp{this}, PropidPrinter{guidPropSet}.c_str(), dwPropID,
+        voidp{pTypeSupport});
 
     if(!pTypeSupport)
         return E_POINTER;

@@ -217,7 +217,7 @@ HRESULT DSPROPERTY_DescriptionW(void *pPropData, ULONG cbPropData, ULONG *pcbRet
     HRESULT hr{device->OpenPropertyStore(STGM_READ, ds::out_ptr(ps))};
     if(FAILED(hr))
     {
-        WARN("IMMDevice::OpenPropertyStore failed: {:08x}", as_unsigned(hr));
+        WARN("IMMDevice::OpenPropertyStore failed: {:#x}", as_unsigned(hr));
         return hr;
     }
 
@@ -225,7 +225,7 @@ HRESULT DSPROPERTY_DescriptionW(void *pPropData, ULONG cbPropData, ULONG *pcbRet
     hr = ps->GetValue(std::bit_cast<PROPERTYKEY>(DEVPKEY_Device_FriendlyName), pv.get());
     if(FAILED(hr) || pv.type() != VT_LPWSTR)
     {
-        WARN("IPropertyStore::GetValue(FriendlyName) failed: {:08x}", as_unsigned(hr));
+        WARN("IPropertyStore::GetValue(FriendlyName) failed: {:#x}", as_unsigned(hr));
         return hr;
     }
 
@@ -468,7 +468,7 @@ HRESULT STDMETHODCALLTYPE DSPrivatePropertySet::Get(REFGUID guidPropSet, ULONG d
         case DSPROPERTY_DIRECTSOUNDDEVICE_ENUMERATE_W:
             return DSPROPERTY_EnumerateW(pPropData, cbPropData, pcbReturned);
         default:
-            FIXME("unsupported ID: {}",dwPropID);
+            FIXME("unsupported ID: {}", dwPropID);
             return E_PROP_ID_UNSUPPORTED;
         }
     }
@@ -516,7 +516,7 @@ HRESULT STDMETHODCALLTYPE DSPrivatePropertySet::QuerySupport(REFGUID guidPropSet
             *pTypeSupport = KSPROPERTY_SUPPORT_GET;
             return S_OK;
         default:
-            FIXME("unsupported ID: {}",dwPropID);
+            FIXME("unsupported ID: {}", dwPropID);
             return E_PROP_ID_UNSUPPORTED;
         }
     }

@@ -336,7 +336,7 @@ HRESULT STDMETHODCALLTYPE DSCBuffer::Initialize(LPDIRECTSOUNDCAPTURE lpDSC,
 
     TRACE("Requested buffer:\n"
         "    Size        = {}\n"
-        "    Flags       = 0x{:08x}\n"
+        "    Flags       = {:#010x}\n"
         "    BufferBytes = {}\n"
         "    Reserved    = {}\n"
         "    wfxFormat   = {}\n"
@@ -371,7 +371,7 @@ HRESULT STDMETHODCALLTYPE DSCBuffer::Initialize(LPDIRECTSOUNDCAPTURE lpDSC,
         auto *wfe = CONTAINING_RECORD(format, const WAVEFORMATEXTENSIBLE, Format);
         /* NOLINTBEGIN(cppcoreguidelines-pro-type-union-access) */
         TRACE("Requested capture format:\n"
-            "    FormatTag          = 0x{:04x}\n"
+            "    FormatTag          = {:#06x}\n"
             "    Channels           = {}\n"
             "    SamplesPerSec      = {}\n"
             "    AvgBytesPerSec     = {}\n"
@@ -379,7 +379,7 @@ HRESULT STDMETHODCALLTYPE DSCBuffer::Initialize(LPDIRECTSOUNDCAPTURE lpDSC,
             "    BitsPerSample      = {}\n"
             "    Size               = {}\n"
             "    ValidBitsPerSample = {}\n"
-            "    ChannelMask        = 0x{:08x}\n"
+            "    ChannelMask        = {:#010x}\n"
             "    SubFormat          = {}",
             wfe->Format.wFormatTag, wfe->Format.nChannels, wfe->Format.nSamplesPerSec,
             wfe->Format.nAvgBytesPerSec, wfe->Format.nBlockAlign, wfe->Format.wBitsPerSample,
@@ -390,7 +390,7 @@ HRESULT STDMETHODCALLTYPE DSCBuffer::Initialize(LPDIRECTSOUNDCAPTURE lpDSC,
     else
     {
         TRACE("Requested capture format:\n"
-            "    FormatTag          = 0x{:04x}\n"
+            "    FormatTag          = {:#06x}\n"
             "    Channels           = {}\n"
             "    SamplesPerSec      = {}\n"
             "    AvgBytesPerSec     = {}\n"
@@ -500,7 +500,7 @@ HRESULT STDMETHODCALLTYPE DSCBuffer::Initialize(LPDIRECTSOUNDCAPTURE lpDSC,
         }
         else
         {
-            WARN("Unsupported channels: {}, 0x{:08x}", wfe->Format.nChannels, wfe->dwChannelMask);
+            WARN("Unsupported channels: {}, {:#010x}", wfe->Format.nChannels, wfe->dwChannelMask);
             return DSERR_BADFORMAT;
         }
 
@@ -511,7 +511,7 @@ HRESULT STDMETHODCALLTYPE DSCBuffer::Initialize(LPDIRECTSOUNDCAPTURE lpDSC,
     }
     else
     {
-        WARN("Unhandled formattag %x\n", format->wFormatTag);
+        WARN("Unhandled formattag {:#06x}", format->wFormatTag);
         return DSERR_BADFORMAT;
     }
 
@@ -542,7 +542,7 @@ HRESULT STDMETHODCALLTYPE DSCBuffer::Initialize(LPDIRECTSOUNDCAPTURE lpDSC,
         alformat, static_cast<ALCsizei>(lpcDSCBDesc->dwBufferBytes/mWaveFmt.Format.nBlockAlign));
     if(!mDevice)
     {
-        ERR("Couldn't open device {} {:#x}@{}, reason: 0x{:04x}", mParent.getName(), alformat,
+        ERR("Couldn't open device {} {:#x}@{}, reason: {:#06x}", mParent.getName(), alformat,
             mWaveFmt.Format.nSamplesPerSec, alcGetError(nullptr));
         return DSERR_INVALIDPARAM;
     }

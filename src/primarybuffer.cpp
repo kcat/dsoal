@@ -307,13 +307,12 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::Initialize(IDirectSound *directSound, c
     static constexpr DWORD BadFlags{DSBCAPS_CTRLFX | DSBCAPS_CTRLPOSITIONNOTIFY};
     if((dsBufferDesc->dwFlags&BadFlags))
     {
-        WARN("Bad dwFlags {:08x}", dsBufferDesc->dwFlags);
+        WARN("Bad dwFlags {:#x}", dsBufferDesc->dwFlags);
         return DSERR_INVALIDPARAM;
     }
 
-    if((dsBufferDesc->dwFlags&DSBCAPS_LOCSOFTWARE)) {
+    if((dsBufferDesc->dwFlags&DSBCAPS_LOCSOFTWARE))
         WARN("Using DSBCAPS_LOCHARDWARE instead of DSBCAPS_LOCSOFTWARE");
-    }
 
     auto const lock = std::lock_guard{mMutex};
     if(mFlags != 0)
@@ -356,7 +355,7 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::Initialize(IDirectSound *directSound, c
 #define PREFIX CLASS_PREFIX "Lock "
 HRESULT STDMETHODCALLTYPE PrimaryBuffer::Lock(DWORD offset, DWORD bytes, void **audioPtr1, DWORD *audioBytes1, void **audioPtr2, DWORD *audioBytes2, DWORD flags) noexcept
 {
-    DEBUG("({})->({}, {}, {}, {}, {}, {}, {})", voidp{this}, offset, bytes, voidp{audioPtr1},
+    DEBUG("({})->({}, {}, {}, {}, {}, {}, {:#x})", voidp{this}, offset, bytes, voidp{audioPtr1},
         voidp{audioBytes1}, voidp{audioPtr2}, voidp{audioBytes2}, flags);
 
     auto const lock = std::lock_guard{mMutex};
@@ -369,11 +368,11 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::Lock(DWORD offset, DWORD bytes, void **
 #define PREFIX CLASS_PREFIX "Play "
 HRESULT STDMETHODCALLTYPE PrimaryBuffer::Play(DWORD reserved1, DWORD reserved2, DWORD flags) noexcept
 {
-    DEBUG("({})->({}, {}, {})", voidp{this}, reserved1, reserved2, flags);
+    DEBUG("({})->({}, {}, {:#x})", voidp{this}, reserved1, reserved2, flags);
 
     if(!(flags & DSBPLAY_LOOPING))
     {
-        WARN("Flags ({:08x}) not set to DSBPLAY_LOOPING", flags);
+        WARN("Flags ({:#010x}) not set to DSBPLAY_LOOPING", flags);
         return DSERR_INVALIDPARAM;
     }
 
@@ -426,14 +425,14 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::SetFormat(const WAVEFORMATEX *wfx) noex
         /* NOLINTBEGIN(cppcoreguidelines-pro-type-union-access) */
         auto *wfe = CONTAINING_RECORD(wfx, const WAVEFORMATEXTENSIBLE, Format);
         TRACE("Requested primary format:\n"
-            "    FormatTag          = 0x{:04x}\n"
+            "    FormatTag          = {:#06x}\n"
             "    Channels           = {}\n"
             "    SamplesPerSec      = {}\n"
             "    AvgBytesPerSec     = {}\n"
             "    BlockAlign         = {}\n"
             "    BitsPerSample      = {}\n"
             "    ValidBitsPerSample = {}\n"
-            "    ChannelMask        = 0x{:08x}\n"
+            "    ChannelMask        = {:#010x}\n"
             "    SubFormat          = {}",
             wfe->Format.wFormatTag, wfe->Format.nChannels, wfe->Format.nSamplesPerSec,
             wfe->Format.nAvgBytesPerSec, wfe->Format.nBlockAlign, wfe->Format.wBitsPerSample,
@@ -444,7 +443,7 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::SetFormat(const WAVEFORMATEX *wfx) noex
     else
     {
         TRACE("Requested primary format:\n"
-            "    FormatTag      = 0x{:04x}\n"
+            "    FormatTag      = {:#06x}\n"
             "    Channels       = {}\n"
             "    SamplesPerSec  = {}\n"
             "    AvgBytesPerSec = {}\n"
@@ -536,7 +535,7 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::SetFormat(const WAVEFORMATEX *wfx) noex
         }
         else
         {
-            FIXME("Unhandled format tag {:04x}", wfx->wFormatTag);
+            FIXME("Unhandled format tag {:#06x}", wfx->wFormatTag);
             return DSERR_INVALIDPARAM;
         }
 
@@ -1161,10 +1160,8 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::Prop::Get(REFGUID guidPropSet, ULONG dw
     void *pInstanceData, ULONG cbInstanceData, void *pPropData, ULONG cbPropData,
     ULONG *pcbReturned) noexcept
 {
-    FIXME("({})->({}, 0x{:x}, {}, {}, {}, {}, {}): stub!", voidp{this},
-        PropidPrinter{guidPropSet}.c_str(), dwPropID, pInstanceData, cbInstanceData, pPropData,
-        cbPropData, voidp{pcbReturned});
-
+    FIXME("({})->({}, {:#x}, {}, {}, {}, {}, {})", voidp{this}, PropidPrinter{guidPropSet}.c_str(),
+        dwPropID, pInstanceData, cbInstanceData, pPropData, cbPropData, voidp{pcbReturned});
     return E_PROP_ID_UNSUPPORTED;
 }
 #undef PREFIX
@@ -1173,10 +1170,8 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::Prop::Get(REFGUID guidPropSet, ULONG dw
 HRESULT STDMETHODCALLTYPE PrimaryBuffer::Prop::Set(REFGUID guidPropSet, ULONG dwPropID,
     void *pInstanceData, ULONG cbInstanceData, void *pPropData, ULONG cbPropData) noexcept
 {
-    FIXME("({})->({}, 0x{:x}, {}, {}, {}, {}): stub!", voidp{this},
-        PropidPrinter{guidPropSet}.c_str(), dwPropID, pInstanceData, cbInstanceData, pPropData,
-        cbPropData);
-
+    FIXME("({})->({}, {:#x}, {}, {}, {}, {})", voidp{this}, PropidPrinter{guidPropSet}.c_str(),
+        dwPropID, pInstanceData, cbInstanceData, pPropData, cbPropData);
     return E_PROP_ID_UNSUPPORTED;
 }
 #undef PREFIX
@@ -1185,9 +1180,8 @@ HRESULT STDMETHODCALLTYPE PrimaryBuffer::Prop::Set(REFGUID guidPropSet, ULONG dw
 HRESULT STDMETHODCALLTYPE PrimaryBuffer::Prop::QuerySupport(REFGUID guidPropSet, ULONG dwPropID,
     ULONG *pTypeSupport) noexcept
 {
-    FIXME("({})->({}, 0x{:x}, {}): stub!", voidp{this}, PropidPrinter{guidPropSet}.c_str(),
-        dwPropID, voidp{pTypeSupport});
-
+    FIXME("({})->({}, {:#x}, {})", voidp{this}, PropidPrinter{guidPropSet}.c_str(), dwPropID,
+        voidp{pTypeSupport});
     return E_PROP_ID_UNSUPPORTED;
 }
 #undef PREFIX
