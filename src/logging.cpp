@@ -19,9 +19,9 @@ auto sLogMutex = std::mutex{};
 
 } // namespace
 
-void dsoal_print_impl(LogLevel level, const fmt::string_view fmt, fmt::format_args args)
+void dsoal_print_impl(LogLevel level, const std::string_view fmt, std::format_args args)
 {
-    const auto msg = fmt::vformat(fmt, std::move(args));
+    const auto msg = std::vformat(fmt, std::move(args));
 
     auto prefix = "debug"sv;
     switch(level)
@@ -36,6 +36,7 @@ void dsoal_print_impl(LogLevel level, const fmt::string_view fmt, fmt::format_ar
 
     auto _ = std::lock_guard{sLogMutex};
     auto &logfile = gLogFile.is_open() ? gLogFile : std::cerr;
-    fmt::println(logfile, "{:04x}:{}:dsound:{}", GetCurrentThreadId(), prefix, msg);
+    auto const threadid = GetCurrentThreadId();
+    fmt::vprint(logfile, "{:04x}:{}:dsound:{}\n", fmt::make_format_args(threadid, prefix, msg));
     logfile.flush();
 }

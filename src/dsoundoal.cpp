@@ -3,7 +3,9 @@
 #include <algorithm>
 #include <bit>
 #include <chrono>
+#include <format>
 #include <functional>
+#include <iterator>
 #include <memory>
 #include <optional>
 #include <ranges>
@@ -19,7 +21,6 @@
 #include "dsoal.h"
 #include "enumerate.h"
 #include "expected.h"
-#include "fmt/chrono.h"
 #include "guidprinter.h"
 #include "logging.h"
 
@@ -79,7 +80,7 @@ auto GetDSBCapsString(DWORD flags) -> std::string
     {
         if(!ret.empty())
             ret += " | ";
-        ret += fmt::format("{:#x}", flags);
+        std::format_to(std::back_inserter(ret), "{:#x}", flags);
     }
 
     return ret;

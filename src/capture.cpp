@@ -9,9 +9,11 @@
 #include <utility>
 #include <vector>
 
+#include "dsoal.h"
 #include "guidprinter.h"
 #include "logging.h"
 
+#include "AL/alc.h"
 
 namespace {
 

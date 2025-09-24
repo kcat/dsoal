@@ -1,11 +1,10 @@
 #ifndef LOGGING_H
 #define LOGGING_H
 
+#include <format>
 #include <fstream>
+#include <string_view>
 #include <type_traits>
-
-#include "dsoal.h"
-#include "fmt/core.h"
 
 
 namespace ds {
@@ -28,12 +27,12 @@ inline auto gLogLevel = LogLevel::Error;
 
 inline auto gLogFile = std::ofstream{};
 
-void dsoal_print_impl(LogLevel level, const fmt::string_view fmt, fmt::format_args args);
+void dsoal_print_impl(LogLevel level, const std::string_view fmt, std::format_args args);
 
 template<typename ...Args>
-void dsoal_print(LogLevel level, fmt::format_string<Args...> fmt, Args&& ...args) noexcept
+void dsoal_print(LogLevel level, std::format_string<Args...> fmt, Args&& ...args) noexcept
 try {
-    dsoal_print_impl(level, fmt, fmt::make_format_args(args...));
+    dsoal_print_impl(level, fmt.get(), std::make_format_args(args...));
 } catch(...) { }
 
 
