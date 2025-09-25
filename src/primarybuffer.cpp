@@ -17,7 +17,7 @@ using voidp = void*;
 using cvoidp = const void*;
 
 /* The primary buffer has a fixed size, apprently. */
-constexpr size_t PrimaryBufSize{32768};
+inline constexpr auto PrimaryBufSize = DWORD{32768};
 
 } // namespace
 

@@ -809,8 +809,8 @@ HRESULT STDMETHODCALLTYPE Buffer::GetCurrentPosition(DWORD *playCursor, DWORD *w
      * Some testing should be done to see what happens. Wine always wraps the
      * play cursor, so just do that for now.
      */
-    pos %= mBuffer->mData.size();
-    writecursor %= mBuffer->mData.size();
+    pos %= ds::saturate_cast<DWORD>(mBuffer->mData.size());
+    writecursor %= ds::saturate_cast<DWORD>(mBuffer->mData.size());
 
     DEBUG(" pos = {}, write pos = {}", pos, writecursor);
 
@@ -1108,7 +1108,7 @@ HRESULT STDMETHODCALLTYPE Buffer::Play(DWORD reserved1, DWORD priority, DWORD fl
     if(state == AL_PLAYING)
         return DS_OK;
 
-    mLastPos %= mBuffer->mData.size();
+    mLastPos %= ds::saturate_cast<DWORD>(mBuffer->mData.size());
     if(state == AL_INITIAL)
     {
         alSourceiDirect(mContext, mSource, AL_BUFFER, static_cast<ALint>(mBuffer->mAlBuffer));

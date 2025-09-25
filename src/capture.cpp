@@ -270,7 +270,7 @@ HRESULT STDMETHODCALLTYPE DSCBuffer::GetCurrentPosition(LPDWORD lpdwCapturePosit
          * overwritten as new samples come in).
          */
         cappos += mWaveFmt.Format.nSamplesPerSec / 100 * mWaveFmt.Format.nBlockAlign;
-        cappos %= mBuffer.size();
+        cappos %= ds::saturate_cast<DWORD>(mBuffer.size());
     }
 
     DEBUG(" pos = {}, read pos = {}", cappos, readpos);
