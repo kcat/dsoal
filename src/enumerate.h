@@ -62,7 +62,7 @@ HRESULT enumerate_mmdev(const EDataFlow flow, std::deque<GUID> &devlist, T&& cb)
     std::deque<GUID>{}.swap(devlist);
 
     TRACE("Calling back with NULL ({})", wstr_to_utf8(std::data(primary_desc)));
-    auto keep_going = bool{cb(nullptr, primary_desc, L"")};
+    auto keep_going = static_cast<bool>(cb(nullptr, primary_desc, L""));
 
     auto send_device = [&devlist,&cb,&keep_going](IMMDevice *device)
     {
