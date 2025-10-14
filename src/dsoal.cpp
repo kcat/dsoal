@@ -641,6 +641,12 @@ HRESULT WINAPI DSOAL_DirectSoundEnumerateA(LPDSENUMCALLBACKA callback, void *use
 {
     TRACE("({}, {})", std::bit_cast<void*>(callback), userPtr);
 
+    if(!callback)
+    {
+        WARN("invalid parameter: callback == NULL");
+        return DSERR_INVALIDPARAM;
+    }
+
     auto do_enum = [=](GUID *const guid, std::wstring_view const dname,
         std::wstring_view const mname) -> bool
     {
@@ -670,7 +676,8 @@ HRESULT WINAPI DSOAL_DirectSoundEnumerateA(LPDSENUMCALLBACKA callback, void *use
     };
 
     auto const listlock = std::lock_guard{gDeviceListMutex};
-    return enumerate_mmdev(eRender, gPlaybackDevices, do_enum);
+    HRESULT hr{enumerate_mmdev(eRender, gPlaybackDevices, do_enum)};
+    return SUCCEEDED(hr) ? DS_OK : hr;
 }
 #undef PREFIX
 
@@ -679,11 +686,18 @@ HRESULT WINAPI DSOAL_DirectSoundEnumerateW(LPDSENUMCALLBACKW callback, void *use
 {
     TRACE("({}, {})", std::bit_cast<void*>(callback), userPtr);
 
+    if(!callback)
+    {
+        WARN("invalid parameter: callback == NULL");
+        return DSERR_INVALIDPARAM;
+    }
+
     auto do_enum = [callback,userPtr](GUID *guid, const WCHAR *dname, const WCHAR *mname)
     { return callback(guid, dname, mname, userPtr) != FALSE; };
 
     auto const listlock = std::lock_guard{gDeviceListMutex};
-    return enumerate_mmdev(eRender, gPlaybackDevices, do_enum);
+    HRESULT hr{enumerate_mmdev(eRender, gPlaybackDevices, do_enum)};
+    return SUCCEEDED(hr) ? DS_OK : hr;
 }
 #undef PREFIX
 
@@ -691,6 +705,12 @@ HRESULT WINAPI DSOAL_DirectSoundEnumerateW(LPDSENUMCALLBACKW callback, void *use
 HRESULT WINAPI DSOAL_DirectSoundCaptureEnumerateA(LPDSENUMCALLBACKA callback, void *userPtr) noexcept
 {
     TRACE("({}, {})", std::bit_cast<void*>(callback), userPtr);
+
+    if(!callback)
+    {
+        WARN("invalid parameter: callback == NULL");
+        return DSERR_INVALIDPARAM;
+    }
 
     auto do_enum = [=](GUID *const guid, std::wstring_view const dname,
         std::wstring_view const mname) -> bool
@@ -721,20 +741,28 @@ HRESULT WINAPI DSOAL_DirectSoundCaptureEnumerateA(LPDSENUMCALLBACKA callback, vo
     };
 
     auto const listlock = std::lock_guard{gDeviceListMutex};
-    return enumerate_mmdev(eCapture, gCaptureDevices, do_enum);
+    HRESULT hr{enumerate_mmdev(eCapture, gCaptureDevices, do_enum)};
+    return SUCCEEDED(hr) ? DS_OK : hr;
 }
 #undef PREFIX
 
-#define PREFIX "DirectSoundEnumerateW "
+#define PREFIX "DirectSoundCaptureEnumerateW "
 HRESULT WINAPI DSOAL_DirectSoundCaptureEnumerateW(LPDSENUMCALLBACKW callback, void *userPtr) noexcept
 {
     TRACE("({}, {})", std::bit_cast<void*>(callback), userPtr);
+
+    if(!callback)
+    {
+        WARN("invalid parameter: callback == NULL");
+        return DSERR_INVALIDPARAM;
+    }
 
     auto do_enum = [callback,userPtr](GUID *guid, const WCHAR *dname, const WCHAR *mname)
     { return callback(guid, dname, mname, userPtr) != FALSE; };
 
     auto const listlock = std::lock_guard{gDeviceListMutex};
-    return enumerate_mmdev(eCapture, gCaptureDevices, do_enum);
+    HRESULT hr{enumerate_mmdev(eCapture, gCaptureDevices, do_enum)};
+    return SUCCEEDED(hr) ? DS_OK : hr;
 }
 #undef PREFIX
 
