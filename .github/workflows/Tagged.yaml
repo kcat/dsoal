@@ -143,6 +143,8 @@ jobs:
         mv "Release/Win64" "Release/DSOAL/Win64"
         mv "Release/DSOAL/Win32/Documentation" "Release/DSOAL/Documentation"
         rm -r "Release/DSOAL/Win64/Documentation"
+        curl https://raw.githubusercontent.com/kcat/openal-soft/master/logging/log.cmd -o "Release/DSOAL/Win32/log.cmd"
+        curl https://raw.githubusercontent.com/kcat/openal-soft/master/logging/log.cmd -o "Release/DSOAL/Win64/log.cmd"
         cp -R "Release/DSOAL" "Release/DSOAL+HRTF"
         mv "Release/DSOAL+HRTF/Win32/alsoft.ini" "Release/DSOAL+HRTF/Documentation/alsoft.ini"
         rm "Release/DSOAL+HRTF/Win64/alsoft.ini"
