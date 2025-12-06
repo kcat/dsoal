@@ -679,7 +679,12 @@ HRESULT STDMETHODCALLTYPE DSound8OAL::GetCaps(DSCAPS *dsCaps) noexcept
     dsCaps->dwTotalHwMemBytes =
         dsCaps->dwFreeHwMemBytes = 64 * 1024 * 1024;
     dsCaps->dwMaxContigFreeHwMemBytes = dsCaps->dwFreeHwMemBytes;
-    dsCaps->dwUnlockTransferRateHwBuffers = 4096;
+    /* For PCI cards, buffers are always stored in system memory which have an
+     * unlock transfer rate of 0, since nothing's ever transferred when calling
+     * Unlock(). Only ISA cards would need to worry about transferring to on-
+     * board device memory.
+     */
+    dsCaps->dwUnlockTransferRateHwBuffers = 0;
     dsCaps->dwPlayCpuOverheadSwBuffers = 0;
 
     return DS_OK;

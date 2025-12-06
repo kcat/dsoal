@@ -752,7 +752,8 @@ HRESULT STDMETHODCALLTYPE Buffer::GetCaps(DSBCAPS *bufferCaps) noexcept
             bufferCaps->dwFlags |= DSBCAPS_LOCSOFTWARE;
     }
     bufferCaps->dwBufferBytes = static_cast<DWORD>(mBuffer->mData.size());
-    bufferCaps->dwUnlockTransferRate = 4096;
+    /* See DSound8OAL::GetCaps. */
+    bufferCaps->dwUnlockTransferRate = 0;
     bufferCaps->dwPlayCpuOverhead = 0;
 
     return S_OK;
