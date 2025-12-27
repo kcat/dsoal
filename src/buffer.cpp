@@ -5,6 +5,7 @@
 #include <functional>
 #include <optional>
 #include <span>
+#include <utility>
 
 #include <ks.h>
 #include <ksmedia.h>
@@ -30,9 +31,12 @@ namespace {
 using voidp = void*;
 using cvoidp = const void*;
 
+enum class SampleType { UInt8, Int16, Float32 };
+enum class ChannelConfig { Mono, Stereo, Quad, X51, X71 };
+
 #define PREFIX "ConvertFormat "
-ALenum ConvertFormat(WAVEFORMATEXTENSIBLE &dst, const WAVEFORMATEX &src,
-    const std::bitset<ExtensionCount> exts) noexcept
+auto ConvertFormat(WAVEFORMATEXTENSIBLE &dst, WAVEFORMATEX const &src) noexcept
+    -> std::optional<std::pair<SampleType,ChannelConfig>>
 {
     TRACE("Requested buffer format:\n"
         "    FormatTag      = {:#06x}\n"
@@ -49,65 +53,66 @@ ALenum ConvertFormat(WAVEFORMATEXTENSIBLE &dst, const WAVEFORMATEX &src,
     dst.Format = src;
     dst.Format.cbSize = 0;
 
-    enum { UInt8, Int16, Float32 } sampleType{};
+    auto sampleType = SampleType{};
     switch(dst.Format.wFormatTag)
     {
     case WAVE_FORMAT_PCM:
         switch(dst.Format.wBitsPerSample)
         {
-        case 8: sampleType = UInt8; break;
-        case 16: sampleType = Int16; break;
+        case 8: sampleType = SampleType::UInt8; break;
+        case 16: sampleType = SampleType::Int16; break;
         default:
             FIXME("{}-bit integer samples not supported", dst.Format.wBitsPerSample);
-            return AL_NONE;
+            return std::nullopt;
         }
         break;
     case WAVE_FORMAT_IEEE_FLOAT:
-        if(dst.Format.wBitsPerSample == 32 && exts.test(EXT_FLOAT32))
-            sampleType = Float32;
+        if(dst.Format.wBitsPerSample == 32)
+            sampleType = SampleType::Float32;
         else
         {
             FIXME("{}-bit floating point samples not supported", dst.Format.wBitsPerSample);
-            return AL_NONE;
+            return std::nullopt;
         }
         break;
     default:
         FIXME("Format {:#06x} samples not supported", dst.Format.wFormatTag);
-        return AL_NONE;
+        return std::nullopt;
     }
 
     switch(sampleType)
     {
-    case UInt8:
+    case SampleType::UInt8:
         switch(dst.Format.nChannels)
         {
-        case 1: return AL_FORMAT_MONO8;
-        case 2: return AL_FORMAT_STEREO8;
+        case 1: return std::pair{sampleType, ChannelConfig::Mono};
+        case 2: return std::pair{sampleType, ChannelConfig::Stereo};
         }
         break;
-    case Int16:
+    case SampleType::Int16:
         switch(dst.Format.nChannels)
         {
-        case 1: return AL_FORMAT_MONO16;
-        case 2: return AL_FORMAT_STEREO16;
+        case 1: return std::pair{sampleType, ChannelConfig::Mono};
+        case 2: return std::pair{sampleType, ChannelConfig::Stereo};
         }
         break;
-    case Float32:
+    case SampleType::Float32:
         switch(dst.Format.nChannels)
         {
-        case 1: return AL_FORMAT_MONO_FLOAT32;
-        case 2: return AL_FORMAT_STEREO_FLOAT32;
+        case 1: return std::pair{sampleType, ChannelConfig::Mono};
+        case 2: return std::pair{sampleType, ChannelConfig::Stereo};
         }
         break;
     }
 
-    FIXME("Could not get OpenAL format (0x{:04x}, {}-bit, {} channels)", dst.Format.wFormatTag,
+    FIXME("Could not get format (0x{:04x}, {}-bit, {} channels)", dst.Format.wFormatTag,
         dst.Format.wBitsPerSample, dst.Format.nChannels);
-    return AL_NONE;
+    return std::nullopt;
 }
 
-ALenum ConvertFormat(WAVEFORMATEXTENSIBLE &dst, const WAVEFORMATEXTENSIBLE &src,
-    const std::bitset<ExtensionCount> exts) noexcept
+auto ConvertFormat(WAVEFORMATEXTENSIBLE &dst, WAVEFORMATEXTENSIBLE const &src) noexcept
+    -> std::optional<std::pair<SampleType,ChannelConfig>>
+
 {
     /* NOLINTBEGIN(cppcoreguidelines-pro-type-union-access) */
     TRACE("Requested buffer format:\n"
@@ -135,7 +140,7 @@ ALenum ConvertFormat(WAVEFORMATEXTENSIBLE &dst, const WAVEFORMATEXTENSIBLE &src,
     {
         WARN("Padded sample formats not supported ({}-bit total, {}-bit valid)",
             dst.Format.wBitsPerSample, dst.Samples.wValidBitsPerSample);
-        return AL_NONE;
+        return std::nullopt;
     }
     /* NOLINTEND(cppcoreguidelines-pro-type-union-access) */
 
@@ -143,29 +148,29 @@ ALenum ConvertFormat(WAVEFORMATEXTENSIBLE &dst, const WAVEFORMATEXTENSIBLE &src,
     {
         FIXME("Unsupported channel configuration ({} channels, {:#010x})", dst.Format.nChannels,
             dst.dwChannelMask);
-        return AL_NONE;
+        return std::nullopt;
     };
-    enum { Mono, Stereo, Quad, X51, X71 } channelConfig{};
+    auto channelConfig = ChannelConfig{};
     switch(dst.dwChannelMask)
     {
     case KSAUDIO_SPEAKER_MONO:
         switch(dst.Format.nChannels)
         {
-        case 1: channelConfig = Mono; break;
+        case 1: channelConfig = ChannelConfig::Mono; break;
         default: return unsupported_format();
         }
         break;
     case KSAUDIO_SPEAKER_STEREO:
         switch(dst.Format.nChannels)
         {
-        case 2: channelConfig = Stereo; break;
+        case 2: channelConfig = ChannelConfig::Stereo; break;
         default: return unsupported_format();
         }
         break;
     case KSAUDIO_SPEAKER_QUAD:
         switch(dst.Format.nChannels)
         {
-        case 4: channelConfig = Quad; break;
+        case 4: channelConfig = ChannelConfig::Quad; break;
         default: return unsupported_format();
         }
         break;
@@ -173,14 +178,14 @@ ALenum ConvertFormat(WAVEFORMATEXTENSIBLE &dst, const WAVEFORMATEXTENSIBLE &src,
     case KSAUDIO_SPEAKER_5POINT1_SURROUND:
         switch(dst.Format.nChannels)
         {
-        case 6: channelConfig = X51; break;
+        case 6: channelConfig = ChannelConfig::X51; break;
         default: return unsupported_format();
         }
         break;
     case KSAUDIO_SPEAKER_7POINT1_SURROUND:
         switch(dst.Format.nChannels)
         {
-        case 8: channelConfig = X71; break;
+        case 8: channelConfig = ChannelConfig::X71; break;
         default: return unsupported_format();
         }
         break;
@@ -188,11 +193,11 @@ ALenum ConvertFormat(WAVEFORMATEXTENSIBLE &dst, const WAVEFORMATEXTENSIBLE &src,
     case 0:
         switch(dst.Format.nChannels)
         {
-        case 1: channelConfig = Mono; break;
-        case 2: channelConfig = Stereo; break;
-        case 4: channelConfig = Quad; break;
-        case 6: channelConfig = X51; break;
-        case 8: channelConfig = X71; break;
+        case 1: channelConfig = ChannelConfig::Mono; break;
+        case 2: channelConfig = ChannelConfig::Stereo; break;
+        case 4: channelConfig = ChannelConfig::Quad; break;
+        case 6: channelConfig = ChannelConfig::X51; break;
+        case 8: channelConfig = ChannelConfig::X71; break;
         default: return unsupported_format();
         }
         break;
@@ -201,90 +206,93 @@ ALenum ConvertFormat(WAVEFORMATEXTENSIBLE &dst, const WAVEFORMATEXTENSIBLE &src,
         return unsupported_format();
     }
 
-    enum { UInt8, Int16, Float32 } sampleType{};
     if(dst.SubFormat == KSDATAFORMAT_SUBTYPE_PCM)
     {
         switch(dst.Format.wBitsPerSample)
         {
-        case 8: sampleType = UInt8; break;
-        case 16: sampleType = Int16; break;
+        case 8: return std::pair{SampleType::UInt8, channelConfig};
+        case 16: return std::pair{SampleType::Int16, channelConfig};
         default:
             FIXME("{}-bit integer samples not supported", dst.Format.wBitsPerSample);
-            return AL_NONE;
+            return std::nullopt;
         }
     }
     else if(dst.SubFormat == KSDATAFORMAT_SUBTYPE_IEEE_FLOAT)
     {
         if(dst.Format.wBitsPerSample == 32)
-            sampleType = Float32;
+            return std::pair{SampleType::Float32, channelConfig};
         else
         {
             FIXME("{}-bit floating point samples not supported", dst.Format.wBitsPerSample);
-            return AL_NONE;
+            return std::nullopt;
         }
     }
-    else
-    {
-        FIXME("Unsupported sample subformat {}", FmtidPrinter{dst.SubFormat}.c_str());
-        return AL_NONE;
-    }
 
+    FIXME("Unsupported sample subformat {}", FmtidPrinter{dst.SubFormat}.c_str());
+    return std::nullopt;
+}
+#undef PREFIX
+
+#define PREFIX "GetALFormat "
+auto GetALFormat(WAVEFORMATEXTENSIBLE const &dst, SampleType const sampleType,
+    ChannelConfig const channelConfig, std::bitset<ExtensionCount> const exts) noexcept -> ALenum
+{
     switch(sampleType)
     {
-    case UInt8:
+    case SampleType::UInt8:
         switch(channelConfig)
         {
-        case Mono: return AL_FORMAT_MONO8;
-        case Stereo: return AL_FORMAT_STEREO8;
-        case Quad:
+        case ChannelConfig::Mono: return AL_FORMAT_MONO8;
+        case ChannelConfig::Stereo: return AL_FORMAT_STEREO8;
+        case ChannelConfig::Quad:
             if(exts.test(EXT_MCFORMATS))
                 return AL_FORMAT_QUAD8;
             break;
-        case X51:
+        case ChannelConfig::X51:
             if(exts.test(EXT_MCFORMATS))
                 return AL_FORMAT_51CHN8;
             break;
-        case X71:
+        case ChannelConfig::X71:
             if(exts.test(EXT_MCFORMATS))
                 return AL_FORMAT_71CHN8;
             break;
         }
         break;
-    case Int16:
+    case SampleType::Int16:
         switch(channelConfig)
         {
-        case Mono: return AL_FORMAT_MONO16;
-        case Stereo: return AL_FORMAT_STEREO16;
-        case Quad:
+        case ChannelConfig::Mono: return AL_FORMAT_MONO16;
+        case ChannelConfig::Stereo: return AL_FORMAT_STEREO16;
+        case ChannelConfig::Quad:
             if(exts.test(EXT_MCFORMATS))
                 return AL_FORMAT_QUAD16;
             break;
-        case X51:
+        case ChannelConfig::X51:
             if(exts.test(EXT_MCFORMATS))
                 return AL_FORMAT_51CHN16;
             break;
-        case X71:
+        case ChannelConfig::X71:
             if(exts.test(EXT_MCFORMATS))
                 return AL_FORMAT_71CHN16;
             break;
         }
         break;
-    case Float32:
+    case SampleType::Float32:
         if(exts.test(EXT_FLOAT32))
         {
             switch(channelConfig)
             {
-            case Mono: return AL_FORMAT_MONO_FLOAT32;
-            case Stereo: return AL_FORMAT_STEREO_FLOAT32;
-            case Quad:
+            case ChannelConfig::Mono: return AL_FORMAT_MONO_FLOAT32;
+            case ChannelConfig::Stereo: return AL_FORMAT_STEREO_FLOAT32;
+            case ChannelConfig::Quad:
                 if(exts.test(EXT_MCFORMATS))
                     return AL_FORMAT_QUAD32;
                 break;
-            case X51:
+            case ChannelConfig::X51:
                 if(exts.test(EXT_MCFORMATS))
                     return AL_FORMAT_51CHN32;
                 break;
-            case X71:
+            case ChannelConfig::X71:
                 if(exts.test(EXT_MCFORMATS))
                     return AL_FORMAT_71CHN32;
                 break;
@@ -380,19 +388,37 @@ auto SharedBuffer::Create(ALCcontext *context, const DSBUFFERDESC &bufferDesc,
     shared->mData = {reinterpret_cast<char*>(shared.get() + 1), bufSize};
     shared->mFlags = bufferDesc.dwFlags;
 
-    if(format->wFormatTag == WAVE_FORMAT_EXTENSIBLE)
+    auto const fmtpair = std::invoke([&shared, format, exts]
     {
-        static constexpr WORD ExtExtraSize{sizeof(WAVEFORMATEXTENSIBLE) - sizeof(WAVEFORMATEX)};
-        if(format->cbSize < ExtExtraSize)
+        if(format->wFormatTag == WAVE_FORMAT_EXTENSIBLE)
         {
-            WARN("EXTENSIBLE size too small ({}, expected {})", format->cbSize, ExtExtraSize);
-            return ds::unexpected(DSERR_INVALIDPARAM);
+            static constexpr auto ExtExtraSize = WORD{sizeof(WAVEFORMATEXTENSIBLE)
+                - sizeof(WAVEFORMATEX)};
+            if(format->cbSize < ExtExtraSize)
+            {
+                WARN("EXTENSIBLE size too small ({}, expected {})", format->cbSize, ExtExtraSize);
+                return std::optional<std::pair<SampleType,ChannelConfig>>{};
+            }
+            auto *wfe = CONTAINING_RECORD(format, const WAVEFORMATEXTENSIBLE, Format);
+            return ConvertFormat(shared->mWfxFormat, *wfe);
         }
-        auto wfe{CONTAINING_RECORD(format, const WAVEFORMATEXTENSIBLE, Format)};
-        shared->mAlFormat = ConvertFormat(shared->mWfxFormat, *wfe, exts);
+        return ConvertFormat(shared->mWfxFormat, *format);
+    });
+    if(!fmtpair)
+        return ds::unexpected(DSERR_INVALIDPARAM);
+
+    switch(fmtpair->first)
+    {
+    case SampleType::UInt8:
+        std::ranges::fill(shared->mData, char{-128});
+        break;
+    case SampleType::Int16:
+    case SampleType::Float32:
+        std::ranges::fill(shared->mData, char{0});
+        break;
     }
-    else
-        shared->mAlFormat = ConvertFormat(shared->mWfxFormat, *format, exts);
+
+    shared->mAlFormat = GetALFormat(shared->mWfxFormat, fmtpair->first, fmtpair->second, exts);
     if(!shared->mAlFormat) return ds::unexpected(DSERR_INVALIDPARAM);
 
     shared->mContext = context;
