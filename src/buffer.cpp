@@ -32,7 +32,7 @@ using voidp = void*;
 using cvoidp = const void*;
 
 enum class SampleType { UInt8, Int16, Float32 };
-enum class ChannelConfig { Mono, Stereo, Quad, X51, X71 };
+enum class ChannelConfig { Mono, Stereo, RearStereo, Quad, X51, X71 };
 
 #define PREFIX "ConvertFormat "
 auto ConvertFormat(WAVEFORMATEXTENSIBLE &dst, WAVEFORMATEX const &src) noexcept
@@ -167,6 +167,13 @@ auto ConvertFormat(WAVEFORMATEXTENSIBLE &dst, WAVEFORMATEXTENSIBLE const &src) n
         default: return unsupported_format();
         }
         break;
+    case SPEAKER_BACK_LEFT | SPEAKER_BACK_RIGHT:
+        switch(dst.Format.nChannels)
+        {
+        case 2: channelConfig = ChannelConfig::RearStereo; break;
+        default: return unsupported_format();
+        }
+        break;
     case KSAUDIO_SPEAKER_QUAD:
         switch(dst.Format.nChannels)
         {
@@ -244,6 +251,10 @@ auto GetALFormat(WAVEFORMATEXTENSIBLE const &dst, SampleType const sampleType,
         {
         case ChannelConfig::Mono: return AL_FORMAT_MONO8;
         case ChannelConfig::Stereo: return AL_FORMAT_STEREO8;
+        case ChannelConfig::RearStereo:
+            if(exts.test(EXT_MCFORMATS))
+                return AL_FORMAT_REAR8;
+            break;
         case ChannelConfig::Quad:
             if(exts.test(EXT_MCFORMATS))
                 return AL_FORMAT_QUAD8;
@@ -263,6 +274,10 @@ auto GetALFormat(WAVEFORMATEXTENSIBLE const &dst, SampleType const sampleType,
         {
         case ChannelConfig::Mono: return AL_FORMAT_MONO16;
         case ChannelConfig::Stereo: return AL_FORMAT_STEREO16;
+        case ChannelConfig::RearStereo:
+            if(exts.test(EXT_MCFORMATS))
+                return AL_FORMAT_REAR16;
+            break;
         case ChannelConfig::Quad:
             if(exts.test(EXT_MCFORMATS))
                 return AL_FORMAT_QUAD16;
@@ -284,6 +299,10 @@ auto GetALFormat(WAVEFORMATEXTENSIBLE const &dst, SampleType const sampleType,
             {
             case ChannelConfig::Mono: return AL_FORMAT_MONO_FLOAT32;
             case ChannelConfig::Stereo: return AL_FORMAT_STEREO_FLOAT32;
+            case ChannelConfig::RearStereo:
+                if(exts.test(EXT_MCFORMATS))
+                    return AL_FORMAT_REAR32;
+                break;
             case ChannelConfig::Quad:
                 if(exts.test(EXT_MCFORMATS))
                     return AL_FORMAT_QUAD32;
