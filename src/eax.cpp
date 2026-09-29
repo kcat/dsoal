@@ -136,6 +136,9 @@ constexpr DWORD DSPROPERTY_EAX20BUFFER_DEFERRED{0x80000000u};
 #define PREFIX "EAX4Context_Query "
 DWORD EAX4Context_Query(DWORD propid)
 {
+    /* EAX 4.0 Context only (propids 0..6). EAX 5-only properties belong in
+     * EAX5Context_Query so FMOD/apps probing EAX4 do not see EAX5 surface.
+     */
     switch((propid&~EAXCONTEXT_PARAMETER_DEFERRED))
     {
     case EAXCONTEXT_NONE:
@@ -145,9 +148,6 @@ DWORD EAX4Context_Query(DWORD propid)
     case EAXCONTEXT_AIRABSORPTIONHF:
     case EAXCONTEXT_HFREFERENCE:
     case EAXCONTEXT_LASTERROR:
-    case EAXCONTEXT_SPEAKERCONFIG:
-    case EAXCONTEXT_EAXSESSION:
-    case EAXCONTEXT_MACROFXFACTOR:
         return KSPROPERTY_SUPPORT_GET | KSPROPERTY_SUPPORT_SET;
     }
     FIXME("Unhandled propid: {:#010x}", propid);
@@ -166,8 +166,6 @@ DWORD EAX4Slot_Query(DWORD propid)
     case EAXFXSLOT_VOLUME:
     case EAXFXSLOT_LOCK:
     case EAXFXSLOT_FLAGS:
-    case EAXFXSLOT_OCCLUSION:
-    case EAXFXSLOT_OCCLUSIONLFRATIO:
         return KSPROPERTY_SUPPORT_GET | KSPROPERTY_SUPPORT_SET;
     }
     /* FIXME: This should probably only succeed for the available parameters of
@@ -183,6 +181,7 @@ DWORD EAX4Slot_Query(DWORD propid)
 #define PREFIX "EAX4Source_Query "
 DWORD EAX4Source_Query(DWORD propid)
 {
+    /* EAX 4.0 Source: through ACTIVEFXSLOTID only (no EAX5 MACROFX/SPEAKER/2D). */
     switch((propid&~EAXSOURCE_PARAMETER_DEFERRED))
     {
     case EAXSOURCE_NONE:
@@ -213,9 +212,6 @@ DWORD EAX4Source_Query(DWORD propid)
     case EAXSOURCE_OCCLUSIONSENDPARAMETERS:
     case EAXSOURCE_EXCLUSIONSENDPARAMETERS:
     case EAXSOURCE_ACTIVEFXSLOTID:
-    case EAXSOURCE_MACROFXFACTOR:
-    case EAXSOURCE_SPEAKERLEVELS:
-    case EAXSOURCE_ALL2DPARAMETERS:
         return KSPROPERTY_SUPPORT_GET | KSPROPERTY_SUPPORT_SET;
     }
     FIXME("Unhandled propid: {:#010x}", propid);
@@ -226,21 +222,94 @@ DWORD EAX4Source_Query(DWORD propid)
 #define PREFIX "EAX5Context_Query "
 DWORD EAX5Context_Query(DWORD propid)
 {
-    return EAX4Context_Query(propid);
+    /* Creative eax5.h EAXCONTEXT_PROPERTY: 0..9 (NONE .. MACROFXFACTOR). */
+    switch((propid&~EAXCONTEXT_PARAMETER_DEFERRED))
+    {
+    case EAXCONTEXT_NONE:              /* 0 */
+    case EAXCONTEXT_ALLPARAMETERS:     /* 1 */
+    case EAXCONTEXT_PRIMARYFXSLOTID:   /* 2 */
+    case EAXCONTEXT_DISTANCEFACTOR:    /* 3 */
+    case EAXCONTEXT_AIRABSORPTIONHF:   /* 4 */
+    case EAXCONTEXT_HFREFERENCE:       /* 5 */
+    case EAXCONTEXT_LASTERROR:         /* 6 */
+    case EAXCONTEXT_SPEAKERCONFIG:     /* 7 — EAX5 */
+    case EAXCONTEXT_EAXSESSION:        /* 8 — EAX5 */
+    case EAXCONTEXT_MACROFXFACTOR:     /* 9 — EAX5 */
+        return KSPROPERTY_SUPPORT_GET | KSPROPERTY_SUPPORT_SET;
+    }
+    FIXME("Unhandled propid: {:#010x}", propid);
+    return 0;
 }
 #undef PREFIX
 
 #define PREFIX "EAX5Slot_Query "
 DWORD EAX5Slot_Query(DWORD propid)
 {
-    return EAX4Slot_Query(propid);
+    /* EAX5 FXSlot adds OCCLUSION / OCCLUSIONLFRATIO on top of EAX4 slot props.
+     * Effect-parameter range (0..EAXREVERB_FLAGS) still accepted for LOADEFFECT.
+     */
+    switch((propid&~EAXFXSLOT_PARAMETER_DEFERRED))
+    {
+    case EAXFXSLOT_NONE:
+    case EAXFXSLOT_ALLPARAMETERS:
+    case EAXFXSLOT_LOADEFFECT:
+    case EAXFXSLOT_VOLUME:
+    case EAXFXSLOT_LOCK:
+    case EAXFXSLOT_FLAGS:
+    case EAXFXSLOT_OCCLUSION:          /* EAX5 */
+    case EAXFXSLOT_OCCLUSIONLFRATIO:   /* EAX5 */
+        return KSPROPERTY_SUPPORT_GET | KSPROPERTY_SUPPORT_SET;
+    }
+    if((propid&~EAXFXSLOT_PARAMETER_DEFERRED) <= EAXREVERB_FLAGS)
+        return KSPROPERTY_SUPPORT_GET | KSPROPERTY_SUPPORT_SET;
+    FIXME("Unhandled propid: {:#010x}", propid);
+    return 0;
 }
 #undef PREFIX
 
 #define PREFIX "EAX5Source_Query "
 DWORD EAX5Source_Query(DWORD propid)
 {
-    return EAX4Source_Query(propid);
+    /* eax5.h EAXSOURCE_PROPERTY: EAX3/4 set plus MACROFXFACTOR, SPEAKERLEVELS,
+     * ALL2DPARAMETERS (indices through 0x1E).
+     */
+    switch((propid&~EAXSOURCE_PARAMETER_DEFERRED))
+    {
+    case EAXSOURCE_NONE:
+    case EAXSOURCE_ALLPARAMETERS:
+    case EAXSOURCE_OBSTRUCTIONPARAMETERS:
+    case EAXSOURCE_OCCLUSIONPARAMETERS:
+    case EAXSOURCE_EXCLUSIONPARAMETERS:
+    case EAXSOURCE_DIRECT:
+    case EAXSOURCE_DIRECTHF:
+    case EAXSOURCE_ROOM:
+    case EAXSOURCE_ROOMHF:
+    case EAXSOURCE_OBSTRUCTION:
+    case EAXSOURCE_OBSTRUCTIONLFRATIO:
+    case EAXSOURCE_OCCLUSION:
+    case EAXSOURCE_OCCLUSIONLFRATIO:
+    case EAXSOURCE_OCCLUSIONROOMRATIO:
+    case EAXSOURCE_OCCLUSIONDIRECTRATIO:
+    case EAXSOURCE_EXCLUSION:
+    case EAXSOURCE_EXCLUSIONLFRATIO:
+    case EAXSOURCE_OUTSIDEVOLUMEHF:
+    case EAXSOURCE_DOPPLERFACTOR:
+    case EAXSOURCE_ROLLOFFFACTOR:
+    case EAXSOURCE_ROOMROLLOFFFACTOR:
+    case EAXSOURCE_AIRABSORPTIONFACTOR:
+    case EAXSOURCE_FLAGS:
+    case EAXSOURCE_SENDPARAMETERS:
+    case EAXSOURCE_ALLSENDPARAMETERS:
+    case EAXSOURCE_OCCLUSIONSENDPARAMETERS:
+    case EAXSOURCE_EXCLUSIONSENDPARAMETERS:
+    case EAXSOURCE_ACTIVEFXSLOTID:
+    case EAXSOURCE_MACROFXFACTOR:      /* EAX5 */
+    case EAXSOURCE_SPEAKERLEVELS:      /* EAX5 */
+    case EAXSOURCE_ALL2DPARAMETERS:    /* EAX5 */
+        return KSPROPERTY_SUPPORT_GET | KSPROPERTY_SUPPORT_SET;
+    }
+    FIXME("Unhandled propid: {:#010x}", propid);
+    return 0;
 }
 #undef PREFIX
 
