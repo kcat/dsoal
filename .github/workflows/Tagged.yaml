@@ -165,8 +165,11 @@ jobs:
         gh release delete ${{needs.Build.outputs.DSOALCommitTag}} --repo ${{env.DSOALRepo}} --cleanup-tag --yes || true
 
     - name: Release - ${{needs.Build.outputs.DSOALCommitTag}}
+      env:
+        DSOAL_TITLE: ${{needs.Build.outputs.DSOALCommitTitle}}
+        OPENALSOFT_TITLE: ${{needs.Build.outputs.OpenALSoftCommitTitle}}
       run: |
-        gh release create ${{needs.Build.outputs.DSOALCommitTag}} --repo ${{env.DSOALRepo}} --target ${{needs.Build.outputs.DSOALCommitHash}} --generate-notes --latest=true --title "DSOAL v${{needs.Build.outputs.DSOALCommitTag}} + OpenAL Soft v${{needs.Build.outputs.OpenALSoftCommitTag}}" --notes "DSOAL v${{needs.Build.outputs.DSOALCommitTag}}-${{needs.Build.outputs.DSOALCommitHashShort}} ${{needs.Build.outputs.DSOALBranch}} - ${{needs.Build.outputs.DSOALCommitTitle}} [${{needs.Build.outputs.DSOALCommitDate}}]
-        OpenAL Soft v${{needs.Build.outputs.OpenALSoftCommitTag}}-${{needs.Build.outputs.OpenALSoftCommitHashShort}} ${{needs.Build.outputs.OpenALSoftBranch}} - ${{needs.Build.outputs.OpenALSoftCommitTitle}} [${{needs.Build.outputs.OpenALSoftCommitDate}}]
+        gh release create ${{needs.Build.outputs.DSOALCommitTag}} --repo ${{env.DSOALRepo}} --target ${{needs.Build.outputs.DSOALCommitHash}} --generate-notes --latest=true --title "DSOAL v${{needs.Build.outputs.DSOALCommitTag}} + OpenAL Soft v${{needs.Build.outputs.OpenALSoftCommitTag}}" --notes "DSOAL v${{needs.Build.outputs.DSOALCommitTag}}-${{needs.Build.outputs.DSOALCommitHashShort}} ${{needs.Build.outputs.DSOALBranch}} - ${DSOAL_TITLE} [${{needs.Build.outputs.DSOALCommitDate}}]
+        OpenAL Soft v${{needs.Build.outputs.OpenALSoftCommitTag}}-${{needs.Build.outputs.OpenALSoftCommitHashShort}} ${{needs.Build.outputs.OpenALSoftBranch}} - ${OPENALSOFT_TITLE} [${{needs.Build.outputs.OpenALSoftCommitDate}}]
         Build log: https://github.com/${{env.DSOALRepo}}/actions/runs/${{github.run_id}}"
         gh release upload ${{needs.Build.outputs.DSOALCommitTag}} --repo ${{env.DSOALRepo}} --clobber DSOAL.zip DSOAL.7z
