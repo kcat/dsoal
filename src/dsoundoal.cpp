@@ -234,7 +234,7 @@ ds::expected<std::unique_ptr<SharedDevice>,HRESULT> CreateDeviceShare(const GUID
         ExtensionEntry{"AL_EXT_MCFORMATS", EXT_MCFORMATS},
         ExtensionEntry{"AL_EXT_STATIC_BUFFER", EXT_STATIC_BUFFER},
         ExtensionEntry{"AL_SOFT_source_spatialize", SOFT_SOURCE_SPATIALIZE},
-        ExtensionEntry{"AL_SOFTX_source_panning", SOFT_SOURCE_PANNING},
+        ExtensionEntry{"AL_SOFT_source_panning", SOFT_SOURCE_PANNING},
     };
 
     std::bitset<ExtensionCount> extensions{};
