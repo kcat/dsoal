@@ -623,11 +623,14 @@ HRESULT STDMETHODCALLTYPE DSound8OAL::CreateSoundBuffer(const DSBUFFERDESC *buff
                 return DSERR_INVALIDPARAM;
             }
 
-            /* DS7 does, though. No idea what it expects to happen. */
+            /* DS7 does, though. Such buffers pan while 3D processing is
+             * disabled (DS3DMODE_DISABLE), which some games rely on to do
+             * their own positioning while still getting EAX effects.
+             */
             if(static bool once{false}; !once)
             {
                 once = true;
-                FIXME("Secondary buffers with 3D and pan control ignore panning");
+                TRACE("Secondary buffers with 3D and pan control only pan with 3D disabled");
             }
         }
 

@@ -570,6 +570,24 @@ bool Buffer::updateNotify() noexcept
 
 
 #define PREFIX CLASS_PREFIX "setLocation "
+/* Enables panning on a 3D buffer while its 3D processing is disabled, and
+ * disables it otherwise. Needs a source and the mutex held.
+ */
+void Buffer::apply3DPanning() noexcept
+{
+    if(!(mBuffer->mFlags&DSBCAPS_CTRLPAN) || !mParent.haveExtension(SOFT_SOURCE_PANNING))
+        return;
+
+    if(usesPan())
+    {
+        alSourceiDirect(mContext, mSource, AL_PANNING_ENABLED_SOFT, AL_TRUE);
+        const auto panf = (mPan <= 0) ? (mB_to_gain(mPan)-1.0f) : (1.0f-mB_to_gain(-mPan));
+        alSourcefDirect(mContext, mSource, AL_PAN_SOFT, panf);
+    }
+    else
+        alSourceiDirect(mContext, mSource, AL_PANNING_ENABLED_SOFT, AL_FALSE);
+}
+
 HRESULT Buffer::setLocation(LocStatus locStatus) noexcept
 {
     if(locStatus != LocStatus::Any && mLocStatus == locStatus)
@@ -658,6 +676,7 @@ HRESULT Buffer::setLocation(LocStatus locStatus) noexcept
             mB_to_gain(mImmediate.lConeOutsideVolume));
         alSourcefDirect(mContext, mSource, AL_REFERENCE_DISTANCE, mImmediate.flMinDistance);
         alSourcefDirect(mContext, mSource, AL_MAX_DISTANCE, mImmediate.flMaxDistance);
+        apply3DPanning();
     }
     else
     {
@@ -1242,7 +1261,7 @@ HRESULT STDMETHODCALLTYPE Buffer::SetPan(LONG pan) noexcept
 
     auto const lock = std::lock_guard{mMutex};
     mPan = pan;
-    if(!(mBuffer->mFlags&DSBCAPS_CTRL3D) && mSource != 0) [[likely]]
+    if(mSource != 0 && usesPan()) [[likely]]
     {
         if(mParent.haveExtension(SOFT_SOURCE_PANNING))
         {
@@ -1545,6 +1564,7 @@ void Buffer::setParams(const DS3DBUFFER &params, const std::bitset<FlagCount> fl
         }
         alSourceiDirect(mContext, mSource, AL_SOURCE_RELATIVE,
             (params.dwMode!=DS3DMODE_NORMAL) ? AL_TRUE : AL_FALSE);
+        apply3DPanning();
     }
 }
 #undef CLASS_PREFIX
@@ -2026,6 +2046,7 @@ HRESULT STDMETHODCALLTYPE Buffer::Buffer3D::SetMode(DWORD mode, DWORD apply) noe
             }
             alSourceiDirect(self->mContext, self->mSource, AL_SOURCE_RELATIVE,
                 (mode!=DS3DMODE_NORMAL) ? AL_TRUE : AL_FALSE);
+            self->apply3DPanning();
             alGetErrorDirect(self->mContext);
         }
     }

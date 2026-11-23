@@ -245,6 +245,17 @@ class Buffer final : IDirectSoundBuffer8 {
     bool mIsInitialized{false};
 
     HRESULT setLocation(LocStatus locStatus) noexcept;
+    /* DirectSound 7 allows 3D buffers with pan control. While 3D processing is
+     * disabled, those play panned like a 2D buffer.
+     */
+    [[nodiscard]]
+    auto usesPan() const noexcept -> bool
+    {
+        if(!(mBuffer->mFlags&DSBCAPS_CTRL3D))
+            return true;
+        return (mBuffer->mFlags&DSBCAPS_CTRLPAN) && mImmediate.dwMode == DS3DMODE_DISABLE;
+    }
+    void apply3DPanning() noexcept;
 
 public:
     Buffer() = delete;
