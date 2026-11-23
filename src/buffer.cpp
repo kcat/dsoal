@@ -20,12 +20,6 @@
 #include "vmanager.h"
 
 
-#ifndef AL_SOFT_source_panning
-#define AL_SOFT_source_panning
-#define AL_PANNING_ENABLED_SOFT                  0x19EC
-#define AL_PAN_SOFT                              0x19ED
-#endif
-
 namespace {
 
 using voidp = void*;
