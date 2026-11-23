@@ -617,8 +617,34 @@ HRESULT Buffer::setLocation(LocStatus locStatus) noexcept
     alSourcefDirect(mContext, mSource, AL_GAIN, mB_to_gain(mVolume));
     alSourcefDirect(mContext, mSource, AL_PITCH, (mFrequency == 0) ? 1.0f :
         static_cast<float>(mFrequency)/static_cast<float>(mBuffer->mWfxFormat.Format.nSamplesPerSec));
+    if(mParent.haveExtension(SOFT_SOURCE_PANNING))
+    {
+        const auto panf = (mPan <= 0) ? (mB_to_gain(mPan)-1.0f) : (1.0f-mB_to_gain(-mPan));
+        alSourcefDirect(mContext, mSource, AL_PAN_SOFT, panf);
+    }
 
-    if((mBuffer->mFlags&DSBCAPS_CTRL3D))
+    if(!(mBuffer->mFlags&DSBCAPS_CTRL3D))
+    {
+        alSourcefDirect(mContext, mSource, AL_ROLLOFF_FACTOR, 0.0f);
+        alSourceiDirect(mContext, mSource, AL_SOURCE_RELATIVE, AL_TRUE);
+        if(mParent.haveExtension(SOFT_SOURCE_PANNING))
+        {
+            /* Always enable panning for non-3D buffers. This won't have any
+             * effect if mPan is never changed, except for mono buffers that
+             * get split into stereo (which is similar behavior to native).
+             */
+            alSourceiDirect(mContext, mSource, AL_PANNING_ENABLED_SOFT, AL_TRUE);
+        }
+        if(mParent.haveExtension(EXT_EAX))
+        {
+            static std::array<GUID,EAX40_MAX_ACTIVE_FXSLOTS> NullSlots{};
+
+            const auto slots = std::as_writable_bytes(std::span{NullSlots});
+            EAXSetDirect(mContext, &EAXPROPERTYID_EAX40_Source, EAXSOURCE_ACTIVEFXSLOTID, mSource,
+                slots.data(), static_cast<ALuint>(slots.size()));
+        }
+    }
+    else
     {
         if(mImmediate.dwMode == DS3DMODE_DISABLE)
         {
@@ -628,6 +654,8 @@ HRESULT Buffer::setLocation(LocStatus locStatus) noexcept
             alSourcefDirect(mContext, mSource, AL_ROLLOFF_FACTOR, 0.0f);
             if(mParent.haveExtension(SOFT_SOURCE_SPATIALIZE))
                 alSourceiDirect(mContext, mSource, AL_SOURCE_SPATIALIZE_SOFT, AL_FALSE);
+            if(mParent.haveExtension(SOFT_SOURCE_PANNING))
+                alSourceiDirect(mContext, mSource, AL_PANNING_ENABLED_SOFT, AL_TRUE);
         }
         else
         {
@@ -652,30 +680,6 @@ HRESULT Buffer::setLocation(LocStatus locStatus) noexcept
             mB_to_gain(mImmediate.lConeOutsideVolume));
         alSourcefDirect(mContext, mSource, AL_REFERENCE_DISTANCE, mImmediate.flMinDistance);
         alSourcefDirect(mContext, mSource, AL_MAX_DISTANCE, mImmediate.flMaxDistance);
-    }
-    else
-    {
-        alSourcefDirect(mContext, mSource, AL_ROLLOFF_FACTOR, 0.0f);
-        alSourceiDirect(mContext, mSource, AL_SOURCE_RELATIVE, AL_TRUE);
-        if(mParent.haveExtension(SOFT_SOURCE_PANNING))
-        {
-            /* Always enable panning for non-3D buffers. This won't have any
-             * effect if mPan is never changed, except for mono buffers that
-             * get split into stereo (which is similar behavior to native).
-             */
-            alSourceiDirect(mContext, mSource, AL_PANNING_ENABLED_SOFT, AL_TRUE);
-
-            const auto panf = (mPan <= 0) ? (mB_to_gain(mPan)-1.0f) : (1.0f-mB_to_gain(-mPan));
-            alSourcefDirect(mContext, mSource, AL_PAN_SOFT, panf);
-        }
-        if(mParent.haveExtension(EXT_EAX))
-        {
-            static std::array<GUID,EAX40_MAX_ACTIVE_FXSLOTS> NullSlots{};
-
-            const auto slots = std::as_writable_bytes(std::span{NullSlots});
-            EAXSetDirect(mContext, &EAXPROPERTYID_EAX40_Source, EAXSOURCE_ACTIVEFXSLOTID, mSource,
-                slots.data(), static_cast<ALuint>(slots.size()));
-        }
     }
     alGetErrorDirect(mContext);
 
@@ -1236,7 +1240,7 @@ HRESULT STDMETHODCALLTYPE Buffer::SetPan(LONG pan) noexcept
 
     auto const lock = std::lock_guard{mMutex};
     mPan = pan;
-    if(!(mBuffer->mFlags&DSBCAPS_CTRL3D) && mSource != 0) [[likely]]
+    if(mSource != 0) [[likely]]
     {
         if(mParent.haveExtension(SOFT_SOURCE_PANNING))
         {
@@ -1523,6 +1527,8 @@ void Buffer::setParams(const DS3DBUFFER &params, const std::bitset<FlagCount> fl
             alSourcefDirect(mContext, mSource, AL_ROLLOFF_FACTOR, 0.0f);
             if(mParent.haveExtension(SOFT_SOURCE_SPATIALIZE))
                 alSourceiDirect(mContext, mSource, AL_SOURCE_SPATIALIZE_SOFT, AL_FALSE);
+            if(mParent.haveExtension(SOFT_SOURCE_PANNING))
+                alSourceiDirect(mContext, mSource, AL_PANNING_ENABLED_SOFT, AL_TRUE);
         }
         else
         {
@@ -1536,6 +1542,8 @@ void Buffer::setParams(const DS3DBUFFER &params, const std::bitset<FlagCount> fl
                 mParent.getPrimary().getCurrentRolloffFactor());
             if(mParent.haveExtension(SOFT_SOURCE_SPATIALIZE))
                 alSourceiDirect(mContext, mSource, AL_SOURCE_SPATIALIZE_SOFT, AL_TRUE);
+            if(mParent.haveExtension(SOFT_SOURCE_PANNING))
+                alSourceiDirect(mContext, mSource, AL_PANNING_ENABLED_SOFT, AL_FALSE);
         }
         alSourceiDirect(mContext, mSource, AL_SOURCE_RELATIVE,
             (params.dwMode!=DS3DMODE_NORMAL) ? AL_TRUE : AL_FALSE);
@@ -2000,6 +2008,9 @@ HRESULT STDMETHODCALLTYPE Buffer::Buffer3D::SetMode(DWORD mode, DWORD apply) noe
                 if(self->mParent.haveExtension(SOFT_SOURCE_SPATIALIZE))
                     alSourceiDirect(self->mContext, self->mSource, AL_SOURCE_SPATIALIZE_SOFT,
                         AL_FALSE);
+                if(self->mParent.haveExtension(SOFT_SOURCE_PANNING))
+                    alSourceiDirect(self->mContext, self->mSource, AL_PANNING_ENABLED_SOFT,
+                        AL_TRUE);
             }
             else
             {
@@ -2017,6 +2028,9 @@ HRESULT STDMETHODCALLTYPE Buffer::Buffer3D::SetMode(DWORD mode, DWORD apply) noe
                 if(self->mParent.haveExtension(SOFT_SOURCE_SPATIALIZE))
                     alSourceiDirect(self->mContext, self->mSource, AL_SOURCE_SPATIALIZE_SOFT,
                         AL_TRUE);
+                if(self->mParent.haveExtension(SOFT_SOURCE_PANNING))
+                    alSourceiDirect(self->mContext, self->mSource, AL_PANNING_ENABLED_SOFT,
+                        AL_FALSE);
             }
             alSourceiDirect(self->mContext, self->mSource, AL_SOURCE_RELATIVE,
                 (mode!=DS3DMODE_NORMAL) ? AL_TRUE : AL_FALSE);

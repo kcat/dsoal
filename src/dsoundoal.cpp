@@ -613,22 +613,14 @@ HRESULT STDMETHODCALLTYPE DSound8OAL::CreateSoundBuffer(const DSBUFFERDESC *buff
     }
     else
     {
-        /* OpenAL doesn't support playing with 3D and panning at same time. */
-        if((bufdesc.dwFlags&(DSBCAPS_CTRL3D|DSBCAPS_CTRLPAN)) == (DSBCAPS_CTRL3D|DSBCAPS_CTRLPAN))
+        /* DirectSound 8 doesn't support buffers with 3D and panning at the
+         * same time.
+         */
+        if((bufdesc.dwFlags&(DSBCAPS_CTRL3D|DSBCAPS_CTRLPAN)) == (DSBCAPS_CTRL3D|DSBCAPS_CTRLPAN)
+            && mIs8)
         {
-            /* Neither does DirectSound 8. */
-            if(mIs8)
-            {
-                WARN("Cannot create secondary buffers with 3D and pan control");
-                return DSERR_INVALIDPARAM;
-            }
-
-            /* DS7 does, though. No idea what it expects to happen. */
-            if(static bool once{false}; !once)
-            {
-                once = true;
-                FIXME("Secondary buffers with 3D and pan control ignore panning");
-            }
+            WARN("Cannot create secondary buffers with 3D and pan control");
+            return DSERR_INVALIDPARAM;
         }
 
         ComPtr<Buffer> buffer{createSecondaryBuffer()};
