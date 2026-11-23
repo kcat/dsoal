@@ -76,9 +76,46 @@ inline constexpr GUID EAXPROPERTYID_EAX40_Source{
     {0x8B, 0x3C, 0x12, 0x78, 0xCE, 0x54, 0x42, 0x27}
 };
 
+inline constexpr GUID EAXPROPERTYID_EAX50_Context{
+    0x57E13437,
+    0xB932, 0x4AB2,
+    {0xB8, 0xBD, 0x52, 0x66, 0xC1, 0xA8, 0x87, 0xEE}
+};
+
+inline constexpr GUID EAXPROPERTYID_EAX50_FXSlot0{
+    0x91F9590F,
+    0xC388, 0x407A,
+    {0x84, 0xB0, 0x1B, 0xAE, 0x0E, 0xF7, 0x1A, 0xBC}
+};
+
+inline constexpr GUID EAXPROPERTYID_EAX50_FXSlot1{
+    0x8F5F7ACA,
+    0x9608, 0x4965,
+    {0x81, 0x37, 0x82, 0x13, 0xC7, 0xB9, 0xD9, 0xDE}
+};
+
+inline constexpr GUID EAXPROPERTYID_EAX50_FXSlot2{
+    0x3C0F5252,
+    0x9834, 0x46F0,
+    {0xA1, 0xD8, 0x5B, 0x95, 0xC4, 0xA0, 0x0A, 0x30}
+};
+
+inline constexpr GUID EAXPROPERTYID_EAX50_FXSlot3{
+    0xE2EB0EAA,
+    0xE806, 0x45E7,
+    {0x9F, 0x86, 0x06, 0xC1, 0x57, 0x1A, 0x6F, 0xA3}
+};
+
+inline constexpr GUID EAXPROPERTYID_EAX50_Source{
+    0x5EDF82F0,
+    0x24A7, 0x4F38,
+    {0x8E, 0x64, 0x2F, 0x09, 0xCA, 0x05, 0xDE, 0xE1}
+};
+
 inline constexpr auto EAX_MAX_FXSLOTS = 4;
 
 inline constexpr auto EAX40_MAX_ACTIVE_FXSLOTS = 2;
+inline constexpr auto EAX50_MAX_ACTIVE_FXSLOTS = 4;
 
 // Source object properties
 enum EAXSOURCE_PROPERTY : unsigned int {
@@ -124,6 +161,10 @@ enum EAXSOURCE_PROPERTY : unsigned int {
 DWORD EAX4Context_Query(DWORD propid);
 DWORD EAX4Slot_Query(DWORD propid);
 DWORD EAX4Source_Query(DWORD propid);
+
+DWORD EAX5Context_Query(DWORD propid);
+DWORD EAX5Slot_Query(DWORD propid);
+DWORD EAX5Source_Query(DWORD propid);
 
 DWORD EAX3_Query(DWORD propid);
 DWORD EAX3Buffer_Query(DWORD propid);

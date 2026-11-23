@@ -3,7 +3,7 @@
 This project is for a DirectSound DLL replacement. It implements the
 DirectSound interfaces by translating the calls to OpenAL, and fools
 applications into thinking there is a hardware accelerated sound device. EAX is
-also implemented (up to version 4) by using OpenAL's EAX extension, allowing
+also implemented (up to version 5) by using OpenAL's EAX extension, allowing
 for environmental reverb with sound obstruction and occlusion effects.
 
 Effectively, this allows DirectSound applications to enable their DirectSound3D

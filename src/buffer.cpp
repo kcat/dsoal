@@ -2155,15 +2155,21 @@ HRESULT STDMETHODCALLTYPE Buffer::Prop::Get(REFGUID guidPropSet, ULONG dwPropID,
     auto self = impl_from_base();
     auto const lock = std::lock_guard{self->mMutex};
     if(guidPropSet == EAXPROPERTYID_EAX40_Source
+        || guidPropSet == EAXPROPERTYID_EAX50_Source
         || guidPropSet == DSPROPSETID_EAX30_BufferProperties
         || guidPropSet == DSPROPSETID_EAX20_BufferProperties
         || guidPropSet == EAXPROPERTYID_EAX40_FXSlot0
         || guidPropSet == EAXPROPERTYID_EAX40_FXSlot1
         || guidPropSet == EAXPROPERTYID_EAX40_FXSlot2
         || guidPropSet == EAXPROPERTYID_EAX40_FXSlot3
+        || guidPropSet == EAXPROPERTYID_EAX50_FXSlot0
+        || guidPropSet == EAXPROPERTYID_EAX50_FXSlot1
+        || guidPropSet == EAXPROPERTYID_EAX50_FXSlot2
+        || guidPropSet == EAXPROPERTYID_EAX50_FXSlot3
         || guidPropSet == DSPROPSETID_EAX30_ListenerProperties
         || guidPropSet == DSPROPSETID_EAX20_ListenerProperties
         || guidPropSet == EAXPROPERTYID_EAX40_Context
+        || guidPropSet == EAXPROPERTYID_EAX50_Context
         || guidPropSet == DSPROPSETID_EAX10_ListenerProperties
         || guidPropSet == DSPROPSETID_EAX10_BufferProperties)
     {
@@ -2247,6 +2253,7 @@ HRESULT STDMETHODCALLTYPE Buffer::Prop::Set(REFGUID guidPropSet, ULONG dwPropID,
     auto self = impl_from_base();
     auto const lock = std::lock_guard{self->mMutex};
     if(guidPropSet == EAXPROPERTYID_EAX40_Source
+        || guidPropSet == EAXPROPERTYID_EAX50_Source
         || guidPropSet == DSPROPSETID_EAX30_BufferProperties
         || guidPropSet == DSPROPSETID_EAX20_BufferProperties
         || guidPropSet == DSPROPSETID_EAX10_BufferProperties)
@@ -2290,9 +2297,14 @@ HRESULT STDMETHODCALLTYPE Buffer::Prop::Set(REFGUID guidPropSet, ULONG dwPropID,
         || guidPropSet == EAXPROPERTYID_EAX40_FXSlot1
         || guidPropSet == EAXPROPERTYID_EAX40_FXSlot2
         || guidPropSet == EAXPROPERTYID_EAX40_FXSlot3
+        || guidPropSet == EAXPROPERTYID_EAX50_FXSlot0
+        || guidPropSet == EAXPROPERTYID_EAX50_FXSlot1
+        || guidPropSet == EAXPROPERTYID_EAX50_FXSlot2
+        || guidPropSet == EAXPROPERTYID_EAX50_FXSlot3
         || guidPropSet == DSPROPSETID_EAX30_ListenerProperties
         || guidPropSet == DSPROPSETID_EAX20_ListenerProperties
         || guidPropSet == EAXPROPERTYID_EAX40_Context
+        || guidPropSet == EAXPROPERTYID_EAX50_Context
         || guidPropSet == DSPROPSETID_EAX10_ListenerProperties)
     {
         if(self->mParent.haveExtension(EXT_EAX))
@@ -2368,6 +2380,8 @@ HRESULT STDMETHODCALLTYPE Buffer::Prop::QuerySupport(REFGUID guidPropSet, ULONG 
         {
             if(guidPropSet == EAXPROPERTYID_EAX40_Source)
                 return EAX4Source_Query(dwPropID);
+            if(guidPropSet == EAXPROPERTYID_EAX50_Source)
+                return EAX5Source_Query(dwPropID);
             if(guidPropSet == DSPROPSETID_EAX30_BufferProperties)
                 return EAX3Buffer_Query(dwPropID);
             if(guidPropSet == DSPROPSETID_EAX20_BufferProperties)
@@ -2377,12 +2391,19 @@ HRESULT STDMETHODCALLTYPE Buffer::Prop::QuerySupport(REFGUID guidPropSet, ULONG 
                 || guidPropSet == EAXPROPERTYID_EAX40_FXSlot2
                 || guidPropSet == EAXPROPERTYID_EAX40_FXSlot3)
                 return EAX4Slot_Query(dwPropID);
+            if(guidPropSet == EAXPROPERTYID_EAX50_FXSlot0
+                || guidPropSet == EAXPROPERTYID_EAX50_FXSlot1
+                || guidPropSet == EAXPROPERTYID_EAX50_FXSlot2
+                || guidPropSet == EAXPROPERTYID_EAX50_FXSlot3)
+                return EAX5Slot_Query(dwPropID);
             if(guidPropSet == DSPROPSETID_EAX30_ListenerProperties)
                 return EAX3_Query(dwPropID);
             if(guidPropSet == DSPROPSETID_EAX20_ListenerProperties)
                 return EAX2_Query(dwPropID);
             if(guidPropSet == EAXPROPERTYID_EAX40_Context)
                 return EAX4Context_Query(dwPropID);
+            if(guidPropSet == EAXPROPERTYID_EAX50_Context)
+                return EAX5Context_Query(dwPropID);
             if(guidPropSet == DSPROPSETID_EAX10_ListenerProperties)
                 return EAX1_Query(dwPropID);
             if(guidPropSet == DSPROPSETID_EAX10_BufferProperties)
